@@ -98,7 +98,7 @@ export default function PaymentSettingsPage() {
                   <Building className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Manual Bank Transfer</p>
+                  <p className="font-semibold text-foreground">Manual Bank Transfer</p>
                   <p className="text-sm text-muted-foreground">Students upload a deposit slip for manual approval</p>
                 </div>
               </div>
@@ -114,7 +114,7 @@ export default function PaymentSettingsPage() {
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white">Online Card Payment</p>
+                  <p className="font-semibold text-foreground">Online Card Payment</p>
                   <p className="text-sm text-muted-foreground">Process payments automatically via Stripe/PayHere</p>
                 </div>
               </div>
@@ -234,3 +234,4 @@ export default function PaymentSettingsPage() {
     </div>
   );
 }
+

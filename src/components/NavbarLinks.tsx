@@ -22,7 +22,7 @@ export default function NavbarLinks() {
         >
           <Link
             href={link.href}
-            className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
+            className="text-foreground/90 hover:text-[#d4af37] transition-all duration-200"
           >
             {link.label}
           </Link>
@@ -42,7 +42,7 @@ export default function NavbarLinks() {
       >
         <Link
           href="/leaderboard"
-          className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
+          className="text-foreground/90 hover:text-[#d4af37] transition-all duration-200"
         >
           Leaderboard
         </Link>
@@ -50,3 +50,4 @@ export default function NavbarLinks() {
     </nav>
   );
 }
+

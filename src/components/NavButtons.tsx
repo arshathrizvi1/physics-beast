@@ -18,7 +18,7 @@ export default function NavButtons() {
         </Link>
         <Button 
           onClick={logout} 
-          className="bg-[#1a1a1a] text-white hover:bg-zinc-800 border border-zinc-800 rounded-lg whitespace-nowrap h-9 px-4 text-xs md:text-sm font-semibold transition-colors shadow-none"
+          className="bg-secondary text-foreground hover:bg-zinc-800 border border-border rounded-lg whitespace-nowrap h-9 px-4 text-xs md:text-sm font-semibold transition-colors shadow-none"
         >
           Logout
         </Button>
@@ -32,3 +32,4 @@ export default function NavButtons() {
     </Link>
   );
 }
+

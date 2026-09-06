@@ -231,7 +231,7 @@ export default function StudentLivePortal() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       {cls.status === 'live' ? (
-                        <span className="bg-red-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full animate-pulse shadow-lg flex items-center gap-1.5">
+                        <span className="bg-red-500 text-foreground text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full animate-pulse shadow-lg flex items-center gap-1.5">
                           <span className="w-2 h-2 bg-white rounded-full"></span> LIVE NOW
                         </span>
                       ) : (
@@ -257,7 +257,7 @@ export default function StudentLivePortal() {
                   {/* Action Buttons for non-youtube links */}
                   {cls.status === 'live' && cls.platform !== 'youtube' && (
                     <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
-                      <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse">
+                      <Button size="lg" className="bg-red-600 hover:bg-red-700 text-foreground font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse">
                         <PlayCircle className="w-6 h-6 mr-2" /> JOIN {cls.platform.toUpperCase()} MEETING
                       </Button>
                     </a>
@@ -358,7 +358,7 @@ export default function StudentLivePortal() {
                           top: `20%`,
                         }}
                       >
-                        <span className="text-xs font-semibold text-white/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
+                        <span className="text-xs font-semibold text-foreground/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
                           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
                           {user.email}
                         </span>
@@ -366,7 +366,7 @@ export default function StudentLivePortal() {
 
                       {/* Custom Controls Overlay */}
                       <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
-                        <div className="flex items-center justify-between text-white mt-1">
+                        <div className="flex items-center justify-between text-foreground mt-1">
                           <div className="flex items-center gap-5">
                             <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
                               {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
@@ -413,7 +413,7 @@ export default function StudentLivePortal() {
                       </div>
                     </>
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-zinc-900 border-t border-zinc-800">
+                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-zinc-900 border-t border-border">
                       <p className="text-red-400 mb-4">Invalid YouTube Link format. Click below to open directly.</p>
                       <a href={cls.link} target="_blank" rel="noreferrer">
                         <Button variant="outline"><ExternalLink className="w-4 h-4 mr-2" /> Open in YouTube</Button>
@@ -434,3 +434,4 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+

@@ -243,8 +243,8 @@ export default function AdminLiveStudio() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-lg leading-tight">{cls.title}</h3>
                       <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${
-                        cls.status === 'live' ? 'bg-red-500 text-white animate-pulse' : 
-                        cls.status === 'scheduled' ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-800 text-zinc-400'
+                        cls.status === 'live' ? 'bg-red-500 text-foreground animate-pulse' : 
+                        cls.status === 'scheduled' ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-800 text-muted-foreground'
                       }`}>
                         {cls.status}
                       </span>
@@ -262,12 +262,12 @@ export default function AdminLiveStudio() {
                   
                   <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
                     {cls.status === 'scheduled' && (
-                      <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-white w-full">
+                      <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-foreground w-full">
                         <PlayCircle className="w-4 h-4 mr-2" /> GO LIVE
                       </Button>
                     )}
                     {cls.status === 'live' && (
-                      <Button size="sm" onClick={() => updateStatus(cls.id, 'ended')} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white w-full">
+                      <Button size="sm" onClick={() => updateStatus(cls.id, 'ended')} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-foreground w-full">
                         <StopCircle className="w-4 h-4 mr-2" /> End Broadcast
                       </Button>
                     )}
@@ -340,3 +340,4 @@ export default function AdminLiveStudio() {
     </div>
   );
 }
+

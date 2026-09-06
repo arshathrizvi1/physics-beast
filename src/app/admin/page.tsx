@@ -930,7 +930,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
               <Settings className="w-6 h-6" /> Admin Portal
             </CardTitle>
-            <CardDescription className="text-zinc-400">Restricted system access.</CardDescription>
+            <CardDescription className="text-muted-foreground">Restricted system access.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -941,12 +941,12 @@ export default function AdminDashboard() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="admin-email" className="text-zinc-300">Admin Email</Label>
-                <Input id="admin-email" type="email" placeholder="admin@physicsbeast.com" className="bg-zinc-900 border-zinc-800 text-white" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Label htmlFor="admin-email" className="text-foreground/90">Admin Email</Label>
+                <Input id="admin-email" type="email" placeholder="admin@physicsbeast.com" className="bg-zinc-900 border-border text-foreground" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="admin-password" className="text-zinc-300">Password</Label>
-                <Input id="admin-password" type="password" className="bg-zinc-900 border-zinc-800 text-white" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Label htmlFor="admin-password" className="text-foreground/90">Password</Label>
+                <Input id="admin-password" type="password" className="bg-zinc-900 border-border text-foreground" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full bg-primary hover:bg-primary/80 text-black font-bold">Authenticate</Button>
             </form>
@@ -988,7 +988,7 @@ export default function AdminDashboard() {
           </p>
           <div className="bg-black/50 p-4 rounded-lg inline-block text-left text-sm text-red-200">
             <ol className="list-decimal pl-5 space-y-2">
-              <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="underline font-bold text-white">Firebase Console</a>.</li>
+              <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="underline font-bold text-foreground">Firebase Console</a>.</li>
               <li>Click <b>Build</b> --- <b>Firestore Database</b>. (Do NOT click Realtime Database).</li>
               <li>Click <b>Create Database</b>.</li>
               <li>Select <b>Start in Test Mode</b> and click Enable.</li>
@@ -1319,7 +1319,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprovePayment(p.id, p.studentId, p.folderId)}>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-foreground" onClick={() => handleApprovePayment(p.id, p.studentId, p.folderId)}>
                                 Approve (30 Days)
                               </Button>
                               <Button size="sm" variant="outline" className="text-red-500 hover:bg-red-500/10" onClick={() => handleRejectPayment(p.id)}>
@@ -1487,7 +1487,7 @@ export default function AdminDashboard() {
                                 ))}
                               </select>
                               <div className="flex gap-1 justify-end">
-                                <button onClick={() => handleSaveCourse(c.id)} className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs flex items-center gap-1">
+                                <button onClick={() => handleSaveCourse(c.id)} className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-foreground rounded text-xs flex items-center gap-1">
                                   <Save className="w-3 h-3" /> Save
                                 </button>
                                 <button onClick={() => setEditingCourseId(null)} className="px-2 py-0.5 hover:bg-secondary/60 rounded text-xs">
@@ -1591,7 +1591,7 @@ export default function AdminDashboard() {
                               <Input value={editFolderName} onChange={e => setEditFolderName(e.target.value)} placeholder="Folder Name" className="h-8" />
                               <Input type="number" value={editFolderPrice} onChange={e => setEditFolderPrice(e.target.value)} placeholder="Price" className="h-8" />
                               <div className="flex gap-2">
-                                <Button size="sm" onClick={() => handleSaveFolder(f.id)} className="h-7 bg-green-600 hover:bg-green-700 text-white">Save</Button>
+                                <Button size="sm" onClick={() => handleSaveFolder(f.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save</Button>
                                 <Button size="sm" variant="outline" onClick={() => setEditingFolderId(null)} className="h-7">Cancel</Button>
                               </div>
                             </div>
@@ -1697,8 +1697,8 @@ export default function AdminDashboard() {
                             <Button size="sm" variant="secondary" onClick={() => setSelectedStudentInfo(req)}>
                               <Eye className="w-4 h-4 mr-1" /> View Details
                             </Button>
-                            <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-white" onClick={() => handleRejectStudent(req.id)}>Reject</Button>
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApproveStudent(req.id)}>Approve</Button>
+                            <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-foreground" onClick={() => handleRejectStudent(req.id)}>Reject</Button>
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-foreground" onClick={() => handleApproveStudent(req.id)}>Approve</Button>
                           </div>
                         </div>
                       </div>
@@ -1881,7 +1881,7 @@ export default function AdminDashboard() {
                             <Input value={editVideoTitle || ""} onChange={e => setEditVideoTitle(e.target.value)} placeholder="Video Title" className="h-8" />
                             <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Video URL" className="h-8" />
                             <div className="flex gap-2 pt-1">
-                              <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-white">Save</Button>
+                              <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save</Button>
                               <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-7">Cancel</Button>
                             </div>
                           </div>
@@ -1976,7 +1976,7 @@ export default function AdminDashboard() {
                                         <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Stream URL" className="h-8 flex-1 font-mono text-xs" />
                                       </div>
                                       <div className="flex gap-2 pt-1">
-                                        <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-white">Save Changes</Button>
+                                        <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save Changes</Button>
                                         <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-7">Cancel</Button>
                                       </div>
                                     </div>
@@ -2366,7 +2366,7 @@ export default function AdminDashboard() {
                                     />
                                     <button 
                                       onClick={() => handleSaveTeacherSubject(member.id, editTeacherSubjectValue)}
-                                      className="p-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      className="p-1 bg-green-600 hover:bg-green-700 text-foreground rounded text-xs"
                                       title="Save Subject"
                                     >
                                       <Save className="w-3.5 h-3.5" />
@@ -2579,9 +2579,9 @@ export default function AdminDashboard() {
                   {/* Upload overlay */}
                   <label className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     {profilePhotoUploading ? (
-                      <span className="text-white text-xs font-bold animate-pulse">Uploading...</span>
+                      <span className="text-foreground text-xs font-bold animate-pulse">Uploading...</span>
                     ) : (
-                      <div className="flex flex-col items-center text-white">
+                      <div className="flex flex-col items-center text-foreground">
                         <Camera className="w-6 h-6 mb-1" />
                         <span className="text-xs font-semibold">Change</span>
                       </div>
@@ -2855,7 +2855,7 @@ export default function AdminDashboard() {
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          className="bg-green-600 hover:bg-green-700 text-foreground"
                           onClick={() => {
                             handleApproveStudent(selectedStudentInfo.id);
                             setSelectedStudentInfo(null);
@@ -3229,6 +3229,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 

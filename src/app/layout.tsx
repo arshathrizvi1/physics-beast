@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-[#0a0a0a]`}>
+      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -38,7 +38,7 @@ export default function RootLayout({
                 {children}
               </main>
 
-              <footer className="border-t border-zinc-900 py-12 bg-[#070707] pb-24 md:pb-12">
+              <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12">
                 <FooterContent />
               </footer>
               <MobileBottomNav />
@@ -50,3 +50,4 @@ export default function RootLayout({
     </html>
   );
 }
+

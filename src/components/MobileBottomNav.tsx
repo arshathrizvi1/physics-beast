@@ -26,7 +26,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-md border-t border-zinc-800 pb-safe">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-safe">
       <div className="flex items-center justify-around h-16">
         {links.map((link) => {
           const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
@@ -35,7 +35,7 @@ export function MobileBottomNav() {
               key={link.name} 
               href={link.href}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? "text-[#d4af37]" : "text-zinc-500 hover:text-zinc-300"
+                isActive ? "text-[#d4af37]" : "text-zinc-500 hover:text-foreground/90"
               }`}
             >
               <link.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]" : ""}`} />
@@ -49,3 +49,4 @@ export function MobileBottomNav() {
     </div>
   );
 }
+

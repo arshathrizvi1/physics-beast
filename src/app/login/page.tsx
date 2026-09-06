@@ -244,7 +244,7 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-xs text-white font-bold">{isUploadingPfp ? "Uploading..." : "Change PFP"}</span>
+                <span className="text-xs text-foreground font-bold">{isUploadingPfp ? "Uploading..." : "Change PFP"}</span>
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
             </label>
@@ -637,4 +637,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
 

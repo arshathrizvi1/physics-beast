@@ -193,7 +193,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
 
                       return (
                         <div key={opt.id} className={`p-4 rounded-lg border ${bgClass} flex items-center gap-3 transition-all`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isActualCorrect ? 'bg-green-500 text-white' : isSelected && !isCorrect ? 'bg-destructive text-white' : 'bg-secondary text-muted-foreground'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isActualCorrect ? 'bg-green-500 text-foreground' : isSelected && !isCorrect ? 'bg-destructive text-foreground' : 'bg-secondary text-muted-foreground'}`}>
                             {opt.id}
                           </div>
                           <span className={`${textClass} leading-tight`}>{opt.text}</span>

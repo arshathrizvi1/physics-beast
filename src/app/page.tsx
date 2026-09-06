@@ -153,7 +153,7 @@ export default function Home() {
       <AnimatePresence>
         {!loadingComplete && (
           <motion.div
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0a0a]"
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeInOut" } }}
           >
@@ -164,7 +164,7 @@ export default function Home() {
               className="flex flex-col items-center"
             >
               <GraduationCap className="w-20 h-20 text-[#d4af37] mb-4 drop-shadow-[0_0_15px_rgba(212,175,55,0.8)]" />
-              <h1 className="text-4xl font-bold tracking-wider text-white">BRILLIANT <span className="text-[#d4af37]">ACADEMY</span></h1>
+              <h1 className="text-4xl font-bold tracking-wider text-foreground">BRILLIANT <span className="text-[#d4af37]">ACADEMY</span></h1>
               <motion.div 
                 className="w-48 h-1 bg-white/20 mt-6 rounded-full overflow-hidden"
               >
@@ -180,7 +180,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-300 font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
+      <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
         
         {/* 3. Hero Background Particles */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
@@ -228,7 +228,7 @@ export default function Home() {
         <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 space-y-8">
             {/* 5. Heading Text Animation */}
-            <h1 className="text-5xl lg:text-7xl font-extrabold text-white leading-[1.1]">
+            <h1 className="text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1]">
               {headingText.map((word, i) => (
                 <motion.span
                   key={i}
@@ -247,7 +247,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={loadingComplete ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.6, duration: 0.8 }}
-              className="text-lg lg:text-xl text-zinc-400 max-w-xl"
+              className="text-lg lg:text-xl text-muted-foreground max-w-xl"
             >
               Learn from expert instructors, gain in-demand skills, and turn your goals into real opportunities with Brilliant Academy.
             </motion.p>
@@ -260,14 +260,14 @@ export default function Home() {
               className="max-w-xl relative group"
             >
               <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/30 to-[#d4af37]/0 rounded-full blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-              <div className="relative flex items-center bg-[#1a1a1a] border border-zinc-800 rounded-full p-2 pl-6 shadow-2xl">
+              <div className="relative flex items-center bg-secondary border border-border rounded-full p-2 pl-6 shadow-2xl">
                 <Search className="w-5 h-5 text-zinc-500 mr-3" />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={e => handleSearch(e.target.value)}
                   placeholder="Search courses, videos..."
-                  className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-zinc-600"
+                  className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-zinc-600"
                 />
                 <Button className="rounded-full bg-[#d4af37] hover:bg-[#b5952f] text-black font-semibold px-8 h-12 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]">
                   Search
@@ -279,19 +279,19 @@ export default function Home() {
                 whileTap={{ scale: 0.95 }}
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37] via-[#f9e596] to-[#d4af37] rounded-full blur opacity-75 group-hover:opacity-100 animate-pulse transition duration-1000" />
-                <Link href="/courses" className="relative flex items-center justify-center bg-black px-8 py-4 rounded-full border border-[#d4af37]/50 text-white font-bold tracking-wider hover:bg-zinc-900 transition-colors">
+                <Link href="/courses" className="relative flex items-center justify-center bg-black px-8 py-4 rounded-full border border-[#d4af37]/50 text-foreground font-bold tracking-wider hover:bg-zinc-900 transition-colors">
                   START LEARNING
                 </Link>
               </motion.div>
               {/* Search Dropdown Results */}
               {showSearch && searchResults.length > 0 && (
-                <div className="absolute top-full mt-2 w-full bg-[#1a1a1a] border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                <div className="absolute top-full mt-2 w-full bg-secondary border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
                   {searchResults.map((r, i) => (
                     <Link key={i} href={`/course/${r.id}`} onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0">
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800 transition-colors border-b border-border/50 last:border-0">
                       {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
                       <div className="overflow-hidden">
-                        <div className="text-white text-sm font-medium truncate">{r.title}</div>
+                        <div className="text-foreground text-sm font-medium truncate">{r.title}</div>
                         <div className="text-zinc-500 text-xs truncate">{r.subtitle}</div>
                       </div>
                     </Link>
@@ -299,7 +299,7 @@ export default function Home() {
                 </div>
               )}
               {showSearch && searchResults.length === 0 && searchQuery.trim() && (
-                <div className="absolute top-full mt-2 w-full bg-[#1a1a1a] border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                <div className="absolute top-full mt-2 w-full bg-secondary border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
                   <div className="px-5 py-4 text-zinc-500 text-sm">No results found for "{searchQuery}"</div>
                 </div>
               )}
@@ -311,9 +311,9 @@ export default function Home() {
               transition={{ delay: 1, duration: 0.8 }}
               className="flex flex-wrap items-center gap-3 text-sm text-zinc-500"
             >
-              <span className="font-semibold text-zinc-400">Popular:</span>
+              <span className="font-semibold text-muted-foreground">Popular:</span>
               {courses.slice(0, 5).map(c => (
-                <Link key={c.id} href={`/course/${c.id}`} className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
+                <Link key={c.id} href={`/course/${c.id}`} className="px-3 py-1 rounded-full bg-zinc-900 border border-border hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
                   {c.name}
                 </Link>
               ))}
@@ -330,7 +330,7 @@ export default function Home() {
             <motion.div
               animate={{ y: [-10, 10, -10] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="relative w-full max-w-[500px] mx-auto aspect-square rounded-[2rem] overflow-hidden border border-zinc-800 bg-gradient-to-b from-zinc-900 to-black shadow-2xl"
+              className="relative w-full max-w-[500px] mx-auto aspect-square rounded-[2rem] overflow-hidden border border-border bg-gradient-to-b from-zinc-900 to-black shadow-2xl"
             >
               {/* Fallback image if Unsplash fails, using generic student stock style */}
               <img 
@@ -344,14 +344,14 @@ export default function Home() {
               <motion.div 
                 animate={{ y: [-5, 5, -5] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-8 right-[-20px] bg-[#111] border border-[#d4af37]/30 p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-4"
+                className="absolute bottom-8 right-[-20px] bg-card border border-[#d4af37]/30 p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-4"
               >
                 <div className="w-12 h-12 bg-[#d4af37]/20 rounded-full flex items-center justify-center">
                   <Award className="w-6 h-6 text-[#d4af37]" />
                 </div>
                 <div>
-                  <p className="text-white font-bold text-sm">Quality Education</p>
-                  <p className="text-zinc-400 text-xs">For a Brighter Tomorrow</p>
+                  <p className="text-foreground font-bold text-sm">Quality Education</p>
+                  <p className="text-muted-foreground text-xs">For a Brighter Tomorrow</p>
                 </div>
               </motion.div>
             </motion.div>
@@ -359,7 +359,7 @@ export default function Home() {
         </section>
 
         {/* 7. Feature Cards Animation (Scroll Reveal) */}
-        <section className="border-y border-zinc-900 bg-[#0c0c0c] relative z-10">
+        <section className="border-y border-border/50 bg-[#0c0c0c] relative z-10">
           <div className="container mx-auto px-6 py-8">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               {[
@@ -378,10 +378,10 @@ export default function Home() {
                   transition={{ delay: i * 0.1, duration: 0.6 }}
                   className="flex flex-col items-center text-center gap-3 p-4 rounded-2xl hover:bg-zinc-900 transition-colors group cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-[#d4af37]/50 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all">
+                  <div className="w-14 h-14 rounded-full bg-zinc-900 border border-border flex items-center justify-center group-hover:border-[#d4af37]/50 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all">
                     <feature.icon className="w-6 h-6 text-[#d4af37]" />
                   </div>
-                  <h3 className="text-sm font-semibold text-zinc-300 group-hover:text-white transition-colors">{feature.title}</h3>
+                  <h3 className="text-sm font-semibold text-foreground/90 group-hover:text-foreground transition-colors">{feature.title}</h3>
                 </motion.div>
               ))}
             </div>
@@ -403,11 +403,11 @@ export default function Home() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="flex flex-col items-center justify-center text-center p-8 bg-[#111] rounded-3xl border border-zinc-900 relative overflow-hidden group"
+                className="flex flex-col items-center justify-center text-center p-8 bg-card rounded-3xl border border-border/50 relative overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-[#d4af37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 <stat.icon className="w-8 h-8 text-[#d4af37] mb-4 opacity-80 group-hover:scale-110 transition-transform" />
-                <h3 className="text-4xl font-bold text-white mb-2">
+                <h3 className="text-4xl font-bold text-foreground mb-2">
                   <Counter end={stat.num} suffix={stat.suffix} duration={2} />
                 </h3>
                 <p className="text-zinc-500 text-sm uppercase tracking-wider">{stat.label}</p>
@@ -417,7 +417,7 @@ export default function Home() {
         </section>
 
         {/* Popular Courses Section */}
-        <section className="bg-[#0c0c0c] py-24 relative z-10 border-t border-zinc-900">
+        <section className="bg-[#0c0c0c] py-24 relative z-10 border-t border-border/50">
           <div className="container mx-auto px-6">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
@@ -426,8 +426,8 @@ export default function Home() {
               className="flex justify-between items-end mb-12"
             >
               <div>
-                <h2 className="text-4xl font-bold text-white mb-4">Popular Courses</h2>
-                <p className="text-zinc-400">Explore our most in-demand courses and start learning today.</p>
+                <h2 className="text-4xl font-bold text-foreground mb-4">Popular Courses</h2>
+                <p className="text-muted-foreground">Explore our most in-demand courses and start learning today.</p>
               </div>
               <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors">
                 View All Courses <ArrowRight className="w-4 h-4" />
@@ -445,7 +445,7 @@ export default function Home() {
                   className="group"
                 >
                   <Link href={`/course/${course.id}`}>
-                    <Card className="bg-[#111] border-zinc-800 hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                    <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
                       <div className="relative h-48 overflow-hidden bg-zinc-900">
                         {/* 11. Course Image Hover Animation */}
                         <motion.img 
@@ -458,15 +458,15 @@ export default function Home() {
                         <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
                       </div>
                       <CardHeader className="p-5 pb-0 flex-1">
-                        <CardTitle className="text-xl font-bold text-white group-hover:text-[#d4af37] transition-colors">{course.name}</CardTitle>
+                        <CardTitle className="text-xl font-bold text-foreground group-hover:text-[#d4af37] transition-colors">{course.name}</CardTitle>
                         {course.description && (
-                          <CardDescription className="text-zinc-400 line-clamp-2 mt-2">
+                          <CardDescription className="text-muted-foreground line-clamp-2 mt-2">
                             {course.description}
                           </CardDescription>
                         )}
                       </CardHeader>
-                      <CardFooter className="p-5 pt-4 flex justify-between items-center text-sm border-t border-zinc-800/50 mt-4">
-                        <div className="flex items-center gap-2 text-zinc-400">
+                      <CardFooter className="p-5 pt-4 flex justify-between items-center text-sm border-t border-border/50 mt-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                           <Users className="w-4 h-4" />
                           <span>{Math.floor(Math.random() * 200 + 50)} students</span>
                         </div>
@@ -481,7 +481,7 @@ export default function Home() {
               )) : (
                 // Skeleton placeholders if no courses fetched yet
                 [...Array(4)].map((_, i) => (
-                  <Card key={i} className="bg-[#111] border-zinc-800 h-[320px] animate-pulse">
+                  <Card key={i} className="bg-card border-border h-[320px] animate-pulse">
                     <div className="h-48 bg-zinc-900" />
                     <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
                   </Card>
@@ -494,7 +494,7 @@ export default function Home() {
         {/* 13. About Section Animation */}
         <section className="py-24 relative z-10 overflow-hidden">
           <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row items-center gap-16 bg-[#111] border border-zinc-800 rounded-[2.5rem] p-8 lg:p-16">
+            <div className="flex flex-col lg:flex-row items-center gap-16 bg-card border border-border rounded-[2.5rem] p-8 lg:p-16">
               
               <motion.div 
                 initial={{ opacity: 0, x: -50 }}
@@ -503,15 +503,15 @@ export default function Home() {
                 transition={{ duration: 0.8 }}
                 className="flex-1 space-y-8"
               >
-                <h2 className="text-4xl lg:text-5xl font-bold text-white">
+                <h2 className="text-4xl lg:text-5xl font-bold text-foreground">
                   Why Choose <span className="text-[#d4af37]">Brilliant Academy?</span>
                 </h2>
-                <p className="text-lg text-zinc-400">
+                <p className="text-lg text-muted-foreground">
                   We are committed to providing high-quality education, practical skills, and real opportunities to help you achieve your goals. Our instructors are industry veterans dedicated to your success.
                 </p>
                 <ul className="space-y-4">
                   {["Industry-Relevant Courses", "Learn from Anywhere", "Join a Supportive Community", "Build Your Career Today"].map((item, i) => (
-                    <li key={i} className="flex items-center gap-4 text-zinc-300 font-medium">
+                    <li key={i} className="flex items-center gap-4 text-foreground/90 font-medium">
                       <div className="w-8 h-8 rounded-full bg-[#d4af37]/20 flex items-center justify-center">
                         <CheckIcon className="w-4 h-4 text-[#d4af37]" />
                       </div>
@@ -535,7 +535,7 @@ export default function Home() {
                 transition={{ duration: 0.8 }}
                 className="flex-1 relative"
               >
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-zinc-800 aspect-video">
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border aspect-video">
                   <img 
                     src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1000" 
                     alt="Study group" 
@@ -554,7 +554,7 @@ export default function Home() {
         </section>
 
         {/* Student Reviews Section */}
-        <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
+        <section className="py-24 bg-background relative z-10 overflow-hidden">
           {/* background gold glow blob */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#d4af37]/5 rounded-full blur-[80px] pointer-events-none" />
 
@@ -582,7 +582,7 @@ export default function Home() {
 
             {/* Heading fade + slide up */}
             <motion.h2
-              className="text-4xl md:text-5xl font-bold text-white mb-5 leading-tight"
+              className="text-4xl md:text-5xl font-bold text-foreground mb-5 leading-tight"
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -613,7 +613,7 @@ export default function Home() {
                 transition={{ duration: Math.max(topReviews.length * 5, 20), repeat: Infinity, ease: "linear" }}
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
-                  <div key={`${r.id}-${i}`} className="w-[360px] bg-[#111] border border-zinc-800 rounded-2xl p-7 shrink-0 flex flex-col justify-between">
+                  <div key={`${r.id}-${i}`} className="w-[360px] bg-card border border-border rounded-2xl p-7 shrink-0 flex flex-col justify-between">
                     <div>
                       <div className="flex gap-0.5 mb-4">
                         {[1, 2, 3, 4, 5].map(s => (
@@ -621,14 +621,14 @@ export default function Home() {
                         ))}
                         <span className="ml-2 text-xs text-zinc-500 font-medium">{r.rating}.0</span>
                       </div>
-                      <p className="text-zinc-300 italic text-sm leading-relaxed line-clamp-4">"{r.comment}"</p>
+                      <p className="text-foreground/90 italic text-sm leading-relaxed line-clamp-4">"{r.comment}"</p>
                     </div>
-                    <div className="flex items-center gap-3 mt-6 pt-5 border-t border-zinc-800">
+                    <div className="flex items-center gap-3 mt-6 pt-5 border-t border-border">
                       <div className="w-9 h-9 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-center font-bold text-[#d4af37] text-sm shrink-0">
                         {(r.userName || "S").charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="text-white font-semibold text-sm">{r.userName || "Student"}</h4>
+                        <h4 className="text-foreground font-semibold text-sm">{r.userName || "Student"}</h4>
                         <p className="text-zinc-500 text-xs">Verified Student</p>
                       </div>
                     </div>
@@ -663,7 +663,7 @@ export default function Home() {
               <motion.div
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="border border-zinc-700 hover:border-[#d4af37]/60 text-zinc-300 hover:text-white font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300"
+                className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300"
               >
                 View All Reviews
                 <ArrowRight className="w-4 h-4" />
@@ -684,3 +684,4 @@ function CheckIcon(props: any) {
     </svg>
   );
 }
+

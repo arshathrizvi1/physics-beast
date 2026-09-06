@@ -224,7 +224,7 @@ export default function CoursesPage() {
                       e.preventDefault();
                       if (course.teacherId) setSelectedTeacherId(course.teacherId);
                     }}
-                    className="absolute top-3 right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full text-[11px] font-medium text-white flex items-center gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
+                    className="absolute top-3 right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full text-[11px] font-medium text-foreground flex items-center gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
                     title={`Click to filter by ${course.teacherName}`}
                   >
                     <GraduationCap className="w-3.5 h-3.5 text-primary" />
@@ -258,4 +258,5 @@ export default function CoursesPage() {
     </div>
   );
 }
+
 

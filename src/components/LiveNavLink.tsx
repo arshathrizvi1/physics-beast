@@ -25,7 +25,7 @@ export default function LiveNavLink() {
   return (
     <Link 
       href="/live" 
-      className={`transition-all duration-200 flex items-center gap-1.5 relative ${isActive ? 'text-[#d4af37]' : 'text-zinc-300 hover:text-[#d4af37]'}`}
+      className={`transition-all duration-200 flex items-center gap-1.5 relative ${isActive ? 'text-[#d4af37]' : 'text-foreground/90 hover:text-[#d4af37]'}`}
     >
       Live 
       {isLive && (
@@ -34,3 +34,4 @@ export default function LiveNavLink() {
     </Link>
   );
 }
+

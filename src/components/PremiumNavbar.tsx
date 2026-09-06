@@ -137,7 +137,7 @@ export default function PremiumNavbar() {
                       style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
                     />
                   </div>
-                  <span className="text-zinc-400 text-[11px] tracking-[0.22em] font-sans">Academy</span>
+                  <span className="text-muted-foreground text-[11px] tracking-[0.22em] font-sans">Academy</span>
                 </div>
               </Link>
             </motion.div>
@@ -154,7 +154,7 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.4 + i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link href={link.href} className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5">
-                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#d4af37]" : "text-zinc-400 group-hover:text-white"}`}>
+                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#d4af37]" : "text-muted-foreground group-hover:text-foreground"}`}>
                         {link.label}
                         {link.label === "Live" && isLive && (
                           <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
@@ -190,7 +190,7 @@ export default function PremiumNavbar() {
                     <Link href="/admin" className="relative group flex items-center rounded-full p-[1px] overflow-hidden bg-[#d4af37]/20">
                       {/* moving gold border glow - visible only on hover */}
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_300deg,#f9e596_330deg,#d4af37_360deg)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-[spin_3s_linear_infinite]" />
-                      <div className="relative flex items-center gap-2 bg-[#0a0a0a] text-[#d4af37] text-xs font-bold px-4 py-2 rounded-full transition-all whitespace-nowrap w-full h-full">
+                      <div className="relative flex items-center gap-2 bg-background text-[#d4af37] text-xs font-bold px-4 py-2 rounded-full transition-all whitespace-nowrap w-full h-full">
                         <LayoutDashboard className="w-3.5 h-3.5" />
                         {isAdmin ? "Admin Dashboard" : "Teacher Dashboard"}
                       </div>
@@ -206,25 +206,25 @@ export default function PremiumNavbar() {
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               >
                 {searchOpen ? (
-                  <div className="flex items-center w-full bg-[#111] border border-[#d4af37]/30 rounded-full px-3 py-1.5 gap-2">
+                  <div className="flex items-center w-full bg-card border border-[#d4af37]/30 rounded-full px-3 py-1.5 gap-2">
                     <Search className="w-4 h-4 text-[#d4af37] shrink-0" />
                     <input
                       ref={searchRef}
                       value={searchVal}
                       onChange={e => setSearchVal(e.target.value)}
                       placeholder="Search..."
-                      className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-zinc-600"
+                      className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-zinc-600"
                     />
                     <button onClick={() => { setSearchOpen(false); setSearchVal(""); }}>
-                      <X className="w-4 h-4 text-zinc-500 hover:text-white transition-colors" />
+                      <X className="w-4 h-4 text-zinc-500 hover:text-foreground transition-colors" />
                     </button>
                   </div>
                 ) : (
                   <button
                     onClick={() => setSearchOpen(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-[#111] border border-zinc-800 hover:border-[#d4af37]/40 hover:bg-[#1a1a1a] transition-all group"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 hover:bg-secondary transition-all group"
                   >
-                    <Search className="w-4 h-4 text-zinc-400 group-hover:text-[#d4af37] transition-colors" />
+                    <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
                   </button>
                 )}
               </motion.div>
@@ -238,7 +238,7 @@ export default function PremiumNavbar() {
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                      className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-[#1a1a1a] flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
+                      className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-secondary flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
                     >
                       {user.photoUrl ? (
                         <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" />
@@ -254,7 +254,7 @@ export default function PremiumNavbar() {
                     onClick={logout}
                     whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(212,175,55,0.25)" }}
                     whileTap={{ scale: 0.95 }}
-                    className="hidden sm:flex items-center gap-1.5 bg-[#111] border border-zinc-800 hover:border-[#d4af37]/40 text-zinc-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-full transition-all"
+                    className="hidden sm:flex items-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold px-3 py-2 rounded-full transition-all"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span className="hidden md:inline">Logout</span>
@@ -273,7 +273,7 @@ export default function PremiumNavbar() {
 
               {/* Mobile hamburger */}
               <button
-                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-[#111] border border-zinc-800 hover:border-[#d4af37]/40 transition-all"
+                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 transition-all"
                 onClick={() => setMobileOpen(v => !v)}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -283,7 +283,7 @@ export default function PremiumNavbar() {
                     </motion.div>
                   ) : (
                     <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                      <Menu className="w-4 h-4 text-zinc-300" />
+                      <Menu className="w-4 h-4 text-foreground/90" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -300,7 +300,7 @@ export default function PremiumNavbar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col bg-[#080808]/60 backdrop-blur-2xl border-t border-[#d4af37]/20"
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-background/60 backdrop-blur-2xl border-t border-[#d4af37]/20"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
@@ -314,7 +314,7 @@ export default function PremiumNavbar() {
                     >
                       <Link
                         href={link.href}
-                        className={`flex items-center justify-between py-4 border-b border-zinc-900 text-lg font-semibold transition-colors ${active ? "text-[#d4af37]" : "text-zinc-300 hover:text-white"}`}
+                        className={`flex items-center justify-between py-4 border-b border-border/50 text-lg font-semibold transition-colors ${active ? "text-[#d4af37]" : "text-foreground/90 hover:text-foreground"}`}
                       >
                         {link.label}
                         {active && <span className="w-2 h-2 rounded-full bg-[#d4af37]" />}
@@ -345,15 +345,15 @@ export default function PremiumNavbar() {
                     className="mt-6 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-secondary flex items-center justify-center">
                         {user.photoUrl ? <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-[#d4af37] font-bold">{(user.name || "U").charAt(0)}</span>}
                       </div>
                       <div>
-                        <p className="text-white font-semibold text-sm">{user.name || user.email?.split("@")[0]}</p>
+                        <p className="text-foreground font-semibold text-sm">{user.name || user.email?.split("@")[0]}</p>
                         <p className="text-zinc-500 text-xs capitalize">{user.role}</p>
                       </div>
                     </div>
-                    <button onClick={logout} className="flex items-center gap-2 text-zinc-400 hover:text-red-400 transition-colors text-sm font-semibold">
+                    <button onClick={logout} className="flex items-center gap-2 text-muted-foreground hover:text-red-400 transition-colors text-sm font-semibold">
                       <LogOut className="w-4 h-4" /> Logout
                     </button>
                   </motion.div>
@@ -372,3 +372,4 @@ export default function PremiumNavbar() {
     </>
   );
 }
+
