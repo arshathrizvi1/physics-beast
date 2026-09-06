@@ -191,7 +191,7 @@ export default function LoginPage() {
       );
     }
 
-    if (user.isApproved === false) {
+    if (user.isApproved === false && user.role !== 'teacher') {
       return (
         <div className="flex min-h-[70vh] items-center justify-center">
           <Card className="w-full max-w-md border-secondary/50 shadow-lg text-center p-8">

@@ -411,7 +411,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (userDoc && userDoc.exists()) {
         const data = userDoc.data();
-        if (data.role !== 'admin' && data.deviceId !== currentLocalDeviceId) {
+        if (data.role !== 'admin' && data.role !== 'teacher' && data.deviceId !== currentLocalDeviceId) {
           console.log("New device detected on login!");
           // Require Admin Approval for new devices
           updateDoc(userDocRef, { 
