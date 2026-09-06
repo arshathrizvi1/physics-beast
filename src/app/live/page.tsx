@@ -65,7 +65,7 @@ export default function StudentLivePortal() {
       }
 
       try {
-        const q = query(collection(db, 'live_classes'), orderBy('createdAt', 'desc'));
+        const q = query(collection(db, 'live_classes'));
         
         const unsub = onSnapshot(q, (snap) => {
           let classes = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
