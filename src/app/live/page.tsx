@@ -6,13 +6,25 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Calendar, PlayCircle, Clock, ExternalLink } from "lucide-react";
+import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
+import dynamic from 'next/dynamic';
+import { useRef } from 'react';
+
+const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 
 export default function StudentLivePortal() {
   const { user, loading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [fetchingClasses, setFetchingClasses] = useState(true);
+
+  // Video Player States
+  const [playing, setPlaying] = useState(true);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user || user.role !== 'student') return;
@@ -229,19 +241,99 @@ export default function StudentLivePortal() {
                 </div>
               </div>
 
-              {/* YouTube Native Player Section */}
+              {/* YouTube Custom Player Section */}
               {cls.platform === 'youtube' && cls.status === 'live' && (
-                <div className="aspect-video w-full bg-black">
+                <div 
+                  ref={playerContainerRef} 
+                  className="aspect-video w-full relative bg-black group/player overflow-hidden"
+                  onMouseEnter={() => setShowControls(true)}
+                  onMouseLeave={() => setShowControls(false)}
+                >
                   {getYouTubeId(cls.link) ? (
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      src={`https://www.youtube.com/embed/${getYouTubeId(cls.link)}?autoplay=1&rel=0`} 
-                      title="YouTube video player" 
-                      frameBorder="0" 
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                      allowFullScreen
-                    ></iframe>
+                    <>
+                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying YouTube iframe */}
+                      <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
+                        <ReactPlayer
+                          ref={playerRef}
+                          url={cls.link}
+                          width="100%"
+                          height="100%"
+                          playing={playing}
+                          volume={volume}
+                          muted={muted}
+                          playsinline
+                          config={{
+                            youtube: {
+                              playerVars: { 
+                                autoplay: 1, 
+                                controls: 0, 
+                                modestbranding: 1, 
+                                rel: 0, 
+                                disablekb: 1 
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Invisible Click Area for Play/Pause */}
+                      <div 
+                        className="absolute inset-0 z-10 cursor-pointer"
+                        onClick={() => setPlaying(!playing)}
+                      >
+                        <p className="transform -rotate-45 text-xl font-bold tracking-widest text-white/20 select-none flex items-center justify-center h-full w-full" style={{ textShadow: '0 0 10px black' }}>
+                          {user.email} - Do Not Copy
+                        </p>
+                      </div>
+
+                      {/* Custom Controls Overlay */}
+                      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                        <div className="flex items-center justify-between text-white mt-1">
+                          <div className="flex items-center gap-5">
+                            <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
+                              {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                            </button>
+                            
+                            <div className="flex items-center gap-2 group/vol">
+                              <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none">
+                                {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                              </button>
+                              <input 
+                                type="range" 
+                                min={0} 
+                                max={1} 
+                                step="any" 
+                                value={muted ? 0 : volume} 
+                                onChange={(e) => {
+                                  setMuted(false);
+                                  setVolume(parseFloat(e.target.value));
+                                }}
+                                className="w-0 group-hover/vol:w-20 transition-all duration-300 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-0 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                              />
+                            </div>
+                            <span className="text-sm font-medium flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                              LIVE
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <button 
+                              onClick={() => {
+                                if (!document.fullscreenElement) {
+                                  playerContainerRef.current?.requestFullscreen();
+                                } else {
+                                  document.exitFullscreen();
+                                }
+                              }} 
+                              className="hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2"
+                            >
+                              <Maximize className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-zinc-900 border-t border-zinc-800">
                       <p className="text-red-400 mb-4">Invalid YouTube Link format. Click below to open directly.</p>

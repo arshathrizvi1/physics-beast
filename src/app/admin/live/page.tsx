@@ -14,6 +14,7 @@ import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
+import AdminLiveChat from "@/components/AdminLiveChat";
 
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();

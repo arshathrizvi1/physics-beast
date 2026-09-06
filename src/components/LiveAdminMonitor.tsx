@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { Eye, MessageSquare, Users } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import AdminLiveChat from "@/components/AdminLiveChat";
 
 export default function LiveAdminMonitor({ liveClassId }: { liveClassId: string }) {
   const [viewers, setViewers] = useState(0);
-  const [chats, setChats] = useState<any[]>([]);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -22,15 +22,8 @@ export default function LiveAdminMonitor({ liveClassId }: { liveClassId: string 
       setViewers(count);
     });
 
-    // 2. Monitor Chats
-    const qChats = query(collection(db, 'live_chats'), where('liveClassId', '==', liveClassId), orderBy('createdAt', 'desc'), limit(50));
-    const unsubChats = onSnapshot(qChats, (snap) => {
-      setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
     return () => {
       unsubPresence();
-      unsubChats();
     };
   }, [liveClassId]);
 
@@ -44,36 +37,17 @@ export default function LiveAdminMonitor({ liveClassId }: { liveClassId: string 
           onClick={() => setExpanded(!expanded)}
           className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-colors ${expanded ? 'bg-primary text-primary-foreground' : 'bg-secondary hover:bg-secondary/80'}`}
         >
-          <MessageSquare className="w-4 h-4" /> {expanded ? "Hide Chat" : "View Secret Chat"} ({chats.length})
+          <MessageSquare className="w-4 h-4" /> {expanded ? "Hide Chat" : "Student Chat"}
         </button>
       </div>
 
       {expanded && (
-        <Card className="mt-2 border-primary/30 shadow-inner bg-secondary/5 h-[300px] flex flex-col">
+        <Card className="mt-2 border-primary/30 shadow-inner bg-secondary/5 flex flex-col">
           <div className="p-3 border-b bg-secondary/10 flex items-center justify-between">
-            <span className="text-sm font-bold flex items-center gap-2"><MessageSquare className="w-4 h-4 text-primary" /> Q&A Channel</span>
-            <span className="text-xs text-muted-foreground">Only you can see this</span>
+            <span className="text-sm font-bold flex items-center gap-2"><MessageSquare className="w-4 h-4 text-primary" /> Student Chat / QA</span>
+            <span className="text-xs text-muted-foreground">Students can ask questions here</span>
           </div>
-          <div className="p-4 flex-1 overflow-y-auto flex flex-col-reverse gap-3">
-            {chats.length === 0 ? (
-              <div className="m-auto text-muted-foreground text-sm flex flex-col items-center gap-2 opacity-50">
-                <Users className="w-8 h-8" />
-                No questions asked yet.
-              </div>
-            ) : (
-              chats.map(chat => (
-                <div key={chat.id} className="bg-background border border-border p-3 rounded-lg shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-sm text-primary">{chat.userName}</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {chat.createdAt?.toDate ? chat.createdAt.toDate().toLocaleTimeString() : 'Just now'}
-                    </span>
-                  </div>
-                  <p className="text-sm">{chat.message}</p>
-                </div>
-              ))
-            )}
-          </div>
+          <AdminLiveChat liveClassId={liveClassId} />
         </Card>
       )}
     </div>
