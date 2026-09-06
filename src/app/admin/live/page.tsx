@@ -35,6 +35,13 @@ export default function AdminLiveStudio() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Edit State
+  const [editingClass, setEditingClass] = useState<any>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editLink, setEditLink] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
   useEffect(() => {
     if (!authLoading && (!user || user.role !== "admin")) {
       router.replace("/login");
@@ -93,6 +100,25 @@ export default function AdminLiveStudio() {
       alert("Failed to create class. Quota exceeded?");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingClass || !editTitle || !editLink) return;
+
+    setIsUpdating(true);
+    try {
+      await updateDoc(doc(db, 'live_classes', editingClass.id), {
+        title: editTitle,
+        description: editDescription,
+        link: editLink
+      });
+      setEditingClass(null);
+    } catch (err) {
+      alert("Failed to update class.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -255,6 +281,14 @@ export default function AdminLiveStudio() {
                       <a href={cls.link} target="_blank" rel="noreferrer" className="flex-1">
                         <Button size="sm" variant="outline" className="w-full h-8"><ExternalLink className="w-3 h-3 mr-1"/> Test</Button>
                       </a>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setEditingClass(cls);
+                        setEditTitle(cls.title);
+                        setEditDescription(cls.description || "");
+                        setEditLink(cls.link);
+                      }} className="text-blue-500 border-blue-500/20 hover:bg-blue-500/10 px-2 h-8">
+                        <Settings className="w-3.5 h-3.5" />
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => handleDelete(cls.id)} className="text-red-500 border-red-500/20 hover:bg-red-500/10 px-2 h-8">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -271,6 +305,38 @@ export default function AdminLiveStudio() {
           )}
         </div>
       </div>
+      
+      {/* Edit Modal */}
+      {editingClass && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md shadow-2xl border-primary/20">
+            <form onSubmit={handleUpdateClass}>
+              <CardHeader>
+                <CardTitle>Edit Live Session</CardTitle>
+                <CardDescription>Update session details for: {editingClass.title}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} rows={2} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Video/Stream Link</Label>
+                  <Input value={editLink} onChange={e => setEditLink(e.target.value)} required type="url" />
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={() => setEditingClass(null)}>Cancel</Button>
+                <Button type="submit" disabled={isUpdating}>{isUpdating ? "Saving..." : "Save Changes"}</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
