@@ -18,30 +18,43 @@ export default function StudentLivePortal() {
     if (!user || user.role !== 'student') return;
     
     const fetchData = async () => {
+      let folderCourseMap = new Map<string, string>();
       try {
         // Fetch all folders to map folder -> courseId
         const { getDocs } = require('firebase/firestore');
-        const foldersSnap = await getDocs(collection(db, 'folders'));
-        const folderCourseMap = new Map<string, string>();
-        foldersSnap.forEach((d: any) => folderCourseMap.set(d.id, d.data().courseId));
-
-        // Get all courses the student has ACTIVE folder access to
-        const activeCourseIds = new Set<string>();
-        if (user.folderAccess) {
-          const now = Date.now();
-          Object.entries(user.folderAccess).forEach(([folderId, expiry]) => {
-            if (typeof expiry === 'number' && expiry > now) {
-              const cId = folderCourseMap.get(folderId);
-              if (cId) activeCourseIds.add(cId);
-            }
-          });
-        }
         
-        // Add legacy accessible courses
-        if (user.accessibleCourses) {
-          user.accessibleCourses.forEach((cId: string) => activeCourseIds.add(cId));
-        }
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 2500)
+        );
+        
+        const foldersSnap: any = await Promise.race([
+          getDocs(collection(db, 'folders')),
+          timeoutPromise
+        ]);
 
+        foldersSnap.forEach((d: any) => folderCourseMap.set(d.id, d.data().courseId));
+      } catch (err) {
+        console.error("Could not fetch folders (quota exceeded?). Relying on cached access.", err);
+      }
+
+      // Get all courses the student has ACTIVE folder access to
+      const activeCourseIds = new Set<string>();
+      if (user.folderAccess) {
+        const now = Date.now();
+        Object.entries(user.folderAccess).forEach(([folderId, expiry]) => {
+          if (typeof expiry === 'number' && expiry > now) {
+            const cId = folderCourseMap.get(folderId);
+            if (cId) activeCourseIds.add(cId);
+          }
+        });
+      }
+      
+      // Add legacy accessible courses
+      if (user.accessibleCourses) {
+        user.accessibleCourses.forEach((cId: string) => activeCourseIds.add(cId));
+      }
+
+      try {
         const q = query(
           collection(db, 'live_classes'),
           where('status', 'in', ['scheduled', 'live'])

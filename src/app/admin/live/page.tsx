@@ -159,7 +159,7 @@ export default function AdminLiveStudio() {
                       <SelectTrigger className="flex-1"><SelectValue placeholder="Select Batch" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Global (All Batches)</SelectItem>
-                        {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.year}</SelectItem>)}
+                        {batches.map(b => <SelectItem key={b.id} value={b.year}>{b.year}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
