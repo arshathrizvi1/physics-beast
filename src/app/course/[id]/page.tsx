@@ -1015,13 +1015,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     {(!paymentConfig && paymentMethod === 'bank') || (paymentConfig && paymentMethod === 'bank' && paymentConfig.bankEnabled) ? (
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-2">
-                          <p className="text-sm font-medium text-blue-400">Please transfer Rs. {checkoutFolder.price} to the following account:</p>
-                          <div className="font-mono text-sm space-y-1 bg-background/50 p-3 rounded border border-blue-500/10">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-bold">{paymentConfig?.bankName || 'Bank of Ceylon'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Branch:</span> <span className="font-bold">{paymentConfig?.branchName || 'Rakwana Branch'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span> <span className="font-bold text-primary">{paymentConfig?.accountNo || '0008766934'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span className="font-bold">{paymentConfig?.accountName || 'MRM arshath'}</span></div>
+                        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-4">
+                          <p className="text-sm font-medium text-blue-400">Please transfer Rs. {checkoutFolder.price} to {paymentConfig?.bank2Enabled ? 'one of the following accounts:' : 'the following account:'}</p>
+                          
+                          <div className="space-y-3">
+                            <div className="font-mono text-sm space-y-1 bg-background/50 p-3 rounded border border-blue-500/10 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 px-2 py-0.5 bg-blue-500/20 text-blue-500 text-[10px] font-bold rounded-bl">Option 1</div>
+                              <div className="flex justify-between mt-1"><span className="text-muted-foreground">Bank:</span> <span className="font-bold">{paymentConfig?.bankName || 'Bank of Ceylon'}</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">Branch:</span> <span className="font-bold">{paymentConfig?.branchName || 'Rakwana Branch'}</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span> <span className="font-bold text-primary">{paymentConfig?.accountNo || '0008766934'}</span></div>
+                              <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span className="font-bold">{paymentConfig?.accountName || 'MRM arshath'}</span></div>
+                            </div>
+                            
+                            {paymentConfig?.bank2Enabled && (
+                              <div className="font-mono text-sm space-y-1 bg-background/50 p-3 rounded border border-blue-500/10 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 px-2 py-0.5 bg-blue-500/20 text-blue-500 text-[10px] font-bold rounded-bl">Option 2</div>
+                                <div className="flex justify-between mt-1"><span className="text-muted-foreground">Bank:</span> <span className="font-bold">{paymentConfig?.bank2Name}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Branch:</span> <span className="font-bold">{paymentConfig?.bank2BranchName}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span> <span className="font-bold text-primary">{paymentConfig?.bank2AccountNo}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span className="font-bold">{paymentConfig?.bank2AccountName}</span></div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

@@ -24,7 +24,12 @@ export default function PaymentSettingsPage() {
     bankName: "Bank of Ceylon",
     branchName: "Rakwana Branch",
     accountNo: "0008766934",
-    accountName: "MRM arshath"
+    accountName: "MRM arshath",
+    bank2Enabled: false,
+    bank2Name: "",
+    bank2BranchName: "",
+    bank2AccountNo: "",
+    bank2AccountName: ""
   });
 
   useEffect(() => {
@@ -163,6 +168,59 @@ export default function PaymentSettingsPage() {
                 </div>
               </div>
             </CardContent>
+          </Card>
+        )}
+
+        {config.bankEnabled && (
+          <Card className="border-secondary/40">
+            <CardHeader className="bg-secondary/5 border-b border-border/50 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Secondary Bank Account (Optional)</CardTitle>
+                <CardDescription>An alternative bank account students can transfer to.</CardDescription>
+              </div>
+              <Switch 
+                checked={config.bank2Enabled} 
+                onCheckedChange={(c) => setConfig({ ...config, bank2Enabled: c })} 
+              />
+            </CardHeader>
+            {config.bank2Enabled && (
+              <CardContent className="pt-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bank Name</Label>
+                    <Input 
+                      value={config.bank2Name} 
+                      onChange={e => setConfig({...config, bank2Name: e.target.value})} 
+                      placeholder="e.g. Commercial Bank"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branch Name</Label>
+                    <Input 
+                      value={config.bank2BranchName} 
+                      onChange={e => setConfig({...config, bank2BranchName: e.target.value})} 
+                      placeholder="e.g. Colombo Branch"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Number</Label>
+                    <Input 
+                      value={config.bank2AccountNo} 
+                      onChange={e => setConfig({...config, bank2AccountNo: e.target.value})} 
+                      placeholder="e.g. 1122334455"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Holder Name</Label>
+                    <Input 
+                      value={config.bank2AccountName} 
+                      onChange={e => setConfig({...config, bank2AccountName: e.target.value})} 
+                      placeholder="e.g. MRM arshath"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 
