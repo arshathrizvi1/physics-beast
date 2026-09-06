@@ -15,9 +15,10 @@ import {
 
 const NAV_LINKS = [
   { href: "/courses",     label: "Courses"     },
-  { href: "/about",       label: "About"       },
   { href: "/exams",       label: "Exams"       },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/live",        label: "Live"        },
+  { href: "/about",       label: "About"       },
 ];
 
 export default function PremiumNavbar() {
@@ -157,8 +158,11 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.4 + i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link href={link.href} className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5">
-                      <span className={`transition-colors duration-200 ${active ? "text-[#d4af37]" : "text-zinc-400 group-hover:text-white"}`}>
+                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#d4af37]" : "text-zinc-400 group-hover:text-white"}`}>
                         {link.label}
+                        {link.label === "Live" && isLive && (
+                          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+                        )}
                       </span>
                       {/* animated gold underline */}
                       <motion.span
@@ -172,18 +176,6 @@ export default function PremiumNavbar() {
                   </motion.div>
                 );
               })}
-
-              {/* Live */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={mounted ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: 0.4 + NAV_LINKS.length * 0.08, duration: 0.6 }}
-              >
-                <Link href="/live" className={`relative px-3 py-2 text-sm font-semibold flex items-center gap-1.5 group transition-colors duration-200 ${pathname === "/live" ? "text-[#d4af37]" : "text-zinc-400 hover:text-white"}`}>
-                  Live
-                  {isLive && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />}
-                </Link>
-              </motion.div>
             </nav>
 
             {/* ── RIGHT SIDE ── */}
@@ -244,25 +236,23 @@ export default function PremiumNavbar() {
               {/* User or Login */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  {/* Avatar */}
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                    className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-[#1a1a1a] flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
-                  >
-                    {user.photoUrl ? (
-                      <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-[#d4af37] font-bold text-sm">
-                        {(user.name || user.email || "U").charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </motion.div>
-                  {/* Name */}
-                  <span className="hidden lg:block text-sm font-semibold text-zinc-300 max-w-[100px] truncate">
-                    {user.name?.split(" ")[0] || user.email?.split("@")[0]}
-                  </span>
+                  {/* Avatar linked to profile/dashboard */}
+                  <Link href="/admin">
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                      className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-[#1a1a1a] flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
+                    >
+                      {user.photoUrl ? (
+                        <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[#d4af37] font-bold text-sm">
+                          {(user.name || user.email || "U").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </motion.div>
+                  </Link>
                   {/* Logout */}
                   <motion.button
                     onClick={logout}
@@ -318,7 +308,7 @@ export default function PremiumNavbar() {
               style={{ background: "rgba(8,8,8,0.97)", backdropFilter: "blur(20px)" }}
             >
               <div className="flex flex-col p-6 gap-1">
-                {[...NAV_LINKS, { href: "/live", label: "Live" }].map((link, i) => {
+                {NAV_LINKS.map((link, i) => {
                   const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                   return (
                     <motion.div
