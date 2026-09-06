@@ -81,7 +81,7 @@ export default function Admin2FAPage() {
       setTokenInput("");
       
       const totp = new OTPAuth.TOTP({
-        issuer: "Physics Beast",
+        issuer: "Brilliant Academy",
         label: userEmail,
         algorithm: "SHA1",
         digits: 6,
@@ -113,7 +113,7 @@ export default function Admin2FAPage() {
     
     try {
       const totp = new OTPAuth.TOTP({
-        issuer: "Physics Beast",
+        issuer: "Brilliant Academy",
         label: user?.email || "Admin Panel",
         algorithm: "SHA1",
         digits: 6,
@@ -323,3 +323,4 @@ export default function Admin2FAPage() {
     </div>
   );
 }
+

@@ -706,17 +706,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           <div className="flex items-center gap-4">
             <div className="flex -space-x-2">
               <div className="w-10 h-10 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center font-bold text-primary">
-                PB
+                BA
               </div>
             </div>
             <div>
-              <p className="font-medium">Physics Beast Instructor</p>
+              <p className="font-medium">Brilliant Academy Instructor</p>
               <p className="text-sm text-muted-foreground">Senior Physics Educator</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/10 p-2 rounded border border-secondary/20">
             <ShieldAlert className="w-4 h-4 text-primary" />
-            Protected by Physics Beast DRM
+            Protected by Brilliant Academy DRM
           </div>
         </div>
       </div>

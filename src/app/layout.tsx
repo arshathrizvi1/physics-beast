@@ -12,7 +12,7 @@ import LiveNavLink from "@/components/LiveNavLink";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Physics Beast LMS",
+  title: "Brilliant Academy LMS",
   description: "Learn physics with online video courses and MCQ exams.",
 };
 
@@ -35,8 +35,8 @@ export default function RootLayout({
                 <div className="container mx-auto px-2 md:px-4 flex h-16 items-center justify-between">
                   <Link href="/" className="flex items-center space-x-2 mr-2">
                     <span className="font-bold text-lg md:text-2xl tracking-tight text-primary whitespace-nowrap">
-                      <span className="hidden sm:inline">Physics Beast</span>
-                      <span className="sm:hidden">PB</span>
+                      <span className="hidden sm:inline">Brilliant Academy</span>
+                      <span className="sm:hidden">BA</span>
                     </span>
                   </Link>
                   <div className="flex-1 flex items-center justify-end overflow-hidden">
@@ -44,6 +44,9 @@ export default function RootLayout({
                       <nav className="flex items-center space-x-3 md:space-x-4 text-xs md:text-sm font-medium whitespace-nowrap shrink-0">
                         <Link href="/courses" className="transition-colors hover:text-foreground/80 text-foreground/60">
                           Courses
+                        </Link>
+                        <Link href="/reviews" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                          Reviews
                         </Link>
                         <Link href="/exams" className="transition-colors hover:text-foreground/80 text-foreground/60">
                           Exams
@@ -66,7 +69,7 @@ export default function RootLayout({
             <footer className="border-t py-6 md:py-0 bg-secondary/20">
               <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4">
                 <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-                  Built for Physics Beast. All rights reserved.
+                  Built for Brilliant Academy. All rights reserved.
                 </p>
               </div>
             </footer>
@@ -77,3 +80,4 @@ export default function RootLayout({
     </html>
   );
 }
+

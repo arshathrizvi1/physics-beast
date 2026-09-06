@@ -286,7 +286,7 @@ export default function LoginPage() {
                 {user.studentId && (
                   <p className="text-primary font-mono bg-primary/10 inline-block px-2 py-0.5 rounded text-sm mb-2">{user.studentId}</p>
                 )}
-                <p className="text-muted-foreground">Physics Beast Student {user.graduationYear ? `(Batch ${user.graduationYear})` : ''}</p>
+                <p className="text-muted-foreground">Brilliant Academy Student {user.graduationYear ? `(Batch ${user.graduationYear})` : ''}</p>
               <div className="flex items-center gap-2 mt-2 text-sm font-medium">
                 <Award className="w-4 h-4 text-primary" /> Level {stats.xpLevel}
               </div>
@@ -480,7 +480,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md border-secondary/50 shadow-lg shadow-primary/5">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">{isLogin ? "Student Login" : "Create Account"}</CardTitle>
-          <CardDescription>{isLogin ? "Login to access your courses and exams." : "Join Physics Beast and master physics."}</CardDescription>
+          <CardDescription>{isLogin ? "Login to access your courses and exams." : "Join Brilliant Academy and master physics."}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -637,3 +637,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

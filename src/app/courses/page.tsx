@@ -226,7 +226,7 @@ export default function CoursesPage() {
                     {course.teacherSubject && <span className="text-muted-foreground">({course.teacherSubject})</span>}
                   </div>
                 )}
-                <CardDescription className="mt-1">{course.description || "A comprehensive Physics Beast learning path."}</CardDescription>
+                <CardDescription className="mt-1">{course.description || "A comprehensive Brilliant Academy learning path."}</CardDescription>
               </CardHeader>
               <CardFooter className="bg-secondary/5 border-t border-secondary/20 p-4 mt-auto">
                 <Link href={`/course/${course.id}`} className={buttonVariants({ variant: "default", className: "w-full" })}>
@@ -240,3 +240,4 @@ export default function CoursesPage() {
     </div>
   );
 }
+

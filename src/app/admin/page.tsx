@@ -910,7 +910,7 @@ export default function AdminDashboard() {
             <Settings className="w-8 h-8" />
             Command Center
           </h1>
-          <p className="text-muted-foreground mt-1">Physics Beast Administration Console</p>
+          <p className="text-muted-foreground mt-1">Brilliant Academy Administration Console</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Link href="/admin/2fa?change=true">
@@ -2867,6 +2867,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 

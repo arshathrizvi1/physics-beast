@@ -54,7 +54,7 @@ export default function Home() {
       {/* Hero Section */}
       <section className="pt-20 pb-10 text-center space-y-6">
         <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
-          Master Physics with <span className="text-primary text-glow">Physics Beast</span>
+          Master Physics with <span className="text-primary text-glow">Brilliant Academy</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-[600px] mx-auto">
           Sri Lanka&apos;s most advanced online physics learning platform. Watch high-quality video lectures, track your progress, and dominate your exams.
@@ -173,3 +173,4 @@ export default function Home() {
     </div>
   );
 }
+

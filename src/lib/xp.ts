@@ -1,5 +1,5 @@
 /**
- * Physics Beast LMS - Unified XP & Leveling Engine
+ * Brilliant Academy LMS - Unified XP & Leveling Engine
  * 
  * XP is comprehensively awarded based on:
  * 1. Study Time: 10 XP per minute of watching videos
@@ -102,3 +102,4 @@ export function formatSeconds(seconds: number = 0): string {
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
+
