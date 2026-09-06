@@ -944,31 +944,32 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
       {/* Checkout Modal */}
       {checkoutFolder && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <CardHeader className="bg-primary/5 border-b border-primary/10 flex-none pb-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-xl">Checkout</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">Purchasing access to folder</p>
+        <div className="fixed inset-0 z-50 bg-black/80 flex justify-center items-start overflow-y-auto p-4 sm:p-6">
+          <div className="my-auto w-full max-w-md py-8">
+            <Card className="bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col">
+              <CardHeader className="bg-primary/5 border-b border-primary/10 flex-none pb-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-xl">Checkout</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Purchasing access to folder</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setCheckoutFolder(null)} className="h-8 w-8 rounded-full">
+                    <X className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setCheckoutFolder(null)} className="h-8 w-8 rounded-full">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="mt-4 p-3 bg-secondary/20 rounded-lg border border-secondary/30 flex justify-between items-center">
-                <div className="flex items-center gap-2 font-bold text-sm">
-                  <Folder className="w-4 h-4 text-primary" />
-                  {checkoutFolder.name}
+                <div className="mt-4 p-3 bg-secondary/20 rounded-lg border border-secondary/30 flex justify-between items-center">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <Folder className="w-4 h-4 text-primary" />
+                    {checkoutFolder.name}
+                  </div>
+                  <span className="text-sm bg-green-500/20 text-green-500 px-2 py-1 rounded font-mono font-bold">
+                    Rs. {checkoutFolder.price}
+                  </span>
                 </div>
-                <span className="text-sm bg-green-500/20 text-green-500 px-2 py-1 rounded font-mono font-bold">
-                  Rs. {checkoutFolder.price}
-                </span>
-              </div>
-            </CardHeader>
-            
-            <div className="flex-1 overflow-y-auto">
-              <CardContent className="pt-6 pb-6">
+              </CardHeader>
+              
+              <div className="">
+                <CardContent className="pt-6 pb-6">
                 {paymentSuccess ? (
                   <div className="text-center py-8 space-y-4 animate-in zoom-in fade-in duration-300">
                     <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1086,6 +1087,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               </CardContent>
             </div>
           </Card>
+          </div>
         </div>
       )}
     </div>
