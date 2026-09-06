@@ -296,12 +296,11 @@ export default function PremiumNavbar() {
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
-              initial={{ opacity: 0, x: "100%", filter: "blur(8px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: "100%", filter: "blur(8px)" }}
+              initial={{ opacity: 0, x: "100%" }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col"
-              style={{ background: "rgba(8,8,8,0.97)", backdropFilter: "blur(20px)" }}
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-[#080808]/60 backdrop-blur-2xl border-t border-[#d4af37]/20"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
