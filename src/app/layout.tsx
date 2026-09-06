@@ -39,21 +39,23 @@ export default function RootLayout({
                       <span className="sm:hidden">PB</span>
                     </span>
                   </Link>
-                  <div className="flex items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar">
-                    <nav className="flex items-center space-x-3 md:space-x-4 text-xs md:text-sm font-medium whitespace-nowrap">
-                      <Link href="/courses" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                        Courses
-                      </Link>
-                      <Link href="/exams" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                        Exams
-                      </Link>
-                      <LiveNavLink />
-                      <Link href="/leaderboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                        Leaderboard
-                      </Link>
-                    </nav>
-                    <div className="flex items-center ml-auto pl-2 border-l">
-                      <NavButtons />
+                  <div className="flex-1 flex items-center justify-end overflow-hidden">
+                    <div className="flex items-center gap-3 md:gap-4 overflow-x-auto no-scrollbar py-2 w-full justify-end">
+                      <nav className="flex items-center space-x-3 md:space-x-4 text-xs md:text-sm font-medium whitespace-nowrap shrink-0">
+                        <Link href="/courses" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                          Courses
+                        </Link>
+                        <Link href="/exams" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                          Exams
+                        </Link>
+                        <LiveNavLink />
+                        <Link href="/leaderboard" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                          Leaderboard
+                        </Link>
+                      </nav>
+                      <div className="flex items-center ml-2 pl-2 border-l shrink-0">
+                        <NavButtons />
+                      </div>
                     </div>
                   </div>
                 </div>

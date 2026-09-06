@@ -1278,7 +1278,7 @@ export default function AdminDashboard() {
                       <span>All Teachers</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20">{courses.length}</span>
                     </button>
-                    {teamMembers.map(tm => {
+                    {teamMembers.filter(tm => tm.role === 'teacher').map(tm => {
                       const count = courses.filter(c => c.teacherId === tm.id).length;
                       return (
                         <button
@@ -1376,7 +1376,7 @@ export default function AdminDashboard() {
                                 onChange={e => setEditCourseTeacherId(e.target.value)}
                               >
                                 <option value="">-- No Teacher Assigned --</option>
-                                {teamMembers.map(tm => (
+                                {teamMembers.filter(tm => tm.role === 'teacher').map(tm => (
                                   <option key={tm.id} value={tm.id}>
                                     {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
                                   </option>
@@ -1434,7 +1434,7 @@ export default function AdminDashboard() {
                           onChange={e => setNewCourseTeacherId(e.target.value)}
                         >
                           <option value="">-- Assign Teacher (Optional) --</option>
-                          {teamMembers.map(tm => (
+                          {teamMembers.filter(tm => tm.role === 'teacher').map(tm => (
                             <option key={tm.id} value={tm.id}>
                               {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
                             </option>

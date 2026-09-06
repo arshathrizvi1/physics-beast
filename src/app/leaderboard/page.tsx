@@ -157,12 +157,12 @@ export default function LeaderboardPage() {
           </div>
 
           <Card className="border-secondary/50 shadow-lg shadow-primary/5">
-            <CardHeader className="border-b border-secondary/20 pb-4">
-              <div className="grid grid-cols-12 text-sm font-bold text-muted-foreground px-4">
-                <div className="col-span-2 md:col-span-1">Rank</div>
-                <div className="col-span-6 md:col-span-7">Student</div>
-                <div className="col-span-2 text-center">{selectedExamId === "overall" ? "Total XP" : "Score"}</div>
-                <div className="col-span-2 text-right">{selectedExamId === "overall" ? "Avg Grade" : "Time"}</div>
+            <CardHeader className="border-b border-secondary/20 pb-4 px-2 md:px-6">
+              <div className="grid grid-cols-12 gap-1 md:gap-4 text-xs md:text-sm font-bold text-muted-foreground px-1 md:px-4">
+                <div className="col-span-2 md:col-span-1 text-center md:text-left">Rank</div>
+                <div className="col-span-5 md:col-span-7">Student</div>
+                <div className="col-span-3 md:col-span-2 text-center">{selectedExamId === "overall" ? "Total XP" : "Score"}</div>
+                <div className="col-span-2 md:col-span-2 text-right">{selectedExamId === "overall" ? "Grade" : "Time"}</div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -174,56 +174,56 @@ export default function LeaderboardPage() {
                 ) : (
               displayBoard.map((student, index) => {
                 const rank = index + 1;
-                let rowClasses = "grid grid-cols-12 items-center p-4 border-b border-border/50 transition-colors ";
-                let rankBadge = <span className="font-mono text-muted-foreground">#{rank}</span>;
+                let rowClasses = "grid grid-cols-12 gap-1 md:gap-4 items-center p-2 md:p-4 border-b border-border/50 transition-colors ";
+                let rankBadge = <span className="font-mono text-muted-foreground text-xs md:text-base">#{rank}</span>;
 
                 // Top 3 Highlighting
                 if (rank === 1) {
                   rowClasses += "bg-primary/20 hover:bg-primary/30 border-l-4 border-l-yellow-400";
-                  rankBadge = <Trophy className="w-6 h-6 text-yellow-400" />;
+                  rankBadge = <Trophy className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" />;
                 } else if (rank === 2) {
                   rowClasses += "bg-secondary/40 hover:bg-secondary/60 border-l-4 border-l-slate-300";
-                  rankBadge = <Medal className="w-6 h-6 text-slate-300" />;
+                  rankBadge = <Medal className="w-5 h-5 md:w-6 md:h-6 text-slate-300" />;
                 } else if (rank === 3) {
                   rowClasses += "bg-orange-900/20 hover:bg-orange-900/30 border-l-4 border-l-orange-500";
-                  rankBadge = <Medal className="w-6 h-6 text-orange-500" />;
+                  rankBadge = <Medal className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />;
                 } 
                 // Top 10 Highlighting
                 else if (rank <= 10) {
                   rowClasses += "bg-primary/5 hover:bg-primary/10 font-medium";
-                  rankBadge = <Award className="w-5 h-5 text-primary/80" />;
+                  rankBadge = <Award className="w-4 h-4 md:w-5 md:h-5 text-primary/80" />;
                 } else {
                   rowClasses += "hover:bg-secondary/10";
                 }
 
                 return (
                   <div key={index} className={rowClasses}>
-                    <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start">
+                    <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start shrink-0">
                       {rankBadge}
                     </div>
-                    <div className="col-span-6 md:col-span-7 flex items-center gap-3">
-                      <img src={student.avatar} alt="avatar" className="w-8 h-8 rounded-full border border-secondary" />
-                      <div className="flex items-center gap-2">
-                        <span className={rank <= 3 ? "font-bold text-lg" : ""}>{student.name}</span>
+                    <div className="col-span-5 md:col-span-7 flex items-center gap-1.5 md:gap-3 overflow-hidden">
+                      <img src={student.avatar} alt="avatar" className="w-6 h-6 md:w-8 md:h-8 rounded-full border border-secondary shrink-0" />
+                      <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2 min-w-0">
+                        <span className={`truncate text-xs md:text-base ${rank <= 3 ? 'font-bold md:text-lg' : ''}`}>{student.name}</span>
                         {student.isOverall && student.level ? (
-                          <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                          <span className="text-[8px] md:text-[10px] font-bold bg-primary/10 text-primary px-1.5 md:px-2 py-0.5 rounded-full border border-primary/20 shrink-0 w-fit">
                             Lvl {student.level}
                           </span>
                         ) : null}
                       </div>
                     </div>
-                    <div className="col-span-2 text-center flex justify-center items-center gap-1">
-                      <span className={`font-bold ${rank <= 3 ? 'text-primary' : ''}`}>
-                        {student.isOverall ? `${student.score} XP` : `${student.score}%`}
+                    <div className="col-span-3 md:col-span-2 text-center flex justify-center items-center shrink-0">
+                      <span className={`font-bold text-[11px] md:text-base ${rank <= 3 ? 'text-primary' : ''}`}>
+                        {student.isOverall ? <>{student.score} <span className="text-[9px] md:text-sm">XP</span></> : `${student.score}%`}
                       </span>
                     </div>
-                    <div className="col-span-2 text-right flex justify-end items-center gap-1 text-sm font-mono text-muted-foreground">
+                    <div className="col-span-2 md:col-span-2 text-right flex justify-end items-center gap-1 text-[11px] md:text-sm font-mono text-muted-foreground shrink-0">
                       {student.isOverall ? (
                         <span className="font-bold text-green-500">{student.grade}%</span>
                       ) : (
                         <>
-                          <Timer className="w-3 h-3 hidden md:block" />
-                          {formatTime(student.time)}
+                          <Timer className="w-3 h-3 hidden md:block shrink-0" />
+                          <span className="truncate">{formatTime(student.time)}</span>
                         </>
                       )}
                     </div>

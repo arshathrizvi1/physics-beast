@@ -52,6 +52,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [wmPos, setWmPos] = useState({ x: 20, y: 20 });
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds)) return '0:00';
@@ -467,15 +468,51 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   />
                 </div>
                 
-                {/* Anti-Piracy Click-to-Play Catcher */}
-                <div 
-                  className="absolute inset-0 z-10 cursor-pointer"
-                  onClick={() => {
-                    setPlaying(!playing);
-                    setShowQualityMenu(false);
-                    setShowSpeedMenu(false);
-                  }}
-                />
+                {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
+                <div className="absolute inset-0 z-10 cursor-pointer flex">
+                  <div 
+                    className="w-1/2 h-full"
+                    onClick={(e) => {
+                      if (clickTimeoutRef.current) {
+                        clearTimeout(clickTimeoutRef.current);
+                        clickTimeoutRef.current = null;
+                        // Double click Left: Seek -10s
+                        if (playerRef.current) {
+                          const ct = playerRef.current.getCurrentTime();
+                          playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
+                        }
+                      } else {
+                        clickTimeoutRef.current = setTimeout(() => {
+                          clickTimeoutRef.current = null;
+                          setPlaying(!playing);
+                          setShowQualityMenu(false);
+                          setShowSpeedMenu(false);
+                        }, 250);
+                      }
+                    }}
+                  />
+                  <div 
+                    className="w-1/2 h-full"
+                    onClick={(e) => {
+                      if (clickTimeoutRef.current) {
+                        clearTimeout(clickTimeoutRef.current);
+                        clickTimeoutRef.current = null;
+                        // Double click Right: Seek +10s
+                        if (playerRef.current) {
+                          const ct = playerRef.current.getCurrentTime();
+                          playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
+                        }
+                      } else {
+                        clickTimeoutRef.current = setTimeout(() => {
+                          clickTimeoutRef.current = null;
+                          setPlaying(!playing);
+                          setShowQualityMenu(false);
+                          setShowSpeedMenu(false);
+                        }, 250);
+                      }
+                    }}
+                  />
+                </div>
 
                 {/* Floating Email Watermark */}
                 <div

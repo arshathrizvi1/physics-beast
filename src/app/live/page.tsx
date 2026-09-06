@@ -23,8 +23,18 @@ export default function StudentLivePortal() {
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [wmPos, setWmPos] = useState({ x: 20, y: 20 });
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Kickstart the watermark movement after mount
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setWmPos({ x: 5 + Math.random() * 70, y: 5 + Math.random() * 75 });
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!user || user.role !== 'student') return;
@@ -276,14 +286,68 @@ export default function StudentLivePortal() {
                         />
                       </div>
                       
-                      {/* Invisible Click Area for Play/Pause */}
-                      <div 
-                        className="absolute inset-0 z-10 cursor-pointer"
-                        onClick={() => setPlaying(!playing)}
+                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
+                      <div className="absolute inset-0 z-10 cursor-pointer flex">
+                        <div 
+                          className="w-1/2 h-full"
+                          onClick={(e) => {
+                            if (clickTimeoutRef.current) {
+                              clearTimeout(clickTimeoutRef.current);
+                              clickTimeoutRef.current = null;
+                              // Double click Left: Seek -10s
+                              if (playerRef.current) {
+                                const ct = playerRef.current.getCurrentTime();
+                                playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
+                              }
+                            } else {
+                              clickTimeoutRef.current = setTimeout(() => {
+                                clickTimeoutRef.current = null;
+                                setPlaying(!playing);
+                              }, 250);
+                            }
+                          }}
+                        />
+                        <div 
+                          className="w-1/2 h-full"
+                          onClick={(e) => {
+                            if (clickTimeoutRef.current) {
+                              clearTimeout(clickTimeoutRef.current);
+                              clickTimeoutRef.current = null;
+                              // Double click Right: Seek +10s
+                              if (playerRef.current) {
+                                const ct = playerRef.current.getCurrentTime();
+                                // We don't have duration in Live easily, so just seek relative
+                                playerRef.current.seekTo(ct + 10, 'seconds');
+                              }
+                            } else {
+                              clickTimeoutRef.current = setTimeout(() => {
+                                clickTimeoutRef.current = null;
+                                setPlaying(!playing);
+                              }, 250);
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* Floating Email Watermark */}
+                      <div
+                        className="absolute z-11 pointer-events-none select-none"
+                        style={{
+                          left: `${wmPos.x}%`,
+                          top: `${wmPos.y}%`,
+                          transition: 'left 3s ease-in-out, top 3s ease-in-out',
+                        }}
+                        onTransitionEnd={() => {
+                          setWmPos({
+                            x: 5 + Math.random() * 70,
+                            y: 5 + Math.random() * 75,
+                          });
+                        }}
                       >
-                        <p className="transform -rotate-45 text-xl font-bold tracking-widest text-white/20 select-none flex items-center justify-center h-full w-full" style={{ textShadow: '0 0 10px black' }}>
-                          {user.email} - Do Not Copy
-                        </p>
+                        <span className="text-xs font-semibold text-white/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
+                          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                          {user.email}
+                        </span>
                       </div>
 
                       {/* Custom Controls Overlay */}
