@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
@@ -369,15 +369,20 @@ export default function AdminDashboard() {
         });
       }
       
+      const assignedTeacher = teamMembers.find(m => m.id === newCourseTeacherId);
       const ref = doc(collection(db, 'courses'));
       await setDoc(ref, { 
         name: newCourseName, 
         batchId: selectedBatchId, 
         image: thumbnailUrl || null,
+        teacherId: newCourseTeacherId || null,
+        teacherName: assignedTeacher ? (assignedTeacher.name || assignedTeacher.email?.split('@')[0]) : null,
+        teacherSubject: assignedTeacher?.subject || null,
         createdAt: Date.now() 
       });
       setNewCourseName("");
       setNewCourseImage(null);
+      setNewCourseTeacherId("");
       setSelectedCourseId(ref.id); // Auto-select so user can immediately add folders
     } catch (err) {
       console.log(err);
@@ -395,8 +400,16 @@ export default function AdminDashboard() {
   const handleSaveCourse = async (id: string) => {
     if (!editCourseName.trim()) return;
     try {
-      await updateDoc(doc(db, 'courses', id), { name: editCourseName });
+      const updateData: any = { name: editCourseName };
+      if (editCourseTeacherId !== undefined) {
+        const assignedTeacher = teamMembers.find(m => m.id === editCourseTeacherId);
+        updateData.teacherId = editCourseTeacherId || null;
+        updateData.teacherName = assignedTeacher ? (assignedTeacher.name || assignedTeacher.email?.split('@')[0]) : null;
+        updateData.teacherSubject = assignedTeacher?.subject || null;
+      }
+      await updateDoc(doc(db, 'courses', id), updateData);
       setEditingCourseId(null);
+      setEditCourseTeacherId("");
     } catch (e) {
       console.error("Failed to rename course", e);
       alert("Failed to rename course.");
@@ -547,7 +560,16 @@ export default function AdminDashboard() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [newTeamEmail, setNewTeamEmail] = useState("");
   const [newTeamRole, setNewTeamRole] = useState<"admin" | "teacher">("teacher");
+  const [newTeamSubject, setNewTeamSubject] = useState("");
   const [isAddingTeamMember, setIsAddingTeamMember] = useState(false);
+  const [selectedTeacherDetails, setSelectedTeacherDetails] = useState<any | null>(null);
+  const [editingTeacherSubjectId, setEditingTeacherSubjectId] = useState<string | null>(null);
+  const [editTeacherSubjectValue, setEditTeacherSubjectValue] = useState("");
+
+  // Course Teacher Filter & Assignment
+  const [courseTeacherFilter, setCourseTeacherFilter] = useState<string>("all");
+  const [newCourseTeacherId, setNewCourseTeacherId] = useState<string>("");
+  const [editCourseTeacherId, setEditCourseTeacherId] = useState<string>("");
 
   // Each question has: text, image, options, correct
   const [questions, setQuestions] = useState<any[]>([{ 
@@ -570,7 +592,7 @@ export default function AdminDashboard() {
 
   // Team Members - load admins and teachers
   useEffect(() => {
-    if (!user || user.role !== 'admin') return;
+    if (!user || (user.role !== 'admin' && user.role !== 'teacher')) return;
     const q = query(collection(db, 'users'), where('role', 'in', ['admin', 'teacher']));
     const unsub = onSnapshot(q, (snap) => {
       setTeamMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -593,16 +615,31 @@ export default function AdminDashboard() {
       const targetDoc = snap.docs[0];
       await updateDoc(doc(db, 'users', targetDoc.id), {
         role: newTeamRole,
+        subject: newTeamSubject.trim() || (newTeamRole === 'teacher' ? 'Physics' : 'Administration'),
         isApproved: true,
         pendingReason: null,
       });
       setNewTeamEmail("");
+      setNewTeamSubject("");
       alert(`✅ ${newTeamEmail} has been made a ${newTeamRole}!`);
     } catch (err) {
       alert("Failed to update user role.");
       console.error(err);
     } finally {
       setIsAddingTeamMember(false);
+    }
+  };
+
+  const handleSaveTeacherSubject = async (memberId: string, subject: string) => {
+    try {
+      await updateDoc(doc(db, 'users', memberId), { subject: subject.trim() });
+      if (selectedTeacherDetails && selectedTeacherDetails.id === memberId) {
+        setSelectedTeacherDetails((prev: any) => prev ? { ...prev, subject: subject.trim() } : null);
+      }
+      setEditingTeacherSubjectId(null);
+      alert("Teacher subject updated successfully!");
+    } catch (err) {
+      alert("Failed to update teacher subject.");
     }
   };
 
@@ -1195,6 +1232,58 @@ export default function AdminDashboard() {
               </CardDescription>
             </CardHeader>
               <CardContent className="pt-6">
+                {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
+                <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="w-5 h-5 text-primary" />
+                      <span className="font-bold text-sm">Filter by Teacher / Instructor:</span>
+                      <span className="text-xs text-muted-foreground">Select a teacher to view & manage only their courses</span>
+                    </div>
+                    {courseTeacherFilter !== "all" && (
+                      <Button size="sm" variant="ghost" onClick={() => setCourseTeacherFilter("all")} className="text-xs text-primary h-7">
+                        Reset Filter (Show All)
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCourseTeacherFilter("all")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        courseTeacherFilter === "all" 
+                          ? "bg-primary text-primary-foreground shadow" 
+                          : "bg-secondary/20 hover:bg-secondary/40 text-foreground"
+                      }`}
+                    >
+                      <span>All Teachers</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20">{courses.length}</span>
+                    </button>
+                    {teamMembers.map(tm => {
+                      const count = courses.filter(c => c.teacherId === tm.id).length;
+                      return (
+                        <button
+                          key={tm.id}
+                          type="button"
+                          onClick={() => setCourseTeacherFilter(tm.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            courseTeacherFilter === tm.id 
+                              ? "bg-primary text-primary-foreground shadow" 
+                              : "bg-secondary/20 hover:bg-secondary/40 text-foreground"
+                          }`}
+                        >
+                          <span className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[9px] uppercase font-mono">
+                            {tm.name?.charAt(0) || 'T'}
+                          </span>
+                          <span>{tm.name || tm.email?.split('@')[0]}</span>
+                          {tm.subject && <span className="opacity-75 text-[10px]">({tm.subject})</span>}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/20">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* BATCHES COLUMN */}
                   <div className="border border-border/50 rounded-lg p-4 space-y-4">
@@ -1235,15 +1324,26 @@ export default function AdminDashboard() {
 
                   {/* COURSES COLUMN */}
                   <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedBatchId ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <h3 className="font-bold text-lg border-b pb-2">2. Courses</h3>
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <h3 className="font-bold text-lg">2. Courses</h3>
+                      {courseTeacherFilter !== "all" && (
+                        <span className="text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                          Filtered by Teacher
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {courses.filter(c => c.batchId === selectedBatchId).map(c => (
+                      {courses.filter(c => {
+                        const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
+                        const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
+                        return matchBatch && matchTeacher;
+                      }).map(c => (
                         <div
                           key={c.id}
                           className={`p-3 rounded-md flex items-center gap-2 transition-colors ${selectedCourseId === c.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
                         >
                           {editingCourseId === c.id ? (
-                            <div className="flex-1 flex gap-2 items-center" onClick={e => e.stopPropagation()}>
+                            <div className="flex-1 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
                               <Input
                                 value={editCourseName}
                                 onChange={e => setEditCourseName(e.target.value)}
@@ -1251,17 +1351,40 @@ export default function AdminDashboard() {
                                 autoFocus
                                 onKeyDown={e => { if (e.key === 'Enter') handleSaveCourse(c.id); if (e.key === 'Escape') setEditingCourseId(null); }}
                               />
-                              <button onClick={() => handleSaveCourse(c.id)} className="p-1 bg-green-600 hover:bg-green-700 text-white rounded-md shrink-0">
-                                <Save className="w-3 h-3" />
-                              </button>
-                              <button onClick={() => setEditingCourseId(null)} className="p-1 hover:bg-secondary/60 rounded-md text-foreground shrink-0">
-                                ---
-                              </button>
+                              <select
+                                className="flex h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+                                value={editCourseTeacherId !== "" ? editCourseTeacherId : (c.teacherId || "")}
+                                onChange={e => setEditCourseTeacherId(e.target.value)}
+                              >
+                                <option value="">-- No Teacher Assigned --</option>
+                                {teamMembers.map(tm => (
+                                  <option key={tm.id} value={tm.id}>
+                                    {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="flex gap-1 justify-end">
+                                <button onClick={() => handleSaveCourse(c.id)} className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs flex items-center gap-1">
+                                  <Save className="w-3 h-3" /> Save
+                                </button>
+                                <button onClick={() => setEditingCourseId(null)} className="px-2 py-0.5 hover:bg-secondary/60 rounded text-xs">
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <>
-                              <p className="font-bold flex-1 cursor-pointer" onClick={() => setSelectedCourseId(c.id)}>{c.name}</p>
-                              <button onClick={(e) => { e.stopPropagation(); setEditingCourseId(c.id); setEditCourseName(c.name); }} className={`p-1 hover:bg-secondary/50 rounded-md shrink-0 ${selectedCourseId === c.id ? 'text-primary-foreground/80' : 'text-primary'}`}>
+                              <div className="flex-1 cursor-pointer" onClick={() => setSelectedCourseId(c.id)}>
+                                <p className="font-bold">{c.name}</p>
+                                {c.teacherName && (
+                                  <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${selectedCourseId === c.id ? 'text-primary-foreground/90' : 'text-primary'}`}>
+                                    <GraduationCap className="w-3 h-3" />
+                                    <span>{c.teacherName}</span>
+                                    {c.teacherSubject && <span className="opacity-75">({c.teacherSubject})</span>}
+                                  </p>
+                                )}
+                              </div>
+                              <button onClick={(e) => { e.stopPropagation(); setEditingCourseId(c.id); setEditCourseName(c.name); setEditCourseTeacherId(c.teacherId || ""); }} className={`p-1 hover:bg-secondary/50 rounded-md shrink-0 ${selectedCourseId === c.id ? 'text-primary-foreground/80' : 'text-primary'}`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(c.id); }} className={`p-1 hover:bg-destructive/20 rounded-md text-destructive shrink-0`}>
@@ -1271,13 +1394,33 @@ export default function AdminDashboard() {
                           )}
                         </div>
                       ))}
-                      {selectedBatchId && courses.filter(c => c.batchId === selectedBatchId).length === 0 && <p className="text-sm text-muted-foreground italic">No courses in this batch.</p>}
+                      {selectedBatchId && courses.filter(c => {
+                        const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
+                        const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
+                        return matchBatch && matchTeacher;
+                      }).length === 0 && (
+                        <p className="text-sm text-muted-foreground italic">
+                          {courseTeacherFilter !== 'all' ? 'No courses for this teacher in this batch.' : 'No courses in this batch.'}
+                        </p>
+                      )}
                       {!selectedBatchId && <p className="text-sm text-muted-foreground italic">Select a batch first.</p>}
                     </div>
                     <div className="pt-2 border-t space-y-3">
                       {/* New course */}
                       <form onSubmit={handleCreateCourse} className="space-y-2">
                         <Input placeholder="Course Name (e.g. Mechanics)" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required />
+                        <select
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs"
+                          value={newCourseTeacherId}
+                          onChange={e => setNewCourseTeacherId(e.target.value)}
+                        >
+                          <option value="">-- Assign Teacher (Optional) --</option>
+                          {teamMembers.map(tm => (
+                            <option key={tm.id} value={tm.id}>
+                              {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
+                            </option>
+                          ))}
+                        </select>
                         <Input type="file" accept="image/*" onChange={e => setNewCourseImage(e.target.files?.[0] || null)} className="text-xs file:h-full file:bg-transparent file:border-0 file:text-foreground" title="Course Thumbnail (Optional)" />
                         <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add New Course</Button>
                       </form>
@@ -2005,7 +2148,7 @@ export default function AdminDashboard() {
                     required 
                   />
                 </div>
-                <div className="space-y-2 w-full md:w-40">
+                <div className="space-y-2 w-full md:w-36">
                   <Label>Role</Label>
                   <select 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -2015,6 +2158,14 @@ export default function AdminDashboard() {
                     <option value="teacher">👩‍🏫 Teacher</option>
                     <option value="admin">🛡 Admin</option>
                   </select>
+                </div>
+                <div className="space-y-2 w-full md:w-48">
+                  <Label>Subject Taught</Label>
+                  <Input 
+                    placeholder="e.g. Physics, Mechanics" 
+                    value={newTeamSubject}
+                    onChange={(e) => setNewTeamSubject(e.target.value)}
+                  />
                 </div>
                 <Button type="submit" disabled={isAddingTeamMember} className="w-full md:w-auto">
                   {isAddingTeamMember ? "Adding..." : "Add to Team"}
@@ -2033,46 +2184,114 @@ export default function AdminDashboard() {
                         <tr>
                           <th className="text-left p-3 font-semibold">Name / Email</th>
                           <th className="text-left p-3 font-semibold">Role</th>
+                          <th className="text-left p-3 font-semibold">Subject Taught</th>
+                          <th className="text-left p-3 font-semibold">Assigned Courses</th>
                           <th className="text-left p-3 font-semibold">2FA Status</th>
                           <th className="text-left p-3 font-semibold">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {teamMembers.map((member) => (
-                          <tr key={member.id} className="border-t border-secondary/20 hover:bg-secondary/10">
-                            <td className="p-3">
-                              <p className="font-medium">{member.name || "No name"}</p>
-                              <p className="text-xs text-muted-foreground">{member.email}</p>
-                            </td>
-                            <td className="p-3">
-                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                member.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'
-                              }`}>
-                                {member.role === 'admin' ? '🛡 Admin' : '👩‍🏫 Teacher'}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              {member.totpSecret ? (
-                                <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
-                              ) : (
-                                <span className="text-yellow-500 text-xs font-medium">⚠ Not Set Up</span>
-                              )}
-                            </td>
-                            <td className="p-3">
-                              {member.id !== user?.uid ? (
-                                <Button
-                                  size="sm" variant="outline"
-                                  className="text-red-500 border-red-500/20 hover:bg-red-500/10"
-                                  onClick={() => handleRemoveTeamMember(member.id, member.email)}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground italic">You (cannot remove self)</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {teamMembers.map((member) => {
+                          const assignedCourses = courses.filter(c => c.teacherId === member.id);
+                          const isEditingSubject = editingTeacherSubjectId === member.id;
+                          return (
+                            <tr key={member.id} className="border-t border-secondary/20 hover:bg-secondary/10">
+                              <td className="p-3">
+                                <p className="font-medium">{member.name || "No name"}</p>
+                                <p className="text-xs text-muted-foreground">{member.email}</p>
+                              </td>
+                              <td className="p-3">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                  member.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'
+                                }`}>
+                                  {member.role === 'admin' ? '🛡 Admin' : '👩‍🏫 Teacher'}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                {isEditingSubject ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <Input
+                                      value={editTeacherSubjectValue}
+                                      onChange={(e) => setEditTeacherSubjectValue(e.target.value)}
+                                      className="h-7 text-xs w-32"
+                                      placeholder="Subject"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveTeacherSubject(member.id, editTeacherSubjectValue);
+                                        if (e.key === 'Escape') setEditingTeacherSubjectId(null);
+                                      }}
+                                    />
+                                    <button 
+                                      onClick={() => handleSaveTeacherSubject(member.id, editTeacherSubjectValue)}
+                                      className="p-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs"
+                                      title="Save Subject"
+                                    >
+                                      <Save className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => setEditingTeacherSubjectId(null)}
+                                      className="p-1 hover:bg-secondary/60 rounded text-xs"
+                                      title="Cancel"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-xs bg-secondary/30 px-2 py-0.5 rounded border border-secondary/40">
+                                      {member.subject || (member.role === 'teacher' ? 'Physics' : 'Administration')}
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingTeacherSubjectId(member.id);
+                                        setEditTeacherSubjectValue(member.subject || (member.role === 'teacher' ? 'Physics' : 'Administration'));
+                                      }}
+                                      className="p-1 text-muted-foreground hover:text-primary rounded hover:bg-secondary/40"
+                                      title="Edit Subject"
+                                    >
+                                      <Edit2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <span className="inline-flex items-center gap-1 text-xs font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                  <BookOpen className="w-3 h-3" /> {assignedCourses.length} Course{assignedCourses.length === 1 ? '' : 's'}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                {member.totpSecret ? (
+                                  <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
+                                ) : (
+                                  <span className="text-yellow-500 text-xs font-medium">⚠ Not Set Up</span>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 gap-1 border-secondary/40 hover:bg-primary/10 hover:text-primary"
+                                    onClick={() => setSelectedTeacherDetails(member)}
+                                  >
+                                    <Eye className="w-3 h-3" /> Details
+                                  </Button>
+                                  {member.id !== user?.uid ? (
+                                    <Button
+                                      size="sm" variant="outline"
+                                      className="text-red-500 border-red-500/20 hover:bg-red-500/10 text-xs h-7"
+                                      onClick={() => handleRemoveTeamMember(member.id, member.email)}
+                                    >
+                                      <Trash2 className="w-3 h-3 mr-1" /> Remove
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground italic">You</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -2463,6 +2682,144 @@ export default function AdminDashboard() {
 
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* TEACHER DETAILS MODAL */}
+      {selectedTeacherDetails && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedTeacherDetails(null)}
+        >
+          <div 
+            className="bg-card border border-border/80 rounded-2xl max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border/50 bg-secondary/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+                  {selectedTeacherDetails.name?.charAt(0) || selectedTeacherDetails.email?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+                    {selectedTeacherDetails.name || "Teacher"}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                      selectedTeacherDetails.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'
+                    }`}>
+                      {selectedTeacherDetails.role === 'admin' ? '🛡 Admin' : '👩‍🏫 Teacher'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground">{selectedTeacherDetails.email}</p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedTeacherDetails(null)}
+                className="rounded-full w-8 h-8 p-0 hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Subject Taught Edit Section */}
+              <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 space-y-3">
+                <Label className="font-bold text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" /> Subject / Specialization
+                </Label>
+                <p className="text-xs text-muted-foreground">What subject this teacher instructs (e.g. A/L Physics, Mechanics, Waves, Modern Physics).</p>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="e.g. Physics, Mechanics"
+                    defaultValue={selectedTeacherDetails.subject || (selectedTeacherDetails.role === 'teacher' ? 'Physics' : 'Administration')}
+                    id="teacher-modal-subject"
+                  />
+                  <Button 
+                    size="sm"
+                    onClick={() => {
+                      const input = document.getElementById("teacher-modal-subject") as HTMLInputElement;
+                      if (input) {
+                        handleSaveTeacherSubject(selectedTeacherDetails.id, input.value);
+                      }
+                    }}
+                    className="shrink-0 gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save Subject
+                  </Button>
+                </div>
+              </div>
+
+              {/* Status & Credentials */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Google Authenticator (2FA)</p>
+                  <p className="font-bold">
+                    {selectedTeacherDetails.totpSecret ? (
+                      <span className="text-green-500">✅ Enabled</span>
+                    ) : (
+                      <span className="text-yellow-500">⚠ Not Set Up</span>
+                    )}
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Portal Access</p>
+                  <p className="font-bold text-primary">Full Teaching & Live Access</p>
+                </div>
+              </div>
+
+              {/* Assigned Courses */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" /> Courses Taught by {selectedTeacherDetails.name || 'this Teacher'}
+                  </h4>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {courses.filter(c => c.teacherId === selectedTeacherDetails.id).length} courses
+                  </span>
+                </div>
+
+                {courses.filter(c => c.teacherId === selectedTeacherDetails.id).length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground italic rounded-lg border border-dashed border-secondary/40">
+                    No courses currently assigned to this teacher. You can assign courses in the "Courses" tab.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {courses.filter(c => c.teacherId === selectedTeacherDetails.id).map(c => (
+                      <div key={c.id} className="p-3 rounded-lg bg-secondary/20 border border-secondary/30 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-sm">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">Batch: {c.batchId === 'all' ? 'All Batches' : batches.find(b => b.id === c.batchId)?.year || c.batchId}</p>
+                        </div>
+                        <Button 
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-7 text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            setCourseTeacherFilter(selectedTeacherDetails.id);
+                            setSelectedTeacherDetails(null);
+                            const coursesTabTrigger = document.querySelector('button[value="courses"]') as HTMLButtonElement;
+                            coursesTabTrigger?.click();
+                          }}
+                        >
+                          View in Manager &rarr;
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-border/50 bg-secondary/10 flex justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setSelectedTeacherDetails(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
