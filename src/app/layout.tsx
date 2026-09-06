@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import LiveNavLink from "@/components/LiveNavLink";
 import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import Image from "next/image";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -105,9 +106,10 @@ export default function RootLayout({
                 {children}
               </main>
 
-              <footer className="border-t border-zinc-900 py-12 bg-[#070707]">
+              <footer className="border-t border-zinc-900 py-12 bg-[#070707] pb-24 md:pb-12">
                 <FooterContent />
               </footer>
+              <MobileBottomNav />
             </LenisProvider>
           </AuthProvider>
           <ThemeToggle />
