@@ -122,23 +122,19 @@ export default function PremiumNavbar() {
                   <div className="w-11 h-11 rounded-full overflow-hidden border border-[#d4af37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.35)] group-hover:border-[#d4af37]/60 transition-all duration-500">
                     <Image src="/logo.jpg" alt="Brilliant Academy" width={44} height={44} className="object-cover w-full h-full" priority />
                   </div>
-                  {/* shine sweep */}
-                  <motion.div
-                    className="absolute inset-0 rounded-full pointer-events-none"
+                  {/* shine sweep visible on hover */}
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700"
                     style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.4) 0%, transparent 60%)" }}
-                    animate={{ opacity: [0, 1, 0] }}
-                    transition={{ delay: 1.5, duration: 1.5, repeat: Infinity, repeatDelay: 6 }}
                   />
                 </div>
                 <div className="hidden sm:flex flex-col uppercase leading-none justify-center">
-                  {/* Gold shine sweep on BRILLIANT text */}
+                  {/* Gold shine sweep on BRILLIANT text (hover only) */}
                   <div className="relative overflow-hidden">
                     <span className="font-bold text-[18px] tracking-widest font-serif text-[#d4af37]">Brilliant</span>
-                    <motion.div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)", backgroundSize: "200% 100%" }}
-                      animate={{ backgroundPosition: ["-200% 0", "200% 0"] }}
-                      transition={{ delay: 1.5, duration: 2, repeat: Infinity, repeatDelay: 5 }}
+                    <div
+                      className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-in-out"
+                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
                     />
                   </div>
                   <span className="text-zinc-400 text-[11px] tracking-[0.22em] font-sans">Academy</span>
