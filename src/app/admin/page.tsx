@@ -149,7 +149,9 @@ export default function AdminDashboard() {
     });
 
     const unsubExams = onSnapshot(collection(db, 'exams'), (snapshot) => {
-      setPublishedExams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      list.sort((a: any, b: any) => (b.createdAt || b.updatedAt || 0) - (a.createdAt || a.updatedAt || 0));
+      setPublishedExams(list);
     });
 
     return () => {
@@ -857,22 +859,45 @@ export default function AdminDashboard() {
     }
   };
 
+  const formatDatetimeLocal = (val: any) => {
+    if (!val) return "";
+    if (typeof val === 'string' && val.includes('T')) return val;
+    const d = new Date(typeof val === 'number' ? val : Number(val) || val);
+    if (isNaN(d.getTime())) return "";
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const handleEditExam = (exam: any) => {
     setEditingExamId(exam.id);
-    setExamTitle(exam.title);
-    setExamTime(exam.durationSeconds ? (exam.durationSeconds / 60).toString() : exam.duration.split(" ")[0]);
-    setExamStartTime(exam.startTime || "");
-    setExamEndTime(exam.endTime || "");
+    setExamTitle(exam.title || "");
+    setExamTime(exam.durationSeconds ? (exam.durationSeconds / 60).toString() : (exam.duration ? exam.duration.split(" ")[0] : "15"));
+    setExamStartTime(formatDatetimeLocal(exam.startTimeString || exam.startTime));
+    setExamEndTime(formatDatetimeLocal(exam.endTimeString || exam.endTime));
     setExamCategory(exam.category || "Mechanics");
-    setQuestions(exam.questions.map((q: any) => ({
-      id: q.id, 
-      text: q.text,
-      image: q.image,
-      options: { A: q.options[0].text, B: q.options[1].text, C: q.options[2].text, D: q.options[3].text },
-      correct: q.correct
-    })));
-    // scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setExamBatchId(exam.batchId || "all");
+    setExamCourseId(exam.courseId || "");
+    setExamFolderId(exam.folderId || "");
+    if (Array.isArray(exam.questions)) {
+      setQuestions(exam.questions.map((q: any) => ({
+        id: q.id, 
+        text: q.text || "",
+        image: q.image || null,
+        options: { 
+          A: q.options?.[0]?.text || q.options?.A || "", 
+          B: q.options?.[1]?.text || q.options?.B || "", 
+          C: q.options?.[2]?.text || q.options?.C || "", 
+          D: q.options?.[3]?.text || q.options?.D || "" 
+        },
+        correct: q.correct || "A"
+      })));
+    }
+    const formEl = document.getElementById('exam-editor-form');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSaveExam = async () => {
@@ -2050,13 +2075,194 @@ export default function AdminDashboard() {
         {/* EXAM MANAGEMENT TAB */}
         <TabsContent value="exams" className="space-y-6">
           
-          {/* Create / Edit Exam Form */}
+          {/* List of All Created Exams */}
           <Card className="border-primary/50 shadow-md">
-            <CardHeader className="bg-primary/5 border-b border-primary/20">
-              <CardTitle className="text-2xl text-primary flex items-center gap-2">
-                <FileQuestion className="w-6 h-6" /> {editingExamId ? "Edit Exam" : "Create New Exam"}
-              </CardTitle>
-              <CardDescription>Setup times, categories, marks, and add MCQ questions.</CardDescription>
+            <CardHeader className="bg-secondary/10 border-b border-border/50 pb-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl text-primary flex items-center gap-2">
+                  <FileQuestion className="w-5 h-5" /> Created Exams ({publishedExams.length})
+                </CardTitle>
+                <CardDescription className="text-xs mt-1">
+                  Exams remain visible here permanently even after their time ends. When an exam ends, students cannot start or submit it. Only clicking "Hide" hides an exam from students.
+                </CardDescription>
+              </div>
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  setEditingExamId(null);
+                  setExamTitle("");
+                  setExamTime("");
+                  setExamStartTime("");
+                  setExamEndTime("");
+                  setExamCategory("Mechanics");
+                  setQuestions([{ id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
+                  const formEl = document.getElementById('exam-editor-form');
+                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="font-bold flex items-center gap-1.5 shrink-0"
+              >
+                <Plus className="w-4 h-4" /> New Exam
+              </Button>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {publishedExams.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground border border-dashed rounded-lg bg-secondary/5">
+                  <FileQuestion className="w-10 h-10 mx-auto mb-2 opacity-30 text-primary" />
+                  <p className="font-semibold text-sm">No exams created yet.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Fill out the form below to create and publish your first exam.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {publishedExams.map((exam) => {
+                    const now = Date.now();
+                    const hasStart = !!exam.startTime;
+                    const hasEnd = !!exam.endTime;
+                    const isUpcoming = hasStart && now < exam.startTime;
+                    const isEnded = hasEnd && now > exam.endTime;
+                    const isActive = (!hasStart || now >= exam.startTime) && (!hasEnd || now <= exam.endTime);
+
+                    return (
+                      <div 
+                        key={exam.id} 
+                        className={`border rounded-xl p-4 bg-background transition-all flex flex-col justify-between gap-3 shadow-sm ${
+                          exam.hidden 
+                            ? 'opacity-60 border-dashed border-destructive/40 bg-destructive/5' 
+                            : isEnded 
+                            ? 'border-border/60 bg-secondary/5' 
+                            : 'border-primary/30 shadow-primary/5'
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="font-bold text-base text-foreground leading-tight">{exam.title}</h4>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                  {exam.category || 'General'}
+                                </span>
+                                
+                                {/* Timing Status Badge */}
+                                {isEnded ? (
+                                  <span className="text-[10px] font-bold bg-destructive/15 text-destructive px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    🔴 Time Ended (Submissions Closed)
+                                  </span>
+                                ) : isActive ? (
+                                  <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    🟢 Active Now
+                                  </span>
+                                ) : isUpcoming ? (
+                                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    🟡 Upcoming
+                                  </span>
+                                ) : null}
+
+                                {/* Visibility Badge */}
+                                {exam.hidden ? (
+                                  <span className="text-[10px] font-bold bg-destructive/20 text-destructive px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <EyeOff className="w-3 h-3" /> Hidden from Students
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-semibold bg-secondary/40 text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <Eye className="w-3 h-3" /> Visible to Students
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="w-8 h-8 hover:bg-primary/10 hover:text-primary" 
+                                onClick={() => handleEditExam(exam)}
+                                title="Edit Exam"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className={`w-8 h-8 ${exam.hidden ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'}`} 
+                                onClick={() => handleToggleHide(exam.id)}
+                                title={exam.hidden ? "Click to Unhide (Show to Students)" : "Click to Hide from Students"}
+                              >
+                                {exam.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive text-muted-foreground" 
+                                onClick={() => handleDeleteExam(exam.id)}
+                                title="Delete Exam"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t border-border/40">
+                            <div className="flex justify-between">
+                              <span>Questions: <strong>{Array.isArray(exam.questions) ? exam.questions.length : exam.questions}</strong></span>
+                              <span>Duration: <strong>{exam.duration || '15 min'}</strong></span>
+                            </div>
+                            {hasStart && (
+                              <div className="flex justify-between text-[11px]">
+                                <span className="text-muted-foreground">Start Window:</span>
+                                <span className="font-medium text-foreground">{new Date(exam.startTime).toLocaleString()}</span>
+                              </div>
+                            )}
+                            {hasEnd && (
+                              <div className="flex justify-between text-[11px]">
+                                <span className="text-muted-foreground">Deadline / End:</span>
+                                <span className={`font-medium ${isEnded ? 'text-destructive font-bold' : 'text-foreground'}`}>
+                                  {new Date(exam.endTime).toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {isEnded && (
+                          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-[11px] p-2 rounded-md font-medium flex items-center justify-between">
+                            <span>🔒 Submission window ended. Students cannot take this exam.</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Create / Edit Exam Form */}
+          <Card id="exam-editor-form" className="border-primary/50 shadow-md">
+            <CardHeader className="bg-primary/5 border-b border-primary/20 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl text-primary flex items-center gap-2">
+                  <FileQuestion className="w-6 h-6" /> {editingExamId ? `Editing Exam: ${examTitle || 'Untitled'}` : "Create New Exam"}
+                </CardTitle>
+                <CardDescription>Setup times, categories, marks, and add MCQ questions.</CardDescription>
+              </div>
+              {editingExamId && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    setEditingExamId(null);
+                    setExamTitle("");
+                    setExamTime("");
+                    setExamStartTime("");
+                    setExamEndTime("");
+                    setExamCategory("Mechanics");
+                    setQuestions([{ id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Cancel Edit
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-8 pt-6">
                 {/* Exam Settings */}
@@ -2252,44 +2458,7 @@ export default function AdminDashboard() {
               </Button>
             </CardFooter>
           </Card>
-          
-          {/* List of published custom exams */}
-          {publishedExams.length > 0 && (
-            <Card className="border-primary/50 shadow-md">
-              <CardHeader className="bg-secondary/10 border-b border-border/50 pb-4">
-                <CardTitle className="text-lg">Published Custom Exams</CardTitle>
-                <CardDescription>Manage exams currently available to students.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {publishedExams.map((exam) => (
-                    <div key={exam.id} className={`border rounded-lg p-4 bg-background transition-opacity flex justify-between items-center ${exam.hidden ? 'opacity-50 border-dashed border-muted-foreground' : 'border-border/50'}`}>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-primary truncate max-w-[200px]">{exam.title}</h4>
-                          <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">{exam.category || 'General'}</span>
-                          {exam.hidden && <span className="text-[10px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">Hidden</span>}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{Array.isArray(exam.questions) ? exam.questions.length : exam.questions} Questions --- {exam.duration}</p>
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-primary/10 hover:text-primary" onClick={() => handleEditExam(exam)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-yellow-500/10 hover:text-yellow-500" onClick={() => handleToggleHide(exam.id)}>
-                          {exam.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDeleteExam(exam.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
 
         </TabsContent>
 

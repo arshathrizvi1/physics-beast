@@ -30,6 +30,8 @@ export default function LoginPage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const [error, setError] = useState("");
+  const [resetSuccessEmail, setResetSuccessEmail] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
 
   // Real Student Dashboard Stats
@@ -103,16 +105,28 @@ export default function LoginPage() {
   }
 
   const handleResetPassword = async () => {
-    if (!email) {
-      setError("Please enter your email address first to reset your password.");
+    if (!email.trim()) {
+      setError("Please enter your email or Student ID first to reset your password.");
+      setResetSuccessEmail(null);
       return;
     }
-    const success = await resetPassword(email);
-    if (success) {
-      alert("Password reset email sent! Check your inbox.");
-      setError("");
-    } else {
+    setError("");
+    setResetSuccessEmail(null);
+    setIsResetting(true);
+
+    try {
+      const res = await resetPassword(email);
+      if (res.success && res.email) {
+        setResetSuccessEmail(res.email);
+        setError("");
+        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\n⚠️ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
+      } else {
+        setError(res.error || "Failed to send reset email. Make sure the email is correct.");
+      }
+    } catch (err: any) {
       setError("Failed to send reset email. Make sure the email is correct.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -495,6 +509,25 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+
+            {resetSuccessEmail && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-sm p-4 rounded-xl space-y-2.5 shadow-sm animate-in fade-in duration-300">
+                <div className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  Password Reset Email Sent!
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  We've sent a password reset link to: <br />
+                  <strong className="text-foreground font-semibold text-sm break-all">{resetSuccessEmail}</strong>
+                </p>
+                <div className="flex items-start gap-2 pt-1 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-lg">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1–2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
+                  </div>
+                </div>
+              </div>
+            )}
             
             {!isLogin && (
               <>
@@ -597,7 +630,10 @@ export default function LoginPage() {
                 type={isLogin ? "text" : "email"}
                 placeholder={isLogin ? "student@gmail.com or PB-1234" : "student@gmail.com"} 
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setResetSuccessEmail(null);
+                }}
                 required 
               />
             </div>
@@ -608,9 +644,10 @@ export default function LoginPage() {
                   <button 
                     type="button" 
                     onClick={handleResetPassword}
-                    className="text-xs text-primary hover:underline"
+                    disabled={isResetting}
+                    className="text-xs text-primary hover:underline font-medium disabled:opacity-50 transition-opacity"
                   >
-                    Forgot Password?
+                    {isResetting ? "Sending reset email..." : "Forgot Password?"}
                   </button>
                 )}
               </div>
@@ -634,7 +671,15 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex justify-center text-sm text-muted-foreground">
           {isLogin ? "Don't have an account?" : "Already have an account?"} 
-          <Button variant="link" className="px-1 text-primary" onClick={() => setIsLogin(!isLogin)}>
+          <Button 
+            variant="link" 
+            className="px-1 text-primary" 
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setResetSuccessEmail(null);
+              setError("");
+            }}
+          >
             {isLogin ? "Sign up" : "Log in"}
           </Button>
         </CardFooter>

@@ -75,7 +75,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateProfilePicture: (file: File) => Promise<boolean>;
   updateProfileName: (newName: string) => Promise<boolean>;
-  resetPassword: (email: string) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<{ success: boolean; email?: string; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -86,7 +86,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   updateProfilePicture: async () => false,
   updateProfileName: async () => false,
-  resetPassword: async () => false,
+  resetPassword: async () => ({ success: false }),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -644,13 +644,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (emailOrId: string): Promise<{ success: boolean; email?: string; error?: string }> => {
+    let targetEmail = emailOrId.trim();
+
+    if (!targetEmail) {
+      return { success: false, error: "Please enter your email or Student ID." };
+    }
+
+    // If user provided Student ID instead of email, look it up in Firestore
+    if (!targetEmail.includes('@')) {
+      try {
+        const usersRef = collection(db, 'users');
+        let formattedId = targetEmail.toUpperCase();
+        if (!formattedId.startsWith('PB-') && /^\d+$/.test(formattedId)) {
+          formattedId = `PB-${formattedId}`;
+        }
+        
+        const qId = query(usersRef, where("studentId", "==", formattedId));
+        const idSnapshot = await getDocs(qId);
+        
+        if (!idSnapshot.empty) {
+          targetEmail = idSnapshot.docs[0].data().email;
+        } else {
+          const qIdRaw = query(usersRef, where("studentId", "==", emailOrId.trim()));
+          const rawSnapshot = await getDocs(qIdRaw);
+          if (!rawSnapshot.empty) {
+            targetEmail = rawSnapshot.docs[0].data().email;
+          } else {
+            return { success: false, error: `Student ID "${emailOrId}" not found. Please enter your registered email.` };
+          }
+        }
+      } catch (e: any) {
+        console.error("Student ID lookup failed during password reset:", e);
+      }
+    }
+
     try {
-      await sendPasswordResetEmail(auth, email);
-      return true;
+      await sendPasswordResetEmail(auth, targetEmail);
+      return { success: true, email: targetEmail };
     } catch (error: any) {
       console.log("Password reset failed:", error?.message || "Unknown error");
-      return false;
+      let message = "Failed to send reset email. Please verify your email address.";
+      if (error?.code === 'auth/user-not-found') {
+        message = "No account found with this email address.";
+      } else if (error?.code === 'auth/invalid-email') {
+        message = "The email address is invalid.";
+      } else if (error?.code === 'auth/too-many-requests') {
+        message = "Too many reset attempts. Please wait a few minutes before trying again.";
+      }
+      return { success: false, error: message };
     }
   };
 

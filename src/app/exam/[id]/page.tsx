@@ -47,6 +47,14 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         const examData = examDoc.data();
         setExam(examData);
 
+        // Security check: Single attempt
+        const qResults = query(collection(db, 'examResults'), where('userId', '==', user.uid), where('examId', '==', id));
+        const existingResults = await getDocs(qResults);
+        if (!existingResults.empty) {
+          router.replace(`/exam/${id}/results`);
+          return;
+        }
+
         // Security check: Timing bounds
         const now = Date.now();
         if (examData.startTime && now < examData.startTime) {
@@ -55,14 +63,6 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         }
         if (examData.endTime && now > examData.endTime) {
           setErrorMsg("This exam has ended and is closed for new submissions.");
-          return;
-        }
-
-        // Security check: Single attempt
-        const qResults = query(collection(db, 'examResults'), where('userId', '==', user.uid), where('examId', '==', id));
-        const existingResults = await getDocs(qResults);
-        if (!existingResults.empty) {
-          setErrorMsg("You have already submitted this exam. Wait for the exam window to end to view your results.");
           return;
         }
 
@@ -101,6 +101,14 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     if (isSubmitted || !isLoaded) return;
 
     const timer = setInterval(() => {
+      // Check if scheduled exam end time has arrived
+      if (exam?.endTime && Date.now() >= exam.endTime) {
+        clearInterval(timer);
+        setTimeUp(true);
+        handleSubmit();
+        return;
+      }
+
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
@@ -113,7 +121,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isSubmitted, isLoaded]);
+  }, [isSubmitted, isLoaded, exam?.endTime]);
 
   const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
 
@@ -158,6 +166,14 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
   const handleSubmit = async () => {
     if (isSubmitting || isSubmitted) return;
+
+    // If the exam window has closed more than 60s ago, reject late submissions
+    if (exam?.endTime && Date.now() > exam.endTime + 60000) {
+      alert("This exam's submission window has officially ended. Late submissions cannot be processed.");
+      router.push('/exams');
+      return;
+    }
+
     setIsSubmitting(true);
 
     let totalCorrect = 0;
