@@ -161,20 +161,36 @@ export default function Home() {
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#d4af37]/5 blur-[100px] rounded-full mix-blend-screen" />
           {/* Subtle floating stars */}
-          {[...Array(15)].map((_, i) => (
+          {[
+            { top: 12, left: 15, duration: 5.2 },
+            { top: 45, left: 8, duration: 6.1 },
+            { top: 78, left: 22, duration: 7.3 },
+            { top: 23, left: 45, duration: 4.8 },
+            { top: 67, left: 51, duration: 5.5 },
+            { top: 89, left: 34, duration: 6.9 },
+            { top: 34, left: 78, duration: 7.1 },
+            { top: 18, left: 88, duration: 4.5 },
+            { top: 56, left: 92, duration: 6.6 },
+            { top: 92, left: 81, duration: 5.9 },
+            { top: 7, left: 63, duration: 7.8 },
+            { top: 51, left: 37, duration: 5.1 },
+            { top: 82, left: 60, duration: 6.2 },
+            { top: 33, left: 12, duration: 4.9 },
+            { top: 95, left: 10, duration: 5.7 }
+          ].map((p, i) => (
             <motion.div
               key={i}
               className="absolute w-1 h-1 bg-[#d4af37]/40 rounded-full"
               style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
+                top: `${p.top}%`,
+                left: `${p.left}%`,
               }}
               animate={{
                 y: [0, -30, 0],
                 opacity: [0.2, 0.8, 0.2],
               }}
               transition={{
-                duration: 4 + Math.random() * 4,
+                duration: p.duration,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
