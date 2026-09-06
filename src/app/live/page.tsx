@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Video, Calendar, PlayCircle, Clock, ExternalLink } from "lucide-react";
@@ -21,8 +21,6 @@ export default function StudentLivePortal() {
       let folderCourseMap = new Map<string, string>();
       try {
         // Fetch all folders to map folder -> courseId
-        const { getDocs } = require('firebase/firestore');
-        
         const timeoutPromise = new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 2500)
         );
@@ -55,10 +53,7 @@ export default function StudentLivePortal() {
       }
 
       try {
-        const q = query(
-          collection(db, 'live_classes'),
-          where('status', 'in', ['scheduled', 'live'])
-        );
+        const q = query(collection(db, 'live_classes'), orderBy('createdAt', 'desc'));
         
         const unsub = onSnapshot(q, (snap) => {
           let classes = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
@@ -111,7 +106,6 @@ export default function StudentLivePortal() {
     const liveActiveClasses = liveClasses.filter(cls => cls.status === 'live');
     if (liveActiveClasses.length === 0) return;
 
-    const { updateDoc, doc, increment, setDoc } = require('firebase/firestore');
     const { calculateXpLevel } = require('@/lib/xp');
 
     const studyHeartbeat = setInterval(() => {
