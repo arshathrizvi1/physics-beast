@@ -18,6 +18,16 @@ export default function AdminDashboard() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'team', 'site', 'myprofile'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    }
+  }, []);
   const [activeUsers, setActiveUsers] = useState(0);
   const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
@@ -1032,7 +1042,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="w-full space-y-6">
+      <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); window.location.hash = val; }} className="w-full space-y-6">
         <TabsList className="flex overflow-x-auto w-full justify-start h-auto p-1 bg-secondary/20 rounded-lg whitespace-nowrap scrollbar-hide">
           <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Live Dashboard</TabsTrigger>
           <TabsTrigger value="students" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Students</TabsTrigger>

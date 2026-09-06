@@ -232,8 +232,7 @@ export default function PremiumNavbar() {
               {/* User or Login */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  {/* Avatar linked to profile/dashboard */}
-                  <Link href="/login">
+                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/login"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
