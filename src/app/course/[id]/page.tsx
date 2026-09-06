@@ -47,6 +47,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -459,7 +461,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Anti-Piracy Overlay / Click-to-Play Catcher */}
                 <div 
                   className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
-                  onClick={() => setPlaying(!playing)}
+                  onClick={() => {
+                    setPlaying(!playing);
+                    setShowQualityMenu(false);
+                    setShowSpeedMenu(false);
+                  }}
                 >
                   <p className="transform -rotate-45 text-2xl font-bold tracking-widest text-white/20 select-none" style={{ textShadow: '0 0 10px black, 0 0 20px black' }}>
                     {user.email} - Do Not Copy
@@ -512,45 +518,69 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     <div className="flex items-center gap-4">
                       {/* Quality Control */}
-                      <div className="relative group/quality flex items-center">
-                        <button className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100">
+                      <div className="relative flex items-center">
+                        <button 
+                          className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowQualityMenu(!showQualityMenu);
+                            setShowSpeedMenu(false);
+                          }}
+                        >
                           {quality}
                         </button>
-                        <div className="absolute bottom-full right-0 pb-2 hidden group-hover/quality:flex flex-col">
-                          <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-24">
-                            <span className="text-xs text-white/50 p-2 font-medium border-b border-white/10 mb-1 block">Quality</span>
-                            {['Auto', '1080p', '720p', '480p'].map(q => (
-                              <button 
-                                key={q} 
-                                onClick={() => setQuality(q)}
-                                className={`w-full px-4 py-1.5 text-xs text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-white'}`}
-                              >
-                                {q}
-                              </button>
-                            ))}
+                        {showQualityMenu && (
+                          <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
+                            <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
+                              <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
+                                <span className="text-xs text-white/50 font-medium py-2">Quality</span>
+                                <X className="w-3 h-3 text-white/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
+                              </div>
+                              {['Auto', '1080p', '720p', '480p'].map(q => (
+                                <button 
+                                  key={q} 
+                                  onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
+                                  className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-white'}`}
+                                >
+                                  {q}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Speed Control */}
-                      <div className="relative group/speed flex items-center">
-                        <button className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100">
+                      <div className="relative flex items-center">
+                        <button 
+                          className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowSpeedMenu(!showSpeedMenu);
+                            setShowQualityMenu(false);
+                          }}
+                        >
                           {playbackRate}x <Settings className="w-4 h-4 ml-1" />
                         </button>
-                        <div className="absolute bottom-full right-0 pb-2 hidden group-hover/speed:flex flex-col">
-                          <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-24">
-                            <span className="text-xs text-white/50 p-2 font-medium border-b border-white/10 mb-1 block">Speed</span>
-                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                              <button 
-                                key={rate} 
-                                onClick={() => setPlaybackRate(rate)}
-                                className={`w-full px-4 py-1.5 text-xs text-left hover:bg-white/10 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/10' : 'text-white'}`}
-                              >
-                                {rate === 1 ? 'Normal' : `${rate}x`}
-                              </button>
-                            ))}
+                        {showSpeedMenu && (
+                          <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
+                            <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
+                              <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
+                                <span className="text-xs text-white/50 font-medium py-2">Speed</span>
+                                <X className="w-3 h-3 text-white/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(false); }} />
+                              </div>
+                              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                                <button 
+                                  key={rate} 
+                                  onClick={(e) => { e.stopPropagation(); setPlaybackRate(rate); setShowSpeedMenu(false); }}
+                                  className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/10' : 'text-white'}`}
+                                >
+                                  {rate === 1 ? 'Normal' : `${rate}x`}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       <button 
