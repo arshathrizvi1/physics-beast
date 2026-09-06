@@ -49,6 +49,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [wmPos, setWmPos] = useState({ x: 20, y: 20 });
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +62,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (hh) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
     return `${mm}:${ss}`;
   };
+
+  // Kickstart the watermark movement after mount
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setWmPos({ x: 5 + Math.random() * 70, y: 5 + Math.random() * 75 });
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!user) return; // wait for auth
@@ -458,18 +467,35 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   />
                 </div>
                 
-                {/* Anti-Piracy Overlay / Click-to-Play Catcher */}
+                {/* Anti-Piracy Click-to-Play Catcher */}
                 <div 
-                  className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer"
+                  className="absolute inset-0 z-10 cursor-pointer"
                   onClick={() => {
                     setPlaying(!playing);
                     setShowQualityMenu(false);
                     setShowSpeedMenu(false);
                   }}
+                />
+
+                {/* Floating Email Watermark */}
+                <div
+                  className="absolute z-11 pointer-events-none select-none"
+                  style={{
+                    left: `${wmPos.x}%`,
+                    top: `${wmPos.y}%`,
+                    transition: 'left 3s ease-in-out, top 3s ease-in-out',
+                  }}
+                  onTransitionEnd={() => {
+                    setWmPos({
+                      x: 5 + Math.random() * 70,
+                      y: 5 + Math.random() * 75,
+                    });
+                  }}
                 >
-                  <p className="transform -rotate-45 text-2xl font-bold tracking-widest text-white/20 select-none" style={{ textShadow: '0 0 10px black, 0 0 20px black' }}>
-                    {user.email} - Do Not Copy
-                  </p>
+                  <span className="text-xs font-semibold text-white/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
+                    style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                    {user.email}
+                  </span>
                 </div>
 
                 {/* Custom Controls Overlay */}

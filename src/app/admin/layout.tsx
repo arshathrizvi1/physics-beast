@@ -13,8 +13,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (loading) return;
     
-    // Non-admins shouldn't be here
-    if (!user || user.role !== "admin") {
+    // Non-admins/teachers shouldn't be here
+    if (!user || (user.role !== "admin" && user.role !== "teacher")) {
       router.replace("/");
       return;
     }

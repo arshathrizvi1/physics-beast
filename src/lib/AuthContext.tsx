@@ -27,7 +27,7 @@ const safeStorage = {
   }
 };
 
-export type UserRole = 'student' | 'admin';
+export type UserRole = 'student' | 'admin' | 'teacher';
 
 export interface UserProfile {
   uid: string;

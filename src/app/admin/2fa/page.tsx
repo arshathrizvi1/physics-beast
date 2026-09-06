@@ -25,7 +25,7 @@ export default function Admin2FAPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "teacher")) {
       router.replace("/");
       return;
     }

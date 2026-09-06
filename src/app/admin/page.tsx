@@ -79,7 +79,7 @@ export default function AdminDashboard() {
   const [dbError, setDbError] = useState(false);
 
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (user?.role !== 'admin' && user?.role !== 'teacher') return;
 
     // Real-time listener for ALL Students
     const qStudents = query(collection(db, 'users'), where("role", "==", "student"));
@@ -543,6 +543,12 @@ export default function AdminDashboard() {
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [publishedExams, setPublishedExams] = useState<any[]>([]);
 
+  // Team Management States
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [newTeamEmail, setNewTeamEmail] = useState("");
+  const [newTeamRole, setNewTeamRole] = useState<"admin" | "teacher">("teacher");
+  const [isAddingTeamMember, setIsAddingTeamMember] = useState(false);
+
   // Each question has: text, image, options, correct
   const [questions, setQuestions] = useState<any[]>([{ 
     id: Date.now(), 
@@ -559,6 +565,53 @@ export default function AdminDashboard() {
     const success = await login(email, password);
     if (!success) {
       setError("Invalid admin email or password");
+    }
+  };
+
+  // Team Members - load admins and teachers
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const q = query(collection(db, 'users'), where('role', 'in', ['admin', 'teacher']));
+    const unsub = onSnapshot(q, (snap) => {
+      setTeamMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, [user]);
+
+  const handleAddTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamEmail.trim()) return;
+    setIsAddingTeamMember(true);
+    try {
+      // Find user by email in allStudents or search Firestore
+      const q = query(collection(db, 'users'), where('email', '==', newTeamEmail.trim().toLowerCase()));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        alert("No account found with that email. The person must sign up first before being made a teacher/admin.");
+        return;
+      }
+      const targetDoc = snap.docs[0];
+      await updateDoc(doc(db, 'users', targetDoc.id), {
+        role: newTeamRole,
+        isApproved: true,
+        pendingReason: null,
+      });
+      setNewTeamEmail("");
+      alert(`✅ ${newTeamEmail} has been made a ${newTeamRole}!`);
+    } catch (err) {
+      alert("Failed to update user role.");
+      console.error(err);
+    } finally {
+      setIsAddingTeamMember(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (memberId: string, memberEmail: string) => {
+    if (!confirm(`Are you sure you want to remove ${memberEmail} from the team? They will become a student.`)) return;
+    try {
+      await updateDoc(doc(db, 'users', memberId), { role: 'student', isApproved: false, pendingReason: 'Role removed' });
+    } catch (err) {
+      alert("Failed to remove team member.");
     }
   };
 
@@ -724,7 +777,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "admin" && user.role !== "teacher")) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-zinc-950 -mx-4 -my-8 px-4 py-8">
         <Card className="w-full max-w-md border-primary/30 bg-black shadow-2xl shadow-primary/20">
@@ -837,6 +890,9 @@ export default function AdminDashboard() {
           <TabsTrigger value="courses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Courses</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Video Uploads</TabsTrigger>
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
+          {user?.role === 'admin' && (
+            <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👥 Team</TabsTrigger>
+          )}
         </TabsList>
         
         {/* STUDENTS TAB */}
@@ -1922,6 +1978,113 @@ export default function AdminDashboard() {
             </Card>
           )}
 
+        </TabsContent>
+
+        {/* TEAM MANAGEMENT TAB */}
+        <TabsContent value="team" className="space-y-6">
+          <Card className="border-primary/50 shadow-md">
+            <CardHeader className="bg-primary/5 border-b border-primary/20">
+              <CardTitle className="text-xl text-primary flex items-center gap-2">
+                <UserPlus className="w-5 h-5" /> Team Management
+              </CardTitle>
+              <CardDescription>
+                Add teachers or admins. Teachers have full access except Team Management. Admins have full access including this page.
+                <br /><span className="text-yellow-500 font-medium">⚠ The person must already have a registered account before you can make them a teacher or admin.</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Add Member Form */}
+              <form onSubmit={handleAddTeamMember} className="flex flex-col md:flex-row gap-3 items-end p-4 bg-secondary/10 rounded-lg border border-secondary/30">
+                <div className="flex-1 space-y-2">
+                  <Label>Email Address (must be a registered account)</Label>
+                  <Input 
+                    type="email" 
+                    placeholder="teacher@example.com" 
+                    value={newTeamEmail}
+                    onChange={(e) => setNewTeamEmail(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="space-y-2 w-full md:w-40">
+                  <Label>Role</Label>
+                  <select 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={newTeamRole}
+                    onChange={(e) => setNewTeamRole(e.target.value as "admin" | "teacher")}
+                  >
+                    <option value="teacher">👩‍🏫 Teacher</option>
+                    <option value="admin">🛡 Admin</option>
+                  </select>
+                </div>
+                <Button type="submit" disabled={isAddingTeamMember} className="w-full md:w-auto">
+                  {isAddingTeamMember ? "Adding..." : "Add to Team"}
+                </Button>
+              </form>
+
+              {/* Current Team Table */}
+              <div>
+                <h3 className="font-bold text-base mb-3">Current Team ({teamMembers.length})</h3>
+                {teamMembers.length === 0 ? (
+                  <p className="text-muted-foreground text-sm italic p-4 text-center">No team members yet.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-secondary/30">
+                    <table className="w-full text-sm">
+                      <thead className="bg-secondary/20">
+                        <tr>
+                          <th className="text-left p-3 font-semibold">Name / Email</th>
+                          <th className="text-left p-3 font-semibold">Role</th>
+                          <th className="text-left p-3 font-semibold">2FA Status</th>
+                          <th className="text-left p-3 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamMembers.map((member) => (
+                          <tr key={member.id} className="border-t border-secondary/20 hover:bg-secondary/10">
+                            <td className="p-3">
+                              <p className="font-medium">{member.name || "No name"}</p>
+                              <p className="text-xs text-muted-foreground">{member.email}</p>
+                            </td>
+                            <td className="p-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                member.role === 'admin' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'
+                              }`}>
+                                {member.role === 'admin' ? '🛡 Admin' : '👩‍🏫 Teacher'}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              {member.totpSecret ? (
+                                <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
+                              ) : (
+                                <span className="text-yellow-500 text-xs font-medium">⚠ Not Set Up</span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              {member.id !== user?.uid ? (
+                                <Button
+                                  size="sm" variant="outline"
+                                  className="text-red-500 border-red-500/20 hover:bg-red-500/10"
+                                  onClick={() => handleRemoveTeamMember(member.id, member.email)}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Remove
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">You (cannot remove self)</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-sm space-y-1">
+                <p className="font-bold text-blue-400">🔐 2FA for Teachers & Admins</p>
+                <p className="text-muted-foreground">Each teacher and admin must set up Google Authenticator when they first log in to their admin panel. They will be prompted automatically at <strong>/admin/2fa</strong>. The 2FA status above shows whether they have completed their setup.</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
