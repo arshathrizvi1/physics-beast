@@ -39,7 +39,7 @@ export default function RootLayout({
           <AuthProvider>
             <LenisProvider>
               {/* ===== PREMIUM DARK GOLD NAVBAR ===== */}
-              <header className="sticky top-0 z-50 w-full border-b border-[#d4af37]/20 bg-[#0a0a0a]">
+              <header className="sticky top-0 z-50 w-full border-b border-[#d4af37]/10 bg-black/40 backdrop-blur-xl">
                 <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4">
                   
                   {/* Logo */}

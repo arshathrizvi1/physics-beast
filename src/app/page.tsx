@@ -154,7 +154,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen bg-[#0a0a0a] text-zinc-300 font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden pt-20">
+      <div className="min-h-screen bg-[#0a0a0a] text-zinc-300 font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
         
         {/* 3. Hero Background Particles */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
