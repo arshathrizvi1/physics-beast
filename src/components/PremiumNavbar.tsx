@@ -299,7 +299,7 @@ export default function PremiumNavbar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col bg-zinc-50/80 dark:bg-zinc-950/80 backdrop-blur-xl border-t border-[#d4af37]/20"
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-[#d4af37]/20"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
