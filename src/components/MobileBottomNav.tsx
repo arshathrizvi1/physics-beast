@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { Home, BookOpen, Star, FileText } from "lucide-react";
+import { Home, BookOpen, FileText } from "lucide-react";
 
 export function MobileBottomNav() {
   const { user, loading } = useAuth();
@@ -23,7 +23,6 @@ export function MobileBottomNav() {
     { name: "Home", href: "/", icon: Home },
     { name: "Courses", href: "/courses", icon: BookOpen },
     { name: "Exams", href: "/exams", icon: FileText },
-    { name: "Reviews", href: "/reviews", icon: Star },
   ];
 
   return (

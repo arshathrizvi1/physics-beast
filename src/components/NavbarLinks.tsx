@@ -8,7 +8,6 @@ export default function NavbarLinks() {
   const links = [
     { href: "/courses", label: "Courses" },
     { href: "/about", label: "About" },
-    { href: "/reviews", label: "Reviews" },
     { href: "/exams", label: "Exams" },
   ];
 
