@@ -237,7 +237,7 @@ export default function PremiumNavbar() {
               {user ? (
                 <div className="flex items-center gap-2">
                   {/* Avatar linked to profile/dashboard */}
-                  <Link href="/admin">
+                  <Link href="/login">
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
