@@ -43,22 +43,22 @@ export default function RootLayout({
                 <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4">
                   
                   {/* Logo */}
-                  <Link href="/" className="flex items-center gap-3 shrink-0 group">
-                    <div className="w-10 h-10 overflow-hidden">
+                  <Link href="/" className="flex items-center gap-3 md:gap-4 shrink-0 group">
+                    <div className="w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden border border-[#d4af37]/20 shadow-lg group-hover:border-[#d4af37]/50 transition-colors">
                       <Image
                         src="/logo.jpg"
                         alt="Brilliant Academy"
-                        width={40}
-                        height={40}
-                        className="object-cover"
+                        width={48}
+                        height={48}
+                        className="object-cover w-full h-full"
                         priority
                       />
                     </div>
                     <div className="hidden sm:flex flex-col uppercase tracking-widest font-serif leading-none justify-center">
-                      <span className="text-[#d4af37] text-[15px] font-bold mb-1">
+                      <span className="text-[#d4af37] text-[18px] md:text-[20px] font-bold mb-1">
                         Brilliant
                       </span>
-                      <span className="text-zinc-300 text-[10px] tracking-[0.2em]">
+                      <span className="text-zinc-300 text-[11px] md:text-[12px] tracking-[0.2em]">
                         Academy
                       </span>
                     </div>
