@@ -199,10 +199,10 @@ export default function PremiumNavbar() {
                     transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                     className="overflow-hidden hidden md:block"
                   >
-                    <Link href="/admin" className="relative group flex items-center">
+                    <Link href="/admin" className="relative group flex items-center rounded-full p-[1px] overflow-hidden">
                       {/* moving gold border glow */}
-                      <div className="absolute -inset-[1px] rounded-full bg-gradient-to-r from-[#d4af37] via-[#f9e596] to-[#d4af37] opacity-70 group-hover:opacity-100 animate-[spin_3s_linear_infinite] blur-[2px]" />
-                      <div className="relative flex items-center gap-2 bg-[#0a0a0a] text-[#d4af37] text-xs font-bold px-4 py-2 rounded-full border border-[#d4af37]/40 group-hover:border-[#d4af37]/80 transition-all whitespace-nowrap">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_300deg,#f9e596_330deg,#d4af37_360deg)] opacity-80 group-hover:opacity-100 animate-[spin_3s_linear_infinite]" />
+                      <div className="relative flex items-center gap-2 bg-[#0a0a0a] text-[#d4af37] text-xs font-bold px-4 py-2 rounded-full transition-all whitespace-nowrap w-full h-full">
                         <LayoutDashboard className="w-3.5 h-3.5" />
                         {isAdmin ? "Admin Dashboard" : "Teacher Dashboard"}
                       </div>
