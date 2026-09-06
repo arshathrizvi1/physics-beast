@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, limit as fsLimit, where, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, limit as fsLimit, where } from "firebase/firestore";
 import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
@@ -76,15 +76,19 @@ export default function Home() {
   useEffect(() => {
     const fetchTopReviews = async () => {
       try {
+        // Simple query — only filter by rating to avoid needing a composite index
         const q = query(
           collection(db, "reviews"),
           where("rating", ">=", 4),
-          orderBy("rating", "desc"),
-          orderBy("createdAt", "desc"),
-          fsLimit(20)
+          fsLimit(30)
         );
         const snap = await getDocs(q);
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Sort client-side: highest rating first, then newest
+        const data = snap.docs
+          .map(d => ({ id: d.id, ...d.data() as any }))
+          .filter((r: any) => r.rating >= 4)
+          .sort((a: any, b: any) => b.rating - a.rating || (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+          .slice(0, 20);
         setTopReviews(data);
       } catch {
         // silently fail — no reviews yet is fine
@@ -549,38 +553,34 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 14. Testimonial Animation — Real Reviews */}
-        {topReviews.length > 0 && (
-          <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
-            <div className="container mx-auto px-6 mb-12 text-center">
-              <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
-              <p className="text-zinc-400 max-w-2xl mx-auto">Real reviews from our top-rated students — only the best experiences shared here.</p>
-            </div>
-            <div className="relative w-full overflow-hidden">
-              {/* duplicate reviews for seamless infinite loop */}
+        {/* Student Reviews Section */}
+        <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
+          <div className="container mx-auto px-6 text-center mb-12">
+            <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
+            <p className="text-zinc-400 max-w-xl mx-auto">Real reviews from verified students — 4 and 5 star experiences only.</p>
+          </div>
+
+          {/* Slider — only if we have reviews */}
+          {topReviews.length > 0 ? (
+            <div className="relative w-full overflow-hidden mb-14">
               <motion.div
-                className="flex gap-6 w-max"
+                className="flex gap-6 w-max pl-6"
                 animate={{ x: ["0px", `-${topReviews.length * 424}px`] }}
-                transition={{ duration: topReviews.length * 5, repeat: Infinity, ease: "linear" }}
+                transition={{ duration: Math.max(topReviews.length * 5, 20), repeat: Infinity, ease: "linear" }}
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
-                  <div key={`${r.id}-${i}`} className="w-[380px] bg-[#111] border border-zinc-800 rounded-2xl p-8 shrink-0 flex flex-col justify-between">
-                    {/* Stars */}
+                  <div key={`${r.id}-${i}`} className="w-[360px] bg-[#111] border border-zinc-800 rounded-2xl p-7 shrink-0 flex flex-col justify-between">
                     <div>
                       <div className="flex gap-0.5 mb-4">
                         {[1, 2, 3, 4, 5].map(s => (
-                          <Star
-                            key={s}
-                            className={`w-4 h-4 ${s <= r.rating ? "fill-[#d4af37] text-[#d4af37]" : "text-zinc-700"}`}
-                          />
+                          <Star key={s} className={`w-4 h-4 ${s <= r.rating ? "fill-[#d4af37] text-[#d4af37]" : "text-zinc-700"}`} />
                         ))}
                         <span className="ml-2 text-xs text-zinc-500 font-medium">{r.rating}.0</span>
                       </div>
-                      <p className="text-zinc-300 italic text-sm leading-relaxed">"{r.comment}"</p>
+                      <p className="text-zinc-300 italic text-sm leading-relaxed line-clamp-4">"{r.comment}"</p>
                     </div>
-                    {/* Student info */}
-                    <div className="flex items-center gap-3 mt-6">
-                      <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-[#d4af37] text-sm shrink-0">
+                    <div className="flex items-center gap-3 mt-6 pt-5 border-t border-zinc-800">
+                      <div className="w-9 h-9 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-center font-bold text-[#d4af37] text-sm shrink-0">
                         {(r.userName || "S").charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -591,16 +591,42 @@ export default function Home() {
                   </div>
                 ))}
               </motion.div>
-              <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-              <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 bottom-0 left-0 w-20 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 bottom-0 right-0 w-20 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
             </div>
-            <div className="text-center mt-10">
-              <Link href="/reviews" className="inline-flex items-center gap-2 text-[#d4af37] hover:text-[#b5952f] font-medium transition-colors text-sm">
-                See all reviews <ArrowRight className="w-4 h-4" />
-              </Link>
+          ) : (
+            <div className="text-center py-10 mb-10">
+              <p className="text-zinc-600 text-sm italic">No reviews yet. Be the first to share your experience!</p>
             </div>
-          </section>
-        )}
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
+            <Link href="/reviews">
+              <motion.div
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                className="relative group cursor-pointer"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#d4af37] to-[#f9e596] rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500" />
+                <div className="relative bg-[#d4af37] text-black font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide">
+                  <Star className="w-4 h-4 fill-black" />
+                  Add Your Review
+                </div>
+              </motion.div>
+            </Link>
+            <Link href="/reviews">
+              <motion.div
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                className="border border-zinc-700 hover:border-[#d4af37]/60 text-zinc-300 hover:text-white font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300"
+              >
+                View All Reviews
+                <ArrowRight className="w-4 h-4" />
+              </motion.div>
+            </Link>
+          </div>
+        </section>
 
       </div>
     </>
