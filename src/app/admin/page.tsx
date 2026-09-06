@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck } from "lucide-react";
@@ -57,6 +58,7 @@ export default function AdminDashboard() {
 
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editCourseName, setEditCourseName] = useState("");
+  const [editCourseDescription, setEditCourseDescription] = useState("");
 
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editVideoTitle, setEditVideoTitle] = useState("");
@@ -72,6 +74,7 @@ export default function AdminDashboard() {
   const [newBatchName, setNewBatchName] = useState("");
   const [newBatchYear, setNewBatchYear] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
+  const [newCourseDescription, setNewCourseDescription] = useState("");
   const [newCourseImage, setNewCourseImage] = useState<File | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderPrice, setNewFolderPrice] = useState("");
@@ -373,6 +376,7 @@ export default function AdminDashboard() {
       const ref = doc(collection(db, 'courses'));
       await setDoc(ref, { 
         name: newCourseName, 
+        description: newCourseDescription,
         batchId: selectedBatchId, 
         image: thumbnailUrl || null,
         teacherId: newCourseTeacherId || null,
@@ -381,6 +385,7 @@ export default function AdminDashboard() {
         createdAt: Date.now() 
       });
       setNewCourseName("");
+      setNewCourseDescription("");
       setNewCourseImage(null);
       setNewCourseTeacherId("");
       setSelectedCourseId(ref.id); // Auto-select so user can immediately add folders
@@ -400,7 +405,10 @@ export default function AdminDashboard() {
   const handleSaveCourse = async (id: string) => {
     if (!editCourseName.trim()) return;
     try {
-      const updateData: any = { name: editCourseName };
+      const updateData: any = { 
+        name: editCourseName,
+        description: editCourseDescription
+      };
       if (editCourseTeacherId !== undefined) {
         const assignedTeacher = teamMembers.find(m => m.id === editCourseTeacherId);
         updateData.teacherId = editCourseTeacherId || null;
@@ -411,8 +419,8 @@ export default function AdminDashboard() {
       setEditingCourseId(null);
       setEditCourseTeacherId("");
     } catch (e) {
-      console.error("Failed to rename course", e);
-      alert("Failed to rename course.");
+      console.error("Failed to update course", e);
+      alert("Failed to update course.");
     }
   };
   const handleCopyCourseDeep = async (oldCourse: any) => {
@@ -1370,6 +1378,12 @@ export default function AdminDashboard() {
                                 autoFocus
                                 onKeyDown={e => { if (e.key === 'Enter') handleSaveCourse(c.id); if (e.key === 'Escape') setEditingCourseId(null); }}
                               />
+                              <Textarea
+                                placeholder="Course Description (Optional)"
+                                value={editCourseDescription}
+                                onChange={e => setEditCourseDescription(e.target.value)}
+                                className="h-16 text-xs bg-background text-foreground resize-none"
+                              />
                               <select
                                 className="flex h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
                                 value={editCourseTeacherId !== "" ? editCourseTeacherId : (c.teacherId || "")}
@@ -1395,6 +1409,7 @@ export default function AdminDashboard() {
                             <>
                               <div className="flex-1 cursor-pointer" onClick={() => setSelectedCourseId(c.id)}>
                                 <p className="font-bold">{c.name}</p>
+                                {c.description && <p className="text-[10px] opacity-70 line-clamp-1 mt-0.5">{c.description}</p>}
                                 {c.teacherName && (
                                   <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${selectedCourseId === c.id ? 'text-primary-foreground/90' : 'text-primary'}`}>
                                     <GraduationCap className="w-3 h-3" />
@@ -1403,7 +1418,7 @@ export default function AdminDashboard() {
                                   </p>
                                 )}
                               </div>
-                              <button onClick={(e) => { e.stopPropagation(); setEditingCourseId(c.id); setEditCourseName(c.name); setEditCourseTeacherId(c.teacherId || ""); }} className={`p-1 hover:bg-secondary/50 rounded-md shrink-0 ${selectedCourseId === c.id ? 'text-primary-foreground/80' : 'text-primary'}`}>
+                              <button onClick={(e) => { e.stopPropagation(); setEditingCourseId(c.id); setEditCourseName(c.name); setEditCourseDescription(c.description || ""); setEditCourseTeacherId(c.teacherId || ""); }} className={`p-1 hover:bg-secondary/50 rounded-md shrink-0 ${selectedCourseId === c.id ? 'text-primary-foreground/80' : 'text-primary'}`}>
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(c.id); }} className={`p-1 hover:bg-destructive/20 rounded-md text-destructive shrink-0`}>
@@ -1428,6 +1443,7 @@ export default function AdminDashboard() {
                       {/* New course */}
                       <form onSubmit={handleCreateCourse} className="space-y-2">
                         <Input placeholder="Course Name (e.g. Mechanics)" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required />
+                        <Textarea placeholder="Course Description (Optional)" value={newCourseDescription} onChange={e => setNewCourseDescription(e.target.value)} className="h-16 text-xs resize-none" />
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs"
                           value={newCourseTeacherId}

@@ -123,8 +123,8 @@ export default function ReviewsPage() {
                 <div className="text-center p-6 bg-background rounded-lg border border-dashed">
                   <User className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground mb-4">You need to log in to submit a review.</p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <a href="/login">Log In</a>
+                  <Button variant="outline" className="w-full" onClick={() => window.location.href = '/login'}>
+                    Log In
                   </Button>
                 </div>
               )}

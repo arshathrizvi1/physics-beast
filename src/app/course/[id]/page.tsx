@@ -49,10 +49,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [wmPos, setWmPos] = useState({ x: 20, y: 20 });
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wmRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds)) return '0:00';
@@ -64,12 +64,30 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return `${mm}:${ss}`;
   };
 
-  // Kickstart the watermark movement after mount
+  // DVD-style bouncing watermark
   useEffect(() => {
-    const t = setTimeout(() => {
-      setWmPos({ x: 5 + Math.random() * 70, y: 5 + Math.random() * 75 });
-    }, 500);
-    return () => clearTimeout(t);
+    let x = Math.random() * 70;
+    let y = Math.random() * 80;
+    let dx = 0.06; // horizontal speed
+    let dy = 0.06; // vertical speed
+    let animationFrameId: number;
+
+    const animate = () => {
+      x += dx;
+      y += dy;
+      
+      if (x <= 2 || x >= 75) dx = -dx;
+      if (y <= 2 || y >= 85) dy = -dy;
+      
+      if (wmRef.current) {
+        wmRef.current.style.left = `${x}%`;
+        wmRef.current.style.top = `${y}%`;
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
   useEffect(() => {
@@ -516,17 +534,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                 {/* Floating Email Watermark */}
                 <div
-                  className="absolute z-11 pointer-events-none select-none"
+                  ref={wmRef}
+                  className="absolute z-[11] pointer-events-none select-none"
                   style={{
-                    left: `${wmPos.x}%`,
-                    top: `${wmPos.y}%`,
-                    transition: 'left 3s ease-in-out, top 3s ease-in-out',
-                  }}
-                  onTransitionEnd={() => {
-                    setWmPos({
-                      x: 5 + Math.random() * 70,
-                      y: 5 + Math.random() * 75,
-                    });
+                    left: `20%`,
+                    top: `20%`,
                   }}
                 >
                   <span className="text-xs font-semibold text-white/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
