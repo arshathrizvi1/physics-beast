@@ -247,6 +247,16 @@ export default function Home() {
                   Search
                 </Button>
               </div>
+              <motion.div 
+                className="mt-8 relative inline-block group cursor-pointer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37] via-[#f9e596] to-[#d4af37] rounded-full blur opacity-75 group-hover:opacity-100 animate-pulse transition duration-1000" />
+                <Link href="/courses" className="relative flex items-center justify-center bg-black px-8 py-4 rounded-full border border-[#d4af37]/50 text-white font-bold tracking-wider hover:bg-zinc-900 transition-colors">
+                  START LEARNING
+                </Link>
+              </motion.div>
               {/* Search Dropdown Results */}
               {showSearch && searchResults.length > 0 && (
                 <div className="absolute top-full mt-2 w-full bg-[#1a1a1a] border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
@@ -514,6 +524,46 @@ export default function Home() {
                 </div>
               </motion.div>
             </div>
+          </div>
+        </section>
+
+        {/* 14. Testimonial Animation */}
+        <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
+          <div className="container mx-auto px-6 mb-12 text-center">
+            <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
+            <p className="text-zinc-400 max-w-2xl mx-auto">Discover how Brilliant Academy is helping students achieve their academic and professional goals.</p>
+          </div>
+          <div className="relative w-full max-w-5xl mx-auto overflow-hidden px-6">
+            <motion.div 
+              className="flex gap-6 w-max"
+              animate={{ x: ["0%", "-50%"] }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+            >
+              {[
+                { name: "Sarah J.", role: "Computer Science", text: "Brilliant Academy completely changed the way I understand algorithms. The instructors are top-notch and the platform is incredibly smooth!" },
+                { name: "Michael T.", role: "Physics Major", text: "The premium feel of the platform makes studying a joy. The courses are well-structured and the leaderboard keeps me motivated." },
+                { name: "Emily R.", role: "High School Student", text: "I aced my final exams thanks to the practice tests here. Everything is just so easy to find and use." },
+                { name: "Sarah J.", role: "Computer Science", text: "Brilliant Academy completely changed the way I understand algorithms. The instructors are top-notch and the platform is incredibly smooth!" },
+                { name: "Michael T.", role: "Physics Major", text: "The premium feel of the platform makes studying a joy. The courses are well-structured and the leaderboard keeps me motivated." },
+                { name: "Emily R.", role: "High School Student", text: "I aced my final exams thanks to the practice tests here. Everything is just so easy to find and use." },
+              ].map((t, i) => (
+                <div key={i} className="w-[300px] md:w-[400px] bg-[#111] border border-zinc-800 rounded-2xl p-8 shrink-0 relative">
+                  <div className="flex text-[#d4af37] mb-4">
+                    {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 fill-[#d4af37]" />)}
+                  </div>
+                  <p className="text-zinc-300 italic mb-6 text-sm">"{t.text}"</p>
+                  <div className="flex items-center gap-4 mt-auto">
+                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-[#d4af37]">{t.name.charAt(0)}</div>
+                    <div>
+                      <h4 className="text-white font-semibold text-sm">{t.name}</h4>
+                      <p className="text-zinc-500 text-xs">{t.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+            <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
           </div>
         </section>
 

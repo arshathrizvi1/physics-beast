@@ -7,6 +7,7 @@ import NavButtons from "@/components/NavButtons";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import LiveNavLink from "@/components/LiveNavLink";
+import NavbarLinks from "@/components/NavbarLinks";
 import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -67,29 +68,7 @@ export default function RootLayout({
 
                   {/* Nav Links */}
                   <div className="flex-1 flex items-center justify-end gap-6 overflow-hidden">
-                    <nav className="hidden md:flex items-center gap-6 text-sm font-semibold whitespace-nowrap">
-                      {[
-                        { href: "/courses", label: "Courses" },
-                        { href: "/about", label: "About" },
-                        { href: "/reviews", label: "Reviews" },
-                        { href: "/exams", label: "Exams" },
-                      ].map(({ href, label }) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
-                        >
-                          {label}
-                        </Link>
-                      ))}
-                      <LiveNavLink />
-                      <Link
-                        href="/leaderboard"
-                        className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
-                      >
-                        Leaderboard
-                      </Link>
-                    </nav>
+                    <NavbarLinks />
 
                     {/* Divider */}
                     <div className="hidden md:block w-px h-5 bg-zinc-800" />

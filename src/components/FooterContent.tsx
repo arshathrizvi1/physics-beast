@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 const defaultFooter = {
   tagline: "Learn Today · Build Tomorrow",
@@ -63,8 +64,17 @@ export default function FooterContent() {
           <p className="text-sm text-muted-foreground">{footer.contactEmail}</p>
         </div>
       </div>
-      <div className="border-t pt-6 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Brilliant Academy. All rights reserved.
+      <div className="relative pt-6 mt-8">
+        <motion.div 
+          className="absolute top-0 left-0 h-px bg-[#d4af37]"
+          initial={{ width: "0%" }}
+          whileInView={{ width: "100%" }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+        />
+        <div className="text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} Brilliant Academy. All rights reserved.
+        </div>
       </div>
     </div>
   );
