@@ -39,12 +39,12 @@ export default function RootLayout({
           <AuthProvider>
             <LenisProvider>
               {/* ===== PREMIUM DARK GOLD NAVBAR ===== */}
-              <header className="sticky top-0 z-50 w-full border-b border-[#d4af37]/20 bg-[#0a0a0a]/95 backdrop-blur-md shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
+              <header className="sticky top-0 z-50 w-full border-b border-[#d4af37]/20 bg-[#0a0a0a]">
                 <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4">
                   
                   {/* Logo */}
                   <Link href="/" className="flex items-center gap-3 shrink-0 group">
-                    <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#d4af37]/30 shadow-[0_0_10px_rgba(212,175,55,0.2)] group-hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all duration-300">
+                    <div className="w-10 h-10 overflow-hidden">
                       <Image
                         src="/logo.jpg"
                         alt="Brilliant Academy"
@@ -54,16 +54,19 @@ export default function RootLayout({
                         priority
                       />
                     </div>
-                    <div className="hidden sm:block">
-                      <span className="font-extrabold text-xl md:text-2xl tracking-tight text-[#d4af37] leading-none drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]">
-                        Brilliant Academy
+                    <div className="hidden sm:flex flex-col uppercase tracking-widest font-serif leading-none justify-center">
+                      <span className="text-[#d4af37] text-[15px] font-bold mb-1">
+                        Brilliant
+                      </span>
+                      <span className="text-zinc-300 text-[10px] tracking-[0.2em]">
+                        Academy
                       </span>
                     </div>
                   </Link>
 
                   {/* Nav Links */}
-                  <div className="flex-1 flex items-center justify-end gap-2 overflow-hidden">
-                    <nav className="hidden md:flex items-center gap-1 text-sm font-medium whitespace-nowrap">
+                  <div className="flex-1 flex items-center justify-end gap-6 overflow-hidden">
+                    <nav className="hidden md:flex items-center gap-6 text-sm font-semibold whitespace-nowrap">
                       {[
                         { href: "/courses", label: "Courses" },
                         { href: "/about", label: "About" },
@@ -73,7 +76,7 @@ export default function RootLayout({
                         <Link
                           key={href}
                           href={href}
-                          className="px-3 py-2 rounded-lg text-zinc-400 hover:text-[#d4af37] hover:bg-[#d4af37]/10 transition-all duration-200 text-sm font-medium"
+                          className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
                         >
                           {label}
                         </Link>
@@ -81,14 +84,14 @@ export default function RootLayout({
                       <LiveNavLink />
                       <Link
                         href="/leaderboard"
-                        className="px-3 py-2 rounded-lg text-zinc-400 hover:text-[#d4af37] hover:bg-[#d4af37]/10 transition-all duration-200 text-sm font-medium"
+                        className="text-zinc-300 hover:text-[#d4af37] transition-all duration-200"
                       >
                         Leaderboard
                       </Link>
                     </nav>
 
                     {/* Divider */}
-                    <div className="hidden md:block w-px h-6 bg-zinc-700 mx-1" />
+                    <div className="hidden md:block w-px h-5 bg-zinc-800" />
 
                     {/* Auth Buttons */}
                     <div className="flex items-center gap-2 shrink-0">

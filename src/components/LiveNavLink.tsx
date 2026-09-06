@@ -25,7 +25,7 @@ export default function LiveNavLink() {
   return (
     <Link 
       href="/live" 
-      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 relative ${isActive ? 'text-[#d4af37] bg-[#d4af37]/10' : 'text-zinc-400 hover:text-[#d4af37] hover:bg-[#d4af37]/10'}`}
+      className={`transition-all duration-200 flex items-center gap-1.5 relative ${isActive ? 'text-[#d4af37]' : 'text-zinc-300 hover:text-[#d4af37]'}`}
     >
       Live 
       {isLive && (
