@@ -1,18 +1,71 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query } from "firebase/firestore";
-import { Lock, PlayCircle } from "lucide-react";
+import { collection, getDocs, query, limit as fsLimit } from "firebase/firestore";
+import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star } from "lucide-react";
+import { motion, useInView, AnimatePresence } from "framer-motion";
+
+// Simple counter component using Framer Motion
+const Counter = ({ end, duration = 2, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  useEffect(() => {
+    if (isInView) {
+      let start = 0;
+      const endVal = end;
+      if (start === endVal) return;
+      
+      const totalMilSecDur = duration * 1000;
+      const incrementTime = 30; // 30ms per step
+      const steps = totalMilSecDur / incrementTime;
+      const stepValue = endVal / steps;
+      
+      const timer = setInterval(() => {
+        start += stepValue;
+        if (start >= endVal) {
+          setCount(endVal);
+          clearInterval(timer);
+        } else {
+          setCount(Math.ceil(start));
+        }
+      }, incrementTime);
+      
+      return () => clearInterval(timer);
+    }
+  }, [isInView, end, duration]);
+
+  return <span ref={ref}>{count}{suffix}</span>;
+};
+
+// Word reveal animation variant
+const wordVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.1, duration: 0.6, ease: [0.2, 0.65, 0.3, 0.9] },
+  }),
+};
 
 export default function Home() {
   const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
-  const [folders, setFolders] = useState<any[]>([]);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+
+  // Initial loading animation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoadingComplete(true);
+    }, 2000); // 2 second intro
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,15 +86,7 @@ export default function Home() {
             return batchesMap[c.batchId] === user.graduationYear;
           });
         }
-
-        setCourses(coursesData);
-
-        const foldersSnap = await getDocs(query(collection(db, "folders")));
-        let foldersData = foldersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-        
-        // Only keep folders for the filtered courses
-        foldersData = foldersData.filter(f => coursesData.some(c => c.id === f.courseId));
-        setFolders(foldersData);
+        setCourses(coursesData.slice(0, 8)); // Top 8 courses for landing page
       } catch (e) {
         console.error("Failed to fetch data", e);
       }
@@ -49,128 +94,378 @@ export default function Home() {
     fetchData();
   }, [user]);
 
-  return (
-    <div className="flex flex-col gap-12 pb-12">
-      {/* Hero Section */}
-      <section className="pt-20 pb-10 text-center space-y-6">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
-          Master Physics with <span className="text-primary text-glow">Brilliant Academy</span>
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-[600px] mx-auto">
-          Sri Lanka&apos;s most advanced online physics learning platform. Watch high-quality video lectures, track your progress, and dominate your exams.
-        </p>
-        <div className="flex gap-4 justify-center">
-          {!user ? (
-            <>
-              <Link href="/login" className={buttonVariants({ size: "lg" })}>
-                Login to Portal
-              </Link>
-              <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                Register Now
-              </Link>
-            </>
-          ) : (
-            <Link href="/login" className={buttonVariants({ size: "lg" })}>
-              Go to Dashboard
-            </Link>
-          )}
-        </div>
-      </section>
+  const headingText = "Your Brighter Future Starts Here".split(" ");
 
-      {/* Featured Topics Animated Preview */}
-      {!user && (
-        <section className="container mx-auto px-4 overflow-hidden py-10">
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes slideUpFade {
-              0% { opacity: 0; transform: translateY(60px); }
-              100% { opacity: 1; transform: translateY(0); }
-            }
-            .topic-card {
-              opacity: 0;
-              animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            }
-          `}} />
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4">Explore Core Topics</h2>
-            <p className="text-muted-foreground">Dive deep into our comprehensive physics curriculum</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[
-              { name: "Mechanics", img: "https://images.unsplash.com/photo-1608222351212-18fe0ec7b13b?auto=format&fit=crop&q=80&w=800", delay: "0.1s" },
-              { name: "Electricity", img: "https://images.unsplash.com/photo-1549216390-1c6fc79a83ab?auto=format&fit=crop&q=80&w=800", delay: "0.2s" },
-              { name: "Electronics", img: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&q=80&w=800", delay: "0.3s" },
-              { name: "Properties of Matter", img: "https://images.unsplash.com/photo-1603126857599-f6e1570d815b?auto=format&fit=crop&q=80&w=800", delay: "0.4s" },
-              { name: "Waves & Oscillations", img: "https://images.unsplash.com/photo-1522069213448-443a614da9b6?auto=format&fit=crop&q=80&w=800", delay: "0.5s" },
-            ].map((topic) => (
-              <div 
-                key={topic.name} 
-                className="topic-card group relative aspect-[4/5] rounded-xl overflow-hidden shadow-lg border border-primary/20 bg-black"
-                style={{ animationDelay: topic.delay }}
+  return (
+    <>
+      {/* 1. Initial Page Loading Animation */}
+      <AnimatePresence>
+        {!loadingComplete && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0a0a]"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeInOut" } }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, filter: "brightness(0.5)" }}
+              animate={{ scale: 1, opacity: 1, filter: "brightness(1.5)" }}
+              transition={{ duration: 1.5, ease: "easeOut" }}
+              className="flex flex-col items-center"
+            >
+              <GraduationCap className="w-20 h-20 text-[#d4af37] mb-4 drop-shadow-[0_0_15px_rgba(212,175,55,0.8)]" />
+              <h1 className="text-4xl font-bold tracking-wider text-white">BRILLIANT <span className="text-[#d4af37]">ACADEMY</span></h1>
+              <motion.div 
+                className="w-48 h-1 bg-white/20 mt-6 rounded-full overflow-hidden"
               >
-                <img 
-                  src={topic.img} 
-                  alt={topic.name} 
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-110 transition-all duration-700 ease-in-out"
+                <motion.div 
+                  className="h-full bg-[#d4af37]"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 1.5, ease: "easeInOut" }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-4 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
-                  <h3 className="text-lg font-bold text-white leading-tight">{topic.name}</h3>
-                  <div className="w-8 h-1 bg-primary mt-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100" />
-                </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="min-h-screen bg-[#0a0a0a] text-zinc-300 font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden pt-20">
+        
+        {/* 3. Hero Background Particles */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#d4af37]/5 blur-[100px] rounded-full mix-blend-screen" />
+          {/* Subtle floating stars */}
+          {[...Array(15)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-[#d4af37]/40 rounded-full"
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                opacity: [0.2, 0.8, 0.2],
+              }}
+              transition={{
+                duration: 4 + Math.random() * 4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Hero Section */}
+        <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center gap-12">
+          <div className="flex-1 space-y-8">
+            {/* 5. Heading Text Animation */}
+            <h1 className="text-5xl lg:text-7xl font-extrabold text-white leading-[1.1]">
+              {headingText.map((word, i) => (
+                <motion.span
+                  key={i}
+                  custom={i}
+                  variants={wordVariants}
+                  initial="hidden"
+                  animate={loadingComplete ? "visible" : "hidden"}
+                  className={`inline-block mr-3 ${word === "Brighter" || word === "Future" ? "text-[#d4af37] drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]" : ""}`}
+                >
+                  {word}
+                </motion.span>
+              ))}
+            </h1>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={loadingComplete ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.6, duration: 0.8 }}
+              className="text-lg lg:text-xl text-zinc-400 max-w-xl"
+            >
+              Learn from expert instructors, gain in-demand skills, and turn your goals into real opportunities with Brilliant Academy.
+            </motion.p>
+
+            {/* 6. Search Bar Animation */}
+            <motion.div
+              initial={{ width: "0%", opacity: 0 }}
+              animate={loadingComplete ? { width: "100%", opacity: 1 } : {}}
+              transition={{ delay: 0.8, duration: 0.8, ease: "easeOut" }}
+              className="max-w-xl relative group"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/30 to-[#d4af37]/0 rounded-full blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+              <div className="relative flex items-center bg-[#1a1a1a] border border-zinc-800 rounded-full p-2 pl-6 shadow-2xl">
+                <Search className="w-5 h-5 text-zinc-500 mr-3" />
+                <input 
+                  type="text"
+                  placeholder="What do you want to learn today?"
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-zinc-600"
+                />
+                <motion.div 
+                  animate={{ opacity: [1, 0, 1] }} 
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  className="absolute left-[260px] top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#d4af37] hidden sm:block"
+                />
+                <Button className="rounded-full bg-[#d4af37] hover:bg-[#b5952f] text-black font-semibold px-8 h-12 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]">
+                  Search
+                </Button>
               </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={loadingComplete ? { opacity: 1 } : {}}
+              transition={{ delay: 1, duration: 0.8 }}
+              className="flex flex-wrap items-center gap-3 text-sm text-zinc-500"
+            >
+              <span className="font-semibold text-zinc-400">Popular:</span>
+              {['Web Development', 'Data Science', 'Design', 'Business', 'AI'].map(tag => (
+                <span key={tag} className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
+                  {tag}
+                </span>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* 4. Hero Student Image Animation */}
+          <motion.div 
+            className="flex-1 relative"
+            initial={{ opacity: 0, x: 100 }}
+            animate={loadingComplete ? { opacity: 1, x: 0 } : {}}
+            transition={{ delay: 0.4, duration: 1, ease: "easeOut" }}
+          >
+            <motion.div
+              animate={{ y: [-10, 10, -10] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="relative w-full max-w-[500px] mx-auto aspect-square rounded-[2rem] overflow-hidden border border-zinc-800 bg-gradient-to-b from-zinc-900 to-black shadow-2xl"
+            >
+              {/* Fallback image if Unsplash fails, using generic student stock style */}
+              <img 
+                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" 
+                alt="Student" 
+                className="w-full h-full object-cover mix-blend-luminosity opacity-80"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+              
+              {/* Floating Badge */}
+              <motion.div 
+                animate={{ y: [-5, 5, -5] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute bottom-8 right-[-20px] bg-[#111] border border-[#d4af37]/30 p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-[#d4af37]/20 rounded-full flex items-center justify-center">
+                  <Award className="w-6 h-6 text-[#d4af37]" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">Quality Education</p>
+                  <p className="text-zinc-400 text-xs">For a Brighter Tomorrow</p>
+                </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        </section>
+
+        {/* 7. Feature Cards Animation (Scroll Reveal) */}
+        <section className="border-y border-zinc-900 bg-[#0c0c0c] relative z-10">
+          <div className="container mx-auto px-6 py-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+              {[
+                { icon: Users, title: "Expert Instructors" },
+                { icon: MonitorPlay, title: "Flexible Learning" },
+                { icon: Award, title: "Certified Courses" },
+                { icon: Code, title: "Practical Projects" },
+                { icon: Globe, title: "Global Community" },
+                { icon: TrendingUp, title: "Career Support" },
+              ].map((feature, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ delay: i * 0.1, duration: 0.6 }}
+                  className="flex flex-col items-center text-center gap-3 p-4 rounded-2xl hover:bg-zinc-900 transition-colors group cursor-pointer"
+                >
+                  <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-[#d4af37]/50 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all">
+                    <feature.icon className="w-6 h-6 text-[#d4af37]" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-zinc-300 group-hover:text-white transition-colors">{feature.title}</h3>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 10. Statistics Counter Animation */}
+        <section className="container mx-auto px-6 py-20 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { num: 2000, suffix: "+", label: "Students Learning", icon: Users },
+              { num: 50, suffix: "+", label: "Online Courses", icon: BookOpen },
+              { num: 30, suffix: "+", label: "Expert Instructors", icon: GraduationCap },
+              { num: 4.8, suffix: "/5", label: "Average Rating", icon: Star, float: true },
+            ].map((stat, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                className="flex flex-col items-center justify-center text-center p-8 bg-[#111] rounded-3xl border border-zinc-900 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-[#d4af37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <stat.icon className="w-8 h-8 text-[#d4af37] mb-4 opacity-80 group-hover:scale-110 transition-transform" />
+                <h3 className="text-4xl font-bold text-white mb-2">
+                  <Counter end={stat.num} suffix={stat.suffix} duration={2} />
+                </h3>
+                <p className="text-zinc-500 text-sm uppercase tracking-wider">{stat.label}</p>
+              </motion.div>
             ))}
           </div>
         </section>
-      )}
 
-      {/* Courses Section */}
-      <section className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold">Available Courses</h2>
-        </div>
-        
-        {courses.length === 0 ? (
-          <div className="text-center p-12 text-muted-foreground border border-dashed rounded-lg">
-            No courses available at the moment. Check back later!
+        {/* Popular Courses Section */}
+        <section className="bg-[#0c0c0c] py-24 relative z-10 border-t border-zinc-900">
+          <div className="container mx-auto px-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="flex justify-between items-end mb-12"
+            >
+              <div>
+                <h2 className="text-4xl font-bold text-white mb-4">Popular Courses</h2>
+                <p className="text-zinc-400">Explore our most in-demand courses and start learning today.</p>
+              </div>
+              <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors">
+                View All Courses <ArrowRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {courses.length > 0 ? courses.map((course, i) => (
+                <motion.div
+                  key={course.id}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ delay: i * 0.1, duration: 0.6 }}
+                  className="group"
+                >
+                  <Link href={`/course/${course.id}`}>
+                    <Card className="bg-[#111] border-zinc-800 hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                      <div className="relative h-48 overflow-hidden bg-zinc-900">
+                        {/* 11. Course Image Hover Animation */}
+                        <motion.img 
+                          whileHover={{ scale: 1.1 }}
+                          transition={{ duration: 0.6 }}
+                          src={course.image || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400`} 
+                          alt={course.name} 
+                          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
+                      </div>
+                      <CardHeader className="p-5 pb-0 flex-1">
+                        <CardTitle className="text-xl font-bold text-white group-hover:text-[#d4af37] transition-colors">{course.name}</CardTitle>
+                        {course.description && (
+                          <CardDescription className="text-zinc-400 line-clamp-2 mt-2">
+                            {course.description}
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardFooter className="p-5 pt-4 flex justify-between items-center text-sm border-t border-zinc-800/50 mt-4">
+                        <div className="flex items-center gap-2 text-zinc-400">
+                          <Users className="w-4 h-4" />
+                          <span>{Math.floor(Math.random() * 200 + 50)} students</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[#d4af37]">
+                          <Star className="w-4 h-4 fill-current" />
+                          <span className="font-bold">{(Math.random() * 0.5 + 4.5).toFixed(1)}</span>
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  </Link>
+                </motion.div>
+              )) : (
+                // Skeleton placeholders if no courses fetched yet
+                [...Array(4)].map((_, i) => (
+                  <Card key={i} className="bg-[#111] border-zinc-800 h-[320px] animate-pulse">
+                    <div className="h-48 bg-zinc-900" />
+                    <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
+                  </Card>
+                ))
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => {
-              // Determine if user has access to ANY folder in this course, OR legacy course access
-              const courseFolders = folders.filter(f => f.courseId === course.id);
-              const hasFolderAccess = courseFolders.some(f => {
-                const expiration = user?.folderAccess?.[f.id];
-                return expiration && expiration > Date.now();
-              });
-              const legacyCourseAccess = user?.accessibleCourses && user.accessibleCourses.includes(course.id);
-              const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || legacyCourseAccess || hasFolderAccess;
+        </section>
+
+        {/* 13. About Section Animation */}
+        <section className="py-24 relative z-10 overflow-hidden">
+          <div className="container mx-auto px-6">
+            <div className="flex flex-col lg:flex-row items-center gap-16 bg-[#111] border border-zinc-800 rounded-[2.5rem] p-8 lg:p-16">
               
-              return (
-                <Card key={course.id} className="overflow-hidden border-secondary/50 bg-card transition-colors flex flex-col hover:border-primary/50">
-                  <div className="aspect-video relative overflow-hidden bg-secondary/20 flex items-center justify-center group">
-                    <div className="w-full h-full bg-primary/10 flex items-center justify-center transition-all group-hover:bg-primary/20">
-                      <PlayCircle className="w-16 h-16 text-primary/50 group-hover:scale-110 transition-transform" />
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="flex-1 space-y-8"
+              >
+                <h2 className="text-4xl lg:text-5xl font-bold text-white">
+                  Why Choose <span className="text-[#d4af37]">Brilliant Academy?</span>
+                </h2>
+                <p className="text-lg text-zinc-400">
+                  We are committed to providing high-quality education, practical skills, and real opportunities to help you achieve your goals. Our instructors are industry veterans dedicated to your success.
+                </p>
+                <ul className="space-y-4">
+                  {["Industry-Relevant Courses", "Learn from Anywhere", "Join a Supportive Community", "Build Your Career Today"].map((item, i) => (
+                    <li key={i} className="flex items-center gap-4 text-zinc-300 font-medium">
+                      <div className="w-8 h-8 rounded-full bg-[#d4af37]/20 flex items-center justify-center">
+                        <CheckIcon className="w-4 h-4 text-[#d4af37]" />
+                      </div>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button className="mt-4 bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+                    Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </motion.div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="flex-1 relative"
+              >
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-zinc-800 aspect-video">
+                  <img 
+                    src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1000" 
+                    alt="Study group" 
+                    className="w-full h-full object-cover mix-blend-luminosity opacity-70"
+                  />
+                  <div className="absolute inset-0 bg-[#d4af37]/10 mix-blend-overlay" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-20 h-20 bg-[#d4af37] rounded-full flex items-center justify-center cursor-pointer shadow-[0_0_30px_rgba(212,175,55,0.6)] hover:scale-110 transition-transform">
+                      <PlayCircle className="w-8 h-8 text-black ml-1" />
                     </div>
-                    {course.thumbnailUrl && (
-                      <img src={course.thumbnailUrl} alt={course.title} className="absolute inset-0 w-full h-full object-cover mix-blend-overlay" />
-                    )}
                   </div>
-                  <CardHeader className="flex-none">
-                    <CardTitle className="text-xl">{course.name}</CardTitle>
-                    <CardDescription>Created: {new Date(course.createdAt).toLocaleDateString()}</CardDescription>
-                  </CardHeader>
-                  <CardFooter className="flex justify-between mt-auto">
-                    <Link href={`/course/${course.id}`} className={buttonVariants({ size: "sm", className: "w-full" })}>
-                      {hasAccess ? "Watch Now" : "View Syllabus & Buy"}
-                    </Link>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+                </div>
+              </motion.div>
+            </div>
           </div>
-        )}
-      </section>
-    </div>
+        </section>
+
+      </div>
+    </>
   );
 }
 
+function CheckIcon(props: any) {
+  return (
+    <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}

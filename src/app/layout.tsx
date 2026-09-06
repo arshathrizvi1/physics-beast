@@ -11,6 +11,8 @@ import LiveNavLink from "@/components/LiveNavLink";
 
 const inter = Inter({ subsets: ["latin"] });
 
+import LenisProvider from "@/components/LenisProvider";
+
 export const metadata: Metadata = {
   title: "Brilliant Academy LMS",
   description: "Learn physics with online video courses and MCQ exams.",
@@ -31,6 +33,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <LenisProvider>
               <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div className="container mx-auto px-2 md:px-4 flex h-16 items-center justify-between">
                   <Link href="/" className="flex items-center space-x-2 mr-2">
@@ -73,6 +76,7 @@ export default function RootLayout({
                 </p>
               </div>
             </footer>
+            </LenisProvider>
           </AuthProvider>
           <ThemeToggle />
         </ThemeProvider>
