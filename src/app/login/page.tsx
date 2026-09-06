@@ -200,7 +200,8 @@ export default function LoginPage() {
             <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-6 animate-pulse" />
             <CardTitle className="text-2xl font-bold text-primary mb-2">
               {user.pendingReason === 'New Device Login' ? 'New Device Detected' : 
-               user.pendingReason === 'Network Error' ? 'Connection Error' : 'Account Pending Approval'}
+               user.pendingReason === 'Network Error' ? 'Connection Error' : 
+               user.pendingReason === 'Access Suspended' ? 'Access Suspended' : 'Account Pending Approval'}
             </CardTitle>
             <CardDescription className="text-base text-muted-foreground mb-6">
               {user.pendingReason === 'New Device Login' ? (
@@ -214,6 +215,12 @@ export default function LoginPage() {
                   We couldn't reach the database to verify your account status. This is likely because the server is experiencing high traffic or your internet is unstable.
                   <br /><br />
                   Please try refreshing the page or come back later.
+                </>
+              ) : user.pendingReason === 'Access Suspended' ? (
+                <>
+                  Your login access has been suspended by an administrator. 
+                  <br /><br />
+                  Please contact support or wait for your access to be restored.
                 </>
               ) : (
                 <>

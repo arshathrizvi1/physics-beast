@@ -200,9 +200,20 @@ export default function AdminDashboard() {
   const handleApproveStudent = async (studentId: string) => {
     try {
       await updateDoc(doc(db, 'users', studentId), { isApproved: true, pendingReason: null });
+      // Remove from pending instantly for better UX; snapshot will sync it fully.
       setPendingStudents(prev => prev.filter(s => s.id !== studentId));
     } catch (err) {
       console.log("Failed to approve student", err);
+    }
+  };
+
+  const handleSuspendStudent = async (studentId: string) => {
+    try {
+      if (!confirm("Are you sure you want to disable login access for this student? They will be moved to the Pending Approvals list.")) return;
+      await updateDoc(doc(db, 'users', studentId), { isApproved: false, pendingReason: 'Access Suspended' });
+      // The onSnapshot listener will automatically move them to pendingStudents.
+    } catch (err) {
+      console.log("Failed to suspend student", err);
     }
   };
 
@@ -1695,7 +1706,7 @@ export default function AdminDashboard() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-bold text-lg">{req.name}</p>
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.pendingReason === 'New Device Login' ? 'bg-red-500/20 text-red-600' : 'bg-blue-500/20 text-blue-600'}`}>
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.pendingReason === 'New Device Login' ? 'bg-orange-500/20 text-orange-600' : req.pendingReason === 'Access Suspended' ? 'bg-red-500/20 text-red-600' : 'bg-blue-500/20 text-blue-600'}`}>
                                 {req.pendingReason || 'ID Verification'}
                               </span>
                             </div>
@@ -2884,6 +2895,20 @@ export default function AdminDashboard() {
                           }}
                         >
                           <X className="w-4 h-4 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    )}
+                    {selectedStudentInfo.isApproved && (
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => {
+                            handleSuspendStudent(selectedStudentInfo.id);
+                            setSelectedStudentInfo(null);
+                          }}
+                        >
+                          <X className="w-4 h-4 mr-1" /> Remove Access
                         </Button>
                       </div>
                     )}
