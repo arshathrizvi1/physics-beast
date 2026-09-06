@@ -28,7 +28,7 @@ export default function CoursesPage() {
         const [querySnapshot, teachersSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
-            getDocs(query(collection(db, "users"), where("role", "in", ["teacher", "admin"])))
+            getDocs(query(collection(db, "users"), where("role", "==", "teacher")))
           ]),
           timeoutPromise
         ]);
@@ -87,19 +87,19 @@ export default function CoursesPage() {
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div>
         <h1 className="text-3xl font-bold">Course Explorer</h1>
-        <p className="text-muted-foreground mt-2">Browse all available physics courses and start learning today.</p>
+        <p className="text-muted-foreground mt-2">Browse all available courses and start learning today.</p>
       </div>
 
       {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
       {teachers.length > 0 && !loading && !dbError && (
-        <div className="p-5 rounded-2xl border border-secondary/30 bg-secondary/10 space-y-3">
+        <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold flex items-center gap-2 text-foreground">
-                <GraduationCap className="w-5 h-5 text-primary" /> Browse Courses by Teacher
+              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <GraduationCap className="w-5 h-5 text-primary" /> Browse by Teacher
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select a teacher to explore the specific courses and subjects they teach.
+                Select a teacher to explore the specific courses they teach.
               </p>
             </div>
             {selectedTeacherId !== "all" && (
@@ -114,48 +114,66 @@ export default function CoursesPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2.5 pt-1">
+          {/* Big teacher cards grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {/* All Teachers card */}
             <button
               onClick={() => setSelectedTeacherId("all")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+              className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                 selectedTeacherId === "all"
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                  : "bg-background/80 hover:bg-secondary/40 border-secondary/40 text-foreground"
+                  ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                  : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
               }`}
             >
-              <span>All Teachers</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedTeacherId === "all" ? "bg-black/20 text-white" : "bg-secondary text-muted-foreground"}`}>
-                {courses.length}
-              </span>
+              <div className={`w-full aspect-square flex items-center justify-center ${selectedTeacherId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
+                <GraduationCap className={`w-12 h-12 ${selectedTeacherId === "all" ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
+              <div className={`p-3 ${selectedTeacherId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                <p className="font-bold text-sm leading-tight">All Teachers</p>
+                <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.length} courses</p>
+              </div>
             </button>
 
             {teachers.map(teacher => {
               const teacherCourseCount = courses.filter(c => c.teacherId === teacher.id).length;
               const isSelected = selectedTeacherId === teacher.id;
+              const displayName = teacher.name || teacher.email?.split('@')[0] || 'Teacher';
               return (
                 <button
                   key={teacher.id}
                   onClick={() => setSelectedTeacherId(teacher.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2.5 border ${
+                  className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     isSelected
-                      ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                      : "bg-background/80 hover:bg-secondary/40 border-secondary/40 text-foreground"
+                      ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                      : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
                   }`}
                 >
-                  <span className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
-                    {teacher.name?.charAt(0) || teacher.email?.charAt(0).toUpperCase()}
-                  </span>
-                  <div className="text-left">
-                    <p className="leading-none">{teacher.name || teacher.email?.split('@')[0]}</p>
+                  <div className="w-full aspect-square bg-secondary/20 relative overflow-hidden">
+                    {teacher.profilePicture ? (
+                      <img
+                        src={teacher.profilePicture}
+                        alt={displayName}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                        <span className="text-5xl font-bold text-primary/60">
+                          {displayName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className={`p-3 ${isSelected ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                    <p className="font-bold text-sm leading-tight truncate">{displayName}</p>
                     {teacher.subject && (
-                      <p className={`text-[10px] font-normal mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                      <p className={`text-xs mt-0.5 truncate ${isSelected ? "text-primary-foreground/80" : "text-primary"}`}>
                         {teacher.subject}
                       </p>
                     )}
+                    <p className={`text-xs mt-0.5 ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      {teacherCourseCount} course{teacherCourseCount !== 1 ? 's' : ''}
+                    </p>
                   </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isSelected ? "bg-black/20 text-white" : "bg-secondary text-muted-foreground"}`}>
-                    {teacherCourseCount}
-                  </span>
                 </button>
               );
             })}

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
@@ -648,6 +648,37 @@ export default function AdminDashboard() {
       alert("Teacher subject updated successfully!");
     } catch (err) {
       alert("Failed to update teacher subject.");
+    }
+  };
+
+  const handleSaveTeacherProfilePicture = async (memberId: string, file: File) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        // Resize image before storing
+        const img = new Image();
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const size = 400;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          // Crop square from center
+          const min = Math.min(img.width, img.height);
+          const sx = (img.width - min) / 2;
+          const sy = (img.height - min) / 2;
+          ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+          const base64 = canvas.toDataURL('image/jpeg', 0.8);
+          await updateDoc(doc(db, 'users', memberId), { profilePicture: base64 });
+          setSelectedTeacherDetails((prev: any) => prev ? { ...prev, profilePicture: base64 } : null);
+          alert("Profile picture updated successfully!");
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      alert("Failed to update profile picture.");
     }
   };
 
@@ -2744,8 +2775,12 @@ export default function AdminDashboard() {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-5 border-b border-border/50 bg-secondary/10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
-                  {selectedTeacherDetails.name?.charAt(0) || selectedTeacherDetails.email?.charAt(0).toUpperCase()}
+                <div className="w-14 h-14 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl border-2 border-primary/30 shrink-0">
+                  {selectedTeacherDetails.profilePicture ? (
+                    <img src={selectedTeacherDetails.profilePicture} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    selectedTeacherDetails.name?.charAt(0) || selectedTeacherDetails.email?.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -2771,6 +2806,41 @@ export default function AdminDashboard() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Profile Picture Upload Section */}
+              <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 space-y-3">
+                <Label className="font-bold text-sm flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-primary" /> Profile Picture
+                </Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 shrink-0 flex items-center justify-center">
+                    {selectedTeacherDetails.profilePicture ? (
+                      <img src={selectedTeacherDetails.profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-3xl font-bold text-primary/40">
+                        {(selectedTeacherDetails.name || selectedTeacherDetails.email || 'T').charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-xs text-muted-foreground">Upload a square profile photo. This will be shown on the Courses page.</p>
+                    <label className="cursor-pointer">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                        <Upload className="w-3.5 h-3.5" /> Upload Photo
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleSaveTeacherProfilePicture(selectedTeacherDetails.id, file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Subject Taught Edit Section */}
               <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 space-y-3">
                 <Label className="font-bold text-sm flex items-center gap-2">
