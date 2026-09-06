@@ -228,7 +228,10 @@ export default function AdminDashboard() {
 
   const filteredStudents = allStudents.filter(s => {
     const matchBatch = studentFilterBatch === "All" || s.graduationYear === studentFilterBatch;
-    const matchStatus = studentFilterStatus === "All" || (studentFilterStatus === "Active" ? s.isApproved : !s.isApproved);
+    const matchStatus = studentFilterStatus === "All" || 
+      (studentFilterStatus === "Active" ? s.isApproved : 
+       studentFilterStatus === "Suspended" ? (!s.isApproved && s.pendingReason === 'Access Suspended') : 
+       (!s.isApproved && s.pendingReason !== 'Access Suspended'));
     const matchSearch = !studentSearchTerm || 
       (s.name?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
       (s.studentId?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
@@ -1107,6 +1110,7 @@ export default function AdminDashboard() {
                   <option value="All">All Statuses</option>
                   <option value="Active">Active</option>
                   <option value="Pending">Pending</option>
+                  <option value="Suspended">Suspended</option>
                 </select>
               </div>
               <div className="overflow-x-auto">
@@ -1142,6 +1146,8 @@ export default function AdminDashboard() {
                         <td className="p-3 whitespace-nowrap">
                           {student.isApproved ? (
                             <span className="bg-green-500/20 text-green-600 px-2 py-1 rounded text-xs font-bold">Active</span>
+                          ) : student.pendingReason === 'Access Suspended' ? (
+                            <span className="bg-red-500/20 text-red-600 px-2 py-1 rounded text-xs font-bold">Suspended</span>
                           ) : (
                             <span className="bg-yellow-500/20 text-yellow-600 px-2 py-1 rounded text-xs font-bold">Pending</span>
                           )}
