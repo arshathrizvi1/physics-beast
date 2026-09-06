@@ -13,11 +13,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Brilliant Academy LMS",
-  description: "Premium online education platform — learn from expert instructors.",
-  icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
-  },
+  description: "Learn Today, Build Tomorrow",
 };
 
 export default function RootLayout({
