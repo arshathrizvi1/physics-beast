@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
@@ -987,6 +987,9 @@ export default function AdminDashboard() {
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👥 Team</TabsTrigger>
+          )}
+          {user?.role === 'admin' && (
+            <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">🌐 Site Settings</TabsTrigger>
           )}
         </TabsList>
         
@@ -2381,6 +2384,66 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* SITE SETTINGS TAB */}
+        <TabsContent value="site" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Footer Editor Card */}
+            <Card className="border-primary/30 shadow-md hover:shadow-lg hover:border-primary/60 transition-all group">
+              <CardHeader className="bg-primary/5 border-b border-primary/20 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <Globe className="w-6 h-6 text-primary" />
+                  Footer Editor
+                </CardTitle>
+                <CardDescription>
+                  Edit the footer tagline, Quick Links, Company links, and contact information shown at the bottom of every page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 text-xs text-muted-foreground space-y-1.5">
+                  <p>✏️ <strong>Tagline</strong> — "Learn Today · Build Tomorrow"</p>
+                  <p>🔗 <strong>Quick Links</strong> — Courses, Exams, Leaderboard...</p>
+                  <p>🏢 <strong>Company Links</strong> — About Us, Reviews, Login...</p>
+                  <p>📧 <strong>Contact</strong> — Email, Phone, Location</p>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t border-border/50 bg-secondary/5 py-3">
+                <Link href="/admin/footer" className="w-full">
+                  <Button className="w-full gap-2">
+                    <Globe className="w-4 h-4" /> Open Footer Editor
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            {/* About Page Editor Card */}
+            <Card className="border-secondary/40 shadow-md hover:shadow-lg hover:border-primary/40 transition-all group">
+              <CardHeader className="bg-secondary/5 border-b border-secondary/20 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <BookOpen className="w-6 h-6 text-primary" />
+                  About Us Page
+                </CardTitle>
+                <CardDescription>
+                  Edit the About Us page content — mission, vision, why choose us, and contact details shown at /about.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 text-xs text-muted-foreground space-y-1.5">
+                  <p>🎯 <strong>Mission & Vision</strong> — Main message to students</p>
+                  <p>⭐ <strong>Why Choose Us</strong> — Feature highlights</p>
+                  <p>📞 <strong>Contact Info</strong> — Address, email, phone, website</p>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t border-border/50 bg-secondary/5 py-3">
+                <Link href="/admin/about" className="w-full">
+                  <Button variant="outline" className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10">
+                    <BookOpen className="w-4 h-4" /> Edit About Page
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
