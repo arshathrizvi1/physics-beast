@@ -45,7 +45,8 @@ export default function Admin2FAPage() {
 
     const check2FA = async () => {
       try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const { getDocFromServer } = await import("firebase/firestore");
+        const userDoc = await getDocFromServer(doc(db, "users", user.uid));
         const data = userDoc.data();
         const secretInDb = data?.totpSecret || null;
         setExistingSecret(secretInDb);
