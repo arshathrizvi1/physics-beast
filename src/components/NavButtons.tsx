@@ -9,14 +9,17 @@ export default function NavButtons() {
 
   if (user) {
     return (
-      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+      <div className="flex items-center gap-4 shrink-0">
         <Link 
           href={user.role === 'admin' || user.role === 'teacher' ? "/admin" : "/login"} 
-          className="text-xs md:text-sm text-primary font-bold hover:underline whitespace-nowrap"
+          className="text-xs md:text-sm text-[#d4af37] font-bold hover:text-[#b5952f] transition-colors whitespace-nowrap"
         >
           {user.role === 'admin' ? 'Admin Dashboard' : user.role === 'teacher' ? 'Teacher Dashboard' : 'My Profile'}
         </Link>
-        <Button variant="outline" size="sm" onClick={logout} className="whitespace-nowrap h-8 px-2 md:px-4 text-xs md:text-sm">
+        <Button 
+          onClick={logout} 
+          className="bg-[#1a1a1a] text-white hover:bg-zinc-800 border border-zinc-800 rounded-lg whitespace-nowrap h-9 px-4 text-xs md:text-sm font-semibold transition-colors shadow-none"
+        >
           Logout
         </Button>
       </div>
