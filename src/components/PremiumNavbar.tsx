@@ -291,6 +291,8 @@ export default function PremiumNavbar() {
           </div>
         </div>
 
+      </motion.header>
+
         {/* ── MOBILE MENU ── */}
         <AnimatePresence>
           {mobileOpen && (
@@ -367,7 +369,6 @@ export default function PremiumNavbar() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.header>
     </>
   );
 }
