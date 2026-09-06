@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, limit as fsLimit } from "firebase/firestore";
+import { collection, getDocs, query, limit as fsLimit, where, orderBy } from "firebase/firestore";
 import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
@@ -62,6 +62,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
+  const [topReviews, setTopReviews] = useState<any[]>([]);
 
   // Initial loading animation
   useEffect(() => {
@@ -69,6 +70,27 @@ export default function Home() {
       setLoadingComplete(true);
     }, 2000); // 2 second intro
     return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch real top reviews (4 and 5 star) for the testimonial slider
+  useEffect(() => {
+    const fetchTopReviews = async () => {
+      try {
+        const q = query(
+          collection(db, "reviews"),
+          where("rating", ">=", 4),
+          orderBy("rating", "desc"),
+          orderBy("createdAt", "desc"),
+          fsLimit(20)
+        );
+        const snap = await getDocs(q);
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setTopReviews(data);
+      } catch {
+        // silently fail — no reviews yet is fine
+      }
+    };
+    fetchTopReviews();
   }, []);
 
   useEffect(() => {
@@ -527,45 +549,58 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 14. Testimonial Animation */}
-        <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
-          <div className="container mx-auto px-6 mb-12 text-center">
-            <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
-            <p className="text-zinc-400 max-w-2xl mx-auto">Discover how Brilliant Academy is helping students achieve their academic and professional goals.</p>
-          </div>
-          <div className="relative w-full max-w-5xl mx-auto overflow-hidden px-6">
-            <motion.div 
-              className="flex gap-6 w-max"
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            >
-              {[
-                { name: "Sarah J.", role: "Computer Science", text: "Brilliant Academy completely changed the way I understand algorithms. The instructors are top-notch and the platform is incredibly smooth!" },
-                { name: "Michael T.", role: "Physics Major", text: "The premium feel of the platform makes studying a joy. The courses are well-structured and the leaderboard keeps me motivated." },
-                { name: "Emily R.", role: "High School Student", text: "I aced my final exams thanks to the practice tests here. Everything is just so easy to find and use." },
-                { name: "Sarah J.", role: "Computer Science", text: "Brilliant Academy completely changed the way I understand algorithms. The instructors are top-notch and the platform is incredibly smooth!" },
-                { name: "Michael T.", role: "Physics Major", text: "The premium feel of the platform makes studying a joy. The courses are well-structured and the leaderboard keeps me motivated." },
-                { name: "Emily R.", role: "High School Student", text: "I aced my final exams thanks to the practice tests here. Everything is just so easy to find and use." },
-              ].map((t, i) => (
-                <div key={i} className="w-[300px] md:w-[400px] bg-[#111] border border-zinc-800 rounded-2xl p-8 shrink-0 relative">
-                  <div className="flex text-[#d4af37] mb-4">
-                    {[1,2,3,4,5].map(s => <Star key={s} className="w-4 h-4 fill-[#d4af37]" />)}
-                  </div>
-                  <p className="text-zinc-300 italic mb-6 text-sm">"{t.text}"</p>
-                  <div className="flex items-center gap-4 mt-auto">
-                    <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-[#d4af37]">{t.name.charAt(0)}</div>
+        {/* 14. Testimonial Animation — Real Reviews */}
+        {topReviews.length > 0 && (
+          <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
+            <div className="container mx-auto px-6 mb-12 text-center">
+              <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
+              <p className="text-zinc-400 max-w-2xl mx-auto">Real reviews from our top-rated students — only the best experiences shared here.</p>
+            </div>
+            <div className="relative w-full overflow-hidden">
+              {/* duplicate reviews for seamless infinite loop */}
+              <motion.div
+                className="flex gap-6 w-max"
+                animate={{ x: ["0px", `-${topReviews.length * 424}px`] }}
+                transition={{ duration: topReviews.length * 5, repeat: Infinity, ease: "linear" }}
+              >
+                {[...topReviews, ...topReviews].map((r: any, i: number) => (
+                  <div key={`${r.id}-${i}`} className="w-[380px] bg-[#111] border border-zinc-800 rounded-2xl p-8 shrink-0 flex flex-col justify-between">
+                    {/* Stars */}
                     <div>
-                      <h4 className="text-white font-semibold text-sm">{t.name}</h4>
-                      <p className="text-zinc-500 text-xs">{t.role}</p>
+                      <div className="flex gap-0.5 mb-4">
+                        {[1, 2, 3, 4, 5].map(s => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 ${s <= r.rating ? "fill-[#d4af37] text-[#d4af37]" : "text-zinc-700"}`}
+                          />
+                        ))}
+                        <span className="ml-2 text-xs text-zinc-500 font-medium">{r.rating}.0</span>
+                      </div>
+                      <p className="text-zinc-300 italic text-sm leading-relaxed">"{r.comment}"</p>
+                    </div>
+                    {/* Student info */}
+                    <div className="flex items-center gap-3 mt-6">
+                      <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-[#d4af37] text-sm shrink-0">
+                        {(r.userName || "S").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="text-white font-semibold text-sm">{r.userName || "Student"}</h4>
+                        <p className="text-zinc-500 text-xs">Verified Student</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </motion.div>
-            <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-            <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-          </div>
-        </section>
+                ))}
+              </motion.div>
+              <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+            </div>
+            <div className="text-center mt-10">
+              <Link href="/reviews" className="inline-flex items-center gap-2 text-[#d4af37] hover:text-[#b5952f] font-medium transition-colors text-sm">
+                See all reviews <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </section>
+        )}
 
       </div>
     </>
