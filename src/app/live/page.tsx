@@ -28,20 +28,22 @@ export default function StudentLivePortal() {
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
 
-  // DVD-style bouncing watermark
+  // DVD-style bouncing watermark — covers full player
   useEffect(() => {
-    let x = Math.random() * 70;
-    let y = Math.random() * 80;
-    let dx = 0.06;
-    let dy = 0.06;
+    let x = 10 + Math.random() * 60;
+    let y = 10 + Math.random() * 60;
+    let dx = (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.05);
+    let dy = (Math.random() > 0.5 ? 1 : -1) * (0.04 + Math.random() * 0.04);
     let animationFrameId: number;
 
     const animate = () => {
       x += dx;
       y += dy;
       
-      if (x <= 2 || x >= 75) dx = -dx;
-      if (y <= 2 || y >= 85) dy = -dy;
+      if (x <= 1) { x = 1; dx = Math.abs(dx); }
+      if (x >= 82) { x = 82; dx = -Math.abs(dx); }
+      if (y <= 1) { y = 1; dy = Math.abs(dy); }
+      if (y >= 88) { y = 88; dy = -Math.abs(dy); }
       
       if (wmRef.current) {
         wmRef.current.style.left = `${x}%`;

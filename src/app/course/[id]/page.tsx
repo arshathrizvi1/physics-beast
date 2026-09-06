@@ -64,20 +64,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return `${mm}:${ss}`;
   };
 
-  // DVD-style bouncing watermark
+  // DVD-style bouncing watermark — covers full player
   useEffect(() => {
-    let x = Math.random() * 70;
-    let y = Math.random() * 80;
-    let dx = 0.06; // horizontal speed
-    let dy = 0.06; // vertical speed
+    let x = 10 + Math.random() * 60;
+    let y = 10 + Math.random() * 60;
+    // Randomize direction per axis so it doesn't go diagonally forever
+    let dx = (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.05);
+    let dy = (Math.random() > 0.5 ? 1 : -1) * (0.04 + Math.random() * 0.04);
     let animationFrameId: number;
 
     const animate = () => {
       x += dx;
       y += dy;
       
-      if (x <= 2 || x >= 75) dx = -dx;
-      if (y <= 2 || y >= 85) dy = -dy;
+      if (x <= 1) { x = 1; dx = Math.abs(dx); }
+      if (x >= 82) { x = 82; dx = -Math.abs(dx); }
+      if (y <= 1) { y = 1; dy = Math.abs(dy); }
+      if (y >= 88) { y = 88; dy = -Math.abs(dy); }
       
       if (wmRef.current) {
         wmRef.current.style.left = `${x}%`;
@@ -401,15 +404,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   <p className="text-muted-foreground mb-8 max-w-md">This is a course resource file. You can view or download it to study along with the course.</p>
                   <div className="flex gap-4">
                     <Button onClick={() => {
-                      if (activeVideo.url.startsWith('data:')) {
-                         const win = window.open();
-                         if (win) {
-                           win.document.write(`<iframe src="${activeVideo.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                       try {
+                         if (activeVideo.url.startsWith('data:')) {
+                           // Convert data URI to blob URL (works in all browsers)
+                           const arr = activeVideo.url.split(',');
+                           const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
+                           const bstr = atob(arr[1]);
+                           let n = bstr.length;
+                           const u8arr = new Uint8Array(n);
+                           while (n--) u8arr[n] = bstr.charCodeAt(n);
+                           const blob = new Blob([u8arr], { type: mime });
+                           const blobUrl = URL.createObjectURL(blob);
+                           window.open(blobUrl, '_blank');
+                         } else {
+                           window.open(activeVideo.url, '_blank');
                          }
-                      } else {
-                         window.open(activeVideo.url, '_blank');
-                      }
-                    }} size="lg">
+                       } catch (err) {
+                         console.error('Failed to open resource', err);
+                         alert('Could not open resource. Please try the Download button instead.');
+                       }
+                     }} size="lg">
                       View Resource
                     </Button>
                     <Button onClick={() => {

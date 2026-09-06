@@ -57,6 +57,10 @@ const wordVariants = {
 export default function Home() {
   const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
+  const [allVideos, setAllVideos] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
 
   // Initial loading animation
@@ -86,13 +90,34 @@ export default function Home() {
             return batchesMap[c.batchId] === user.graduationYear;
           });
         }
-        setCourses(coursesData.slice(0, 8)); // Top 8 courses for landing page
+        setCourses(coursesData.slice(0, 8));
+
+        // Fetch videos for search
+        const videosSnap = await getDocs(query(collection(db, "videos")));
+        const videosData = videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+        setAllVideos(videosData);
       } catch (e) {
         console.error("Failed to fetch data", e);
       }
     };
     fetchData();
   }, [user]);
+
+  // Search handler
+  const handleSearch = (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim()) { setSearchResults([]); setShowSearch(false); return; }
+    setShowSearch(true);
+    const lq = q.toLowerCase();
+    const matchedCourses = courses
+      .filter(c => c.name?.toLowerCase().includes(lq) || c.description?.toLowerCase().includes(lq))
+      .map(c => ({ type: 'course', id: c.id, title: c.name, subtitle: c.description || '' }));
+    const matchedVideos = allVideos
+      .filter(v => v.title?.toLowerCase().includes(lq))
+      .slice(0, 6)
+      .map(v => ({ type: 'video', id: v.courseId, title: v.title, subtitle: 'Video lesson' }));
+    setSearchResults([...matchedCourses, ...matchedVideos].slice(0, 8));
+  };
 
   const headingText = "Your Brighter Future Starts Here".split(" ");
 
@@ -197,18 +222,35 @@ export default function Home() {
                 <Search className="w-5 h-5 text-zinc-500 mr-3" />
                 <input 
                   type="text"
-                  placeholder="What do you want to learn today?"
+                  value={searchQuery}
+                  onChange={e => handleSearch(e.target.value)}
+                  placeholder="Search courses, videos..."
                   className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-zinc-600"
-                />
-                <motion.div 
-                  animate={{ opacity: [1, 0, 1] }} 
-                  transition={{ repeat: Infinity, duration: 1 }}
-                  className="absolute left-[260px] top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#d4af37] hidden sm:block"
                 />
                 <Button className="rounded-full bg-[#d4af37] hover:bg-[#b5952f] text-black font-semibold px-8 h-12 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]">
                   Search
                 </Button>
               </div>
+              {/* Search Dropdown Results */}
+              {showSearch && searchResults.length > 0 && (
+                <div className="absolute top-full mt-2 w-full bg-[#1a1a1a] border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                  {searchResults.map((r, i) => (
+                    <Link key={i} href={`/course/${r.id}`} onClick={() => { setSearchQuery(""); setShowSearch(false); }}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0">
+                      {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
+                      <div className="overflow-hidden">
+                        <div className="text-white text-sm font-medium truncate">{r.title}</div>
+                        <div className="text-zinc-500 text-xs truncate">{r.subtitle}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {showSearch && searchResults.length === 0 && searchQuery.trim() && (
+                <div className="absolute top-full mt-2 w-full bg-[#1a1a1a] border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                  <div className="px-5 py-4 text-zinc-500 text-sm">No results found for "{searchQuery}"</div>
+                </div>
+              )}
             </motion.div>
 
             <motion.div 
@@ -218,10 +260,10 @@ export default function Home() {
               className="flex flex-wrap items-center gap-3 text-sm text-zinc-500"
             >
               <span className="font-semibold text-zinc-400">Popular:</span>
-              {['Web Development', 'Data Science', 'Design', 'Business', 'AI'].map(tag => (
-                <span key={tag} className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
-                  {tag}
-                </span>
+              {courses.slice(0, 5).map(c => (
+                <Link key={c.id} href={`/course/${c.id}`} className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
+                  {c.name}
+                </Link>
               ))}
             </motion.div>
           </div>
@@ -426,9 +468,11 @@ export default function Home() {
                   ))}
                 </ul>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button className="mt-4 bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
-                    Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <Link href="/login">
+                    <Button className="mt-4 bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+                      Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
                 </motion.div>
               </motion.div>
 

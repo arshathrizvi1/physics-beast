@@ -48,6 +48,9 @@ export default function RootLayout({
                         <Link href="/courses" className="transition-colors hover:text-foreground/80 text-foreground/60">
                           Courses
                         </Link>
+                        <Link href="/about" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                          About
+                        </Link>
                         <Link href="/reviews" className="transition-colors hover:text-foreground/80 text-foreground/60">
                           Reviews
                         </Link>
@@ -69,11 +72,37 @@ export default function RootLayout({
             <main className="flex-1 container mx-auto px-4 py-8">
               {children}
             </main>
-            <footer className="border-t py-6 md:py-0 bg-secondary/20">
-              <div className="container flex flex-col items-center justify-between gap-4 md:h-24 md:flex-row px-4">
-                <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-                  Built for Brilliant Academy. All rights reserved.
-                </p>
+            <footer className="border-t py-8 bg-secondary/20">
+              <div className="container mx-auto px-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+                  <div>
+                    <h3 className="font-bold text-lg text-primary mb-3">Brilliant Academy</h3>
+                    <p className="text-sm text-muted-foreground">Learn Today · Build Tomorrow</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-3">Quick Links</h4>
+                    <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                      <Link href="/courses" className="hover:text-foreground transition-colors">Courses</Link>
+                      <Link href="/exams" className="hover:text-foreground transition-colors">Exams</Link>
+                      <Link href="/leaderboard" className="hover:text-foreground transition-colors">Leaderboard</Link>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-3">Company</h4>
+                    <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                      <Link href="/about" className="hover:text-foreground transition-colors">About Us</Link>
+                      <Link href="/reviews" className="hover:text-foreground transition-colors">Reviews</Link>
+                      <Link href="/login" className="hover:text-foreground transition-colors">Login</Link>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-3">Contact</h4>
+                    <p className="text-sm text-muted-foreground">contact@brilliantacademy.com</p>
+                  </div>
+                </div>
+                <div className="border-t pt-6 text-center text-sm text-muted-foreground">
+                  © {new Date().getFullYear()} Brilliant Academy. All rights reserved.
+                </div>
               </div>
             </footer>
             </LenisProvider>
