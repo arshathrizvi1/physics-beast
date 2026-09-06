@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
@@ -652,6 +652,20 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleResetTeamMember2FA = async (memberId: string, memberName: string) => {
+    if (!confirm(`Are you sure you want to reset 2FA for ${memberName}? They will be prompted to scan a new Google Authenticator QR code upon their next login.`)) return;
+    try {
+      await updateDoc(doc(db, 'users', memberId), { totpSecret: null });
+      if (selectedTeacherDetails && selectedTeacherDetails.id === memberId) {
+        setSelectedTeacherDetails((prev: any) => prev ? { ...prev, totpSecret: null } : null);
+      }
+      alert(`✅ 2FA has been reset for ${memberName}. They will scan a new QR code upon next login.`);
+    } catch (err) {
+      alert("Failed to reset 2FA.");
+      console.error(err);
+    }
+  };
+
   const handleUploadItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
@@ -898,9 +912,14 @@ export default function AdminDashboard() {
           </h1>
           <p className="text-muted-foreground mt-1">Physics Beast Administration Console</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/admin/2fa?change=true">
+            <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 gap-2 font-bold text-xs h-9">
+              <ShieldCheck className="w-4 h-4" /> Change 2FA
+            </Button>
+          </Link>
           <Link href="/admin/live">
-            <Button variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-600 gap-2 font-bold">
+            <Button variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-600 gap-2 font-bold text-xs h-9">
               <Video className="w-4 h-4" /> Go to Live Studio
             </Button>
           </Link>
@@ -2261,7 +2280,18 @@ export default function AdminDashboard() {
                               </td>
                               <td className="p-3">
                                 {member.totpSecret ? (
-                                  <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
+                                    {user?.role === 'admin' && (
+                                      <button
+                                        onClick={() => handleResetTeamMember2FA(member.id, member.name || member.email)}
+                                        title="Reset 2FA for this user"
+                                        className="text-[10px] text-muted-foreground hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors inline-flex items-center gap-0.5 border border-border/50"
+                                      >
+                                        <RotateCcw className="w-2.5 h-2.5" /> Reset
+                                      </button>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="text-yellow-500 text-xs font-medium">⚠ Not Set Up</span>
                                 )}
@@ -2754,15 +2784,27 @@ export default function AdminDashboard() {
 
               {/* Status & Credentials */}
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20">
-                  <p className="text-xs text-muted-foreground mb-1">Google Authenticator (2FA)</p>
-                  <p className="font-bold">
-                    {selectedTeacherDetails.totpSecret ? (
-                      <span className="text-green-500">✅ Enabled</span>
-                    ) : (
-                      <span className="text-yellow-500">⚠ Not Set Up</span>
-                    )}
-                  </p>
+                <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Google Authenticator (2FA)</p>
+                    <p className="font-bold text-xs">
+                      {selectedTeacherDetails.totpSecret ? (
+                        <span className="text-green-500">✅ Enabled</span>
+                      ) : (
+                        <span className="text-yellow-500">⚠ Not Set Up</span>
+                      )}
+                    </p>
+                  </div>
+                  {user?.role === 'admin' && selectedTeacherDetails.totpSecret && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 text-xs h-6 text-red-500 border-red-500/30 hover:bg-red-500/10 gap-1 w-fit"
+                      onClick={() => handleResetTeamMember2FA(selectedTeacherDetails.id, selectedTeacherDetails.name || selectedTeacherDetails.email)}
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset 2FA
+                    </Button>
+                  )}
                 </div>
                 <div className="p-3 rounded-lg bg-secondary/10 border border-secondary/20">
                   <p className="text-xs text-muted-foreground mb-1">Portal Access</p>

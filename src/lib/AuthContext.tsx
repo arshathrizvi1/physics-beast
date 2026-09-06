@@ -674,6 +674,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     if (typeof window !== 'undefined') {
       safeStorage.local.removeItem('cachedUserProfile');
+      sessionStorage.removeItem('admin_2fa_passed');
       // Stop the real-time access listener when logging out
       (window as any).__pbAccessUnsub?.();
       (window as any).__pbAccessUnsub = null;

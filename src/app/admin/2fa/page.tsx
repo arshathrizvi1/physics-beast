@@ -10,18 +10,23 @@ import QRCode from "qrcode";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { ShieldAlert, ShieldCheck, RotateCcw, ArrowLeft, CheckCircle2, RefreshCw, Key } from "lucide-react";
+import Link from "next/link";
 
 export default function Admin2FAPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   
-  const [isSettingUp, setIsSettingUp] = useState(false);
-  const [secret, setSecret] = useState<string | null>(null);
+  // mode: 'verify' (entering code to log in) | 'setup' (scanning QR code for new/changed 2FA) | 'manage' (viewing 2FA status with option to change)
+  const [mode, setMode] = useState<"verify" | "setup" | "manage">("verify");
+  const [existingSecret, setExistingSecret] = useState<string | null>(null);
+  const [newSecret, setNewSecret] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [isSessionVerified, setIsSessionVerified] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -30,30 +35,33 @@ export default function Admin2FAPage() {
       return;
     }
 
+    const passed2FA = typeof window !== 'undefined' && sessionStorage.getItem("admin_2fa_passed") === "true";
+    setIsSessionVerified(passed2FA);
+
+    const isChangeRequested = typeof window !== 'undefined' && (
+      window.location.search.includes("change=true") || 
+      window.location.search.includes("reset=true")
+    );
+
     const check2FA = async () => {
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const data = userDoc.data();
-        if (data && data.totpSecret) {
-          setSecret(data.totpSecret);
+        const secretInDb = data?.totpSecret || null;
+        setExistingSecret(secretInDb);
+
+        if (!secretInDb) {
+          // No secret exists yet -> first time setup
+          await generateNewSetup(user.email || "Admin");
+        } else if (isChangeRequested && passed2FA) {
+          // User is already logged in and explicitly wants to change 2FA
+          await generateNewSetup(user.email || "Admin");
+        } else if (passed2FA) {
+          // User is already logged in, show manage view
+          setMode("manage");
         } else {
-          // Generate new secret for setup
-          const newSecret = new OTPAuth.Secret().base32;
-          setSecret(newSecret);
-          setIsSettingUp(true);
-          
-          const totp = new OTPAuth.TOTP({
-            issuer: "Physics Beast",
-            label: "Admin Panel",
-            algorithm: "SHA1",
-            digits: 6,
-            period: 30,
-            secret: newSecret
-          });
-          
-          const uri = totp.toString();
-          const qrUrl = await QRCode.toDataURL(uri);
-          setQrCodeUrl(qrUrl);
+          // Standard login verification
+          setMode("verify");
         }
       } catch (err) {
         console.error("Failed to check 2FA status", err);
@@ -64,100 +72,253 @@ export default function Admin2FAPage() {
     check2FA();
   }, [user, loading, router]);
 
+  const generateNewSetup = async (userEmail: string) => {
+    try {
+      const generated = new OTPAuth.Secret().base32;
+      setNewSecret(generated);
+      setMode("setup");
+      setError("");
+      setTokenInput("");
+      
+      const totp = new OTPAuth.TOTP({
+        issuer: "Physics Beast",
+        label: userEmail,
+        algorithm: "SHA1",
+        digits: 6,
+        period: 30,
+        secret: generated
+      });
+      
+      const uri = totp.toString();
+      const qrUrl = await QRCode.toDataURL(uri);
+      setQrCodeUrl(qrUrl);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to generate QR code.");
+    }
+  };
+
+  const handleStartChange2FA = async () => {
+    if (!user) return;
+    await generateNewSetup(user.email || "Admin");
+  };
+
   const verifyCode = async () => {
-    if (!secret || !tokenInput) return;
+    const activeSecret = mode === "setup" ? newSecret : existingSecret;
+    if (!activeSecret || !tokenInput || tokenInput.length < 6) return;
+
     setVerifying(true);
     setError("");
+    setSuccessMessage("");
     
     try {
       const totp = new OTPAuth.TOTP({
         issuer: "Physics Beast",
-        label: "Admin Panel",
+        label: user?.email || "Admin Panel",
         algorithm: "SHA1",
         digits: 6,
         period: 30,
-        secret: secret
+        secret: activeSecret
       });
 
       const isValid = totp.validate({ token: tokenInput, window: 1 }) !== null;
 
       if (isValid) {
-        // If we were setting it up, save the secret to Firestore
-        if (isSettingUp && user) {
+        if (mode === "setup" && user) {
+          // Save new secret to Firestore
           await updateDoc(doc(db, "users", user.uid), {
-            totpSecret: secret
+            totpSecret: activeSecret
           });
+          setExistingSecret(activeSecret);
+          setSuccessMessage("✅ 2FA Authenticator successfully configured!");
         }
         
-        // Save session flag
+        // Mark session as 2FA verified
         sessionStorage.setItem("admin_2fa_passed", "true");
-        router.replace("/admin");
+        setIsSessionVerified(true);
+
+        setTimeout(() => {
+          router.replace("/admin");
+        }, mode === "setup" ? 1200 : 300);
       } else {
-        setError("Invalid code. Please try again.");
+        setError("Invalid 6-digit code. Please check your app and try again.");
       }
     } catch (err) {
-      setError("Failed to verify code.");
+      setError("Failed to verify code. Please try again.");
     } finally {
       setVerifying(false);
     }
   };
 
-  if (loading || !secret) {
+  if (loading || (!existingSecret && mode !== "setup")) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
-        <p className="animate-pulse text-primary font-bold">Initializing Security...</p>
+        <p className="animate-pulse text-primary font-bold">Initializing Security Console...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-[70vh] items-center justify-center">
-      <Card className="w-full max-w-md border-primary/20 shadow-lg">
+    <div className="flex min-h-[75vh] items-center justify-center px-4 py-8">
+      <Card className="w-full max-w-md border-primary/20 shadow-xl bg-card">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-            <ShieldAlert className="w-8 h-8 text-primary" />
+          <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-3">
+            {mode === "setup" ? (
+              <RefreshCw className="w-8 h-8 text-primary animate-spin-slow" />
+            ) : mode === "manage" ? (
+              <CheckCircle2 className="w-8 h-8 text-green-500" />
+            ) : (
+              <ShieldAlert className="w-8 h-8 text-primary" />
+            )}
           </div>
-          <CardTitle className="text-2xl">Admin Security</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {mode === "setup" 
+              ? (existingSecret ? "Change Google Authenticator" : "Set Up Two-Factor Auth")
+              : mode === "manage"
+              ? "2FA Security Settings"
+              : "Two-Factor Authentication"}
+          </CardTitle>
           <CardDescription>
-            {isSettingUp ? "Set up Google Authenticator" : "Two-Factor Authentication Required"}
+            {mode === "setup"
+              ? "Scan the new QR code below with your Google Authenticator or Authy app."
+              : mode === "manage"
+              ? "Your account is secured with Google Authenticator."
+              : "Enter the 6-digit code from your authenticator app to proceed."}
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4 pt-4">
-          {isSettingUp && (
-            <div className="flex flex-col items-center space-y-4 bg-secondary/10 p-4 rounded-lg">
-              <p className="text-sm text-center text-muted-foreground">
-                Scan this QR code with your Google Authenticator or Authy app.
+          {successMessage && (
+            <div className="bg-green-500/15 border border-green-500/40 p-3 rounded-lg text-green-500 text-sm font-medium text-center flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> {successMessage}
+            </div>
+          )}
+
+          {/* SETUP / CHANGE MODE: SHOW QR CODE */}
+          {mode === "setup" && (
+            <div className="flex flex-col items-center space-y-4 bg-secondary/10 p-4 rounded-xl border border-secondary/30">
+              <p className="text-xs text-center text-muted-foreground">
+                {existingSecret 
+                  ? "This will replace your previous authenticator device with this new one." 
+                  : "Open Google Authenticator, tap '+' and scan this QR code:"}
               </p>
               {qrCodeUrl && (
-                <div className="bg-white p-2 rounded-lg">
+                <div className="bg-white p-3 rounded-xl shadow-md">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                  <img src={qrCodeUrl} alt="2FA QR Code" className="w-44 h-44" />
                 </div>
               )}
-              <div className="text-xs text-center text-muted-foreground break-all">
-                Manual Key: <span className="font-mono font-bold text-foreground">{secret}</span>
+              <div className="w-full text-center space-y-1">
+                <p className="text-[11px] text-muted-foreground">Cannot scan? Enter manual key in app:</p>
+                <div className="p-2 rounded bg-background border border-secondary/40 font-mono text-xs text-primary font-bold select-all break-all flex items-center justify-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 shrink-0" />
+                  <span>{newSecret}</span>
+                </div>
               </div>
             </div>
           )}
-          
-          <div className="space-y-2">
-            <Input 
-              type="text" 
-              placeholder="Enter 6-digit code" 
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="text-center text-2xl tracking-widest font-mono"
-              maxLength={6}
-              onKeyDown={(e) => e.key === 'Enter' && verifyCode()}
-            />
-            {error && <p className="text-red-500 text-sm text-center font-medium">{error}</p>}
-          </div>
+
+          {/* MANAGE MODE: CURRENT STATUS & OPTION TO CHANGE */}
+          {mode === "manage" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-center space-y-1.5">
+                <p className="font-bold text-green-500 text-sm flex items-center justify-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" /> 2FA is Active & Protecting Your Account
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Logged in as <span className="font-semibold text-foreground">{user?.email}</span> ({user?.role})
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/20 space-y-2">
+                <p className="text-xs font-bold text-foreground">Need to switch to a new phone or device?</p>
+                <p className="text-xs text-muted-foreground">
+                  You can reconfigure and generate a new QR code anytime. Your old authenticator will be replaced.
+                </p>
+                <Button 
+                  onClick={handleStartChange2FA}
+                  className="w-full gap-2 font-bold text-sm bg-primary text-primary-foreground mt-2"
+                >
+                  <RotateCcw className="w-4 h-4" /> Change / Reconfigure 2FA Device
+                </Button>
+              </div>
+
+              <div className="pt-2">
+                <Link href="/admin">
+                  <Button variant="outline" className="w-full gap-2 text-sm">
+                    <ArrowLeft className="w-4 h-4" /> Return to Admin Dashboard
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* VERIFICATION CODE INPUT (FOR BOTH SETUP CONFIRMATION AND LOGIN VERIFICATION) */}
+          {mode !== "manage" && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground block text-center">
+                  {mode === "setup" ? "Enter 6-digit code from your app to confirm:" : "6-Digit Security Code:"}
+                </label>
+                <Input 
+                  type="text" 
+                  placeholder="000000" 
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="text-center text-3xl tracking-widest font-mono h-14 font-bold"
+                  maxLength={6}
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && verifyCode()}
+                />
+              </div>
+
+              {error && (
+                <p className="text-red-500 text-xs text-center font-medium bg-red-500/10 p-2 rounded border border-red-500/20">
+                  {error}
+                </p>
+              )}
+
+              <Button 
+                className="w-full font-bold text-base h-12 gap-2" 
+                onClick={verifyCode} 
+                disabled={verifying || tokenInput.length < 6}
+              >
+                <ShieldCheck className="w-5 h-5" /> 
+                {verifying 
+                  ? "Verifying..." 
+                  : mode === "setup" 
+                  ? "Confirm & Save New 2FA" 
+                  : "Verify & Enter"}
+              </Button>
+
+              {/* Cancel Button if changing from inside dashboard */}
+              {mode === "setup" && isSessionVerified && existingSecret && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setMode("manage");
+                    setError("");
+                    setTokenInput("");
+                  }}
+                >
+                  Cancel & Keep Existing 2FA
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
-        <CardFooter>
-          <Button className="w-full font-bold text-lg h-12" onClick={verifyCode} disabled={verifying || tokenInput.length < 6}>
-            <ShieldCheck className="w-5 h-5 mr-2" /> {verifying ? "Verifying..." : "Verify & Login"}
-          </Button>
-        </CardFooter>
+
+        {mode === "verify" && isSessionVerified && (
+          <CardFooter className="pt-0 justify-center">
+            <Link href="/admin">
+              <Button variant="ghost" size="sm" className="text-xs text-primary gap-1">
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+              </Button>
+            </Link>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );
