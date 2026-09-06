@@ -8,6 +8,7 @@ import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import PremiumNavbar from "@/components/PremiumNavbar";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
             </LenisProvider>
           </AuthProvider>
           <ThemeToggle />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
