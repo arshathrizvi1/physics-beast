@@ -162,7 +162,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
     let totalCorrect = 0;
     questions.forEach((q, idx) => {
-      if (answers[idx] === q.correct) totalCorrect++;
+      const isCorrect = Array.isArray(q.correct) ? q.correct.includes(answers[idx]) : answers[idx] === q.correct;
+      if (isCorrect) totalCorrect++;
     });
     setScore(totalCorrect);
 

@@ -2107,22 +2107,40 @@ export default function AdminDashboard() {
                             onChange={(e) => handleOptionChange(q.id, opt, e.target.value)}
                           />
                           <input 
-                            type="radio" 
-                            name={`correctAnswer-${q.id}`} 
-                            checked={q.correct === opt}
-                            onChange={() => handleQuestionChange(q.id, 'correct', opt)}
+                            type="checkbox" 
+                            checked={Array.isArray(q.correct) ? q.correct.includes(opt) : q.correct === opt}
+                            onChange={() => {
+                              let current = Array.isArray(q.correct) ? [...q.correct] : [q.correct];
+                              if (current.includes(opt)) {
+                                current = current.filter(o => o !== opt);
+                              } else {
+                                current.push(opt);
+                              }
+                              if (current.length === 0) current = [opt];
+                              handleQuestionChange(q.id, 'correct', current);
+                            }}
                             className="w-5 h-5 accent-primary cursor-pointer" 
-                            title={`Mark Option ${opt} as correct`} 
+                            title={`Toggle Option ${opt} as correct`} 
                           />
                         </div>
                       ))}
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="text-xs h-7"
+                        onClick={() => handleQuestionChange(q.id, 'correct', ['A', 'B', 'C', 'D'])}
+                      >
+                        Set "All Answers Correct"
+                      </Button>
                     </div>
                   </div>
                 ))}
                 
                 <div className="flex justify-between items-center pt-4 border-t border-secondary/20">
                   <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-primary inline-block"></span> Select the radio button to set the correct answer.
+                    <span className="w-3 h-3 rounded-full bg-primary inline-block"></span> Check boxes to set correct answers (can be multiple).
                   </div>
                   <Button 
                     variant="outline" 

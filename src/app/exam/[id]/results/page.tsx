@@ -158,7 +158,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         <TabsContent value="answers" className="mt-6 space-y-6">
           {exam.questions.map((q: any, idx: number) => {
             const myAnswer = myResult.answers?.[idx];
-            const isCorrect = myAnswer === q.correct;
+            const isCorrect = Array.isArray(q.correct) ? q.correct.includes(myAnswer) : myAnswer === q.correct;
             
             return (
               <Card key={idx} className={`border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-destructive'} overflow-hidden`}>
@@ -178,7 +178,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {q.options.map((opt: any) => {
                       const isSelected = myAnswer === opt.id;
-                      const isActualCorrect = q.correct === opt.id;
+                      const isActualCorrect = Array.isArray(q.correct) ? q.correct.includes(opt.id) : q.correct === opt.id;
                       
                       let bgClass = "bg-secondary/10 border-border";
                       let textClass = "text-foreground";
