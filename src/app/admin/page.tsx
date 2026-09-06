@@ -14,7 +14,7 @@ import Link from "next/link";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
 
 export default function AdminDashboard() {
-  const { user, login, loading } = useAuth();
+  const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -579,6 +579,15 @@ export default function AdminDashboard() {
   const [newCourseTeacherId, setNewCourseTeacherId] = useState<string>("");
   const [editCourseTeacherId, setEditCourseTeacherId] = useState<string>("");
 
+  // My Profile States
+  const [profileName, setProfileName] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileSubject, setProfileSubject] = useState("");
+  const [profileBio, setProfileBio] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
+
   // Each question has: text, image, options, correct
   const [questions, setQuestions] = useState<any[]>([{ 
     id: Date.now(), 
@@ -607,6 +616,52 @@ export default function AdminDashboard() {
     });
     return () => unsub();
   }, [user]);
+
+  // Pre-fill profile fields when user loads
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || "");
+      setProfilePhone((user as any).phone || "");
+      setProfileSubject((user as any).subject || "");
+      setProfileBio((user as any).bio || "");
+    }
+  }, [user?.uid]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setProfileSaving(true);
+    try {
+      // Update name via auth helper
+      if (profileName.trim() && profileName !== user.name) {
+        await updateProfileName(profileName.trim());
+      }
+      // Update extra fields in Firestore directly
+      await updateDoc(doc(db, 'users', user.uid), {
+        phone: profilePhone.trim(),
+        subject: profileSubject.trim(),
+        bio: profileBio.trim(),
+      });
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    setProfilePhotoUploading(true);
+    try {
+      await updateProfilePicture(e.target.files[0]);
+    } catch (err) {
+      alert("Photo upload failed.");
+    } finally {
+      setProfilePhotoUploading(false);
+    }
+  };
 
   const handleAddTeamMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -991,6 +1046,7 @@ export default function AdminDashboard() {
           {user?.role === 'admin' && (
             <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">🌐 Site Settings</TabsTrigger>
           )}
+          <TabsTrigger value="myprofile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👤 My Profile</TabsTrigger>
         </TabsList>
         
         {/* STUDENTS TAB */}
@@ -2463,6 +2519,118 @@ export default function AdminDashboard() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* MY PROFILE TAB */}
+        <TabsContent value="myprofile" className="space-y-6">
+          <Card className="border-primary/50 shadow-md max-w-2xl mx-auto">
+            <CardHeader className="bg-primary/5 border-b border-primary/20">
+              <CardTitle className="text-xl text-primary flex items-center gap-2">
+                <Camera className="w-5 h-5" /> My Profile
+              </CardTitle>
+              <CardDescription>
+                Update your profile picture and personal details visible to students and in the team directory.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-8">
+
+              {/* Profile Photo Section */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative group">
+                  {user?.photoUrl ? (
+                    <img
+                      src={user.photoUrl}
+                      alt="Profile"
+                      className="w-28 h-28 rounded-full object-cover border-4 border-primary/40 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 rounded-full bg-primary/10 border-4 border-primary/30 flex items-center justify-center shadow-lg">
+                      <span className="text-4xl font-bold text-primary">
+                        {(user?.name || user?.email || "?").charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  {/* Upload overlay */}
+                  <label className="absolute inset-0 rounded-full flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    {profilePhotoUploading ? (
+                      <span className="text-white text-xs font-bold animate-pulse">Uploading...</span>
+                    ) : (
+                      <div className="flex flex-col items-center text-white">
+                        <Camera className="w-6 h-6 mb-1" />
+                        <span className="text-xs font-semibold">Change</span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={profilePhotoUploading}
+                      onChange={handleProfilePhotoUpload}
+                    />
+                  </label>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold text-lg">{user?.name || "No name set"}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <span className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-bold ${user?.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                    {user?.role === 'admin' ? '🛡 Admin' : '👩‍🏫 Teacher'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Edit Fields */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input
+                    placeholder="Your full name"
+                    value={profileName}
+                    onChange={e => setProfileName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <Input
+                    placeholder="+94 7X XXX XXXX"
+                    value={profilePhone}
+                    onChange={e => setProfilePhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subject / Specialization</Label>
+                  <Input
+                    placeholder="e.g. Physics, Mechanics, Waves"
+                    value={profileSubject}
+                    onChange={e => setProfileSubject(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bio / Short Description</Label>
+                  <Textarea
+                    placeholder="A brief description about yourself shown on the About page..."
+                    value={profileBio}
+                    onChange={e => setProfileBio(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="border-t border-border/50 bg-secondary/5 py-4 justify-end gap-3">
+              {profileSuccess && (
+                <span className="flex items-center gap-1.5 text-green-500 text-sm font-bold">
+                  <CheckCircle2 className="w-4 h-4" /> Profile saved!
+                </span>
+              )}
+              <Button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                className="gap-2 min-w-[140px]"
+              >
+                {profileSaving ? "Saving..." : <><Save className="w-4 h-4" /> Save Profile</>}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* RECEIPT POPUP MODAL */}
