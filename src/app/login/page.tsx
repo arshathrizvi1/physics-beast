@@ -218,9 +218,7 @@ export default function LoginPage() {
                 </>
               ) : user.pendingReason === 'Access Suspended' ? (
                 <>
-                  Your login access has been suspended by an administrator. 
-                  <br /><br />
-                  Please contact support or wait for your access to be restored.
+                  Your account has been suspended contact the admin or teachers.
                 </>
               ) : (
                 <>

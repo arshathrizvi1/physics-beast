@@ -105,9 +105,9 @@ export default function AdminDashboard() {
         const data = doc.data();
         all.push({ id: doc.id, ...data });
         
-        if (!data.isApproved) {
+        if (!data.isApproved && data.pendingReason !== 'Access Suspended') {
           pending.push({ id: doc.id, ...data });
-        } else {
+        } else if (data.isApproved) {
           activeCount++;
         }
       });
@@ -2869,10 +2869,26 @@ export default function AdminDashboard() {
                 <h3 className="font-bold text-lg mb-2">Account Status & Verification</h3>
                 <div className="flex flex-col gap-4 mb-6">
                   <div className="flex items-center gap-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${selectedStudentInfo.isApproved ? 'bg-green-500/20 text-green-600' : 'bg-yellow-500/20 text-yellow-600'}`}>
-                      {selectedStudentInfo.isApproved ? 'Active (Approved)' : 'Pending Approval'}
+                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${selectedStudentInfo.isApproved ? 'bg-green-500/20 text-green-600' : selectedStudentInfo.pendingReason === 'Access Suspended' ? 'bg-red-500/20 text-red-600' : 'bg-yellow-500/20 text-yellow-600'}`}>
+                      {selectedStudentInfo.isApproved ? 'Active (Approved)' : selectedStudentInfo.pendingReason === 'Access Suspended' ? 'Account Suspended' : 'Pending Approval'}
                     </span>
-                    {!selectedStudentInfo.isApproved && (
+                    
+                    {!selectedStudentInfo.isApproved && selectedStudentInfo.pendingReason === 'Access Suspended' && (
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700 text-foreground"
+                          onClick={() => {
+                            handleApproveStudent(selectedStudentInfo.id);
+                            setSelectedStudentInfo(null);
+                          }}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1" /> Revoke Suspend (Allow Login)
+                        </Button>
+                      </div>
+                    )}
+
+                    {!selectedStudentInfo.isApproved && selectedStudentInfo.pendingReason !== 'Access Suspended' && (
                       <div className="flex gap-2">
                         <Button 
                           size="sm" 
@@ -2908,7 +2924,7 @@ export default function AdminDashboard() {
                             setSelectedStudentInfo(null);
                           }}
                         >
-                          <X className="w-4 h-4 mr-1" /> Remove Access
+                          <X className="w-4 h-4 mr-1" /> Suspend Account
                         </Button>
                       </div>
                     )}
