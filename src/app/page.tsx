@@ -143,7 +143,7 @@ export default function Home() {
                 return expiration && expiration > Date.now();
               });
               const legacyCourseAccess = user?.accessibleCourses && user.accessibleCourses.includes(course.id);
-              const hasAccess = user?.role === 'admin' || legacyCourseAccess || hasFolderAccess;
+              const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || legacyCourseAccess || hasFolderAccess;
               
               return (
                 <Card key={course.id} className="overflow-hidden border-secondary/50 bg-card transition-colors flex flex-col hover:border-primary/50">

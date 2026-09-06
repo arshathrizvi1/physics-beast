@@ -103,7 +103,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         // Auto-select first folder and video if available
         const accessibleFolders = foldersData.filter((f: any) => {
           const exp = user.folderAccess?.[f.id];
-          return user.role === 'admin' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
+          return user.role === 'admin' || user.role === 'teacher' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
         });
 
         if (accessibleFolders.length > 0) {
@@ -244,7 +244,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     const exp = user?.folderAccess?.[f.id];
     return exp && exp > Date.now();
   });
-  const hasAccess = user?.role === 'admin' || legacyCourseAccess || hasFolderAccess;
+  const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || legacyCourseAccess || hasFolderAccess;
 
   const handlePaymentSubmit = async () => {
     if (!user || !checkoutFolder) return;
@@ -701,7 +701,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     const folderVideos = videos.filter(v => v.folderId === folder.id);
                     
                     const folderExpiration = user?.folderAccess?.[folder.id];
-                    const hasSpecificFolderAccess = (folderExpiration && folderExpiration > Date.now()) || user?.role === 'admin' || legacyCourseAccess;
+                    const hasSpecificFolderAccess = (folderExpiration && folderExpiration > Date.now()) || user?.role === 'admin' || user?.role === 'teacher' || legacyCourseAccess;
                     const daysLeft = folderExpiration && folderExpiration > Date.now() ? Math.ceil((folderExpiration - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
                     
                     return (

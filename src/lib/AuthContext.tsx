@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             // Only boot them out if they are NOT currently logging in and a mismatched device ID is strictly confirmed
-            if (data.role !== 'admin' && !isLoggingIn && data.deviceId && localDeviceId && data.deviceId !== localDeviceId) {
+            if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && data.deviceId && localDeviceId && data.deviceId !== localDeviceId) {
               console.log("Logged in from another device. Logging out.");
               await firebaseSignOut(auth);
               setUser(null);
@@ -207,10 +207,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (!snap.exists()) return;
               const fresh = snap.data();
               
-              // Device Collision Check
+              // Device Collision Check (students only)
               if (typeof window !== 'undefined') {
                 const localDeviceId = safeStorage.local.getItem('localDeviceId');
-                if (fresh.deviceId && localDeviceId && fresh.deviceId !== localDeviceId) {
+                if (fresh.role !== 'admin' && fresh.role !== 'teacher' && fresh.deviceId && localDeviceId && fresh.deviceId !== localDeviceId) {
                   console.log("Logged out because account was accessed on another device.");
                   firebaseSignOut(auth).catch(() => {});
                   setUser(null);
@@ -226,6 +226,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const freshLevel = fresh.xpLevel ?? calculateXpLevel(freshXp);
                 const updated = {
                   ...prev,
+                  role: fresh.role || prev.role,
+                  name: fresh.name || prev.name,
                   folderAccess: fresh.folderAccess ?? prev.folderAccess,
                   accessibleCourses: fresh.accessibleCourses ?? prev.accessibleCourses,
                   isApproved: fresh.isApproved ?? prev.isApproved,

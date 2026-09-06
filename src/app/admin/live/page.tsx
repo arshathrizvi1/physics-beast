@@ -43,13 +43,13 @@ export default function AdminLiveStudio() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== "admin")) {
+    if (!authLoading && (!user || (user.role !== "admin" && user.role !== "teacher"))) {
       router.replace("/login");
     }
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user || user.role !== "admin") return;
+    if (!user || (user.role !== "admin" && user.role !== "teacher")) return;
     
     const unsubCourses = onSnapshot(collection(db, 'courses'), (snap) => {
       setCourses(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -137,7 +137,7 @@ export default function AdminLiveStudio() {
     } catch (e) { }
   };
 
-  if (loading || !user || user.role !== "admin") {
+  if (loading || !user || (user.role !== "admin" && user.role !== "teacher")) {
     return <div className="flex h-[50vh] items-center justify-center"><p className="animate-pulse text-primary font-bold">Loading...</p></div>;
   }
 

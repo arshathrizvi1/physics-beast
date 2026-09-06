@@ -10,8 +10,11 @@ export default function NavButtons() {
   if (user) {
     return (
       <div className="flex items-center gap-4">
-        <Link href={user.role === 'admin' ? "/admin" : "/login"} className="text-sm text-primary font-bold hover:underline">
-          {user.role === 'admin' ? 'Admin Dashboard' : 'My Profile'}
+        <Link 
+          href={user.role === 'admin' || user.role === 'teacher' ? "/admin" : "/login"} 
+          className="text-sm text-primary font-bold hover:underline"
+        >
+          {user.role === 'admin' ? 'Admin Dashboard' : user.role === 'teacher' ? 'Teacher Dashboard' : 'My Profile'}
         </Link>
         <Button variant="outline" onClick={logout}>
           Logout

@@ -62,7 +62,7 @@ export default function LoginPage() {
   const [showStudyHistoryModal, setShowStudyHistoryModal] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'teacher') {
       router.push('/admin');
     }
 
@@ -183,15 +183,17 @@ export default function LoginPage() {
   };
 
   if (user) {
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'teacher') {
       return (
         <div className="flex min-h-[70vh] items-center justify-center">
-          <p className="animate-pulse text-xl text-primary">Redirecting to Admin Portal...</p>
+          <p className="animate-pulse text-xl text-primary font-bold">
+            Redirecting to {user.role === 'admin' ? 'Admin' : 'Teacher'} Dashboard...
+          </p>
         </div>
       );
     }
 
-    if (user.isApproved === false && user.role !== 'teacher') {
+    if (user.isApproved === false) {
       return (
         <div className="flex min-h-[70vh] items-center justify-center">
           <Card className="w-full max-w-md border-secondary/50 shadow-lg text-center p-8">
