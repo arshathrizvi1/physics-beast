@@ -555,9 +555,53 @@ export default function Home() {
 
         {/* Student Reviews Section */}
         <section className="py-24 bg-[#0a0a0a] relative z-10 overflow-hidden">
-          <div className="container mx-auto px-6 text-center mb-12">
-            <h2 className="text-4xl font-bold text-white mb-4">What Our <span className="text-[#d4af37]">Students Say</span></h2>
-            <p className="text-zinc-400 max-w-xl mx-auto">Real reviews from verified students — 4 and 5 star experiences only.</p>
+          {/* background gold glow blob */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#d4af37]/5 rounded-full blur-[80px] pointer-events-none" />
+
+          <div className="container mx-auto px-6 text-center mb-14 relative z-10">
+            {/* Animated gold star row */}
+            <motion.div
+              className="flex justify-center gap-2 mb-5"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {[1,2,3,4,5].map(s => (
+                <motion.div
+                  key={s}
+                  initial={{ opacity: 0, scale: 0, rotate: -20 }}
+                  whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.1 + s * 0.08, duration: 0.5, type: "spring", stiffness: 300 }}
+                >
+                  <Star className="w-5 h-5 fill-[#d4af37] text-[#d4af37] drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]" />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Heading fade + slide up */}
+            <motion.h2
+              className="text-4xl md:text-5xl font-bold text-white mb-5 leading-tight"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            >
+              What Our{" "}
+              <span className="relative inline-block">
+                <span className="text-[#d4af37]">Students Say</span>
+                {/* Animated gold underline */}
+                <motion.span
+                  className="absolute -bottom-1 left-0 h-[3px] rounded-full bg-gradient-to-r from-[#d4af37] via-[#f9e596] to-[#d4af37]"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.7, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ transformOrigin: "left" }}
+                />
+              </span>
+            </motion.h2>
           </div>
 
           {/* Slider — only if we have reviews */}
