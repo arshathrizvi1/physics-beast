@@ -2499,20 +2499,47 @@ export default function AdminDashboard() {
                   About Us Page
                 </CardTitle>
                 <CardDescription>
-                  Edit the About Us page content — mission, vision, why choose us, and contact details shown at /about.
+                  Edit the main content, mission, vision, and team details shown on the public About page.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4 space-y-3">
                 <div className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 text-xs text-muted-foreground space-y-1.5">
-                  <p>🎯 <strong>Mission & Vision</strong> — Main message to students</p>
-                  <p>⭐ <strong>Why Choose Us</strong> — Feature highlights</p>
-                  <p>📞 <strong>Contact Info</strong> — Address, email, phone, website</p>
+                  <p>🎯 <strong>Mission & Vision</strong> statements</p>
+                  <p>✨ <strong>Features & Statistics</strong> highlights</p>
+                  <p>👥 <strong>Team Members</strong> section</p>
                 </div>
               </CardContent>
               <CardFooter className="border-t border-border/50 bg-secondary/5 py-3">
                 <Link href="/admin/about" className="w-full">
-                  <Button variant="outline" className="w-full gap-2 border-primary/40 text-primary hover:bg-primary/10">
-                    <BookOpen className="w-4 h-4" /> Edit About Page
+                  <Button className="w-full gap-2" variant="outline">
+                    <BookOpen className="w-4 h-4" /> Open About Editor
+                  </Button>
+                </Link>
+              </CardFooter>
+            </Card>
+
+            {/* Payment Settings Card */}
+            <Card className="border-secondary/40 shadow-md hover:shadow-lg hover:border-primary/40 transition-all group">
+              <CardHeader className="bg-secondary/5 border-b border-secondary/20 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <CreditCard className="w-6 h-6 text-primary" />
+                  Payment Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure accepted payment methods and edit bank account details for manual transfers.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 text-xs text-muted-foreground space-y-1.5">
+                  <p>🏦 <strong>Bank Transfer</strong> (On/Off)</p>
+                  <p>💳 <strong>Card Payment</strong> (On/Off)</p>
+                  <p>✏️ <strong>Bank Details</strong> (Name, Branch, Account)</p>
+                </div>
+              </CardContent>
+              <CardFooter className="border-t border-border/50 bg-secondary/5 py-3">
+                <Link href="/admin/payment-settings" className="w-full">
+                  <Button className="w-full gap-2" variant="outline">
+                    <CreditCard className="w-4 h-4" /> Edit Payment Settings
                   </Button>
                 </Link>
               </CardFooter>

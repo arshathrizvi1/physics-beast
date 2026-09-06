@@ -37,6 +37,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentConfig, setPaymentConfig] = useState<any>(null);
 
   // Video Player States
   const [playing, setPlaying] = useState(false);
@@ -121,6 +122,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         const liveSnap = await getDocs(qLive);
         const pastLiveClassesData = liveSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.scheduledFor - a.scheduledFor);
         setPastLiveClasses(pastLiveClassesData);
+
+        // Fetch payment config
+        const configSnap = await getDoc(doc(db, "siteConfig", "payments"));
+        if (configSnap.exists()) {
+          const conf = configSnap.data();
+          setPaymentConfig(conf);
+          if (conf.cardEnabled && !conf.bankEnabled) setPaymentMethod('card');
+          else if (!conf.cardEnabled && conf.bankEnabled) setPaymentMethod('bank');
+        }
 
         // Auto-select first folder and video if available
         const accessibleFolders = foldersData.filter((f: any) => {
@@ -986,30 +996,32 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="flex gap-2 p-1 bg-secondary/20 rounded-lg">
-                      <button 
-                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${paymentMethod === 'bank' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        onClick={() => setPaymentMethod('bank')}
-                      >
-                        Bank Transfer
-                      </button>
-                      <button 
-                        className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${paymentMethod === 'card' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                        onClick={() => setPaymentMethod('card')}
-                      >
-                        Card Payment
-                      </button>
-                    </div>
+                    {(!paymentConfig || (paymentConfig.bankEnabled && paymentConfig.cardEnabled)) && (
+                      <div className="flex gap-2 p-1 bg-secondary/20 rounded-lg">
+                        <button 
+                          className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${paymentMethod === 'bank' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                          onClick={() => setPaymentMethod('bank')}
+                        >
+                          Bank Transfer
+                        </button>
+                        <button 
+                          className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${paymentMethod === 'card' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                          onClick={() => setPaymentMethod('card')}
+                        >
+                          Card Payment
+                        </button>
+                      </div>
+                    )}
 
-                    {paymentMethod === 'bank' ? (
+                    {(!paymentConfig && paymentMethod === 'bank') || (paymentConfig && paymentMethod === 'bank' && paymentConfig.bankEnabled) ? (
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                         <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-2">
                           <p className="text-sm font-medium text-blue-400">Please transfer Rs. {checkoutFolder.price} to the following account:</p>
                           <div className="font-mono text-sm space-y-1 bg-background/50 p-3 rounded border border-blue-500/10">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-bold">Bank of Ceylon</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Branch:</span> <span className="font-bold">Rakwana Branch</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span> <span className="font-bold text-primary">0008766934</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span className="font-bold">MRM arshath</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Bank:</span> <span className="font-bold">{paymentConfig?.bankName || 'Bank of Ceylon'}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Branch:</span> <span className="font-bold">{paymentConfig?.branchName || 'Rakwana Branch'}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Account No:</span> <span className="font-bold text-primary">{paymentConfig?.accountNo || '0008766934'}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Name:</span> <span className="font-bold">{paymentConfig?.accountName || 'MRM arshath'}</span></div>
                           </div>
                         </div>
 
@@ -1044,7 +1056,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </div>
                         </div>
                       </div>
-                    ) : (
+                    ) : (paymentConfig?.cardEnabled !== false) ? (
                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
                         <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 mb-4">
                           <p className="text-xs text-orange-400 font-medium flex items-start gap-2">
@@ -1073,12 +1085,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-400 font-medium">
+                        No payment methods are currently available. Please contact the administrator.
+                      </div>
                     )}
 
                     <Button 
                       className="w-full h-12 text-lg font-bold" 
                       onClick={handlePaymentSubmit}
-                      disabled={isSubmittingPayment || (paymentMethod === 'bank' && !receiptFile)}
+                      disabled={
+                        isSubmittingPayment || 
+                        (paymentMethod === 'bank' && !receiptFile) || 
+                        (paymentConfig && !paymentConfig.bankEnabled && !paymentConfig.cardEnabled)
+                      }
                     >
                       {isSubmittingPayment ? "Processing..." : paymentMethod === 'bank' ? "Submit Receipt" : `Pay Rs. ${checkoutFolder.price}`}
                     </Button>
