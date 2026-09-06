@@ -6,6 +6,7 @@ import { Trophy, Medal, Award, Timer, CheckCircle, ChevronDown, Activity } from 
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { calculateXpLevel } from "@/lib/xp";
+import { motion } from "framer-motion";
 
 export default function LeaderboardPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -197,7 +198,13 @@ export default function LeaderboardPage() {
                 }
 
                 return (
-                  <div key={index} className={rowClasses}>
+                  <motion.div 
+                    key={index} 
+                    className={rowClasses}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                  >
                     <div className="col-span-2 md:col-span-1 flex justify-center md:justify-start shrink-0">
                       {rankBadge}
                     </div>
@@ -227,7 +234,7 @@ export default function LeaderboardPage() {
                         </>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })
             )}
