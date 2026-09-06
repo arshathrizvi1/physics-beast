@@ -967,16 +967,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               </div>
             </CardHeader>
             
-            <ScrollArea className="flex-1">
-              <CardContent className="p-6">
+            <div className="flex-1 overflow-y-auto">
+              <CardContent className="pt-6 pb-6">
                 {paymentSuccess ? (
-                  <div className="text-center space-y-4 py-8">
-                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto text-green-500">
-                      <Lock className="w-8 h-8" />
+                  <div className="text-center py-8 space-y-4 animate-in zoom-in fade-in duration-300">
+                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 className="w-8 h-8 text-green-500" />
                     </div>
-                    <h3 className="text-2xl font-bold text-green-500">Receipt Submitted!</h3>
-                    <p className="text-muted-foreground">
-                      Your payment receipt has been successfully uploaded and is pending admin approval. You will gain access to the folder as soon as it is verified.
+                    <h3 className="text-xl font-bold text-green-500">Request Sent Successfully!</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your access request is pending admin approval. You will be notified once it is approved.
                     </p>
                     <Button className="w-full mt-4" onClick={() => {
                       setCheckoutFolder(null);
@@ -1012,7 +1012,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 pb-4">
                           <Label>Upload Payment Receipt</Label>
                           <div className="border-2 border-dashed border-secondary rounded-lg p-6 text-center hover:bg-secondary/10 transition-colors cursor-pointer relative">
                             {receiptFile ? (
@@ -1044,7 +1044,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
                         <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 mb-4">
                           <p className="text-xs text-orange-400 font-medium flex items-start gap-2">
                             <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1079,12 +1079,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       onClick={handlePaymentSubmit}
                       disabled={isSubmittingPayment || (paymentMethod === 'bank' && !receiptFile)}
                     >
-                      {isSubmittingPayment ? "Processing..." : `Pay Rs. ${checkoutFolder.price}`}
+                      {isSubmittingPayment ? "Processing..." : paymentMethod === 'bank' ? "Submit Receipt" : `Pay Rs. ${checkoutFolder.price}`}
                     </Button>
                   </div>
                 )}
               </CardContent>
-            </ScrollArea>
+            </div>
           </Card>
         </div>
       )}
