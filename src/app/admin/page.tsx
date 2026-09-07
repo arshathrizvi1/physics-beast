@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -580,6 +581,10 @@ export default function AdminDashboard() {
   const [isSavingExam, setIsSavingExam] = useState(false);
   const [examSuccess, setExamSuccess] = useState(false);
   const [examTitle, setExamTitle] = useState("");
+  const [examType, setExamType] = useState<"mcq" | "essay">("mcq");
+  const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
+  const [examPdfUrl, setExamPdfUrl] = useState("");
+  const [examPdfUploading, setExamPdfUploading] = useState(false);
   const [examBatchId, setExamBatchId] = useState("");
   const [examCourseId, setExamCourseId] = useState("");
   const [examFolderId, setExamFolderId] = useState("");
@@ -871,6 +876,9 @@ export default function AdminDashboard() {
   const handleEditExam = (exam: any) => {
     setEditingExamId(exam.id);
     setExamTitle(exam.title || "");
+    setExamType(exam.examType || "mcq");
+    setExamPdfUrl(exam.questionPdfUrl || "");
+    setExamPdfFile(null);
     setExamTime(exam.durationSeconds ? (exam.durationSeconds / 60).toString() : (exam.duration ? exam.duration.split(" ")[0] : "15"));
     setExamStartTime(formatDatetimeLocal(exam.startTimeString || exam.startTime));
     setExamEndTime(formatDatetimeLocal(exam.endTimeString || exam.endTime));
@@ -891,6 +899,8 @@ export default function AdminDashboard() {
         },
         correct: q.correct || "A"
       })));
+    } else {
+      setQuestions([{ id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
     }
     const formEl = document.getElementById('exam-editor-form');
     if (formEl) {
@@ -904,9 +914,28 @@ export default function AdminDashboard() {
     setIsSavingExam(true);
     setExamSuccess(false);
     
+    let finalPdfUrl = examPdfUrl;
+    if (examType === 'essay' && examPdfFile) {
+      setExamPdfUploading(true);
+      try {
+        const fileRef = ref(storage, `exams/${Date.now()}_${examPdfFile.name}`);
+        const snapshot = await uploadBytes(fileRef, examPdfFile);
+        finalPdfUrl = await getDownloadURL(snapshot.ref);
+      } catch (err) {
+        console.error("PDF upload failed", err);
+        alert("Failed to upload the PDF paper. Check permissions or file size.");
+        setIsSavingExam(false);
+        setExamPdfUploading(false);
+        return;
+      }
+      setExamPdfUploading(false);
+    }
+    
     // Create new exam object
     const newExam = {
       title: examTitle || "Untitled Exam",
+      examType: examType,
+      questionPdfUrl: finalPdfUrl,
       category: examCategory,
       batchId: examBatchId,
       courseId: examCourseId,
@@ -915,7 +944,7 @@ export default function AdminDashboard() {
       endTime: examEndTime ? new Date(examEndTime).getTime() : 0,
       startTimeString: examStartTime,
       endTimeString: examEndTime,
-      questions: questions.map((q, idx) => ({
+      questions: examType === 'mcq' ? questions.map((q, idx) => ({
         id: idx + 1,
         text: q.text || `Question ${idx + 1}`,
         image: q.image,
@@ -926,7 +955,7 @@ export default function AdminDashboard() {
           { id: "D", text: q.options.D || "Option D" },
         ],
         correct: q.correct
-      })),
+      })) : [],
       duration: `${examTime || 15} min`,
       durationSeconds: parseInt(examTime || "15") * 60,
       course: examCategory + " Mastery",
@@ -942,6 +971,9 @@ export default function AdminDashboard() {
       
       // Reset form
       setExamTitle("");
+      setExamType("mcq");
+      setExamPdfUrl("");
+      setExamPdfFile(null);
       setExamTime("");
       setExamStartTime("");
       setExamEndTime("");
@@ -2335,114 +2367,193 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">MCQ Questions Setup</span></div>
-              </div>
+                <div className="mt-6 mb-4 space-y-3">
+                  <Label className="text-base font-bold">Exam Type</Label>
+                  <div className="flex items-center space-x-6">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="examType" 
+                        value="mcq" 
+                        checked={examType === 'mcq'} 
+                        onChange={() => setExamType('mcq')}
+                        className="w-4 h-4 text-primary"
+                      />
+                      <span>MCQ Exam (Interactive)</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="examType" 
+                        value="essay" 
+                        checked={examType === 'essay'} 
+                        onChange={() => setExamType('essay')}
+                        className="w-4 h-4 text-primary"
+                      />
+                      <span>Essay Exam (PDF Upload)</span>
+                    </label>
+                  </div>
+                </div>
 
-              {/* Question Editor */}
-              <div className="space-y-6">
-                {questions.map((q, index) => (
-                  <div key={q.id} className="space-y-6 bg-secondary/5 p-6 rounded-xl border border-secondary/20 relative">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-lg font-bold">Question {index + 1}</Label>
-                      {questions.length > 1 && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-destructive hover:bg-destructive/10 h-8"
-                          onClick={() => {
-                            setQuestions(questions.filter(item => item.id !== q.id));
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {/* Text and Image Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <textarea 
-                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[120px]" 
-                        placeholder="Enter the question text here..."
-                        value={q.text}
-                        onChange={(e) => handleQuestionChange(q.id, 'text', e.target.value)}
-                      ></textarea>
-                      
-                      <div className="border border-input rounded-md flex flex-col items-center justify-center p-4 bg-background relative overflow-hidden h-[120px]">
-                        {q.image ? (
-                          <>
-                            <img src={q.image} alt="Question Diagram" className="object-contain h-full w-full" />
-                            <Button size="sm" variant="destructive" className="absolute top-2 right-2 h-6 px-2 text-[10px]" onClick={() => handleQuestionChange(q.id, 'image', null)}>Remove</Button>
-                          </>
-                        ) : (
-                          <label className="flex flex-col items-center cursor-pointer text-muted-foreground hover:text-primary transition-colors">
-                            <Upload className="w-8 h-8 mb-2" />
-                            <span className="text-sm font-medium">Upload Image / Diagram</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, e)} />
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Options Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/50">
-                      {(['A', 'B', 'C', 'D'] as const).map((opt) => (
-                        <div key={opt} className="flex items-center space-x-2">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground">{opt}</div>
-                          <Input 
-                            placeholder={`Option ${opt}`} 
-                            value={q.options[opt]}
-                            onChange={(e) => handleOptionChange(q.id, opt, e.target.value)}
-                          />
-                          <input 
-                            type="checkbox" 
-                            checked={Array.isArray(q.correct) ? q.correct.includes(opt) : q.correct === opt}
-                            onChange={() => {
-                              let current = Array.isArray(q.correct) ? [...q.correct] : [q.correct];
-                              if (current.includes(opt)) {
-                                current = current.filter(o => o !== opt);
-                              } else {
-                                current.push(opt);
-                              }
-                              if (current.length === 0) current = [opt];
-                              handleQuestionChange(q.id, 'correct', current);
-                            }}
-                            className="w-5 h-5 accent-primary cursor-pointer" 
-                            title={`Toggle Option ${opt} as correct`} 
-                          />
+              {examType === 'mcq' ? (
+                <>
+                  <div className="relative mt-8 mb-4">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">MCQ Questions Setup</span></div>
+                  </div>
+
+                  {/* Question Editor */}
+                  <div className="space-y-6">
+                    {questions.map((q, index) => (
+                      <div key={q.id} className="space-y-6 bg-secondary/5 p-6 rounded-xl border border-secondary/20 relative">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-lg font-bold">Question {index + 1}</Label>
+                          {questions.length > 1 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:bg-destructive/10 h-8"
+                              onClick={() => {
+                                setQuestions(questions.filter(item => item.id !== q.id));
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                    <div className="flex justify-end pt-2">
+                        
+                        {/* Text and Image Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <textarea 
+                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[120px]" 
+                            placeholder="Enter the question text here..."
+                            value={q.text}
+                            onChange={(e) => handleQuestionChange(q.id, 'text', e.target.value)}
+                          ></textarea>
+                          
+                          <div className="border border-input rounded-md flex flex-col items-center justify-center p-4 bg-background relative overflow-hidden h-[120px]">
+                            {q.image ? (
+                              <>
+                                <img src={q.image} alt="Question Diagram" className="object-contain h-full w-full" />
+                                <Button size="sm" variant="destructive" className="absolute top-2 right-2 h-6 px-2 text-[10px]" onClick={() => handleQuestionChange(q.id, 'image', null)}>Remove</Button>
+                              </>
+                            ) : (
+                              <label className="flex flex-col items-center cursor-pointer text-muted-foreground hover:text-primary transition-colors">
+                                <Upload className="w-8 h-8 mb-2" />
+                                <span className="text-sm font-medium">Upload Image / Diagram</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(q.id, e)} />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Options Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/50">
+                          {(['A', 'B', 'C', 'D'] as const).map((opt) => (
+                            <div key={opt} className="flex items-center space-x-2">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground">{opt}</div>
+                              <Input 
+                                placeholder={`Option ${opt}`} 
+                                value={q.options[opt]}
+                                onChange={(e) => handleOptionChange(q.id, opt, e.target.value)}
+                              />
+                              <input 
+                                type="checkbox" 
+                                checked={Array.isArray(q.correct) ? q.correct.includes(opt) : q.correct === opt}
+                                onChange={() => {
+                                  let current = Array.isArray(q.correct) ? [...q.correct] : [q.correct];
+                                  if (current.includes(opt)) {
+                                    current = current.filter(o => o !== opt);
+                                  } else {
+                                    current.push(opt);
+                                  }
+                                  if (current.length === 0) current = [opt];
+                                  handleQuestionChange(q.id, 'correct', current);
+                                }}
+                                className="w-5 h-5 accent-primary cursor-pointer" 
+                                title={`Toggle Option ${opt} as correct`} 
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-end pt-2">
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="text-xs h-7"
+                            onClick={() => handleQuestionChange(q.id, 'correct', ['A', 'B', 'C', 'D'])}
+                          >
+                            Set "All Answers Correct"
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className="flex justify-between items-center pt-4 border-t border-secondary/20">
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-primary inline-block"></span> Check boxes to set correct answers (can be multiple).
+                      </div>
                       <Button 
-                        variant="secondary" 
+                        variant="outline" 
                         size="sm" 
-                        className="text-xs h-7"
-                        onClick={() => handleQuestionChange(q.id, 'correct', ['A', 'B', 'C', 'D'])}
+                        className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setQuestions([...questions, { id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
+                        }}
                       >
-                        Set "All Answers Correct"
+                        <Plus className="w-4 h-4" /> Add Another Question
                       </Button>
                     </div>
                   </div>
-                ))}
-                
-                <div className="flex justify-between items-center pt-4 border-t border-secondary/20">
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-primary inline-block"></span> Check boxes to set correct answers (can be multiple).
+                </>
+              ) : (
+                <>
+                  <div className="relative mt-8 mb-4">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Essay Question Paper Setup</span></div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
-                    onClick={() => {
-                      setQuestions([...questions, { id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
-                    }}
-                  >
-                    <Plus className="w-4 h-4" /> Add Another Question
-                  </Button>
-                </div>
-              </div>
+
+                  <div className="border border-input rounded-md flex flex-col items-center justify-center p-8 bg-background relative overflow-hidden min-h-[200px]">
+                    {examPdfUrl && !examPdfFile ? (
+                      <div className="flex flex-col items-center">
+                        <FileText className="w-12 h-12 mb-3 text-primary" />
+                        <span className="text-sm font-medium mb-4">Existing PDF Uploaded</span>
+                        <div className="flex space-x-3">
+                          <a href={examPdfUrl} target="_blank" rel="noreferrer" className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-md hover:bg-primary/20">View PDF</a>
+                          <label className="text-xs bg-secondary/20 text-foreground px-3 py-1.5 rounded-md hover:bg-secondary/40 cursor-pointer">
+                            Replace PDF
+                            <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) setExamPdfFile(e.target.files[0]);
+                            }} />
+                          </label>
+                        </div>
+                      </div>
+                    ) : examPdfFile ? (
+                      <div className="flex flex-col items-center">
+                        <FileText className="w-12 h-12 mb-3 text-primary" />
+                        <span className="text-sm font-medium mb-4">{examPdfFile.name}</span>
+                        <div className="flex space-x-3">
+                          <Button size="sm" variant="outline" onClick={() => setExamPdfFile(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center cursor-pointer text-muted-foreground hover:text-primary transition-colors">
+                        <Upload className="w-10 h-10 mb-3" />
+                        <span className="text-sm font-medium mb-1">Upload Essay Question Paper (PDF)</span>
+                        <span className="text-xs opacity-70">No file size limit</span>
+                        <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) setExamPdfFile(e.target.files[0]);
+                        }} />
+                      </label>
+                    )}
+                    {examPdfUploading && (
+                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center backdrop-blur-sm z-10">
+                        <span className="animate-pulse font-bold">Uploading PDF...</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </CardContent>
             <CardFooter className="bg-secondary/5 border-t border-secondary/20 justify-end gap-4 rounded-b-xl py-4">
               {editingExamId && (

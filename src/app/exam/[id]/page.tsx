@@ -9,8 +9,9 @@ import { Progress } from "@/components/ui/progress";
 import { Clock, AlertTriangle, Send, Trophy, Award, Zap, CheckCircle2, ArrowRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, getDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult } from "@/lib/xp";
 
 export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +24,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   const [timeLeft, setTimeLeft] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [essayPdfFile, setEssayPdfFile] = useState<File | null>(null);
+  const [essayUploading, setEssayUploading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [score, setScore] = useState(0);
@@ -174,13 +177,37 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       return;
     }
 
+    if (exam?.examType === 'essay' && !essayPdfFile && !timeUp) {
+      alert("Please upload your answer sheet (PDF) before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
+    setEssayUploading(true);
+
+    let answerPdfUrl = "";
+    if (exam?.examType === 'essay' && essayPdfFile) {
+      try {
+        const fileRef = ref(storage, `exam_answers/${user?.uid}_${id}_${Date.now()}.pdf`);
+        const snapshot = await uploadBytes(fileRef, essayPdfFile);
+        answerPdfUrl = await getDownloadURL(snapshot.ref);
+      } catch (err) {
+        console.error("Answer PDF upload failed", err);
+        alert("Failed to upload your answer sheet. Please try again.");
+        setIsSubmitting(false);
+        setEssayUploading(false);
+        return;
+      }
+    }
+    setEssayUploading(false);
 
     let totalCorrect = 0;
-    questions.forEach((q, idx) => {
-      const isCorrect = Array.isArray(q.correct) ? q.correct.includes(answers[idx]) : answers[idx] === q.correct;
-      if (isCorrect) totalCorrect++;
-    });
+    if (exam?.examType === 'mcq') {
+      questions.forEach((q, idx) => {
+        const isCorrect = Array.isArray(q.correct) ? q.correct.includes(answers[idx]) : answers[idx] === q.correct;
+        if (isCorrect) totalCorrect++;
+      });
+    }
     setScore(totalCorrect);
 
     const duration = examData.durationSeconds || 900;
@@ -190,7 +217,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     // Calculate XP based on Marks, Time efficiency, and Completion!
     const xpDetails = calculateExamXp({
       correctAnswers: totalCorrect,
-      totalQuestions: questions.length,
+      totalQuestions: exam?.examType === 'essay' ? 100 : (questions.length || 1), // dummy values for essay
       timeTakenSeconds: taken,
       durationSeconds: duration,
     });
@@ -205,17 +232,19 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
           examTitle: examData.title,
           userId: user.uid,
           studentName: user.name || user.email?.split('@')[0] || "Student",
-          score: xpDetails.percentage,
+          score: exam?.examType === 'essay' ? 0 : xpDetails.percentage,
           rawScore: totalCorrect,
-          totalQuestions: questions.length,
-          grade: xpDetails.grade,
-          status: "done",
+          totalQuestions: exam?.examType === 'essay' ? 0 : questions.length,
+          grade: exam?.examType === 'essay' ? "Pending" : xpDetails.grade,
+          status: exam?.examType === 'essay' ? "pending_grading" : "done",
           timeSeconds: taken,
           timeTakenSeconds: taken,
           durationSeconds: duration,
-          xpEarned: xpDetails.totalXp,
+          xpEarned: exam?.examType === 'essay' ? 10 : xpDetails.totalXp, // minimum 10 XP for doing it
           timestamp: Date.now(),
-          answers: answers
+          answers: exam?.examType === 'essay' ? {} : answers,
+          answerPdfUrl: answerPdfUrl,
+          examType: exam?.examType || 'mcq'
         });
 
         // 2. Fetch past exams to compute fresh average grade
@@ -223,19 +252,22 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         const resultsSnap = await getDocs(qResults);
         const allScores: number[] = [];
         resultsSnap.forEach(d => {
-          const s = d.data().score;
-          if (typeof s === 'number') allScores.push(s);
+          const data = d.data();
+          if (data.examType !== 'essay' && typeof data.score === 'number') allScores.push(data.score);
         });
-        allScores.push(xpDetails.percentage);
-        const avgGrade = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+        if (exam?.examType !== 'essay') {
+          allScores.push(xpDetails.percentage);
+        }
+        const avgGrade = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
 
         // 3. Update student user document with XP, Level, Exam Count, Study Time, and Average Grade
         const userRef = doc(db, 'users', user.uid);
-        const currentTotalXp = (user.totalXp || 0) + xpDetails.totalXp;
+        const xpToGain = exam?.examType === 'essay' ? 10 : xpDetails.totalXp;
+        const currentTotalXp = (user.totalXp || 0) + xpToGain;
         const newLevel = calculateXpLevel(currentTotalXp);
 
         await updateDoc(userRef, {
-          totalXp: increment(xpDetails.totalXp),
+          totalXp: increment(xpToGain),
           xpLevel: newLevel,
           examsDone: increment(1),
           totalStudyTimeMins: increment(xpDetails.studyMinutes), // exam time counts as study time
@@ -299,14 +331,99 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     );
   }
 
+  const progressPercentage = (timeLeft / examData.durationSeconds) * 100;
+  const isLowTime = timeLeft < 60;
+
+  if (exam?.examType === 'essay') {
+    return (
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50">
+          <div>
+            <h2 className="text-xl font-bold">{examData.title}</h2>
+            <p className="text-sm text-muted-foreground">Essay Exam - Answer on paper and upload a scanned PDF</p>
+          </div>
+          <div className={`flex items-center gap-2 text-xl font-mono p-2 rounded-md ${isLowTime ? 'text-destructive bg-destructive/10 font-bold animate-pulse' : 'text-primary'}`}>
+            <Clock className="w-5 h-5" />
+            {formatTime(timeLeft)}
+          </div>
+        </div>
+        <Progress value={progressPercentage} className={`h-2 ${isLowTime ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'}`} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 border-secondary/50 shadow-md">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Question Paper</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <iframe 
+                src={`${exam.questionPdfUrl}#toolbar=0`} 
+                className="w-full h-[600px] border-0" 
+                title="Question Paper"
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="border-secondary/50 shadow-md h-fit">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg text-primary">Submit Answers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Write your answers clearly on paper. Scan or take photos of your answers and convert them into a <b>single PDF file</b> to upload here.
+              </p>
+              
+              <div className="border-2 border-dashed border-input rounded-xl p-6 flex flex-col items-center justify-center text-center bg-secondary/5 hover:bg-secondary/10 transition-colors">
+                {essayPdfFile ? (
+                  <>
+                    <CheckCircle2 className="w-10 h-10 text-green-500 mb-2" />
+                    <span className="font-bold text-sm mb-1">{essayPdfFile.name}</span>
+                    <span className="text-xs text-muted-foreground mb-4">{(essayPdfFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                    <Button variant="outline" size="sm" onClick={() => setEssayPdfFile(null)}>Change File</Button>
+                  </>
+                ) : (
+                  <label className="cursor-pointer flex flex-col items-center w-full">
+                    <Send className="w-8 h-8 text-primary mb-3" />
+                    <span className="font-bold text-sm mb-1">Select Answer PDF</span>
+                    <span className="text-xs text-muted-foreground">No file size limit</span>
+                    <input 
+                      type="file" 
+                      accept="application/pdf" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setEssayPdfFile(e.target.files[0]);
+                        }
+                      }} 
+                    />
+                  </label>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="pt-2 pb-6 px-6">
+              <Button 
+                onClick={handleSubmit} 
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12"
+                disabled={isSubmitting || !essayPdfFile}
+              >
+                {isSubmitting || essayUploading ? "Submitting..." : "Submit Exam"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+
+        <div className="flex items-center justify-center text-sm text-muted-foreground gap-2 pt-4">
+          <AlertTriangle className="w-4 h-4 text-primary" />
+          Exam will auto-submit when the timer reaches 00:00. Ensure your PDF is uploaded before time runs out.
+        </div>
+      </div>
+    );
+  }
+
   const q = questions[currentQuestion];
   
   if (!q) {
     return <div className="p-8 text-center text-destructive">Error: Exam questions not found or corrupted. Please contact an admin.</div>;
   }
-
-  const progressPercentage = (timeLeft / examData.durationSeconds) * 100;
-  const isLowTime = timeLeft < 60;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

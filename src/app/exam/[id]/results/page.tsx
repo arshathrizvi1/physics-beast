@@ -127,7 +127,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-6 text-center space-y-2">
             <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
-            <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions.length}</span></div>
+            {exam?.examType === 'essay' && myResult.status === 'pending_grading' ? (
+              <div className="text-4xl font-black text-primary pt-2">Pending</div>
+            ) : (
+              <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
+            )}
           </CardContent>
         </Card>
         <Card className="bg-secondary/10 border-border">
@@ -151,12 +155,46 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
               <Clock className="w-6 h-6" /> Exam Still in Progress
             </CardTitle>
             <CardDescription className="text-base max-w-2xl mx-auto">
-              The question paper, correct answers, leaderboard, and analytics will be available here once the exam time window has officially closed for all students.
+              The question paper, answers, and leaderboard will be available here once the exam time window has officially closed for all students.
               <br /><br />
               Please check back later!
             </CardDescription>
           </CardHeader>
         </Card>
+      ) : exam?.examType === 'essay' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          <Card className="border-secondary/50 shadow-md">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Question Paper</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <iframe 
+                src={`${exam.questionPdfUrl}#toolbar=0`} 
+                className="w-full h-[600px] border-0 rounded-b-xl" 
+                title="Question Paper"
+              />
+            </CardContent>
+          </Card>
+          <Card className="border-secondary/50 shadow-md">
+            <CardHeader className="py-4">
+              <CardTitle className="text-lg">Your Submitted Answer</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {myResult.answerPdfUrl ? (
+                <iframe 
+                  src={`${myResult.answerPdfUrl}#toolbar=0`} 
+                  className="w-full h-[600px] border-0 rounded-b-xl" 
+                  title="Answer Sheet"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground bg-secondary/5">
+                  <AlertTriangle className="w-12 h-12 mb-4 opacity-50" />
+                  <p>No answer file was uploaded for this exam.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       ) : (
         <Tabs defaultValue="answers" className="w-full mt-8">
         <TabsList className="grid w-full grid-cols-3">
