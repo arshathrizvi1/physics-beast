@@ -3503,7 +3503,7 @@ export default function AdminDashboard() {
                       )}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Click the button below to immediately sign this student out from their currently logged-in device (phone, laptop, or tablet).
+                      Click the button below if the student's phone is broken or needs to switch devices. This immediately disconnects their old device and allows them to log in from their new phone (or same device) with the same account!
                     </p>
                   </div>
 

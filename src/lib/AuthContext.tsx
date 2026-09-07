@@ -423,24 +423,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (userDoc && userDoc.exists()) {
         const data = userDoc.data();
-        if (data.role !== 'admin' && data.role !== 'teacher' && data.deviceId !== currentLocalDeviceId) {
-          console.log("New device detected on login!");
-          // Require Admin Approval for new devices
-          updateDoc(userDocRef, { 
-            deviceId: currentLocalDeviceId,
-            isApproved: false,
-            pendingReason: 'New Device Login'
-          }).catch(e => console.log("Could not update deviceId in DB (quota or network):", e));
-          
-          const updatedProfile = { 
-            ...data, 
-            deviceId: currentLocalDeviceId,
-            isApproved: false,
-            pendingReason: 'New Device Login'
-          } as UserProfile;
-          setUser(updatedProfile);
-          if (typeof window !== 'undefined') {
-            safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
+        if (data.role !== 'admin' && data.role !== 'teacher') {
+          // If the admin explicitly revoked/signed out the student's previous device (or if there was no device bound yet),
+          // bind this current device seamlessly so the student can log in from their new/replacement phone or same device!
+          const wasRevokedByAdmin = data.deviceId === 'REVOKED' || !data.deviceId;
+
+          if (wasRevokedByAdmin) {
+            console.log("Admin cleared/revoked device session. Binding new device seamlessly!");
+            updateDoc(userDocRef, {
+              deviceId: currentLocalDeviceId,
+              isApproved: true,
+              pendingReason: null
+            }).catch(e => console.log("Could not update deviceId in DB:", e));
+
+            const updatedProfile = {
+              ...data,
+              deviceId: currentLocalDeviceId,
+              isApproved: true,
+              pendingReason: null
+            } as unknown as UserProfile;
+            setUser(updatedProfile);
+            if (typeof window !== 'undefined') {
+              safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
+            }
+          } else if (data.deviceId !== currentLocalDeviceId) {
+            console.log("New device detected without prior admin signout. Requiring admin approval.");
+            // Require Admin Approval for unapproved device collisions
+            updateDoc(userDocRef, { 
+              deviceId: currentLocalDeviceId,
+              isApproved: false,
+              pendingReason: 'New Device Login'
+            }).catch(e => console.log("Could not update deviceId in DB (quota or network):", e));
+            
+            const updatedProfile = { 
+              ...data, 
+              deviceId: currentLocalDeviceId,
+              isApproved: false,
+              pendingReason: 'New Device Login'
+            } as UserProfile;
+            setUser(updatedProfile);
+            if (typeof window !== 'undefined') {
+              safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
+            }
           }
         }
       }
