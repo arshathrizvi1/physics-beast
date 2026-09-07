@@ -97,7 +97,6 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
         examTitle: exam.title,
-        courseId: exam.courseId || "",
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'post_exam_doubt',
@@ -199,39 +198,39 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 md:space-y-8 pb-12 px-4 md:px-6 mt-4">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12">
       <div>
-        <Link href="/exams" className="text-muted-foreground hover:text-primary flex items-center gap-2 mb-2 md:mb-4 text-xs md:text-sm font-medium">
+        <Link href="/exams" className="text-muted-foreground hover:text-primary flex items-center gap-2 mb-4 text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> Back to Exams
         </Link>
-        <h1 className="text-2xl md:text-3xl font-bold">{exam.title} - Results</h1>
-        <p className="text-xs md:text-sm text-muted-foreground mt-1 md:mt-2">View the leaderboard, your answers, and class performance analytics.</p>
+        <h1 className="text-3xl font-bold">{exam.title} - Results</h1>
+        <p className="text-muted-foreground mt-2">View the leaderboard, your answers, and class performance analytics.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-4 md:p-6 text-center space-y-1 md:space-y-2">
-            <div className="text-xs md:text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
+          <CardContent className="p-6 text-center space-y-2">
+            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
             {exam?.examType === 'essay' && (!exam.gradesPublished || myResult.status === 'pending_grading') ? (
-              <div className="text-3xl md:text-4xl font-black text-primary pt-1 md:pt-2">Pending</div>
+              <div className="text-4xl font-black text-primary pt-2">Pending</div>
             ) : (
-              <div className="text-4xl md:text-5xl font-black text-primary">{myResult.rawScore} <span className="text-xl md:text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
+              <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
             )}
           </CardContent>
         </Card>
         <Card className="bg-secondary/10 border-border">
-          <CardContent className="p-4 md:p-6 text-center space-y-1 md:space-y-2">
-            <div className="text-xs md:text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Time</div>
-            <div className="text-4xl md:text-5xl font-black text-foreground">{formatTime(myResult.timeTakenSeconds)}</div>
+          <CardContent className="p-6 text-center space-y-2">
+            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Time</div>
+            <div className="text-5xl font-black text-foreground">{formatTime(myResult.timeTakenSeconds)}</div>
           </CardContent>
         </Card>
         <Card className="bg-secondary/10 border-border">
-          <CardContent className="p-4 md:p-6 text-center space-y-1 md:space-y-2">
-            <div className="text-xs md:text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Rank</div>
+          <CardContent className="p-6 text-center space-y-2">
+            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Rank</div>
             { (exam?.examType === 'essay' && !exam.gradesPublished) || isExamActive ? (
-              <div className="text-3xl md:text-4xl font-black text-primary pt-1 md:pt-2">Pending</div>
+              <div className="text-4xl font-black text-primary pt-2">Pending</div>
             ) : (
-              <div className="text-4xl md:text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
+              <div className="text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
             )}
           </CardContent>
         </Card>
@@ -252,7 +251,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         </Card>
       ) : exam?.examType === 'essay' ? (
         <Tabs defaultValue={myResult.status === 'graded' ? 'corrected' : 'answers'} className="w-full mt-8">
-          <TabsList className="flex overflow-x-auto w-full justify-start h-auto p-1 bg-secondary/20 rounded-lg whitespace-nowrap scrollbar-hide">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="answers">My Submitted Answer</TabsTrigger>
             <TabsTrigger value="corrected">Teacher's Corrected Paper</TabsTrigger>
             <TabsTrigger value="question">Question Paper</TabsTrigger>
@@ -362,7 +361,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         </Tabs>
       ) : (
         <Tabs defaultValue="answers" className="w-full mt-8">
-        <TabsList className="flex overflow-x-auto w-full justify-start h-auto p-1 bg-secondary/20 rounded-lg whitespace-nowrap scrollbar-hide">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="answers">My Answers</TabsTrigger>
           <TabsTrigger value="leaderboard">Exam Leaderboard</TabsTrigger>
           <TabsTrigger value="analytics">Class Analytics</TabsTrigger>

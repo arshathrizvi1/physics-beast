@@ -250,7 +250,7 @@ export default function LoginPage() {
 
     // Student Dashboard View
     return (
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8 px-4 md:px-6 pt-6">
         {/* Profile Header */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-secondary/10 p-6 rounded-2xl border border-secondary/30">
           <div className="flex items-center gap-6">
@@ -321,21 +321,21 @@ export default function LoginPage() {
         </div>
 
         {/* Global Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           <Card className="border-secondary/50 bg-card hover:bg-secondary/5 transition-colors">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-2">
+            <CardContent className="p-4 md:p-6 flex flex-col items-center text-center space-y-2">
               <Flame className="w-8 h-8 text-orange-500 mb-1" />
-              <div className="text-2xl font-bold">{stats.streakDays} Days</div>
-              <p className="text-xs text-muted-foreground">Continuous Streak</p>
+              <div className="text-xl md:text-2xl font-bold">{stats.streakDays} Days</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Continuous Streak</p>
             </CardContent>
           </Card>
           
           <div onClick={() => setShowStudyHistoryModal(true)} className="cursor-pointer transition-transform hover:scale-105">
             <Card className="border-secondary/50 bg-card hover:bg-primary/10 transition-colors h-full">
-              <CardContent className="p-6 flex flex-col items-center text-center space-y-2 relative">
+              <CardContent className="p-4 md:p-6 flex flex-col items-center text-center space-y-2 relative">
                 <Timer className="w-8 h-8 text-purple-500 mb-1" />
-                <div className="text-2xl font-bold">{stats.todayStudyTimeString}</div>
-                <p className="text-xs text-muted-foreground font-semibold text-primary underline underline-offset-4 decoration-primary/30">Today's Study Time</p>
+                <div className="text-xl md:text-2xl font-bold">{stats.todayStudyTimeString}</div>
+                <p className="text-[10px] md:text-xs text-muted-foreground font-semibold text-primary underline underline-offset-4 decoration-primary/30">Today's Study Time</p>
                 <div className="absolute top-2 right-2 flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
@@ -345,24 +345,24 @@ export default function LoginPage() {
           </div>
 
           <Card className="border-secondary/50 bg-card hover:bg-secondary/5 transition-colors">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-2">
+            <CardContent className="p-4 md:p-6 flex flex-col items-center text-center space-y-2">
               <Clock className="w-8 h-8 text-blue-500 mb-1" />
-              <div className="text-2xl font-bold">{stats.studyTimeString}</div>
-              <p className="text-xs text-muted-foreground">Total Study Time</p>
+              <div className="text-xl md:text-2xl font-bold">{stats.studyTimeString}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Total Study Time</p>
             </CardContent>
           </Card>
           <Card className="border-secondary/50 bg-card hover:bg-secondary/5 transition-colors">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-2">
+            <CardContent className="p-4 md:p-6 flex flex-col items-center text-center space-y-2">
               <Target className="w-8 h-8 text-green-500 mb-1" />
-              <div className="text-2xl font-bold text-green-500">{stats.averageGrade}%</div>
-              <p className="text-xs text-muted-foreground">Average Grade</p>
+              <div className="text-xl md:text-2xl font-bold text-green-500">{stats.averageGrade}%</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Average Grade</p>
             </CardContent>
           </Card>
           <Card className="border-secondary/50 bg-card hover:bg-secondary/5 transition-colors">
-            <CardContent className="p-6 flex flex-col items-center text-center space-y-2">
+            <CardContent className="p-4 md:p-6 flex flex-col items-center text-center space-y-2">
               <BookOpen className="w-8 h-8 text-primary mb-1" />
-              <div className="text-2xl font-bold">{stats.examsDone} / {stats.examsMissed}</div>
-              <p className="text-xs text-muted-foreground">Exams Done / Missed</p>
+              <div className="text-xl md:text-2xl font-bold">{stats.examsDone} / {stats.examsMissed}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Exams Done / Missed</p>
             </CardContent>
           </Card>
         </div>

@@ -338,7 +338,6 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
         examTitle: examData.title,
-        courseId: examData.courseId || "",
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'exam_issue',
@@ -437,7 +436,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
   if (exam?.examType === 'essay') {
     return (
-      <div className="max-w-5xl mx-auto space-y-6 px-4 md:px-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <MessageDialog />
         <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -549,7 +548,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 px-4 md:px-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <MessageDialog />
       <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />

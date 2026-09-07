@@ -671,11 +671,6 @@ export default function AdminDashboard() {
   const [examFilterType, setExamFilterType] = useState("all");
   const [examFilterDate, setExamFilterDate] = useState("all");
 
-  // Message Filtering States
-  const [msgFilterType, setMsgFilterType] = useState("all");
-  const [msgFilterCourse, setMsgFilterCourse] = useState("all");
-  const [msgSearchTerm, setMsgSearchTerm] = useState("");
-
   // Team Management States
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [newTeamEmail, setNewTeamEmail] = useState("");
@@ -1271,40 +1266,6 @@ export default function AdminDashboard() {
     return true;
   });
 
-  // Get course IDs assigned to the current teacher
-  const teacherCourseIds = user?.role === 'teacher' 
-    ? courses.filter(c => c.teacherId === user?.uid).map(c => c.id) 
-    : [];
-
-  // Filter messages based on role and filters
-  const filteredMessages = examMessages.filter((msg) => {
-    // Role-based filtering: teachers only see messages from their assigned courses
-    if (user?.role === 'teacher') {
-      // If message has no courseId (legacy), try to find it via the exam
-      const msgCourseId = msg.courseId || publishedExams.find(e => e.id === msg.examId)?.courseId || "";
-      if (!msgCourseId || !teacherCourseIds.includes(msgCourseId)) return false;
-    }
-
-    // Type filter
-    if (msgFilterType !== "all" && msg.type !== msgFilterType) return false;
-
-    // Course filter
-    if (msgFilterCourse !== "all") {
-      const msgCourseId = msg.courseId || publishedExams.find(e => e.id === msg.examId)?.courseId || "";
-      if (msgCourseId !== msgFilterCourse) return false;
-    }
-
-    // Search filter
-    if (msgSearchTerm) {
-      const term = msgSearchTerm.toLowerCase();
-      const courseName = courses.find(c => c.id === (msg.courseId || publishedExams.find(e => e.id === msg.examId)?.courseId))?.name || "";
-      const searchText = `${msg.studentName || ""} ${msg.examTitle || ""} ${msg.message || ""} ${courseName} ${msg.type || ""}`.toLowerCase();
-      if (!searchText.includes(term)) return false;
-    }
-
-    return true;
-  });
-
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
       {dbError && (
@@ -1369,7 +1330,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="courses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Courses</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Video Uploads</TabsTrigger>
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
-          <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Messages {filteredMessages.filter((m: any) => m.status === 'unread').length > 0 && `(${filteredMessages.filter((m: any) => m.status === 'unread').length})`}</TabsTrigger>
+          <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Messages {examMessages.filter((m: any) => m.status === 'unread').length > 0 && `(${examMessages.filter((m: any) => m.status === 'unread').length})`}</TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👥 Team</TabsTrigger>
           )}
@@ -2885,67 +2846,27 @@ export default function AdminDashboard() {
               <CardTitle className="text-xl text-primary flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" /> Student Messages & Doubts
               </CardTitle>
-              <CardDescription>
-                {user?.role === 'teacher' 
-                  ? 'Messages from students in your assigned courses.' 
-                  : 'Review and resolve issues reported during exams or doubts asked post-exam.'}
-              </CardDescription>
+              <CardDescription>Review and resolve issues reported during exams or doubts asked post-exam.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              {/* Filter Bar */}
-              <div className="flex flex-wrap gap-2 items-center p-3 bg-secondary/5 border border-border/50 rounded-lg">
-                <Input
-                  placeholder="Search by student, exam, course, or message..."
-                  value={msgSearchTerm}
-                  onChange={(e) => setMsgSearchTerm(e.target.value)}
-                  className="flex-1 min-w-[200px] h-9 text-sm"
-                />
-                <select
-                  className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
-                  value={msgFilterType}
-                  onChange={(e) => setMsgFilterType(e.target.value)}
-                >
-                  <option value="all">All Types</option>
-                  <option value="exam_issue">In-Exam Issues</option>
-                  <option value="post_exam_doubt">Post-Exam Doubts</option>
-                </select>
-                <select
-                  className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
-                  value={msgFilterCourse}
-                  onChange={(e) => setMsgFilterCourse(e.target.value)}
-                >
-                  <option value="all">All Courses</option>
-                  {(user?.role === 'teacher' 
-                    ? courses.filter(c => c.teacherId === user?.uid) 
-                    : courses
-                  ).map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {filteredMessages.length === 0 ? (
+            <CardContent className="pt-6">
+              {examMessages.length === 0 ? (
                 <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
-                  {examMessages.length === 0 ? 'No messages from students.' : 'No messages match your current filters.'}
+                  No messages from students.
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {filteredMessages.map(msg => {
-                    const msgCourseId = msg.courseId || publishedExams.find(e => e.id === msg.examId)?.courseId || "";
-                    const courseName = courses.find(c => c.id === msgCourseId)?.name || "";
-                    return (
+                  {examMessages.map(msg => (
                     <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
                       <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
                         <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
                             <span className="font-bold text-lg">{msg.studentName}</span>
                             <span className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString()}</span>
                             {msg.status === 'unread' && <span className="bg-primary text-primary-foreground text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>}
                           </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            <span className="font-medium text-sm text-foreground">Exam: <span className="text-muted-foreground">{msg.examTitle}</span></span>
-                            <span className="font-medium text-sm text-foreground">Type: <span className="text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span></span>
-                            {courseName && <span className="font-medium text-sm text-foreground">Course: <span className="text-muted-foreground">{courseName}</span></span>}
+                          <div>
+                            <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
+                            <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
                           </div>
                           <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
                             {msg.message || "No text provided."}
@@ -2977,8 +2898,7 @@ export default function AdminDashboard() {
                         </div>
                       </CardContent>
                     </Card>
-                  );
-                  })}
+                  ))}
                 </div>
               )}
             </CardContent>
