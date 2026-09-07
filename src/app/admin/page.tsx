@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -585,6 +585,7 @@ export default function AdminDashboard() {
   const [examPdfFile, setExamPdfFile] = useState<File | null>(null);
   const [examPdfUrl, setExamPdfUrl] = useState("");
   const [examPdfUploading, setExamPdfUploading] = useState(false);
+  const [examPdfUploadProgress, setExamPdfUploadProgress] = useState(0);
   const [examBatchId, setExamBatchId] = useState("");
   const [examCourseId, setExamCourseId] = useState("");
   const [examFolderId, setExamFolderId] = useState("");
@@ -917,10 +918,27 @@ export default function AdminDashboard() {
     let finalPdfUrl = examPdfUrl;
     if (examType === 'essay' && examPdfFile) {
       setExamPdfUploading(true);
+      setExamPdfUploadProgress(0);
       try {
         const fileRef = ref(storage, `exams/${Date.now()}_${examPdfFile.name}`);
-        const snapshot = await uploadBytes(fileRef, examPdfFile);
-        finalPdfUrl = await getDownloadURL(snapshot.ref);
+        const uploadTask = uploadBytesResumable(fileRef, examPdfFile);
+        
+        finalPdfUrl = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+              setExamPdfUploadProgress(progress);
+            },
+            (error) => {
+              reject(error);
+            },
+            async () => {
+              const url = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(url);
+            }
+          );
+        });
       } catch (err) {
         console.error("PDF upload failed", err);
         alert("Failed to upload the PDF paper. Check permissions or file size.");
@@ -2556,8 +2574,11 @@ export default function AdminDashboard() {
                       </label>
                     )}
                     {examPdfUploading && (
-                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center backdrop-blur-sm z-10">
-                        <span className="animate-pulse font-bold">Uploading PDF...</span>
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center backdrop-blur-sm z-10">
+                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF... {examPdfUploadProgress}%</span>
+                        <div className="w-1/2 bg-secondary rounded-full h-1.5">
+                          <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${examPdfUploadProgress}%` }}></div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2722,7 +2743,7 @@ export default function AdminDashboard() {
                                 {member.totpSecret ? (
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-green-500 text-xs font-bold">✅ 2FA Enabled</span>
-                                    {user?.role === 'admin' && (
+                                    {user?.role === 'admin' && member.email !== user?.email && (
                                       <button
                                         onClick={() => handleResetTeamMember2FA(member.id, member.name || member.email)}
                                         title="Reset 2FA for this user"
