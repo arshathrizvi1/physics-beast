@@ -14,6 +14,7 @@ import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, g
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult } from "@/lib/xp";
 import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
+import { PdfViewer } from "@/components/ui/pdf-viewer";
 
 export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -86,20 +87,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     initExam();
   }, [id, user]);
 
-  if (errorMsg) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6 text-center max-w-md mx-auto">
-        <div className="w-20 h-20 bg-destructive/20 rounded-full flex items-center justify-center">
-          <AlertTriangle className="w-10 h-10 text-destructive" />
-        </div>
-        <h1 className="text-3xl font-bold">Access Denied</h1>
-        <p className="text-muted-foreground">{errorMsg}</p>
-        <Button onClick={() => router.push('/exams')} variant="outline" className="w-full">
-          Back to Exams
-        </Button>
-      </div>
-    );
-  }
+  const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
+  const handleSubmitRef = useRef<any>(null);
 
   useEffect(() => {
     if (isSubmitted || !isLoaded) return;
@@ -109,7 +98,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       if (exam?.endTime && Date.now() >= exam.endTime) {
         clearInterval(timer);
         setTimeUp(true);
-        handleSubmit();
+        if (handleSubmitRef.current) handleSubmitRef.current();
         return;
       }
 
@@ -117,7 +106,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         if (prev <= 1) {
           clearInterval(timer);
           setTimeUp(true);
-          handleSubmit();
+          if (handleSubmitRef.current) handleSubmitRef.current();
           return 0;
         }
         return prev - 1;
@@ -127,7 +116,20 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     return () => clearInterval(timer);
   }, [isSubmitted, isLoaded, exam?.endTime]);
 
-  const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
+  // Anti-Cheat: Auto-submit on tab switch
+  useEffect(() => {
+    if (!isLoaded || isSubmitted) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        alert("ANTI-CHEAT TRIGGERED: You left the exam tab. Your exam has been automatically submitted.");
+        if (handleSubmitRef.current) handleSubmitRef.current();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isLoaded, isSubmitted]);
 
   // Exam Heartbeat & Presence
   useEffect(() => {
@@ -158,6 +160,21 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     return () => clearInterval(heartbeat);
   }, [user?.uid, isSubmitted, isLoaded]);
 
+  if (errorMsg) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6 text-center max-w-md mx-auto">
+        <div className="w-20 h-20 bg-destructive/20 rounded-full flex items-center justify-center">
+          <AlertTriangle className="w-10 h-10 text-destructive" />
+        </div>
+        <h1 className="text-3xl font-bold">Access Denied</h1>
+        <p className="text-muted-foreground">{errorMsg}</p>
+        <Button onClick={() => router.push('/exams')} variant="outline" className="w-full">
+          Back to Exams
+        </Button>
+      </div>
+    );
+  }
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -169,6 +186,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const handleSubmit = async () => {
+    handleSubmitRef.current = handleSubmit;
     if (isSubmitting || isSubmitted) return;
 
     // If the exam window has closed more than 60s ago, reject late submissions
@@ -280,6 +298,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     setIsSubmitting(false);
     setIsSubmitted(true);
   };
+  
+  handleSubmitRef.current = handleSubmit;
 
   if (!isLoaded) return <div className="p-8 text-center text-muted-foreground">Loading Exam...</div>;
 
@@ -336,6 +356,17 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   if (exam?.examType === 'essay') {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-destructive">ANTI-CHEAT ACTIVE: DO NOT LEAVE THIS PAGE</h3>
+            <p className="text-sm text-destructive/90">
+              If you minimize this window, switch tabs, or open another application, your exam will be <b>automatically submitted instantly</b>. 
+              Only leave this tab when you are ready to scan and upload your paper.
+            </p>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50">
           <div>
             <h2 className="text-xl font-bold">{examData.title}</h2>
@@ -349,33 +380,16 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         <Progress value={progressPercentage} className={`h-2 ${isLowTime ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'}`} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 border-secondary/50 shadow-md flex flex-col">
-            <CardHeader className="py-4 flex flex-row items-center justify-between">
+          <Card className="lg:col-span-2 border-secondary/50 shadow-md flex flex-col overflow-hidden">
+            <CardHeader className="py-4 flex flex-row items-center justify-between border-b border-secondary/20">
               <CardTitle className="text-lg">Question Paper</CardTitle>
-              {exam.questionPdfUrl && (
-                <a 
-                  href={exam.questionPdfUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="text-xs text-primary hover:underline font-medium"
-                >
-                  Open in New Tab ↗
-                </a>
-              )}
             </CardHeader>
-            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
-              {exam.questionPdfUrl ? (
-                <iframe 
-                  src={formatPdfViewerUrl(exam.questionPdfUrl)} 
-                  className="w-full h-[650px] border-0 rounded-b-xl" 
-                  title="Question Paper"
-                  allow="autoplay"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
-                  <p>No question paper attached to this exam.</p>
-                </div>
-              )}
+            <CardContent className="p-0 flex-1 min-h-[650px] relative">
+              <PdfViewer 
+                url={exam.questionPdfUrl} 
+                title={examData.title || "Question Paper"} 
+                height="650px" 
+              />
             </CardContent>
           </Card>
 
@@ -448,6 +462,16 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-bold text-destructive">ANTI-CHEAT ACTIVE: DO NOT LEAVE THIS PAGE</h3>
+          <p className="text-sm text-destructive/90">
+            If you minimize this window, switch tabs, or open another application, your exam will be <b>automatically submitted instantly</b>.
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50">
         <div>
           <h2 className="text-xl font-bold">{examData.title}</h2>

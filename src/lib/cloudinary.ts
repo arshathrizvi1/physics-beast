@@ -1,24 +1,52 @@
-export async function uploadToCloudinary(file: File): Promise<string> {
+export async function uploadToCloudinary(file: File, retries = 3): Promise<string> {
   const cloudName = "e0yy6czx";
   const uploadPreset = "brilliant_academy";
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", uploadPreset);
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-    method: "POST",
-    body: formData,
-  });
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+        method: "POST",
+        body: formData,
+      });
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const message = errData?.error?.message || `Upload failed with status ${res.status}`;
-    throw new Error(message);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const message = errData?.error?.message || `Upload failed with status ${res.status}`;
+        
+        // Check if it's a transient error that warrants a retry
+        const isTransient = res.status === 420 || res.status === 429 || res.status >= 500 || 
+                            message.includes("Slow Down") || message.includes("Processing Capacity");
+                            
+        if (isTransient && attempt < retries) {
+          throw new Error(`TransientError: ${message}`);
+        } else {
+          throw new Error(message); // Throw normal error to break out or fail finally
+        }
+      }
+
+      const data = await res.json();
+      return data.secure_url || data.url;
+    } catch (error: any) {
+      if (!error.message.startsWith("TransientError:") && attempt === retries) {
+        throw error;
+      }
+      
+      if (error.message.startsWith("TransientError:") && attempt < retries) {
+        // Exponential backoff: 2s, 4s, 8s...
+        const delay = Math.pow(2, attempt) * 1000;
+        console.warn(`Cloudinary upload transient error: ${error.message}. Retrying in ${delay}ms... (Attempt ${attempt} of ${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
   }
-
-  const data = await res.json();
-  return data.secure_url || data.url;
+  
+  throw new Error("Upload failed after retries");
 }
 
 export function formatPdfViewerUrl(url: string): string {

@@ -10,6 +10,7 @@ import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLe
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { formatPdfViewerUrl } from "@/lib/cloudinary";
+import { PdfViewer } from "@/components/ui/pdf-viewer";
 
 export default function ExamResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -128,7 +129,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-6 text-center space-y-2">
             <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
-            {exam?.examType === 'essay' && myResult.status === 'pending_grading' ? (
+            {exam?.examType === 'essay' && (!exam.gradesPublished || myResult.status === 'pending_grading') ? (
               <div className="text-4xl font-black text-primary pt-2">Pending</div>
             ) : (
               <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
@@ -144,7 +145,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         <Card className="bg-secondary/10 border-border">
           <CardContent className="p-6 text-center space-y-2">
             <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Rank</div>
-            <div className="text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
+            { (exam?.examType === 'essay' && !exam.gradesPublished) || isExamActive ? (
+              <div className="text-4xl font-black text-primary pt-2">Pending</div>
+            ) : (
+              <div className="text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -163,67 +168,115 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           </CardHeader>
         </Card>
       ) : exam?.examType === 'essay' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <Card className="border-secondary/50 shadow-md flex flex-col">
-            <CardHeader className="py-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Question Paper</CardTitle>
-              {exam.questionPdfUrl && (
-                <a 
-                  href={exam.questionPdfUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="text-xs text-primary hover:underline font-medium"
-                >
-                  Open in New Tab ↗
-                </a>
-              )}
-            </CardHeader>
-            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
-              {exam.questionPdfUrl ? (
-                <iframe 
-                  src={formatPdfViewerUrl(exam.questionPdfUrl)} 
-                  className="w-full h-[650px] border-0 rounded-b-xl" 
-                  title="Question Paper"
-                  allow="autoplay"
+        <Tabs defaultValue={myResult.status === 'graded' ? 'corrected' : 'answers'} className="w-full mt-8">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="answers">My Submitted Answer</TabsTrigger>
+            <TabsTrigger value="corrected">Teacher's Corrected Paper</TabsTrigger>
+            <TabsTrigger value="question">Question Paper</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="answers" className="mt-6">
+            <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
+              <CardContent className="p-0 flex-1 min-h-[650px] relative">
+                <PdfViewer 
+                  url={myResult.answerPdfUrl} 
+                  title="Your Submitted Answer Sheet" 
+                  height="650px" 
+                  allowDownload={true}
                 />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
-                  <p>No question paper attached.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="corrected" className="mt-6">
+            {exam.gradesPublished ? (
+              myResult.status === 'graded' ? (
+                <div className="space-y-6">
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardHeader>
+                      <CardTitle>Grading Result</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-4 md:flex-row justify-between items-start">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Score</p>
+                        <p className="text-3xl font-bold text-primary">{myResult.rawScore ?? myResult.score ?? 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Grade</p>
+                        <p className="text-3xl font-bold text-primary">{myResult.grade || '-'}</p>
+                      </div>
+                      {myResult.feedback && (
+                        <div className="md:max-w-[50%]">
+                          <p className="text-sm font-medium text-muted-foreground">Teacher Remarks</p>
+                          <p className="text-base">{myResult.feedback}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {myResult.correctedPdfUrl ? (
+                    <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
+                      <CardHeader className="py-4 border-b border-secondary/20 bg-secondary/5">
+                        <CardTitle className="text-lg">Corrected Paper</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0 flex-1 min-h-[650px] relative">
+                        <PdfViewer 
+                          url={myResult.correctedPdfUrl} 
+                          title="Teacher's Corrected Answer Sheet" 
+                          height="650px" 
+                        />
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 text-center text-muted-foreground italic">
+                        No corrected PDF paper was provided by the teacher.
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="border-secondary/50 shadow-md flex flex-col">
-            <CardHeader className="py-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Your Submitted Answer</CardTitle>
-              {myResult.answerPdfUrl && (
-                <a 
-                  href={myResult.answerPdfUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="text-xs text-primary hover:underline font-medium"
-                >
-                  Open in New Tab ↗
-                </a>
-              )}
-            </CardHeader>
-            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
-              {myResult.answerPdfUrl ? (
-                <iframe 
-                  src={formatPdfViewerUrl(myResult.answerPdfUrl)} 
-                  className="w-full h-[650px] border-0 rounded-b-xl" 
-                  title="Answer Sheet"
-                  allow="autoplay"
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-secondary/30 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-1">Not Yet Graded</h3>
+                      <p className="text-muted-foreground">The teacher published grades, but your paper was not graded.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            ) : (
+              <Card>
+                <CardContent className="p-12 text-center flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-secondary/30 flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">Teacher is Correcting</h3>
+                    <p className="text-muted-foreground">Your essay is being reviewed. The results and rank will be available here once the teacher publishes all the grades.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+
+          <TabsContent value="question" className="mt-6">
+            <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
+              <CardContent className="p-0 flex-1 min-h-[650px] relative">
+                <PdfViewer 
+                  url={exam.questionPdfUrl} 
+                  title={exam.title || "Question Paper"} 
+                  height="650px" 
+                  allowDownload={true}
                 />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground bg-secondary/5">
-                  <AlertTriangle className="w-12 h-12 mb-4 opacity-50" />
-                  <p>No answer file was uploaded for this exam.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       ) : (
         <Tabs defaultValue="answers" className="w-full mt-8">
         <TabsList className="grid w-full grid-cols-3">

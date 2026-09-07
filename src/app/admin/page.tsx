@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,13 @@ export default function AdminDashboard() {
   const [selectedExamDetails, setSelectedExamDetails] = useState<any | null>(null);
   const [examDetailedResults, setExamDetailedResults] = useState<any[]>([]);
   const [loadingExamDetails, setLoadingExamDetails] = useState(false);
+
+  // Essay Grading States
+  const [gradingResultId, setGradingResultId] = useState<string | null>(null);
+  const [gradingScore, setGradingScore] = useState<string>('');
+  const [gradingFeedback, setGradingFeedback] = useState<string>('');
+  const [gradingPdfFile, setGradingPdfFile] = useState<File | null>(null);
+  const [isGradingSubmitting, setIsGradingSubmitting] = useState(false);
 
   // Folder Manager State
   const [batches, setBatches] = useState<any[]>([]);
@@ -888,6 +895,79 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, 'exams', id), { hidden: !exam.hidden });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const getLetterGrade = (percentage: number) => {
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 75) return 'A';
+    if (percentage >= 65) return 'B';
+    if (percentage >= 55) return 'C';
+    if (percentage >= 35) return 'S';
+    return 'W';
+  };
+
+  const handleGradeSubmission = async (resultId: string) => {
+    if (!gradingScore) {
+      alert("Please enter a score.");
+      return;
+    }
+
+    setIsGradingSubmitting(true);
+    try {
+      let correctedPdfUrl = null;
+      if (gradingPdfFile) {
+        correctedPdfUrl = await uploadToCloudinary(gradingPdfFile);
+      }
+
+      const scoreNum = parseFloat(gradingScore);
+      const letterGrade = getLetterGrade(scoreNum);
+
+      await updateDoc(doc(db, 'examResults', resultId), {
+        status: 'graded',
+        score: scoreNum,
+        rawScore: scoreNum,
+        grade: letterGrade,
+        feedback: gradingFeedback,
+        ...(correctedPdfUrl && { correctedPdfUrl }),
+        gradedAt: new Date().toISOString()
+      });
+
+      setExamDetailedResults(prev => 
+        prev.map(r => r.id === resultId ? {
+          ...r, 
+          status: 'graded',
+          score: scoreNum,
+          rawScore: scoreNum,
+          grade: letterGrade,
+          feedback: gradingFeedback,
+          ...(correctedPdfUrl && { correctedPdfUrl })
+        } : r)
+      );
+
+      setGradingResultId(null);
+      setGradingScore('');
+      setGradingFeedback('');
+      setGradingPdfFile(null);
+    } catch (e) {
+      console.error("Error submitting grade:", e);
+      alert("Failed to submit grade.");
+    } finally {
+      setIsGradingSubmitting(false);
+    }
+  };
+
+  const handlePublishGrades = async () => {
+    if (!selectedExamDetails) return;
+    try {
+      await updateDoc(doc(db, 'exams', selectedExamDetails.id), {
+        gradesPublished: true
+      });
+      setSelectedExamDetails({...selectedExamDetails, gradesPublished: true});
+      alert("Grades and ranks have been published to students!");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to publish grades.");
     }
   };
 
@@ -3856,6 +3936,16 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex items-center gap-2">
+                {!selectedExamDetails.gradesPublished && selectedExamDetails.examType === 'essay' && (
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={handlePublishGrades}
+                  >
+                    Publish Grades
+                  </Button>
+                )}
                 <Button 
                   size="sm" 
                   variant="outline"
@@ -4056,46 +4146,120 @@ export default function AdminDashboard() {
                           <th className="p-3">Grade</th>
                           <th className="p-3">Time</th>
                           <th className="p-3">Answer PDF</th>
+                          {selectedExamDetails.examType === 'essay' && (
+                            <th className="p-3">Actions</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
                         {examDetailedResults.map((res, index) => (
-                          <tr key={res.id} className="hover:bg-secondary/15 transition-colors">
-                            <td className="p-3 font-bold text-foreground">
-                              {index === 0 ? '🥇 #1' : index === 1 ? '🥈 #2' : index === 2 ? '🥉 #3' : `#${index + 1}`}
-                            </td>
-                            <td className="p-3 font-medium text-foreground">
-                              {res.studentName || 'Anonymous Student'}
-                            </td>
-                            <td className="p-3 font-bold text-primary">
-                              {res.rawScore ?? res.score ?? 0} {selectedExamDetails.examType === 'mcq' ? `/${selectedExamDetails.questions?.length || ''}` : 'marks'}
-                            </td>
-                            <td className="p-3 font-medium">
-                              {res.score !== undefined ? `${res.score}%` : '-'}
-                            </td>
-                            <td className="p-3">
-                              <span className="px-2 py-0.5 rounded-md bg-secondary/50 text-foreground font-semibold">
-                                {res.grade || 'Done'}
-                              </span>
-                            </td>
-                            <td className="p-3 text-muted-foreground font-mono">
-                              {res.timeTakenSeconds ? `${Math.floor(res.timeTakenSeconds / 60)}m ${res.timeTakenSeconds % 60}s` : '-'}
-                            </td>
-                            <td className="p-3">
-                              {res.answerPdfUrl ? (
-                                <a 
-                                  href={res.answerPdfUrl} 
-                                  target="_blank" 
-                                  rel="noreferrer" 
-                                  className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-                                >
-                                  View Sheet <ExternalLink className="w-3 h-3" />
-                                </a>
-                              ) : (
-                                <span className="text-muted-foreground italic text-[11px]">N/A (MCQ)</span>
+                          <React.Fragment key={res.id}>
+                            <tr className="hover:bg-secondary/15 transition-colors">
+                              <td className="p-3 font-bold text-foreground">
+                                {index === 0 ? '🥇 #1' : index === 1 ? '🥈 #2' : index === 2 ? '🥉 #3' : `#${index + 1}`}
+                              </td>
+                              <td className="p-3 font-medium text-foreground">
+                                {res.studentName || 'Anonymous Student'}
+                              </td>
+                              <td className="p-3 font-bold text-primary">
+                                {res.rawScore ?? res.score ?? 0} {selectedExamDetails.examType === 'mcq' ? `/${selectedExamDetails.questions?.length || ''}` : 'marks'}
+                              </td>
+                              <td className="p-3 font-medium">
+                                {res.score !== undefined ? `${res.score}%` : '-'}
+                              </td>
+                              <td className="p-3">
+                                <span className="px-2 py-0.5 rounded-md bg-secondary/50 text-foreground font-semibold">
+                                  {res.grade || (res.status === 'pending_grading' ? 'Pending' : 'Done')}
+                                </span>
+                              </td>
+                              <td className="p-3 text-muted-foreground font-mono">
+                                {res.timeTakenSeconds ? `${Math.floor(res.timeTakenSeconds / 60)}m ${res.timeTakenSeconds % 60}s` : '-'}
+                              </td>
+                              <td className="p-3">
+                                {res.answerPdfUrl ? (
+                                  <a 
+                                    href={res.answerPdfUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                                  >
+                                    View Sheet <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground italic text-[11px]">N/A (MCQ)</span>
+                                )}
+                              </td>
+                              {selectedExamDetails.examType === 'essay' && (
+                                <td className="p-3">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      setGradingResultId(res.id);
+                                      setGradingScore(res.rawScore?.toString() || res.score?.toString() || '');
+                                      setGradingFeedback(res.feedback || '');
+                                      setGradingPdfFile(null);
+                                    }}
+                                  >
+                                    {res.status === 'graded' ? 'Edit Grade' : 'Grade Paper'}
+                                  </Button>
+                                </td>
                               )}
-                            </td>
-                          </tr>
+                            </tr>
+                            {gradingResultId === res.id && (
+                              <tr className="bg-secondary/20">
+                                <td colSpan={8} className="p-4 border-t border-b border-border/40">
+                                  <div className="space-y-3">
+                                    <div className="flex gap-4">
+                                      <div className="space-y-1">
+                                        <label className="text-xs font-medium">Marks</label>
+                                        <Input 
+                                          type="number" 
+                                          value={gradingScore} 
+                                          onChange={(e) => setGradingScore(e.target.value)} 
+                                          placeholder="e.g. 85"
+                                          className="h-8 w-24"
+                                        />
+                                      </div>
+                                      <div className="space-y-1 flex-1">
+                                        <label className="text-xs font-medium">Remarks/Feedback</label>
+                                        <Input 
+                                          value={gradingFeedback} 
+                                          onChange={(e) => setGradingFeedback(e.target.value)} 
+                                          placeholder="Excellent work..."
+                                          className="h-8"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-xs font-medium">Upload Corrected Paper (PDF)</label>
+                                      <Input 
+                                        type="file" 
+                                        accept="application/pdf"
+                                        onChange={(e) => {
+                                          if (e.target.files && e.target.files[0]) {
+                                            setGradingPdfFile(e.target.files[0]);
+                                          }
+                                        }}
+                                        className="text-xs"
+                                      />
+                                      {res.correctedPdfUrl && !gradingPdfFile && (
+                                        <a href={res.correctedPdfUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
+                                          View Current Corrected PDF
+                                        </a>
+                                      )}
+                                    </div>
+                                    <div className="flex justify-end gap-2 pt-2">
+                                      <Button size="sm" variant="ghost" onClick={() => setGradingResultId(null)}>Cancel</Button>
+                                      <Button size="sm" onClick={() => handleGradeSubmission(res.id)} disabled={isGradingSubmitting}>
+                                        {isGradingSubmitting ? 'Saving...' : 'Save Grade'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
