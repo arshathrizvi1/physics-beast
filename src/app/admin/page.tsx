@@ -923,9 +923,9 @@ export default function AdminDashboard() {
         const fileRef = ref(storage, `exams/${Date.now()}_${examPdfFile.name}`);
         const snapshot = await uploadBytes(fileRef, examPdfFile);
         finalPdfUrl = await getDownloadURL(snapshot.ref);
-      } catch (err) {
+      } catch (err: any) {
         console.error("PDF upload failed", err);
-        alert("Failed to upload the PDF paper. Check permissions or file size.");
+        alert(`Failed to upload the PDF paper. Error: ${err.message || 'Unknown error'}`);
         setIsSavingExam(false);
         setExamPdfUploading(false);
         return;
