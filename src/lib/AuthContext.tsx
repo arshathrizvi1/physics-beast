@@ -141,18 +141,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               safeStorage.local.setItem('localDeviceId', newId);
             }
 
-            // If deviceId was cleared or replaced by admin, or accessed on another device, log them out
-            const isDeviceRevoked = data.deviceId === 'REVOKED' || data.deviceId === null || data.deviceId === '';
-            const isMismatched = data.deviceId && localDeviceId && data.deviceId !== localDeviceId;
+            // Check if deviceId was cleared or revoked by admin (or no device is bound yet)
+            const wasRevokedOrEmpty = data.deviceId === 'REVOKED' || data.deviceId === null || data.deviceId === '';
+            const isMismatched = !wasRevokedOrEmpty && data.deviceId && localDeviceId && data.deviceId !== localDeviceId;
 
-            if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && (isDeviceRevoked || isMismatched)) {
-              console.log("Logged out because session was revoked or accessed on another device.");
+            // If session was revoked by admin, treat this login as an authorized new device binding!
+            if (data.role !== 'admin' && data.role !== 'teacher' && wasRevokedOrEmpty && localDeviceId) {
+              console.log("Device session was revoked or unassigned. Binding current device as authorized device.");
+              updateDoc(docRef, {
+                deviceId: localDeviceId,
+                isApproved: true,
+                pendingReason: null
+              }).catch(console.error);
+              data.deviceId = localDeviceId;
+              data.isApproved = true;
+              data.pendingReason = null;
+            } else if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && isMismatched) {
+              // Active session accessed from another unauthorized device
+              console.log("Logged out because session was accessed on another device.");
               await firebaseSignOut(auth);
               setUser(null);
               setLoading(false);
-              alert(isDeviceRevoked 
-                ? "You have been signed out from this device by the administrator." 
-                : "You have been logged out because your account was accessed from another device.");
+              alert("You have been logged out because your account was accessed from another device.");
               return;
             }
 
