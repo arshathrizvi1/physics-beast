@@ -921,24 +921,8 @@ export default function AdminDashboard() {
       setExamPdfUploadProgress(0);
       try {
         const fileRef = ref(storage, `exams/${Date.now()}_${examPdfFile.name}`);
-        const uploadTask = uploadBytesResumable(fileRef, examPdfFile);
-        
-        finalPdfUrl = await new Promise((resolve, reject) => {
-          uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-              setExamPdfUploadProgress(progress);
-            },
-            (error) => {
-              reject(error);
-            },
-            async () => {
-              const url = await getDownloadURL(uploadTask.snapshot.ref);
-              resolve(url);
-            }
-          );
-        });
+        const snapshot = await uploadBytes(fileRef, examPdfFile);
+        finalPdfUrl = await getDownloadURL(snapshot.ref);
       } catch (err) {
         console.error("PDF upload failed", err);
         alert("Failed to upload the PDF paper. Check permissions or file size.");
@@ -2574,11 +2558,9 @@ export default function AdminDashboard() {
                       </label>
                     )}
                     {examPdfUploading && (
-                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center backdrop-blur-sm z-10">
-                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF... {examPdfUploadProgress}%</span>
-                        <div className="w-1/2 bg-secondary rounded-full h-1.5">
-                          <div className="bg-primary h-1.5 rounded-full transition-all duration-300" style={{ width: `${examPdfUploadProgress}%` }}></div>
-                        </div>
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center backdrop-blur-sm z-10 text-center px-4">
+                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF... Please wait</span>
+                        <span className="text-xs text-muted-foreground animate-pulse">Large files may take a minute. Do not close this page.</span>
                       </div>
                     )}
                   </div>
