@@ -141,13 +141,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               safeStorage.local.setItem('localDeviceId', newId);
             }
 
-            // Only boot them out if they are NOT currently logging in and a mismatched device ID is strictly confirmed
-            if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && data.deviceId && localDeviceId && data.deviceId !== localDeviceId) {
-              console.log("Logged in from another device. Logging out.");
+            // If deviceId was cleared or replaced by admin, or accessed on another device, log them out
+            const isDeviceRevoked = data.deviceId === 'REVOKED' || data.deviceId === null || data.deviceId === '';
+            const isMismatched = data.deviceId && localDeviceId && data.deviceId !== localDeviceId;
+
+            if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && (isDeviceRevoked || isMismatched)) {
+              console.log("Logged out because session was revoked or accessed on another device.");
               await firebaseSignOut(auth);
               setUser(null);
               setLoading(false);
-              alert("You have been logged out because your account was accessed from another device.");
+              alert(isDeviceRevoked 
+                ? "You have been signed out from this device by the administrator." 
+                : "You have been logged out because your account was accessed from another device.");
               return;
             }
 
@@ -207,15 +212,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               if (!snap.exists()) return;
               const fresh = snap.data();
               
-              // Device Collision Check (students only)
+              // Device Collision & Admin Remote Sign-Out Check (students only)
               if (typeof window !== 'undefined') {
                 const localDeviceId = safeStorage.local.getItem('localDeviceId');
-                if (fresh.role !== 'admin' && fresh.role !== 'teacher' && fresh.deviceId && localDeviceId && fresh.deviceId !== localDeviceId) {
-                  console.log("Logged out because account was accessed on another device.");
+                const isRevoked = fresh.deviceId === 'REVOKED' || fresh.deviceId === null || fresh.deviceId === '';
+                const isMismatched = fresh.deviceId && localDeviceId && fresh.deviceId !== localDeviceId;
+
+                if (fresh.role !== 'admin' && fresh.role !== 'teacher' && (isRevoked || isMismatched)) {
+                  console.log("Logged out because session was revoked by admin or accessed on another device.");
                   firebaseSignOut(auth).catch(() => {});
                   setUser(null);
                   safeStorage.local.removeItem('cachedUserProfile');
-                  alert("You have been logged out because your account was accessed on another device.");
+                  alert(isRevoked 
+                    ? "You have been signed out from this device by the administrator." 
+                    : "You have been logged out because your account was accessed from another device.");
                   return;
                 }
               }

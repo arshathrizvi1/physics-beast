@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -233,6 +233,25 @@ export default function AdminDashboard() {
       setPendingStudents(prev => prev.filter(s => s.id !== studentId));
     } catch (err) {
       console.log("Failed to reject student", err);
+    }
+  };
+
+  const handleSignoutStudentDevice = async (studentId: string, studentName?: string) => {
+    if (!confirm(`Are you sure you want to force sign out ${studentName || 'this student'} from their currently logged-in device? They will be immediately disconnected.`)) {
+      return;
+    }
+    try {
+      // Invalidate device session in Firestore: Setting deviceId to REVOKED triggers immediate logout
+      await updateDoc(doc(db, 'users', studentId), {
+        deviceId: 'REVOKED',
+        lastForcedLogout: Date.now()
+      });
+      // Update local state if modal is open
+      setSelectedStudentInfo((prev: any) => prev && prev.id === studentId ? { ...prev, deviceId: 'REVOKED' } : prev);
+      alert(`Success: ${studentName || 'Student'} has been signed out from their logged-in device!`);
+    } catch (err) {
+      console.error("Failed to sign out student device:", err);
+      alert("Failed to sign out student device. Please try again.");
     }
   };
 
@@ -3459,6 +3478,44 @@ export default function AdminDashboard() {
                 ) : (
                   <p className="text-muted-foreground text-sm italic">No payment history found for this student.</p>
                 )}
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="font-bold text-lg mb-2 text-foreground flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-primary" /> Device Session Management
+                </h3>
+                <div className="p-4 rounded-xl border border-border/50 bg-secondary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      Active Device Status:
+                      {selectedStudentInfo.deviceId === 'REVOKED' ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-bold">
+                          Session Revoked (Signed Out)
+                        </span>
+                      ) : selectedStudentInfo.deviceId ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold">
+                          Device Active ({selectedStudentInfo.deviceId.substring(0, 8)}...)
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/40 text-muted-foreground">
+                          No Active Device
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Click the button below to immediately sign this student out from their currently logged-in device (phone, laptop, or tablet).
+                    </p>
+                  </div>
+
+                  <Button 
+                    variant="destructive"
+                    size="sm"
+                    className="shrink-0 font-bold flex items-center gap-1.5 shadow-sm"
+                    onClick={() => handleSignoutStudentDevice(selectedStudentInfo.id, selectedStudentInfo.name)}
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out From Device
+                  </Button>
+                </div>
               </div>
 
             </CardContent>
