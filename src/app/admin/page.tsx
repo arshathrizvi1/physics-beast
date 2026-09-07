@@ -629,6 +629,13 @@ export default function AdminDashboard() {
   const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [publishedExams, setPublishedExams] = useState<any[]>([]);
 
+  // Exam Filtering States
+  const [examSearchTerm, setExamSearchTerm] = useState("");
+  const [examFilterCourse, setExamFilterCourse] = useState("all");
+  const [examFilterFolder, setExamFilterFolder] = useState("all");
+  const [examFilterType, setExamFilterType] = useState("all");
+  const [examFilterDate, setExamFilterDate] = useState("all");
+
   // Team Management States
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [newTeamEmail, setNewTeamEmail] = useState("");
@@ -1190,6 +1197,22 @@ export default function AdminDashboard() {
   const todayStrGlobal = new Date(nowObj.getTime() - (nowObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
   const totalTodayStudyTimeAll = approvedStudents.reduce((sum, s) => sum + (s.lastStudyDate === todayStrGlobal ? (s.todayStudyTimeMins || 0) : 0), 0);
   const avgStudyTime = approvedStudents.length > 0 ? Math.round(totalTodayStudyTimeAll / approvedStudents.length) : 0;
+
+  const filteredExams = publishedExams.filter((exam) => {
+    if (examSearchTerm && !exam.title?.toLowerCase().includes(examSearchTerm.toLowerCase())) return false;
+    if (examFilterCourse !== "all" && exam.courseId !== examFilterCourse) return false;
+    if (examFilterFolder !== "all" && exam.folderId !== examFilterFolder) return false;
+    if (examFilterType !== "all" && exam.examType !== examFilterType) return false;
+    if (examFilterDate !== "all") {
+      const examDate = exam.createdAt || exam.updatedAt || 0;
+      const diff = Date.now() - examDate;
+      const oneDay = 24 * 60 * 60 * 1000;
+      if (examFilterDate === "today" && diff > oneDay) return false;
+      if (examFilterDate === "this_week" && diff > 7 * oneDay) return false;
+      if (examFilterDate === "this_month" && diff > 30 * oneDay) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
@@ -3807,11 +3830,61 @@ export default function AdminDashboard() {
               </Button>
             </div>
 
+            <div className="p-3 border-b border-border/50 bg-secondary/5 flex flex-wrap gap-2 items-center">
+              <Input
+                placeholder="Search exams by title..."
+                value={examSearchTerm}
+                onChange={(e) => setExamSearchTerm(e.target.value)}
+                className="w-full sm:w-auto flex-1 min-w-[200px] h-9 text-sm"
+              />
+              <select
+                className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
+                value={examFilterCourse}
+                onChange={(e) => setExamFilterCourse(e.target.value)}
+              >
+                <option value="all">All Courses</option>
+                {courses.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <select
+                className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
+                value={examFilterFolder}
+                onChange={(e) => setExamFilterFolder(e.target.value)}
+              >
+                <option value="all">All Folders</option>
+                {folders.filter(f => examFilterCourse === 'all' || f.courseId === examFilterCourse).map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+              <select
+                className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
+                value={examFilterType}
+                onChange={(e) => setExamFilterType(e.target.value)}
+              >
+                <option value="all">All Types</option>
+                <option value="mcq">MCQ</option>
+                <option value="essay">Essay</option>
+              </select>
+              <select
+                className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background"
+                value={examFilterDate}
+                onChange={(e) => setExamFilterDate(e.target.value)}
+              >
+                <option value="all">Any Date</option>
+                <option value="today">Past 24 Hours</option>
+                <option value="this_week">Past 7 Days</option>
+                <option value="this_month">Past 30 Days</option>
+              </select>
+            </div>
+
             <div className="p-4 overflow-y-auto space-y-3 flex-1">
               {publishedExams.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">No exams created yet.</div>
+              ) : filteredExams.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No exams match your current filters.</div>
               ) : (
-                publishedExams.map((exam) => {
+                filteredExams.map((exam) => {
                   const now = Date.now();
                   const hasStart = !!exam.startTime;
                   const hasEnd = !!exam.endTime;
@@ -3895,6 +3968,15 @@ export default function AdminDashboard() {
                           title={exam.hidden ? "Unhide Exam" : "Hide Exam"}
                         >
                           {exam.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="outline"
+                          className="w-8 h-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteExam(exam.id)}
+                          title="Delete Exam"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>

@@ -3,14 +3,15 @@
 import { useState, useEffect, use } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc } from "firebase/firestore";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft } from "lucide-react";
+import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2 } from "lucide-react";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { formatPdfViewerUrl } from "@/lib/cloudinary";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { formatPdfViewerUrl, uploadToCloudinary } from "@/lib/cloudinary";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
+import { calculateExamXp } from "@/lib/xp";
 
 export default function ExamResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -22,6 +23,16 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isExamActive, setIsExamActive] = useState(false);
+
+  // Doubt Messaging State
+  const [doubtText, setDoubtText] = useState("");
+  const [doubtImage, setDoubtImage] = useState<File | null>(null);
+  const [isDoubtSending, setIsDoubtSending] = useState(false);
+
+  // Admin Score Edit State
+  const [editingResultId, setEditingResultId] = useState<string | null>(null);
+  const [editScore, setEditScore] = useState<number>(0);
+  const [editRawScore, setEditRawScore] = useState<number>(0);
 
   useEffect(() => {
     if (!user) return;
@@ -74,11 +85,82 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
     fetchResults();
   }, [id, user]);
 
+  const handleSendDoubt = async () => {
+    if (!doubtText.trim() && !doubtImage) return;
+    if (!user) return;
+    setIsDoubtSending(true);
+    try {
+      let imgUrl = "";
+      if (doubtImage) {
+        imgUrl = await uploadToCloudinary(doubtImage);
+      }
+      await addDoc(collection(db, 'examMessages'), {
+        examId: id,
+        examTitle: exam.title,
+        userId: user.uid,
+        studentName: user.name || user.email?.split('@')[0] || "Student",
+        type: 'post_exam_doubt',
+        message: doubtText,
+        imageUrl: imgUrl,
+        timestamp: Date.now(),
+        status: 'unread'
+      });
+      alert("Your doubt has been submitted to the admin.");
+      setDoubtText("");
+      setDoubtImage(null);
+    } catch (err) {
+      console.error("Failed to submit doubt", err);
+      alert("Failed to submit doubt.");
+    }
+    setIsDoubtSending(false);
+  };
+
+  const handleSaveScore = async (resultId: string) => {
+    try {
+      const resDoc = await getDoc(doc(db, 'examResults', resultId));
+      if (!resDoc.exists()) return;
+      const resData = resDoc.data();
+
+      // Recalculate XP if score changed
+      const duration = resData.durationSeconds || 900;
+      const xpDetails = calculateExamXp({
+        correctAnswers: editRawScore,
+        totalQuestions: exam?.examType === 'essay' ? 100 : (exam.questions?.length || 1),
+        timeTakenSeconds: resData.timeTakenSeconds || 0,
+        durationSeconds: duration,
+      });
+
+      const finalScore = exam?.examType === 'essay' ? editScore : xpDetails.percentage;
+      const xpEarned = exam?.examType === 'essay' ? editScore : xpDetails.totalXp;
+      
+      await updateDoc(doc(db, 'examResults', resultId), {
+        score: finalScore,
+        rawScore: editRawScore,
+        grade: exam?.examType === 'essay' ? 'Graded' : xpDetails.grade,
+        status: 'done',
+        xpEarned: xpEarned
+      });
+
+      // Update local state
+      setAllResults(prev => prev.map(r => r.id === resultId ? { ...r, score: finalScore, rawScore: editRawScore, status: 'done', xpEarned: xpEarned } : r));
+      
+      if (resultId === myResult?.id) {
+        setMyResult((prev: any) => ({ ...prev, score: finalScore, rawScore: editRawScore, status: 'done', xpEarned: xpEarned }));
+      }
+
+      setEditingResultId(null);
+      alert("Score updated successfully.");
+    } catch (err) {
+      console.error("Failed to update score", err);
+      alert("Failed to update score.");
+    }
+  };
+
   if (loading) {
     return <div className="p-12 text-center text-muted-foreground animate-pulse">Loading Results Dashboard...</div>;
   }
 
-  if (errorMsg || !myResult) {
+  if (errorMsg || (!myResult && user?.role !== 'admin')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-6 text-center max-w-md mx-auto">
         <div className="w-20 h-20 bg-destructive/20 rounded-full flex items-center justify-center">
@@ -95,7 +177,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
 
   // Analytics Calculation
   const totalStudents = allResults.length;
-  const questionStats = exam.questions.map((q: any, index: number) => {
+  const questionStats = exam?.questions?.map((q: any, index: number) => {
     let correctCount = 0;
     allResults.forEach(res => {
       if (res.answers && res.answers[index] === q.correct) {
@@ -107,7 +189,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
       text: q.text,
       percentCorrect: totalStudents > 0 ? Math.round((correctCount / totalStudents) * 100) : 0
     };
-  });
+  }) || [];
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -358,7 +440,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                   </thead>
                   <tbody className="divide-y divide-border">
                     {allResults.map((res, idx) => (
-                      <tr key={res.id} className={`${res.id === myResult.id ? 'bg-primary/5 font-medium' : 'hover:bg-secondary/5'} transition-colors`}>
+                      <tr key={res.id} className={`${res.id === myResult?.id ? 'bg-primary/5 font-medium' : 'hover:bg-secondary/5'} transition-colors`}>
                         <td className="px-6 py-4">
                           {idx === 0 ? <Trophy className="w-5 h-5 text-yellow-500" /> : 
                            idx === 1 ? <Trophy className="w-5 h-5 text-gray-400" /> : 
@@ -366,9 +448,38 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                            <span className="text-muted-foreground font-mono pl-1">#{idx + 1}</span>}
                         </td>
                         <td className="px-6 py-4 flex items-center gap-2">
-                          {res.studentName} {res.id === myResult.id && <span className="bg-primary/20 text-primary text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ml-2">You</span>}
+                          {res.studentName} {res.id === myResult?.id && <span className="bg-primary/20 text-primary text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full ml-2">You</span>}
+                          {user?.role === 'admin' && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="w-6 h-6 ml-2" 
+                              onClick={() => {
+                                setEditingResultId(res.id);
+                                setEditRawScore(res.rawScore || 0);
+                                setEditScore(res.score || 0);
+                              }}
+                            >
+                              <Edit2 className="w-3 h-3 text-muted-foreground" />
+                            </Button>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-right font-bold">{res.rawScore} / {exam.questions.length}</td>
+                        <td className="px-6 py-4 text-right font-bold">
+                          {editingResultId === res.id ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <input 
+                                type="number" 
+                                className="w-16 p-1 border rounded text-sm text-right bg-background text-foreground"
+                                value={editRawScore} 
+                                onChange={e => setEditRawScore(Number(e.target.value))} 
+                              />
+                              <Button size="sm" onClick={() => handleSaveScore(res.id)}>Save</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setEditingResultId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            `${res.rawScore} / ${exam.questions?.length || 100}`
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-right text-muted-foreground flex items-center justify-end gap-1">
                           <Clock className="w-3 h-3"/> {formatTime(res.timeTakenSeconds)}
                         </td>
@@ -409,6 +520,49 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
 
       </Tabs>
       )}
+
+      {/* POST-EXAM DOUBT SECTION */}
+      {!isExamActive && (
+        <Card className="mt-8 border-secondary/50 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Send className="w-5 h-5"/> Ask a Doubt / Request Correction</CardTitle>
+            <CardDescription>If you found an error in the grading or have a doubt about a question, send a message to the teacher.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <textarea
+              className="w-full min-h-[100px] p-3 rounded-md border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="Explain your doubt here..."
+              value={doubtText}
+              onChange={(e) => setDoubtText(e.target.value)}
+            />
+            <div className="flex items-center gap-4">
+              <label className="cursor-pointer flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <ImageIcon className="w-5 h-5" />
+                <span>{doubtImage ? doubtImage.name : "Attach Image (Optional)"}</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setDoubtImage(e.target.files[0]);
+                    }
+                  }}
+                />
+              </label>
+              {doubtImage && (
+                <Button variant="ghost" size="sm" onClick={() => setDoubtImage(null)}>Remove Image</Button>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t pt-4">
+            <Button onClick={handleSendDoubt} disabled={isDoubtSending || (!doubtText.trim() && !doubtImage)}>
+              {isDoubtSending ? "Sending..." : "Send to Teacher"}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
     </div>
   );
 }

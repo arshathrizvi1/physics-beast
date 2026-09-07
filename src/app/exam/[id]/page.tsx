@@ -37,6 +37,9 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   const [exam, setExam] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [isMessageSending, setIsMessageSending] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -75,7 +78,17 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         const duration = examData.durationSeconds || 900;
         setExamData({ title: examData.title, durationSeconds: duration });
         setQuestions(examData.questions);
-        setTimeLeft(duration);
+        
+        const storageKey = `exam_start_${id}_${user.uid}`;
+        let startTimestamp = parseInt(localStorage.getItem(storageKey) || "0");
+        if (!startTimestamp) {
+          startTimestamp = Date.now();
+          localStorage.setItem(storageKey, startTimestamp.toString());
+        }
+        
+        const elapsedSeconds = Math.floor((Date.now() - startTimestamp) / 1000);
+        const remaining = Math.max(0, duration - elapsedSeconds);
+        setTimeLeft(remaining);
         setIsLoaded(true);
 
       } catch (err) {
@@ -93,24 +106,29 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (isSubmitted || !isLoaded) return;
 
+    const storageKey = `exam_start_${id}_${user?.uid}`;
+    const startTimestamp = parseInt(localStorage.getItem(storageKey) || "0");
+    const duration = examData.durationSeconds || 900;
+
     const timer = setInterval(() => {
       // Check if scheduled exam end time has arrived
       if (exam?.endTime && Date.now() >= exam.endTime) {
         clearInterval(timer);
         setTimeUp(true);
-        if (handleSubmitRef.current) handleSubmitRef.current();
+        if (handleSubmitRef.current) handleSubmitRef.current(true);
         return;
       }
+      
+      const elapsedSeconds = Math.floor((Date.now() - startTimestamp) / 1000);
+      const remaining = Math.max(0, duration - elapsedSeconds);
 
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setTimeUp(true);
-          if (handleSubmitRef.current) handleSubmitRef.current();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+        setTimeUp(true);
+        if (handleSubmitRef.current) handleSubmitRef.current(true);
+      }
     }, 1000);
 
     return () => clearInterval(timer);
@@ -118,18 +136,28 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
   // Anti-Cheat: Auto-submit on tab switch
   useEffect(() => {
-    if (!isLoaded || isSubmitted) return;
+    if (!isLoaded || isSubmitted || !user?.uid) return;
 
+    const strikesKey = `exam_strikes_${id}_${user.uid}`;
+    
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        alert("ANTI-CHEAT TRIGGERED: You left the exam tab. Your exam has been automatically submitted.");
-        if (handleSubmitRef.current) handleSubmitRef.current();
+        let strikes = parseInt(localStorage.getItem(strikesKey) || "0");
+        strikes += 1;
+        localStorage.setItem(strikesKey, strikes.toString());
+
+        if (strikes === 1) {
+          alert("WARNING: You left the exam page. Please upload your PDF now. If you leave again, your exam will be automatically submitted without your paper.");
+        } else if (strikes >= 2) {
+          alert("ANTI-CHEAT TRIGGERED: You left the exam tab multiple times. Your exam has been automatically submitted. Contact the admin if you want to request a redo.");
+          if (handleSubmitRef.current) handleSubmitRef.current(true);
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isLoaded, isSubmitted]);
+  }, [isLoaded, isSubmitted, id, user?.uid]);
 
   // Exam Heartbeat & Presence
   useEffect(() => {
@@ -185,7 +213,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     setAnswers(prev => ({ ...prev, [currentQuestion]: value }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (forceSubmit = false) => {
     handleSubmitRef.current = handleSubmit;
     if (isSubmitting || isSubmitted) return;
 
@@ -196,7 +224,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       return;
     }
 
-    if (exam?.examType === 'essay' && !essayPdfFile && !timeUp) {
+    if (exam?.examType === 'essay' && !essayPdfFile && !timeUp && !forceSubmit) {
       alert("Please upload your answer sheet (PDF) before submitting.");
       return;
     }
@@ -301,6 +329,30 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   
   handleSubmitRef.current = handleSubmit;
 
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !user) return;
+    setIsMessageSending(true);
+    try {
+      await addDoc(collection(db, 'examMessages'), {
+        examId: id,
+        examTitle: examData.title,
+        userId: user.uid,
+        studentName: user.name || user.email?.split('@')[0] || "Student",
+        type: 'exam_issue',
+        message: messageText,
+        timestamp: Date.now(),
+        status: 'unread'
+      });
+      alert("Message sent to admin successfully.");
+      setIsMessageDialogOpen(false);
+      setMessageText("");
+    } catch (err) {
+      console.error("Failed to send message", err);
+      alert("Failed to send message.");
+    }
+    setIsMessageSending(false);
+  };
+
   if (!isLoaded) return <div className="p-8 text-center text-muted-foreground">Loading Exam...</div>;
 
   if (isSubmitted) {
@@ -353,9 +405,37 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   const progressPercentage = (timeLeft / examData.durationSeconds) * 100;
   const isLowTime = timeLeft < 60;
 
+  const MessageDialog = () => (
+    isMessageDialogOpen ? (
+      <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-2xl border-primary/20">
+          <CardHeader>
+            <CardTitle>Contact Admin / Report Issue</CardTitle>
+            <p className="text-sm text-muted-foreground">Describe your issue below. Please note that the exam timer will continue running.</p>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              className="w-full min-h-[120px] p-3 rounded-md border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="e.g., I accidentally submitted my paper, please allow me to redo..."
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+            />
+          </CardContent>
+          <CardFooter className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setIsMessageDialogOpen(false)} disabled={isMessageSending}>Cancel</Button>
+            <Button onClick={handleSendMessage} disabled={isMessageSending || !messageText.trim()}>
+              {isMessageSending ? "Sending..." : "Send Message"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    ) : null
+  );
+
   if (exam?.examType === 'essay') {
     return (
       <div className="max-w-5xl mx-auto space-y-6">
+        <MessageDialog />
         <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div>
@@ -367,14 +447,19 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50">
+        <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50 gap-4">
           <div>
             <h2 className="text-xl font-bold">{examData.title}</h2>
             <p className="text-sm text-muted-foreground">Essay Exam - Answer on paper and upload a scanned PDF</p>
           </div>
-          <div className={`flex items-center gap-2 text-xl font-mono p-2 rounded-md ${isLowTime ? 'text-destructive bg-destructive/10 font-bold animate-pulse' : 'text-primary'}`}>
-            <Clock className="w-5 h-5" />
-            {formatTime(timeLeft)}
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => setIsMessageDialogOpen(true)}>
+              Contact Admin
+            </Button>
+            <div className={`flex items-center gap-2 text-xl font-mono p-2 rounded-md ${isLowTime ? 'text-destructive bg-destructive/10 font-bold animate-pulse' : 'text-primary'}`}>
+              <Clock className="w-5 h-5" />
+              {formatTime(timeLeft)}
+            </div>
           </div>
         </div>
         <Progress value={progressPercentage} className={`h-2 ${isLowTime ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'}`} />
@@ -462,6 +547,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <MessageDialog />
       <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
         <div>
@@ -472,14 +558,19 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-secondary/20 p-4 rounded-xl border border-secondary/50 gap-4">
         <div>
           <h2 className="text-xl font-bold">{examData.title}</h2>
           <p className="text-sm text-muted-foreground">Question {currentQuestion + 1} of {questions.length}</p>
         </div>
-        <div className={`flex items-center gap-2 text-xl font-mono p-2 rounded-md ${isLowTime ? 'text-destructive bg-destructive/10 font-bold animate-pulse' : 'text-primary'}`}>
-          <Clock className="w-5 h-5" />
-          {formatTime(timeLeft)}
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => setIsMessageDialogOpen(true)}>
+            Contact Admin
+          </Button>
+          <div className={`flex items-center gap-2 text-xl font-mono p-2 rounded-md ${isLowTime ? 'text-destructive bg-destructive/10 font-bold animate-pulse' : 'text-primary'}`}>
+            <Clock className="w-5 h-5" />
+            {formatTime(timeLeft)}
+          </div>
         </div>
       </div>
       <Progress value={progressPercentage} className={`h-2 ${isLowTime ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'}`} />
