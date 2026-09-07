@@ -338,6 +338,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
         examTitle: examData.title,
+        courseId: examData.courseId || "",
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'exam_issue',
