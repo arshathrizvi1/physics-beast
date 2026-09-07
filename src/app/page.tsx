@@ -520,12 +520,12 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link href="/login">
-                    <Button className="mt-4 bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-4">
+                  <Button asChild className="bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+                    <Link href="/login">
                       Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
+                    </Link>
+                  </Button>
                 </motion.div>
               </motion.div>
 

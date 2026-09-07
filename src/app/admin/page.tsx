@@ -35,6 +35,10 @@ export default function AdminDashboard() {
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [examMessages, setExamMessages] = useState<any[]>([]);
   
+  // Message Filters
+  const [msgFilterType, setMsgFilterType] = useState("All");
+  const [msgFilterCourse, setMsgFilterCourse] = useState("All");
+
   const [selectedStudentForAccess, setSelectedStudentForAccess] = useState<any>(null);
   const [studentFolderAccess, setStudentFolderAccess] = useState<Record<string, number>>({});
   const [payments, setPayments] = useState<any[]>([]);
@@ -1266,6 +1270,41 @@ export default function AdminDashboard() {
     return true;
   });
 
+  const filteredMessages = examMessages.filter((msg) => {
+    const isTeacher = user?.role === 'teacher';
+    
+    // 1. Role-based restrictions
+    const adminOnlyTypes = ['exam_exit', 'technical', 'approval', 'apprual', 'exam_issue'];
+    if (isTeacher && adminOnlyTypes.includes(msg.type)) {
+      return false;
+    }
+
+    // Determine course ID for the message
+    let msgCourseId = msg.courseId;
+    if (!msgCourseId && msg.examId) {
+      const exam = publishedExams.find(e => e.id === msg.examId);
+      if (exam) msgCourseId = exam.courseId;
+    }
+    if (!msgCourseId && msg.videoId) {
+      const video = videos.find(v => v.id === msg.videoId);
+      if (video) msgCourseId = video.courseId;
+    }
+
+    // 2. Teacher specific course filtering
+    if (isTeacher && msgCourseId) {
+      const course = courses.find(c => c.id === msgCourseId);
+      if (course && course.teacherId !== user.uid) {
+        return false;
+      }
+    }
+
+    // 3. UI Filters
+    if (msgFilterType !== "All" && msg.type !== msgFilterType) return false;
+    if (msgFilterCourse !== "All" && msgCourseId !== msgFilterCourse) return false;
+
+    return true;
+  });
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
       {dbError && (
@@ -1330,7 +1369,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="courses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Courses</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Video Uploads</TabsTrigger>
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
-          <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Messages {examMessages.filter((m: any) => m.status === 'unread').length > 0 && `(${examMessages.filter((m: any) => m.status === 'unread').length})`}</TabsTrigger>
+          <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Messages {filteredMessages.filter((m: any) => m.status === 'unread').length > 0 && `(${filteredMessages.filter((m: any) => m.status === 'unread').length})`}</TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👥 Team</TabsTrigger>
           )}
@@ -2848,14 +2887,45 @@ export default function AdminDashboard() {
               </CardTitle>
               <CardDescription>Review and resolve issues reported during exams or doubts asked post-exam.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-              {examMessages.length === 0 ? (
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap gap-2 mb-6 p-3 bg-secondary/5 border-b border-border/50 rounded-md">
+                <select
+                  className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background flex-1 sm:flex-none"
+                  value={msgFilterType}
+                  onChange={(e) => setMsgFilterType(e.target.value)}
+                >
+                  <option value="All">All Message Types</option>
+                  <option value="post_exam_doubt">Post-Exam Doubts</option>
+                  <option value="video_doubt">Video Doubts</option>
+                  {user?.role === 'admin' && (
+                    <>
+                      <option value="exam_issue">In-Exam Issues</option>
+                      <option value="exam_exit">Exam Exit Alerts</option>
+                      <option value="approval">Approval Requests</option>
+                      <option value="technical">Technical Problems</option>
+                    </>
+                  )}
+                </select>
+                
+                <select
+                  className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background flex-1 sm:flex-none"
+                  value={msgFilterCourse}
+                  onChange={(e) => setMsgFilterCourse(e.target.value)}
+                >
+                  <option value="All">All Courses</option>
+                  {courses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {filteredMessages.length === 0 ? (
                 <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
-                  No messages from students.
+                  {examMessages.length === 0 ? "No messages from students." : "No messages match your filters."}
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {examMessages.map(msg => (
+                  {filteredMessages.map(msg => (
                     <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
                       <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
                         <div className="space-y-2 flex-1">
