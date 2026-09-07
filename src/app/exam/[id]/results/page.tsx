@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2 } from "lucide-react";
+import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { formatPdfViewerUrl, uploadToCloudinary } from "@/lib/cloudinary";
@@ -28,6 +28,10 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   const [doubtText, setDoubtText] = useState("");
   const [doubtImage, setDoubtImage] = useState<File | null>(null);
   const [isDoubtSending, setIsDoubtSending] = useState(false);
+  
+  const [isExitMessageDialogOpen, setIsExitMessageDialogOpen] = useState(false);
+  const [exitMessageText, setExitMessageText] = useState("");
+  const [isExitMessageSending, setIsExitMessageSending] = useState(false);
 
   // Admin Score Edit State
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
@@ -84,6 +88,31 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
 
     fetchResults();
   }, [id, user]);
+
+  const handleSendExitMessage = async () => {
+    if (!exitMessageText.trim() || !user) return;
+    setIsExitMessageSending(true);
+    try {
+      await addDoc(collection(db, 'examMessages'), {
+        examId: id,
+        examTitle: exam?.title || "Unknown Exam",
+        userId: user.uid,
+        studentName: user.name || user.email?.split('@')[0] || "Student",
+        type: 'exam_exit',
+        message: exitMessageText,
+        timestamp: Date.now(),
+        status: 'unread'
+      });
+      alert("Message sent to admin successfully.");
+      setIsExitMessageDialogOpen(false);
+      setExitMessageText("");
+    } catch (err) {
+      console.error("Failed to send exit message", err);
+      alert("Failed to send message.");
+    } finally {
+      setIsExitMessageSending(false);
+    }
+  };
 
   const handleSendDoubt = async () => {
     if (!doubtText.trim() && !doubtImage) return;
@@ -247,6 +276,35 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
               <br /><br />
               Please check back later!
             </CardDescription>
+            <div className="mt-6 flex justify-center">
+              <Button variant="outline" className="border-destructive text-destructive hover:bg-destructive/10 gap-2" onClick={() => setIsExitMessageDialogOpen(true)}>
+                <MessageSquare className="w-4 h-4" /> Message Admin
+              </Button>
+            </div>
+            {isExitMessageDialogOpen && (
+              <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <Card className="w-full max-w-md shadow-2xl border-primary/20 text-left">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Message Admin</CardTitle>
+                    <CardDescription>If you accidentally exited or were disqualified, explain the issue to the admin to request a redo.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <textarea
+                      className="w-full min-h-[120px] p-3 rounded-md border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="e.g., I accidentally submitted my paper, please allow me to redo..."
+                      value={exitMessageText}
+                      onChange={(e) => setExitMessageText(e.target.value)}
+                    />
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-3">
+                    <Button variant="ghost" onClick={() => setIsExitMessageDialogOpen(false)} disabled={isExitMessageSending}>Cancel</Button>
+                    <Button onClick={handleSendExitMessage} disabled={isExitMessageSending || !exitMessageText.trim()}>
+                      {isExitMessageSending ? "Sending..." : "Send Message"}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            )}
           </CardHeader>
         </Card>
       ) : exam?.examType === 'essay' ? (
