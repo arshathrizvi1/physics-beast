@@ -225,10 +225,10 @@ export default function Home() {
         </div>
 
         {/* Hero Section */}
-        <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center gap-12">
-          <div className="flex-1 space-y-8">
+        <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-12">
+          <div className="flex-1 space-y-8 w-full">
             {/* 5. Heading Text Animation */}
-            <h1 className="text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1]">
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1] break-words">
               {headingText.map((word, i) => (
                 <motion.span
                   key={i}
@@ -344,7 +344,7 @@ export default function Home() {
               <motion.div 
                 animate={{ y: [-5, 5, -5] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-8 right-[-20px] bg-card border border-[#d4af37]/30 p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-4"
+                className="absolute bottom-4 right-2 md:bottom-8 md:-right-5 bg-card border border-[#d4af37]/30 p-3 md:p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 md:gap-4 scale-90 md:scale-100 origin-bottom-right"
               >
                 <div className="w-12 h-12 bg-[#d4af37]/20 rounded-full flex items-center justify-center">
                   <Award className="w-6 h-6 text-[#d4af37]" />

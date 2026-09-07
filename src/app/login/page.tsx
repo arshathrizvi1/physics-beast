@@ -252,37 +252,39 @@ export default function LoginPage() {
     return (
       <div className="max-w-5xl mx-auto space-y-8 px-4 md:px-6 pt-6">
         {/* Profile Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-secondary/10 p-6 rounded-2xl border border-secondary/30">
-          <div className="flex items-center gap-6">
-            <label className="relative group cursor-pointer">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-secondary/10 p-4 sm:p-6 rounded-2xl border border-secondary/30 text-center md:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
+            <label className="relative group cursor-pointer shrink-0">
               {user.photoUrl ? (
-                <img src={user.photoUrl} alt="Profile" className="w-24 h-24 rounded-full border-4 border-primary/50 object-cover" />
+                <img src={user.photoUrl} alt="Profile" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-primary/50 object-cover" />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-primary/20 border-4 border-primary/50 flex items-center justify-center text-3xl font-bold text-primary">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary/20 border-4 border-primary/50 flex items-center justify-center text-3xl font-bold text-primary">
                   {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
                 </div>
               )}
               <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-xs text-foreground font-bold">{isUploadingPfp ? "Uploading..." : "Change PFP"}</span>
+                <span className="text-[10px] sm:text-xs text-foreground font-bold">{isUploadingPfp ? "Uploading..." : "Change PFP"}</span>
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
             </label>
-              <div>
-                <div className="flex items-center gap-4 mb-2">
+              <div className="flex flex-col items-center sm:items-start max-w-full overflow-hidden">
+                <div className="flex items-center gap-2 sm:gap-4 mb-2 max-w-full">
                   {isEditingName ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
                       <Input 
                         value={editNameValue} 
                         onChange={(e) => setEditNameValue(e.target.value)}
-                        className="text-xl h-10 w-64 bg-background border-primary/50"
+                        className="text-lg sm:text-xl h-10 w-full max-w-[200px] sm:w-64 bg-background border-primary/50"
                         autoFocus
                       />
-                      <Button size="sm" onClick={handleSaveName} disabled={isSubmitting}>Save</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)}>Cancel</Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveName} disabled={isSubmitting}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)}>Cancel</Button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 group/name">
-                      <h1 className="text-3xl font-bold">{user.name || user.email.split('@')[0]}</h1>
+                    <div className="flex items-center gap-2 group/name max-w-full">
+                      <h1 className="text-2xl sm:text-3xl font-bold truncate">{user.name || user.email.split('@')[0]}</h1>
                       <button 
                         onClick={() => { 
                           const lastChange = user.lastNameChangeDate || 0;
@@ -294,7 +296,7 @@ export default function LoginPage() {
                           setEditNameValue(user.name || user.email.split('@')[0]); 
                           setIsEditingName(true); 
                         }}
-                        className="opacity-0 group-hover/name:opacity-100 transition-opacity p-2 hover:bg-secondary/20 rounded-full text-muted-foreground hover:text-primary"
+                        className="opacity-100 sm:opacity-0 group-hover/name:opacity-100 transition-opacity p-2 hover:bg-secondary/20 rounded-full text-muted-foreground hover:text-primary shrink-0"
                         title="Edit Display Name"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -303,10 +305,10 @@ export default function LoginPage() {
                   )}
                 </div>
                 {user.studentId && (
-                  <p className="text-primary font-mono bg-primary/10 inline-block px-2 py-0.5 rounded text-sm mb-2">{user.studentId}</p>
+                  <p className="text-primary font-mono bg-primary/10 inline-block px-2 py-0.5 rounded text-xs sm:text-sm mb-2">{user.studentId}</p>
                 )}
-                <p className="text-muted-foreground">Brilliant Academy Student {user.graduationYear ? `(Batch ${user.graduationYear})` : ''}</p>
-              <div className="flex items-center gap-2 mt-2 text-sm font-medium">
+                <p className="text-xs sm:text-sm text-muted-foreground">Brilliant Academy Student {user.graduationYear ? `(Batch ${user.graduationYear})` : ''}</p>
+              <div className="flex items-center gap-2 mt-2 text-xs sm:text-sm font-medium">
                 <Award className="w-4 h-4 text-primary" /> Level {stats.xpLevel}
               </div>
             </div>
