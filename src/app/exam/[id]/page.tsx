@@ -384,13 +384,18 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
                   <label className="cursor-pointer flex flex-col items-center w-full">
                     <Send className="w-8 h-8 text-primary mb-3" />
                     <span className="font-bold text-sm mb-1">Select Answer PDF</span>
-                    <span className="text-xs text-muted-foreground">No file size limit</span>
+                    <span className="text-xs text-muted-foreground">Max file size 10MB</span>
                     <input 
                       type="file" 
                       accept="application/pdf" 
                       className="hidden" 
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
+                          if (e.target.files[0].size > 10 * 1024 * 1024) {
+                            alert("File size exceeds 10MB limit. Please compress your PDF before uploading.");
+                            e.target.value = '';
+                            return;
+                          }
                           setEssayPdfFile(e.target.files[0]);
                         }
                       }} 

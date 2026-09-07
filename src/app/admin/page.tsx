@@ -2534,7 +2534,14 @@ export default function AdminDashboard() {
                           <label className="text-xs bg-secondary/20 text-foreground px-3 py-1.5 rounded-md hover:bg-secondary/40 cursor-pointer">
                             Replace PDF
                             <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) setExamPdfFile(e.target.files[0]);
+                              if (e.target.files && e.target.files[0]) {
+                                if (e.target.files[0].size > 5 * 1024 * 1024) {
+                                  alert("File size exceeds 5MB limit. Please upload a smaller PDF.");
+                                  e.target.value = '';
+                                  return;
+                                }
+                                setExamPdfFile(e.target.files[0]);
+                              }
                             }} />
                           </label>
                         </div>
@@ -2551,9 +2558,16 @@ export default function AdminDashboard() {
                       <label className="flex flex-col items-center cursor-pointer text-muted-foreground hover:text-primary transition-colors">
                         <Upload className="w-10 h-10 mb-3" />
                         <span className="text-sm font-medium mb-1">Upload Essay Question Paper (PDF)</span>
-                        <span className="text-xs opacity-70">No file size limit</span>
+                        <span className="text-xs opacity-70">Max size 5MB</span>
                         <input type="file" accept="application/pdf" className="hidden" onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) setExamPdfFile(e.target.files[0]);
+                          if (e.target.files && e.target.files[0]) {
+                            if (e.target.files[0].size > 5 * 1024 * 1024) {
+                              alert("File size exceeds 5MB limit. Please upload a smaller PDF.");
+                              e.target.value = '';
+                              return;
+                            }
+                            setExamPdfFile(e.target.files[0]);
+                          }
                         }} />
                       </label>
                     )}
