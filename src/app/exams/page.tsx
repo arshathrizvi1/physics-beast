@@ -137,15 +137,9 @@ export default function ExamsPage() {
               </CardContent>
               <CardFooter>
                 {isCompleted ? (
-                  isEnded || !hasEnd ? (
-                    <Link href={`/exam/${exam.id}/results`} className={buttonVariants({ variant: "outline", className: "w-full border-primary/50 text-primary" })}>
-                      View Results
-                    </Link>
-                  ) : (
-                    <Button disabled variant="outline" className="w-full">
-                      Results pending (Exam still active)
-                    </Button>
-                  )
+                  <Link href={`/exam/${exam.id}/results`} className={buttonVariants({ variant: "outline", className: "w-full border-primary/50 text-primary" })}>
+                    View Results
+                  </Link>
                 ) : isActive ? (
                   <Link href={`/exam/${exam.id}`} className={buttonVariants({ className: "w-full" })}>
                     Start Exam

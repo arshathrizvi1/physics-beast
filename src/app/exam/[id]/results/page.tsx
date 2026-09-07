@@ -19,6 +19,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   const [allResults, setAllResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isExamActive, setIsExamActive] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -34,12 +35,8 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
 
         const examData = examDoc.data();
         setExam(examData);
-
-        if (examData.endTime && Date.now() < examData.endTime) {
-          setErrorMsg("Results are locked until the exam window ends.");
-          setLoading(false);
-          return;
-        }
+        
+        setIsExamActive(examData.endTime ? Date.now() < examData.endTime : false);
 
         // Fetch all results for leaderboard and analytics
         const qAll = query(collection(db, 'examResults'), where('examId', '==', id));
@@ -147,7 +144,21 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         </Card>
       </div>
 
-      <Tabs defaultValue="answers" className="w-full">
+      {isExamActive ? (
+        <Card className="mt-8 border-destructive/20 bg-destructive/5">
+          <CardHeader className="text-center py-12">
+            <CardTitle className="text-destructive flex justify-center items-center gap-2 text-2xl mb-2">
+              <Clock className="w-6 h-6" /> Exam Still in Progress
+            </CardTitle>
+            <CardDescription className="text-base max-w-2xl mx-auto">
+              The question paper, correct answers, leaderboard, and analytics will be available here once the exam time window has officially closed for all students.
+              <br /><br />
+              Please check back later!
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <Tabs defaultValue="answers" className="w-full mt-8">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="answers">My Answers</TabsTrigger>
           <TabsTrigger value="leaderboard">Exam Leaderboard</TabsTrigger>
@@ -277,6 +288,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         </TabsContent>
 
       </Tabs>
+      )}
     </div>
   );
 }
