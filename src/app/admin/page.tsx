@@ -25,7 +25,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.replace('#', '');
-      if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'team', 'site', 'myprofile'].includes(hash)) {
+      if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'messages', 'team', 'site', 'myprofile'].includes(hash)) {
         setActiveTab(hash);
       }
     }
@@ -33,6 +33,7 @@ export default function AdminDashboard() {
   const [activeUsers, setActiveUsers] = useState(0);
   const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [examMessages, setExamMessages] = useState<any[]>([]);
   
   const [selectedStudentForAccess, setSelectedStudentForAccess] = useState<any>(null);
   const [studentFolderAccess, setStudentFolderAccess] = useState<Record<string, number>>({});
@@ -136,6 +137,16 @@ export default function AdminDashboard() {
       setDbError(true);
     });
 
+    // Real-time listener for Exam Messages
+    const qMessages = query(collection(db, 'examMessages'), orderBy('timestamp', 'desc'));
+    const unsubMessages = onSnapshot(qMessages, (snapshot) => {
+      const messages: any[] = [];
+      snapshot.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
+      setExamMessages(messages);
+    }, (error) => {
+      console.log("Failed to fetch messages", error);
+    });
+
     // Real-time listeners for Folder Manager
     const unsubBatches = onSnapshot(collection(db, 'batches'), (snapshot) => {
       setBatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -171,6 +182,7 @@ export default function AdminDashboard() {
 
     return () => {
       unsubStudents();
+      unsubMessages();
       unsubBatches();
       unsubCourses();
       unsubFolders();
@@ -248,17 +260,40 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      // Invalidate device session in Firestore: Setting deviceId to REVOKED triggers immediate logout
       await updateDoc(doc(db, 'users', studentId), {
         deviceId: 'REVOKED',
         lastForcedLogout: Date.now()
       });
-      // Update local state if modal is open
       setSelectedStudentInfo((prev: any) => prev && prev.id === studentId ? { ...prev, deviceId: 'REVOKED' } : prev);
       alert(`Success: ${studentName || 'Student'} has been signed out from their logged-in device!`);
     } catch (err) {
       console.error("Failed to sign out student device:", err);
       alert("Failed to sign out student device. Please try again.");
+    }
+  };
+
+  const handleAllowRedo = async (examId: string, studentId: string) => {
+    if (!confirm("Are you sure you want to allow this student to redo the exam? This will completely delete their current exam submission from the database.")) return;
+    try {
+      const qResult = query(collection(db, 'examResults'), where('userId', '==', studentId), where('examId', '==', examId));
+      const snap = await getDocs(qResult);
+      const batch = writeBatch(db);
+      snap.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+      alert("Exam result deleted. The student can now retake the exam.");
+    } catch (err) {
+      console.error("Failed to allow redo", err);
+      alert("Failed to allow redo.");
+    }
+  };
+
+  const handleResolveMessage = async (messageId: string) => {
+    try {
+      await updateDoc(doc(db, 'examMessages', messageId), { status: 'read' });
+    } catch (err) {
+      console.error("Failed to resolve message", err);
     }
   };
 
@@ -1199,7 +1234,6 @@ export default function AdminDashboard() {
   const avgStudyTime = approvedStudents.length > 0 ? Math.round(totalTodayStudyTimeAll / approvedStudents.length) : 0;
 
   const filteredExams = publishedExams.filter((exam) => {
-    if (examSearchTerm && !exam.title?.toLowerCase().includes(examSearchTerm.toLowerCase())) return false;
     if (examFilterCourse !== "all" && exam.courseId !== examFilterCourse) return false;
     if (examFilterFolder !== "all" && exam.folderId !== examFilterFolder) return false;
     if (examFilterType !== "all" && exam.examType !== examFilterType) return false;
@@ -1211,6 +1245,24 @@ export default function AdminDashboard() {
       if (examFilterDate === "this_week" && diff > 7 * oneDay) return false;
       if (examFilterDate === "this_month" && diff > 30 * oneDay) return false;
     }
+
+    if (examSearchTerm) {
+      const term = examSearchTerm.toLowerCase();
+      const courseName = courses.find(c => c.id === exam.courseId)?.name || "";
+      const folderName = folders.find(f => f.id === exam.folderId)?.name || "";
+      const category = exam.category || "";
+      const type = exam.examType || "";
+      
+      let dateString = "";
+      if (exam.startTime) dateString += new Date(exam.startTime).toLocaleDateString() + " ";
+      if (exam.endTime) dateString += new Date(exam.endTime).toLocaleDateString() + " ";
+
+      const searchableText = `${exam.title || ""} ${category} ${type} ${courseName} ${folderName} ${dateString}`.toLowerCase();
+      if (!searchableText.includes(term)) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -1278,6 +1330,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="courses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Courses</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Video Uploads</TabsTrigger>
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
+          <TabsTrigger value="messages" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Messages {examMessages.filter((m: any) => m.status === 'unread').length > 0 && `(${examMessages.filter((m: any) => m.status === 'unread').length})`}</TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="team" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👥 Team</TabsTrigger>
           )}
@@ -2786,6 +2839,72 @@ export default function AdminDashboard() {
 
         </TabsContent>
 
+        {/* MESSAGES TAB */}
+        <TabsContent value="messages" className="space-y-6">
+          <Card className="border-secondary/50 shadow-md">
+            <CardHeader className="bg-primary/5 border-b border-primary/20">
+              <CardTitle className="text-xl text-primary flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" /> Student Messages & Doubts
+              </CardTitle>
+              <CardDescription>Review and resolve issues reported during exams or doubts asked post-exam.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {examMessages.length === 0 ? (
+                <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
+                  No messages from students.
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {examMessages.map(msg => (
+                    <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
+                      <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
+                        <div className="space-y-2 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg">{msg.studentName}</span>
+                            <span className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString()}</span>
+                            {msg.status === 'unread' && <span className="bg-primary text-primary-foreground text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>}
+                          </div>
+                          <div>
+                            <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
+                            <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
+                          </div>
+                          <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
+                            {msg.message || "No text provided."}
+                          </div>
+                          {msg.imageUrl && (
+                            <div className="mt-2">
+                              <a href={msg.imageUrl} target="_blank" rel="noreferrer" className="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+                                <ExternalLink className="w-4 h-4" /> View Attached Image
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2 min-w-[140px]">
+                          <Button size="sm" variant="outline" className="w-full" asChild>
+                            <Link href={`/exam/${msg.examId}/results`}>Review Paper</Link>
+                          </Button>
+                          <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
+                            Allow Redo
+                          </Button>
+                          {msg.status === 'unread' ? (
+                            <Button size="sm" className="w-full" onClick={() => handleResolveMessage(msg.id)}>
+                              Mark Resolved
+                            </Button>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-medium py-1">
+                              <CheckCircle2 className="w-4 h-4" /> Resolved
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* TEAM MANAGEMENT TAB */}
         <TabsContent value="team" className="space-y-6">
           <Card className="border-primary/50 shadow-md">
@@ -3832,7 +3951,7 @@ export default function AdminDashboard() {
 
             <div className="p-3 border-b border-border/50 bg-secondary/5 flex flex-wrap gap-2 items-center">
               <Input
-                placeholder="Search exams by title..."
+                placeholder="Search by title, course, folder, or date..."
                 value={examSearchTerm}
                 onChange={(e) => setExamSearchTerm(e.target.value)}
                 className="w-full sm:w-auto flex-1 min-w-[200px] h-9 text-sm"

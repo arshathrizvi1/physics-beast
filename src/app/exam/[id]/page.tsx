@@ -323,6 +323,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       }
     }
 
+    localStorage.removeItem(`exam_start_${id}_${user.uid}`);
+    localStorage.removeItem(`exam_strikes_${id}_${user.uid}`);
     setIsSubmitting(false);
     setIsSubmitted(true);
   };
