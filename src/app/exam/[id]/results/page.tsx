@@ -236,34 +236,36 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         <p className="text-muted-foreground mt-2">View the leaderboard, your answers, and class performance analytics.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-6 text-center space-y-2">
-            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
-            {exam?.examType === 'essay' && (!exam.gradesPublished || myResult.status === 'pending_grading') ? (
-              <div className="text-4xl font-black text-primary pt-2">Pending</div>
-            ) : (
-              <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="bg-secondary/10 border-border">
-          <CardContent className="p-6 text-center space-y-2">
-            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Time</div>
-            <div className="text-5xl font-black text-foreground">{formatTime(myResult.timeTakenSeconds)}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-secondary/10 border-border">
-          <CardContent className="p-6 text-center space-y-2">
-            <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Rank</div>
-            { (exam?.examType === 'essay' && !exam.gradesPublished) || isExamActive ? (
-              <div className="text-4xl font-black text-primary pt-2">Pending</div>
-            ) : (
-              <div className="text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {myResult && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-6 text-center space-y-2">
+              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Score</div>
+              {exam?.examType === 'essay' && (!exam.gradesPublished || myResult.status === 'pending_grading') ? (
+                <div className="text-4xl font-black text-primary pt-2">Pending</div>
+              ) : (
+                <div className="text-5xl font-black text-primary">{myResult.rawScore} <span className="text-2xl text-muted-foreground font-normal">/ {exam.questions?.length || 100}</span></div>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="bg-secondary/10 border-border">
+            <CardContent className="p-6 text-center space-y-2">
+              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Time</div>
+              <div className="text-5xl font-black text-foreground">{formatTime(myResult.timeTakenSeconds)}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-secondary/10 border-border">
+            <CardContent className="p-6 text-center space-y-2">
+              <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">Your Rank</div>
+              { (exam?.examType === 'essay' && !exam.gradesPublished) || isExamActive ? (
+                <div className="text-4xl font-black text-primary pt-2">Pending</div>
+              ) : (
+                <div className="text-5xl font-black text-foreground">#{allResults.findIndex(r => r.id === myResult.id) + 1}</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {isExamActive ? (
         <Card className="mt-8 border-destructive/20 bg-destructive/5">
@@ -308,29 +310,32 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           </CardHeader>
         </Card>
       ) : exam?.examType === 'essay' ? (
-        <Tabs defaultValue={myResult.status === 'graded' ? 'corrected' : 'answers'} className="w-full mt-8">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="answers">My Submitted Answer</TabsTrigger>
-            <TabsTrigger value="corrected">Teacher's Corrected Paper</TabsTrigger>
+        <Tabs defaultValue={myResult ? (myResult.status === 'graded' ? 'corrected' : 'answers') : 'question'} className="w-full mt-8">
+          <TabsList className={`grid w-full ${myResult ? 'grid-cols-3' : 'grid-cols-1'}`}>
+            {myResult && <TabsTrigger value="answers">My Submitted Answer</TabsTrigger>}
+            {myResult && <TabsTrigger value="corrected">Teacher's Corrected Paper</TabsTrigger>}
             <TabsTrigger value="question">Question Paper</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="answers" className="mt-6">
-            <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
-              <CardContent className="p-0 flex-1 min-h-[650px] relative">
-                <PdfViewer 
-                  url={myResult.answerPdfUrl} 
-                  title="Your Submitted Answer Sheet" 
-                  height="650px" 
-                  allowDownload={true}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {myResult && (
+            <TabsContent value="answers" className="mt-6">
+              <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
+                <CardContent className="p-0 flex-1 min-h-[650px] relative">
+                  <PdfViewer 
+                    url={myResult.answerPdfUrl} 
+                    title="Your Submitted Answer Sheet" 
+                    height="650px" 
+                    allowDownload={true}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
-          <TabsContent value="corrected" className="mt-6">
-            {exam.gradesPublished ? (
-              myResult.status === 'graded' ? (
+          {myResult && (
+            <TabsContent value="corrected" className="mt-6">
+              {exam.gradesPublished ? (
+                myResult.status === 'graded' ? (
                 <div className="space-y-6">
                   <Card className="border-primary/30 bg-primary/5">
                     <CardHeader>
@@ -402,6 +407,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
               </Card>
             )}
           </TabsContent>
+          )}
 
 
           <TabsContent value="question" className="mt-6">
@@ -418,16 +424,17 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           </TabsContent>
         </Tabs>
       ) : (
-        <Tabs defaultValue="answers" className="w-full mt-8">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="answers">My Answers</TabsTrigger>
+        <Tabs defaultValue={myResult ? "answers" : "leaderboard"} className="w-full mt-8">
+        <TabsList className={`grid w-full ${myResult ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {myResult && <TabsTrigger value="answers">My Answers</TabsTrigger>}
           <TabsTrigger value="leaderboard">Exam Leaderboard</TabsTrigger>
           <TabsTrigger value="analytics">Class Analytics</TabsTrigger>
         </TabsList>
         
         {/* MY ANSWERS TAB */}
+        {myResult && (
         <TabsContent value="answers" className="mt-6 space-y-6">
-          {exam.questions.map((q: any, idx: number) => {
+          {exam.questions?.map((q: any, idx: number) => {
             const myAnswer = myResult.answers?.[idx];
             const isCorrect = Array.isArray(q.correct) ? q.correct.includes(myAnswer) : myAnswer === q.correct;
             
@@ -477,6 +484,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
             );
           })}
         </TabsContent>
+        )}
 
         {/* LEADERBOARD TAB */}
         <TabsContent value="leaderboard" className="mt-6">

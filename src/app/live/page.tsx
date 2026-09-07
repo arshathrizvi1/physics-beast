@@ -148,15 +148,15 @@ export default function StudentLivePortal() {
     const liveActiveClasses = liveClasses.filter(cls => cls.status === 'live');
     if (liveActiveClasses.length === 0) return;
 
-    const { calculateXpLevel } = require('@/lib/xp');
+    const { calculateXpLevel, XP_PER_STUDY_MINUTE } = require('@/lib/xp');
 
     const studyHeartbeat = setInterval(() => {
       const nowStr = new Date().toISOString().split('T')[0];
-      const newXp = (user.totalXp || 0) + 10;
+      const newXp = (user.totalXp || 0) + XP_PER_STUDY_MINUTE;
       updateDoc(doc(db, 'users', user.uid), {
         totalStudyTimeMins: increment(1),
         [`studyHistory.${nowStr}`]: increment(1),
-        totalXp: increment(10),
+        totalXp: increment(XP_PER_STUDY_MINUTE),
         xpLevel: calculateXpLevel(newXp),
         lastStudyPing: Date.now(),
         lastStudyDate: nowStr

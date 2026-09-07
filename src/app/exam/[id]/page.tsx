@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult } from "@/lib/xp";
+import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
 
@@ -166,7 +166,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
     const heartbeat = setInterval(() => {
       const userRef = doc(db, 'users', user.uid);
-      const newXp = (user.totalXp || 0) + 10;
+      const newXp = (user.totalXp || 0) + XP_PER_STUDY_MINUTE;
       const nowStr = new Date().toISOString().split('T')[0];
       
       const isSameDay = lastStudyDateRef.current === nowStr;

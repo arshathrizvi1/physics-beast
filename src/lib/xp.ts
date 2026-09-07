@@ -9,8 +9,9 @@
  * 5. Exam Time as Study Time: Time taken during exams also counts toward study time
  */
 
-export const XP_PER_STUDY_MINUTE = 10;
+export const XP_PER_STUDY_MINUTE = 1; // 60 XP per hour
 export const XP_PER_LEVEL = 500;
+export const XP_PER_EXAM_MARK = 5;
 
 export interface ExamXpParams {
   correctAnswers: number;
@@ -42,21 +43,21 @@ export function calculateExamXp({
   const safeTotal = Math.max(1, totalQuestions);
   const percentage = Math.round((correctAnswers / safeTotal) * 100);
 
-  // 1. Marks XP: 50 XP per correct question
-  const marksXp = correctAnswers * 50;
+  // 1. Marks XP: 5 XP per correct question
+  const marksXp = correctAnswers * XP_PER_EXAM_MARK;
 
-  // 2. Score Percentage Bonus (up to 150 XP for perfect/high scores)
-  const scoreBonusXp = Math.round((percentage / 100) * 150);
+  // 2. Score Percentage Bonus (up to 15 XP for perfect/high scores)
+  const scoreBonusXp = Math.round((percentage / 100) * 15);
 
   // 3. Time Efficiency Bonus: Reward students who answer quickly and accurately
-  // Earn 10 XP per full minute saved, capped at 100 XP bonus
+  // Earn 1 XP per full minute saved, capped at 10 XP bonus
   const timeSavedSeconds = Math.max(0, durationSeconds - timeTakenSeconds);
   const minutesSaved = Math.floor(timeSavedSeconds / 60);
   // Only grant time bonus if they passed (score >= 40%)
-  const timeBonusXp = percentage >= 40 ? Math.min(100, minutesSaved * 10) : 0;
+  const timeBonusXp = percentage >= 40 ? Math.min(10, minutesSaved * 1) : 0;
 
   // 4. Base completion bonus
-  const completionXp = 100;
+  const completionXp = 10;
 
   // Total XP
   const totalXp = marksXp + scoreBonusXp + timeBonusXp + completionXp;

@@ -12,7 +12,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, increment, onSnapshot, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
-import { calculateXpLevel } from "@/lib/xp";
+import { calculateXpLevel, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import dynamic from 'next/dynamic';
@@ -207,7 +207,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       
       if (playingRef.current || currentVideo.type === 'resource') {
         const userRef = doc(db, 'users', user.uid);
-        const newXp = (user.totalXp || 0) + 10;
+        const newXp = (user.totalXp || 0) + XP_PER_STUDY_MINUTE;
         const nowStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
         const isSameDay = lastStudyDateRef.current === nowStr;
@@ -219,7 +219,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           totalStudyTimeMins: increment(1),
           todayStudyTimeMins: isSameDay ? increment(1) : 1,
           [`studyHistory.${nowStr}`]: increment(1),
-          totalXp: increment(10),
+          totalXp: increment(XP_PER_STUDY_MINUTE),
           xpLevel: calculateXpLevel(newXp),
           lastStudyPing: Date.now(),
           lastStudyDate: nowStr
