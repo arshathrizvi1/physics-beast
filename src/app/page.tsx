@@ -521,10 +521,8 @@ export default function Home() {
                   ))}
                 </ul>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-4">
-                  <Button asChild className="bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
-                    <Link href="/login">
-                      Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
-                    </Link>
+                  <Button render={<Link href="/login" />} className="bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+                    Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </motion.div>
               </motion.div>

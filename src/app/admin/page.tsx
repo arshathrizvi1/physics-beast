@@ -2950,8 +2950,8 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <div className="flex flex-col gap-2 min-w-[140px]">
-                          <Button size="sm" variant="outline" className="w-full" asChild>
-                            <Link href={`/exam/${msg.examId}/results`}>Review Paper</Link>
+                          <Button size="sm" variant="outline" className="w-full" render={<Link href={`/exam/${msg.examId}/results`} />}>
+                            Review Paper
                           </Button>
                           <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
                             Allow Redo
