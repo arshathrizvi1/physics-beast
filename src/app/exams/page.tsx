@@ -76,7 +76,7 @@ export default function ExamsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Available Exams</h1>
-        <p className="text-muted-foreground mt-2">Test your knowledge with these interactive MCQ exams.</p>
+        <p className="text-muted-foreground mt-2">Test your knowledge with these interactive MCQ and Essay exams.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -124,7 +124,12 @@ export default function ExamsPage() {
               </CardHeader>
               <CardContent className="flex-1 space-y-4">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{Array.isArray(exam.questions) ? exam.questions.length : exam.questions} Questions</span>
+                  <span className="font-medium text-foreground">
+                    {exam.examType === 'essay' 
+                      ? '📝 Essay Exam (PDF)' 
+                      : `✅ ${Array.isArray(exam.questions) ? exam.questions.length : exam.questions} Questions`
+                    }
+                  </span>
                   <span>{exam.duration}</span>
                 </div>
                 

@@ -2123,6 +2123,7 @@ export default function AdminDashboard() {
                 onClick={() => {
                   setEditingExamId(null);
                   setExamTitle("");
+                  setExamType("mcq");
                   setExamTime("");
                   setExamStartTime("");
                   setExamEndTime("");
@@ -2171,6 +2172,9 @@ export default function AdminDashboard() {
                               <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                 <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                                   {exam.category || 'General'}
+                                </span>
+                                <span className="text-[10px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                  {exam.examType === 'essay' ? '📝 Essay' : '✅ MCQ'}
                                 </span>
                                 
                                 {/* Timing Status Badge */}
@@ -2235,7 +2239,12 @@ export default function AdminDashboard() {
 
                           <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t border-border/40">
                             <div className="flex justify-between">
-                              <span>Questions: <strong>{Array.isArray(exam.questions) ? exam.questions.length : exam.questions}</strong></span>
+                              <span>
+                                {exam.examType === 'essay' 
+                                  ? <strong>PDF Upload Required</strong> 
+                                  : <>Questions: <strong>{Array.isArray(exam.questions) ? exam.questions.length : exam.questions}</strong></>
+                                }
+                              </span>
                               <span>Duration: <strong>{exam.duration || '15 min'}</strong></span>
                             </div>
                             {hasStart && (
