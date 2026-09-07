@@ -23,12 +23,21 @@ export async function uploadToCloudinary(file: File): Promise<string> {
 
 export function formatPdfViewerUrl(url: string): string {
   if (!url) return "";
+  const trimmed = url.trim();
+
   // If it's a Google Drive link, convert to embedded preview format
-  if (url.includes("drive.google.com")) {
-    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+  if (trimmed.includes("drive.google.com")) {
+    const fileIdMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
     if (fileIdMatch && fileIdMatch[1]) {
       return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
     }
   }
-  return `${url}#toolbar=0`;
+
+  // If it's an external PDF URL (like Cloudinary or standard web link),
+  // use Google Docs Viewer to avoid browser blocking and X-Frame-Options headers
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(trimmed)}&embedded=true`;
+  }
+
+  return `${trimmed}#toolbar=0`;
 }

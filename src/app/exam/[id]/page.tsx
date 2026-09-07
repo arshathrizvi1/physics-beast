@@ -349,16 +349,33 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         <Progress value={progressPercentage} className={`h-2 ${isLowTime ? '[&>div]:bg-destructive' : '[&>div]:bg-primary'}`} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 border-secondary/50 shadow-md">
-            <CardHeader className="py-4">
+          <Card className="lg:col-span-2 border-secondary/50 shadow-md flex flex-col">
+            <CardHeader className="py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Question Paper</CardTitle>
+              {exam.questionPdfUrl && (
+                <a 
+                  href={exam.questionPdfUrl} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Open in New Tab ↗
+                </a>
+              )}
             </CardHeader>
-            <CardContent className="p-0">
-              <iframe 
-                src={formatPdfViewerUrl(exam.questionPdfUrl)} 
-                className="w-full h-[600px] border-0" 
-                title="Question Paper"
-              />
+            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
+              {exam.questionPdfUrl ? (
+                <iframe 
+                  src={formatPdfViewerUrl(exam.questionPdfUrl)} 
+                  className="w-full h-[650px] border-0 rounded-b-xl" 
+                  title="Question Paper"
+                  allow="autoplay"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
+                  <p>No question paper attached to this exam.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

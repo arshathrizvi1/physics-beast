@@ -164,28 +164,56 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         </Card>
       ) : exam?.examType === 'essay' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <Card className="border-secondary/50 shadow-md">
-            <CardHeader className="py-4">
+          <Card className="border-secondary/50 shadow-md flex flex-col">
+            <CardHeader className="py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Question Paper</CardTitle>
+              {exam.questionPdfUrl && (
+                <a 
+                  href={exam.questionPdfUrl} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Open in New Tab ↗
+                </a>
+              )}
             </CardHeader>
-            <CardContent className="p-0">
-              <iframe 
-                src={formatPdfViewerUrl(exam.questionPdfUrl)} 
-                className="w-full h-[600px] border-0 rounded-b-xl" 
-                title="Question Paper"
-              />
+            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
+              {exam.questionPdfUrl ? (
+                <iframe 
+                  src={formatPdfViewerUrl(exam.questionPdfUrl)} 
+                  className="w-full h-[650px] border-0 rounded-b-xl" 
+                  title="Question Paper"
+                  allow="autoplay"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
+                  <p>No question paper attached.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
-          <Card className="border-secondary/50 shadow-md">
-            <CardHeader className="py-4">
+          <Card className="border-secondary/50 shadow-md flex flex-col">
+            <CardHeader className="py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Your Submitted Answer</CardTitle>
+              {myResult.answerPdfUrl && (
+                <a 
+                  href={myResult.answerPdfUrl} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Open in New Tab ↗
+                </a>
+              )}
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 flex-1 min-h-[600px] bg-secondary/10 relative">
               {myResult.answerPdfUrl ? (
                 <iframe 
                   src={formatPdfViewerUrl(myResult.answerPdfUrl)} 
-                  className="w-full h-[600px] border-0 rounded-b-xl" 
+                  className="w-full h-[650px] border-0 rounded-b-xl" 
                   title="Answer Sheet"
+                  allow="autoplay"
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-[600px] text-muted-foreground bg-secondary/5">
