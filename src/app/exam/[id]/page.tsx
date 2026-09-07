@@ -13,6 +13,7 @@ import { db, storage } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult } from "@/lib/xp";
+import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
 
 export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -188,12 +189,10 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     let answerPdfUrl = "";
     if (exam?.examType === 'essay' && essayPdfFile) {
       try {
-        const fileRef = ref(storage, `exam_answers/${user?.uid}_${id}_${Date.now()}.pdf`);
-        const snapshot = await uploadBytes(fileRef, essayPdfFile);
-        answerPdfUrl = await getDownloadURL(snapshot.ref);
-      } catch (err) {
+        answerPdfUrl = await uploadToCloudinary(essayPdfFile);
+      } catch (err: any) {
         console.error("Answer PDF upload failed", err);
-        alert("Failed to upload your answer sheet. Please try again.");
+        alert(`Failed to upload your answer sheet: ${err.message || 'Please try again.'}`);
         setIsSubmitting(false);
         setEssayUploading(false);
         return;
@@ -356,7 +355,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
             </CardHeader>
             <CardContent className="p-0">
               <iframe 
-                src={`${exam.questionPdfUrl}#toolbar=0`} 
+                src={formatPdfViewerUrl(exam.questionPdfUrl)} 
                 className="w-full h-[600px] border-0" 
                 title="Question Paper"
               />

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { formatPdfViewerUrl } from "@/lib/cloudinary";
 
 export default function ExamResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -169,7 +170,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
             </CardHeader>
             <CardContent className="p-0">
               <iframe 
-                src={`${exam.questionPdfUrl}#toolbar=0`} 
+                src={formatPdfViewerUrl(exam.questionPdfUrl)} 
                 className="w-full h-[600px] border-0 rounded-b-xl" 
                 title="Question Paper"
               />
@@ -182,7 +183,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
             <CardContent className="p-0">
               {myResult.answerPdfUrl ? (
                 <iframe 
-                  src={`${myResult.answerPdfUrl}#toolbar=0`} 
+                  src={formatPdfViewerUrl(myResult.answerPdfUrl)} 
                   className="w-full h-[600px] border-0 rounded-b-xl" 
                   title="Answer Sheet"
                 />

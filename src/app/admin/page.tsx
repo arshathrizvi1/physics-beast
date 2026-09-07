@@ -13,6 +13,7 @@ import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -920,9 +921,7 @@ export default function AdminDashboard() {
       setExamPdfUploading(true);
       setExamPdfUploadProgress(0);
       try {
-        const fileRef = ref(storage, `exams/${Date.now()}_${examPdfFile.name}`);
-        const snapshot = await uploadBytes(fileRef, examPdfFile);
-        finalPdfUrl = await getDownloadURL(snapshot.ref);
+        finalPdfUrl = await uploadToCloudinary(examPdfFile);
       } catch (err: any) {
         console.error("PDF upload failed", err);
         alert(`Failed to upload the PDF paper. Error: ${err.message || 'Unknown error'}`);
@@ -2573,10 +2572,21 @@ export default function AdminDashboard() {
                     )}
                     {examPdfUploading && (
                       <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center backdrop-blur-sm z-10 text-center px-4">
-                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF... Please wait</span>
-                        <span className="text-xs text-muted-foreground animate-pulse">Large files may take a minute. Do not close this page.</span>
+                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF to Cloudinary... Please wait</span>
+                        <span className="text-xs text-muted-foreground animate-pulse">This usually takes just a few seconds. Do not close this page.</span>
                       </div>
                     )}
+                  </div>
+
+                  <div className="mt-3">
+                    <Label className="text-xs text-muted-foreground">Or paste a Direct PDF / Google Drive link:</Label>
+                    <Input 
+                      placeholder="https://drive.google.com/file/d/... or https://.../paper.pdf"
+                      value={examPdfUrl}
+                      onChange={(e) => setExamPdfUrl(e.target.value)}
+                      className="mt-1 text-xs"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">If using Google Drive, make sure sharing is set to &ldquo;Anyone with the link can view&rdquo;.</p>
                   </div>
                 </>
               )}
