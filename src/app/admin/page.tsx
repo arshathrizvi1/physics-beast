@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -56,6 +56,12 @@ export default function AdminDashboard() {
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudentInfo, setSelectedStudentInfo] = useState<any>(null);
   const [activeAnalyticsList, setActiveAnalyticsList] = useState<{ title: string, students: any[] } | null>(null);
+
+  // Exam Views & Detailed Analytics State
+  const [showAllExamsModal, setShowAllExamsModal] = useState(false);
+  const [selectedExamDetails, setSelectedExamDetails] = useState<any | null>(null);
+  const [examDetailedResults, setExamDetailedResults] = useState<any[]>([]);
+  const [loadingExamDetails, setLoadingExamDetails] = useState(false);
 
   // Folder Manager State
   const [batches, setBatches] = useState<any[]>([]);
@@ -863,6 +869,34 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, 'exams', id), { hidden: !exam.hidden });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleOpenExamDetails = async (exam: any) => {
+    setSelectedExamDetails(exam);
+    setLoadingExamDetails(true);
+    setExamDetailedResults([]);
+    try {
+      const q = query(collection(db, 'examResults'), where('examId', '==', String(exam.id)));
+      const snap = await getDocs(q);
+      const results: any[] = [];
+      snap.forEach(d => {
+        results.push({ id: d.id, ...d.data() });
+      });
+
+      // Rank results: high score first, then quickest time
+      results.sort((a, b) => {
+        const scoreA = Number(a.score ?? a.rawScore ?? 0);
+        const scoreB = Number(b.score ?? b.rawScore ?? 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (Number(a.timeTakenSeconds ?? a.timeSeconds ?? 999999)) - (Number(b.timeTakenSeconds ?? b.timeSeconds ?? 999999));
+      });
+
+      setExamDetailedResults(results);
+    } catch (err) {
+      console.error("Failed to load exam details results:", err);
+    } finally {
+      setLoadingExamDetails(false);
     }
   };
 
@@ -2119,24 +2153,36 @@ export default function AdminDashboard() {
                   Exams remain visible here permanently even after their time ends. When an exam ends, students cannot start or submit it. Only clicking "Hide" hides an exam from students.
                 </CardDescription>
               </div>
-              <Button 
-                size="sm" 
-                onClick={() => {
-                  setEditingExamId(null);
-                  setExamTitle("");
-                  setExamType("mcq");
-                  setExamTime("");
-                  setExamStartTime("");
-                  setExamEndTime("");
-                  setExamCategory("Mechanics");
-                  setQuestions([{ id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
-                  const formEl = document.getElementById('exam-editor-form');
-                  if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="font-bold flex items-center gap-1.5 shrink-0"
-              >
-                <Plus className="w-4 h-4" /> New Exam
-              </Button>
+              <div className="flex items-center gap-2">
+                {publishedExams.length > 2 && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setShowAllExamsModal(true)}
+                    className="font-semibold flex items-center gap-1.5 text-xs"
+                  >
+                    <ListFilter className="w-3.5 h-3.5" /> View All Exams ({publishedExams.length})
+                  </Button>
+                )}
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setEditingExamId(null);
+                    setExamTitle("");
+                    setExamType("mcq");
+                    setExamTime("");
+                    setExamStartTime("");
+                    setExamEndTime("");
+                    setExamCategory("Mechanics");
+                    setQuestions([{ id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
+                    const formEl = document.getElementById('exam-editor-form');
+                    if (formEl) formEl.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="font-bold flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-4 h-4" /> New Exam
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="pt-6">
               {publishedExams.length === 0 ? (
@@ -2147,7 +2193,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {publishedExams.map((exam) => {
+                  {publishedExams.slice(0, 2).map((exam) => {
                     const now = Date.now();
                     const hasStart = !!exam.startTime;
                     const hasEnd = !!exam.endTime;
@@ -2208,6 +2254,15 @@ export default function AdminDashboard() {
 
                             {/* Action Buttons */}
                             <div className="flex items-center gap-1 shrink-0">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 px-2.5 text-xs font-semibold hover:bg-primary/10 hover:text-primary gap-1" 
+                                onClick={() => handleOpenExamDetails(exam)}
+                                title="View Details & Student Marks"
+                              >
+                                <Info className="w-3.5 h-3.5" /> Details
+                              </Button>
                               <Button 
                                 variant="outline" 
                                 size="icon" 
@@ -3593,6 +3648,408 @@ export default function AdminDashboard() {
             {/* Modal Footer */}
             <div className="p-4 border-t border-border/50 bg-secondary/10 flex justify-end">
               <Button size="sm" variant="secondary" onClick={() => setSelectedTeacherDetails(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: View All Created Exams */}
+      {showAllExamsModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="p-4 border-b border-border/50 flex items-center justify-between bg-secondary/20">
+              <div>
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <FileQuestion className="w-5 h-5 text-primary" /> All Created Exams ({publishedExams.length})
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Click "Details" on any exam to view statistics, student submissions, or print a results report.</p>
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setShowAllExamsModal(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              {publishedExams.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No exams created yet.</div>
+              ) : (
+                publishedExams.map((exam) => {
+                  const now = Date.now();
+                  const hasStart = !!exam.startTime;
+                  const hasEnd = !!exam.endTime;
+                  const isUpcoming = hasStart && now < exam.startTime;
+                  const isEnded = hasEnd && now > exam.endTime;
+                  const isActive = (!hasStart || now >= exam.startTime) && (!hasEnd || now <= exam.endTime);
+
+                  return (
+                    <div 
+                      key={exam.id} 
+                      className="p-3.5 rounded-lg border border-border/50 bg-background hover:border-primary/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{exam.title}</span>
+                          <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            {exam.category || 'General'}
+                          </span>
+                          <span className="text-[10px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-full uppercase">
+                            {exam.examType === 'essay' ? '📝 Essay' : '✅ MCQ'}
+                          </span>
+                          {isEnded ? (
+                            <span className="text-[10px] font-bold bg-destructive/15 text-destructive px-2 py-0.5 rounded-full">
+                              🔴 Ended
+                            </span>
+                          ) : isActive ? (
+                            <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 px-2 py-0.5 rounded-full">
+                              🟢 Active
+                            </span>
+                          ) : isUpcoming ? (
+                            <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 px-2 py-0.5 rounded-full">
+                              🟡 Upcoming
+                            </span>
+                          ) : null}
+                          {exam.hidden && (
+                            <span className="text-[10px] font-bold bg-destructive/20 text-destructive px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <EyeOff className="w-2.5 h-2.5" /> Hidden
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>Duration: <strong>{exam.duration || '15 min'}</strong></span>
+                          {hasStart && <span>Started: <strong>{new Date(exam.startTime).toLocaleDateString()}</strong></span>}
+                          {hasEnd && <span>Deadline: <strong>{new Date(exam.endTime).toLocaleDateString()}</strong></span>}
+                          {exam.examType === 'essay' ? (
+                            <span>Type: <strong>PDF Submission</strong></span>
+                          ) : (
+                            <span>Questions: <strong>{Array.isArray(exam.questions) ? exam.questions.length : exam.questions}</strong></span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="h-8 px-2.5 text-xs font-semibold hover:bg-primary/10 hover:text-primary gap-1"
+                          onClick={() => {
+                            handleOpenExamDetails(exam);
+                          }}
+                        >
+                          <Info className="w-3.5 h-3.5" /> Details
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="outline"
+                          className="w-8 h-8 hover:bg-primary/10 hover:text-primary"
+                          onClick={() => {
+                            setShowAllExamsModal(false);
+                            handleEditExam(exam);
+                          }}
+                          title="Edit Exam"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="outline"
+                          className={`w-8 h-8 ${exam.hidden ? 'text-destructive hover:bg-destructive/10' : 'text-emerald-600 hover:bg-emerald-500/10'}`}
+                          onClick={() => handleToggleHide(exam.id)}
+                          title={exam.hidden ? "Unhide Exam" : "Hide Exam"}
+                        >
+                          {exam.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-3 border-t border-border/50 bg-secondary/10 flex justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setShowAllExamsModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Exam Details, Statistics & Printable PDF Table */}
+      {selectedExamDetails && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-border/50 flex items-center justify-between bg-secondary/20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <FileQuestion className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    {selectedExamDetails.title}
+                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                      {selectedExamDetails.examType === 'essay' ? '📝 Essay' : '✅ MCQ'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Category: {selectedExamDetails.category || 'General'} | Duration: {selectedExamDetails.duration || '15 min'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (!printWindow) {
+                      alert("Pop-up blocked! Please allow pop-ups to generate and print the exam PDF.");
+                      return;
+                    }
+                    const nowStr = new Date().toLocaleString();
+                    const tableRows = examDetailedResults.map((r, i) => `
+                      <tr style="border-bottom: 1px solid #e2e8f0; text-align: left;">
+                        <td style="padding: 10px; font-weight: bold;">#${i + 1}</td>
+                        <td style="padding: 10px;">${r.studentName || 'Student'}</td>
+                        <td style="padding: 10px;">${r.rawScore ?? r.score ?? 0} ${selectedExamDetails.examType === 'mcq' ? `/${selectedExamDetails.questions?.length || ''}` : 'marks'}</td>
+                        <td style="padding: 10px;">${r.score !== undefined ? `${r.score}%` : '-'}</td>
+                        <td style="padding: 10px;">${r.grade || 'Completed'}</td>
+                        <td style="padding: 10px;">${r.timeTakenSeconds ? `${Math.floor(r.timeTakenSeconds / 60)}m ${r.timeTakenSeconds % 60}s` : '-'}</td>
+                        <td style="padding: 10px;">${r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '-'}</td>
+                      </tr>
+                    `).join('');
+
+                    const totalEligible = allStudents.filter(s => selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId).length;
+                    const completedCount = examDetailedResults.length;
+                    const notDoneCount = Math.max(0, totalEligible - completedCount);
+
+                    printWindow.document.write(`
+                      <!DOCTYPE html>
+                      <html>
+                        <head>
+                          <title>${selectedExamDetails.title} - Exam Results Report</title>
+                          <style>
+                            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #1e293b; }
+                            .header { border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
+                            .title { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
+                            .subtitle { font-size: 14px; color: #64748b; margin-bottom: 12px; }
+                            .stats-grid { display: flex; gap: 20px; margin-bottom: 25px; }
+                            .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 20px; flex: 1; }
+                            .stat-box .num { font-size: 20px; font-weight: bold; color: #0f172a; }
+                            .stat-box .lbl { font-size: 11px; color: #64748b; text-transform: uppercase; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                            th { background: #0f172a; color: #ffffff; padding: 10px; font-size: 12px; text-align: left; }
+                            td { font-size: 13px; }
+                            @media print {
+                              button { display: none; }
+                              body { padding: 0; }
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="header">
+                            <div class="title">Brilliant Academy — Exam Report</div>
+                            <div class="subtitle">Exam: <strong>${selectedExamDetails.title}</strong> (${selectedExamDetails.examType?.toUpperCase() || 'MCQ'}) | Generated on: ${nowStr}</div>
+                            <div class="stats-grid">
+                              <div class="stat-box"><div class="num">${completedCount}</div><div class="lbl">Students Completed</div></div>
+                              <div class="stat-box"><div class="num">${notDoneCount}</div><div class="lbl">Students Not Attempted</div></div>
+                              <div class="stat-box"><div class="num">${totalEligible}</div><div class="lbl">Total Eligible Batch</div></div>
+                            </div>
+                          </div>
+                          <h3>Student Rankings & Marks Table</h3>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Rank</th>
+                                <th>Student Name</th>
+                                <th>Marks</th>
+                                <th>Percentage</th>
+                                <th>Grade</th>
+                                <th>Time Taken</th>
+                                <th>Submitted On</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${tableRows || '<tr><td colspan="7" style="padding: 20px; text-align: center; color: #94a3b8;">No student submissions recorded yet.</td></tr>'}
+                            </tbody>
+                          </table>
+                          <script>
+                            window.onload = function() { window.print(); }
+                          </script>
+                        </body>
+                      </html>
+                    `);
+                    printWindow.document.close();
+                  }}
+                  className="font-bold flex items-center gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Printer className="w-4 h-4" /> Print / Save as PDF
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setSelectedExamDetails(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Participation Metric Counters */}
+              {(() => {
+                const totalTargetStudents = allStudents.filter(s => selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId).length;
+                const completedCount = examDetailedResults.length;
+                const notAttemptedCount = Math.max(0, totalTargetStudents - completedCount);
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{completedCount}</p>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Students Completed</p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/10 flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg bg-destructive/20 text-destructive">
+                        <UserX className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-destructive">{notAttemptedCount}</p>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Did Not Take Exam</p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/10 flex items-center gap-3">
+                      <div className="p-2.5 rounded-lg bg-primary/20 text-primary">
+                        <GraduationCap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black text-primary">{totalTargetStudents}</p>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Eligible Students</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Exam Metadata Summary */}
+              <div className="p-4 rounded-lg border border-border/50 bg-secondary/10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Start Time:</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedExamDetails.startTime ? new Date(selectedExamDetails.startTime).toLocaleString() : 'Anytime'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">End / Deadline:</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedExamDetails.endTime ? new Date(selectedExamDetails.endTime).toLocaleString() : 'No Deadline'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Target Batch:</span>
+                  <span className="font-semibold text-foreground">
+                    {selectedExamDetails.batchId === 'all' ? 'All Batches' : batches.find(b => b.id === selectedExamDetails.batchId)?.year || selectedExamDetails.batchId}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-0.5">Paper URL / PDF:</span>
+                  {selectedExamDetails.questionPdfUrl ? (
+                    <a href={selectedExamDetails.questionPdfUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline font-semibold flex items-center gap-1">
+                      View Paper <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground italic">No PDF Attached</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Student Results / Ranks Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-amber-500" /> Student Rankings & Marks Breakdown
+                  </h4>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {examDetailedResults.length} Submissions
+                  </span>
+                </div>
+
+                {loadingExamDetails ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground animate-pulse">
+                    Loading student results and ranking data...
+                  </div>
+                ) : examDetailedResults.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground italic border border-dashed border-secondary/40 rounded-lg">
+                    No students have completed this exam yet.
+                  </div>
+                ) : (
+                  <div className="border border-border/50 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-secondary/30 text-muted-foreground font-semibold border-b border-border/40">
+                        <tr>
+                          <th className="p-3">Rank</th>
+                          <th className="p-3">Student Name</th>
+                          <th className="p-3">Marks</th>
+                          <th className="p-3">Percentage</th>
+                          <th className="p-3">Grade</th>
+                          <th className="p-3">Time</th>
+                          <th className="p-3">Answer PDF</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {examDetailedResults.map((res, index) => (
+                          <tr key={res.id} className="hover:bg-secondary/15 transition-colors">
+                            <td className="p-3 font-bold text-foreground">
+                              {index === 0 ? '🥇 #1' : index === 1 ? '🥈 #2' : index === 2 ? '🥉 #3' : `#${index + 1}`}
+                            </td>
+                            <td className="p-3 font-medium text-foreground">
+                              {res.studentName || 'Anonymous Student'}
+                            </td>
+                            <td className="p-3 font-bold text-primary">
+                              {res.rawScore ?? res.score ?? 0} {selectedExamDetails.examType === 'mcq' ? `/${selectedExamDetails.questions?.length || ''}` : 'marks'}
+                            </td>
+                            <td className="p-3 font-medium">
+                              {res.score !== undefined ? `${res.score}%` : '-'}
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md bg-secondary/50 text-foreground font-semibold">
+                                {res.grade || 'Done'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-muted-foreground font-mono">
+                              {res.timeTakenSeconds ? `${Math.floor(res.timeTakenSeconds / 60)}m ${res.timeTakenSeconds % 60}s` : '-'}
+                            </td>
+                            <td className="p-3">
+                              {res.answerPdfUrl ? (
+                                <a 
+                                  href={res.answerPdfUrl} 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                                >
+                                  View Sheet <ExternalLink className="w-3 h-3" />
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground italic text-[11px]">N/A (MCQ)</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-border/50 bg-secondary/10 flex justify-end">
+              <Button size="sm" variant="secondary" onClick={() => setSelectedExamDetails(null)}>
                 Close
               </Button>
             </div>
