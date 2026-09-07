@@ -232,7 +232,7 @@ export default function PremiumNavbar() {
               {/* User or Login */}
               {user ? (
                 <div className="flex items-center gap-2">
-                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/login"}>
+                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -253,10 +253,10 @@ export default function PremiumNavbar() {
                     onClick={logout}
                     whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(212,175,55,0.25)" }}
                     whileTap={{ scale: 0.95 }}
-                    className="hidden sm:flex items-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold px-3 py-2 rounded-full transition-all"
+                    className="flex items-center justify-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-full transition-all"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Logout</span>
+                    <LogOut className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                    <span className="hidden sm:inline">Logout</span>
                   </motion.button>
                 </div>
               ) : (
