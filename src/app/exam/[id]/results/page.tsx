@@ -97,7 +97,6 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
         examTitle: exam.title,
-        courseId: exam.courseId || null,
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'post_exam_doubt',

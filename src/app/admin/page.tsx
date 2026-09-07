@@ -666,8 +666,6 @@ export default function AdminDashboard() {
 
   // Exam Filtering States
   const [examSearchTerm, setExamSearchTerm] = useState("");
-  const [messageFilterCourse, setMessageFilterCourse] = useState("all");
-  const [messageFilterType, setMessageFilterType] = useState("all");
   const [examFilterCourse, setExamFilterCourse] = useState("all");
   const [examFilterFolder, setExamFilterFolder] = useState("all");
   const [examFilterType, setExamFilterType] = useState("all");
@@ -1264,26 +1262,6 @@ export default function AdminDashboard() {
         return false;
       }
     }
-
-    return true;
-  });
-
-  const filteredMessages = examMessages.filter((msg) => {
-    // 1. Role-based filtering
-    const adminOnlyTypes = ['exam_exit', 'technical_problem', 'approval'];
-    if (user?.role === 'teacher') {
-      if (adminOnlyTypes.includes(msg.type)) return false; // Hide admin-only messages from teachers
-      
-      // Teachers only see messages for their own assigned courses
-      const teacherCourses = courses.filter(c => c.teacherId === user.uid).map(c => c.id);
-      if (!msg.courseId || !teacherCourses.includes(msg.courseId)) {
-        return false;
-      }
-    }
-
-    // 2. UI Filters
-    if (messageFilterCourse !== "all" && msg.courseId !== messageFilterCourse) return false;
-    if (messageFilterType !== "all" && msg.type !== messageFilterType) return false;
 
     return true;
   });
@@ -2870,50 +2848,14 @@ export default function AdminDashboard() {
               </CardTitle>
               <CardDescription>Review and resolve issues reported during exams or doubts asked post-exam.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              {/* Message Filters */}
-              {examMessages.length > 0 && (
-                <div className="flex flex-wrap gap-4 items-center p-4 bg-secondary/5 border border-border rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Filter by:</span>
-                  </div>
-                  
-                  <select 
-                    className="p-2 text-sm border rounded-md bg-background focus:ring-1 focus:ring-primary outline-none"
-                    value={messageFilterCourse}
-                    onChange={(e) => setMessageFilterCourse(e.target.value)}
-                  >
-                    <option value="all">All Courses</option>
-                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-
-                  <select
-                    className="p-2 text-sm border rounded-md bg-background focus:ring-1 focus:ring-primary outline-none"
-                    value={messageFilterType}
-                    onChange={(e) => setMessageFilterType(e.target.value)}
-                  >
-                    <option value="all">All Message Types</option>
-                    <option value="exam_issue">In-Exam Issue</option>
-                    <option value="post_exam_doubt">Post-Exam Doubt</option>
-                    {user?.role === 'admin' && <option value="exam_exit">Exam Exit (Anti-Cheat)</option>}
-                    {user?.role === 'admin' && <option value="technical_problem">Technical Problem</option>}
-                    {user?.role === 'admin' && <option value="approval">Approval</option>}
-                  </select>
-                </div>
-              )}
-
+            <CardContent className="pt-6">
               {examMessages.length === 0 ? (
                 <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
                   No messages from students.
                 </div>
-              ) : filteredMessages.length === 0 ? (
-                <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
-                  No messages match your filters.
-                </div>
               ) : (
                 <div className="grid gap-4">
-                  {filteredMessages.map(msg => (
+                  {examMessages.map(msg => (
                     <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
                       <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
                         <div className="space-y-2 flex-1">
@@ -2924,14 +2866,7 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
-                            <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{
-                              msg.type === 'exam_issue' ? 'In-Exam Issue' :
-                              msg.type === 'post_exam_doubt' ? 'Post-Exam Doubt' :
-                              msg.type === 'exam_exit' ? 'Exam Auto-Submit (Anti-Cheat)' :
-                              msg.type === 'technical_problem' ? 'Technical Problem' :
-                              msg.type === 'approval' ? 'Approval Request' :
-                              msg.type
-                            }</span>
+                            <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
                           </div>
                           <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
                             {msg.message || "No text provided."}

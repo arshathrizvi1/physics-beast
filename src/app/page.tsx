@@ -260,17 +260,18 @@ export default function Home() {
               className="max-w-xl relative group"
             >
               <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/30 to-[#d4af37]/0 rounded-full blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-              <div className="relative flex items-center bg-secondary border border-border rounded-full p-2 pl-6 shadow-2xl">
-                <Search className="w-5 h-5 text-zinc-500 mr-3" />
+              <div className="relative flex items-center bg-secondary border border-border rounded-full p-2 pl-4 md:pl-6 shadow-2xl">
+                <Search className="w-5 h-5 text-zinc-500 mr-2 md:mr-3 shrink-0" />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={e => handleSearch(e.target.value)}
                   placeholder="Search courses, videos..."
-                  className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-zinc-600"
+                  className="flex-1 min-w-0 bg-transparent border-none outline-none text-foreground placeholder:text-zinc-600 text-sm md:text-base"
                 />
-                <Button className="rounded-full bg-[#d4af37] hover:bg-[#b5952f] text-black font-semibold px-8 h-12 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]">
-                  Search
+                <Button className="rounded-full bg-[#d4af37] hover:bg-[#b5952f] text-black font-semibold w-10 h-10 md:w-auto md:h-12 p-0 md:px-8 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all hover:shadow-[0_0_25px_rgba(212,175,55,0.6)]">
+                  <span className="hidden md:inline">Search</span>
+                  <Search className="w-5 h-5 md:hidden" />
                 </Button>
               </div>
               <motion.div 

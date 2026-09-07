@@ -150,21 +150,6 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
           alert("WARNING: You left the exam page. Please upload your PDF now. If you leave again, your exam will be automatically submitted without your paper.");
         } else if (strikes >= 2) {
           alert("ANTI-CHEAT TRIGGERED: You left the exam tab multiple times. Your exam has been automatically submitted. Contact the admin if you want to request a redo.");
-          
-          if (exam) {
-            addDoc(collection(db, 'examMessages'), {
-              examId: id,
-              examTitle: exam.title || 'Unknown Exam',
-              courseId: exam.courseId || null,
-              userId: user.uid,
-              studentName: user.name || user.email?.split('@')[0] || "Student",
-              type: 'exam_exit',
-              message: "Student exited the exam tab multiple times. Anti-cheat triggered and exam auto-submitted.",
-              timestamp: Date.now(),
-              status: 'unread'
-            }).catch(console.error);
-          }
-
           if (handleSubmitRef.current) handleSubmitRef.current(true);
         }
       }
@@ -172,7 +157,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isLoaded, isSubmitted, id, user?.uid, exam]);
+  }, [isLoaded, isSubmitted, id, user?.uid]);
 
   // Exam Heartbeat & Presence
   useEffect(() => {
@@ -352,8 +337,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     try {
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
-        examTitle: exam?.title || 'Unknown Exam',
-        courseId: exam?.courseId || null,
+        examTitle: examData.title,
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'exam_issue',
@@ -365,8 +349,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       setIsMessageDialogOpen(false);
       setMessageText("");
     } catch (err) {
-      console.error(err);
-      alert("Failed to send message");
+      console.error("Failed to send message", err);
+      alert("Failed to send message.");
     }
     setIsMessageSending(false);
   };
