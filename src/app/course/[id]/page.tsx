@@ -16,7 +16,7 @@ import { calculateXpLevel, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import dynamic from 'next/dynamic';
-import { PdfViewer } from "@/components/ui/pdf-viewer";
+const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
 const getDailymotionId = (url: string) => {
