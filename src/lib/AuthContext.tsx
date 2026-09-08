@@ -243,7 +243,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (typeof window !== 'undefined') {
-              if (safeStorage.session.getItem('isGoogleLoggingIn') === 'true' && (finalProfile.role === 'admin' || finalProfile.role === 'teacher')) {
+              // Only auto-pass 2FA if admin/teacher has NOT set up TOTP yet.
+              // If they HAVE a totpSecret, they MUST enter their code — no bypass.
+              if (safeStorage.session.getItem('isGoogleLoggingIn') === 'true' && 
+                  (finalProfile.role === 'admin' || finalProfile.role === 'teacher') &&
+                  !finalProfile.totpSecret) {
                 safeStorage.session.setItem('admin_2fa_passed', 'true');
               }
               safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
@@ -882,7 +886,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(finalProfile);
         if (typeof window !== 'undefined') {
           safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
-          if (data.role === 'admin' || data.role === 'teacher') {
+          // Only auto-pass 2FA if admin/teacher has NOT set up TOTP yet
+          if ((data.role === 'admin' || data.role === 'teacher') && !data.totpSecret) {
             safeStorage.session.setItem('admin_2fa_passed', 'true');
           }
         }
@@ -1018,7 +1023,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(newProfile);
       if (typeof window !== 'undefined') {
         safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
-        if (newProfile.role === 'admin' || newProfile.role === 'teacher') {
+        // New user signup — no TOTP configured yet, so auto-pass 2FA for admin/teacher
+        if ((newProfile.role === 'admin' || newProfile.role === 'teacher') && !newProfile.totpSecret) {
           safeStorage.session.setItem('admin_2fa_passed', 'true');
         }
       }

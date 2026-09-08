@@ -28,6 +28,8 @@ export default function Admin2FAPage() {
   const [verifying, setVerifying] = useState(false);
   const [isSessionVerified, setIsSessionVerified] = useState(false);
 
+  const [checkingSecret, setCheckingSecret] = useState(true);
+
   useEffect(() => {
     if (loading) return;
     if (!user || (user.role !== "admin" && user.role !== "teacher")) {
@@ -44,11 +46,18 @@ export default function Admin2FAPage() {
     );
 
     const check2FA = async () => {
+      setCheckingSecret(true);
+      setError("");
+      
       try {
         const { getDocFromServer } = await import("firebase/firestore");
         const userDoc = await getDocFromServer(doc(db, "users", user.uid));
         const data = userDoc.data();
-        const secretInDb = data?.totpSecret || null;
+        
+        // STRICT check: only treat it as having a secret if it's a non-empty string
+        const secretInDb = (typeof data?.totpSecret === 'string' && data.totpSecret.length > 0) 
+          ? data.totpSecret 
+          : null;
         setExistingSecret(secretInDb);
 
         if (!secretInDb) {
@@ -61,12 +70,26 @@ export default function Admin2FAPage() {
           // User is already logged in, show manage view
           setMode("manage");
         } else {
-          // Standard login verification
+          // Standard login verification — user HAS a secret, just needs to enter the code
           setMode("verify");
         }
       } catch (err) {
         console.error("Failed to check 2FA status", err);
-        setError("Network error checking 2FA status.");
+        // CRITICAL: On network error, DO NOT fall through to setup mode.
+        // If user profile has totpSecret cached, trust it and go to verify mode.
+        if (user.totpSecret && typeof user.totpSecret === 'string' && user.totpSecret.length > 0) {
+          setExistingSecret(user.totpSecret);
+          if (passed2FA) {
+            setMode("manage");
+          } else {
+            setMode("verify");
+          }
+        } else {
+          // Genuinely can't determine — show error with retry, do NOT show setup
+          setError("Could not connect to server to verify your 2FA status. Please check your internet and try again.");
+        }
+      } finally {
+        setCheckingSecret(false);
       }
     };
     
@@ -171,10 +194,35 @@ export default function Admin2FAPage() {
     }
   };
 
-  if (loading || (!existingSecret && mode !== "setup")) {
+  if (loading || checkingSecret) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
+      <div className="flex h-[70vh] items-center justify-center flex-col gap-3">
         <p className="animate-pulse text-primary font-bold">Initializing Security Console...</p>
+        {error && (
+          <div className="max-w-md text-center space-y-3">
+            <p className="text-red-500 text-sm font-medium bg-red-500/10 p-3 rounded border border-red-500/20">
+              {error}
+            </p>
+            <Button onClick={() => window.location.reload()} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // If we finished checking but have an error and no mode determined, show error with retry
+  if (error && !existingSecret && mode !== "setup") {
+    return (
+      <div className="flex h-[70vh] items-center justify-center flex-col gap-3">
+        <ShieldAlert className="w-12 h-12 text-red-500" />
+        <p className="text-red-500 text-sm font-medium bg-red-500/10 p-3 rounded border border-red-500/20 max-w-md text-center">
+          {error}
+        </p>
+        <Button onClick={() => window.location.reload()} className="gap-2">
+          <RefreshCw className="w-4 h-4" /> Retry Connection
+        </Button>
       </div>
     );
   }
