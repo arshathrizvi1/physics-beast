@@ -16,7 +16,30 @@ import { calculateXpLevel, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import dynamic from 'next/dynamic';
-const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
+const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
+
+const formatVideoUrl = (url: string) => {
+  if (!url) return '';
+  let cleanUrl = url.trim();
+
+  // Dailymotion link cleaning: handle embed, dai.ly, and standard video links
+  if (cleanUrl.includes('dailymotion.com/embed/video/')) {
+    const videoId = cleanUrl.split('dailymotion.com/embed/video/')[1]?.split('?')[0];
+    if (videoId) return `https://www.dailymotion.com/video/${videoId}`;
+  }
+  if (cleanUrl.includes('dai.ly/')) {
+    const videoId = cleanUrl.split('dai.ly/')[1]?.split('?')[0];
+    if (videoId) return `https://www.dailymotion.com/video/${videoId}`;
+  }
+
+  // Google Drive link cleaning: convert file/d/ ID to direct stream URL
+  if (cleanUrl.includes('drive.google.com/file/d/')) {
+    const fileId = cleanUrl.split('/file/d/')[1]?.split('/')[0];
+    if (fileId) return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+
+  return cleanUrl;
+};
 
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -466,7 +489,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
                     <ReactPlayer
                       ref={playerRef}
-                      url={activeVideo.url}
+                      url={formatVideoUrl(activeVideo.url)}
                       width="100%"
                       height="100%"
                     playing={playing}
@@ -506,6 +529,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           disablekb: 1,
                           iv_load_policy: 3,
                           cc_load_policy: 3
+                        }
+                      },
+                      dailymotion: {
+                        params: {
+                          controls: false,
+                          'ui-start-screen-info': false,
+                          'ui-logo': false,
+                          autoplay: false
                         }
                       },
                       file: {
