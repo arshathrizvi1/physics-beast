@@ -7,10 +7,10 @@ import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import PremiumNavbar from "@/components/PremiumNavbar";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CustomToastProvider } from "@/components/providers/ToastProvider";
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import { AndroidBackButtonHandler } from "@/components/AndroidBackButtonHandler";
+import { MobilePermissionPrompt } from "@/components/MobilePermissionPrompt";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -53,6 +53,7 @@ export default function RootLayout({
               <LenisProvider>
                 <CustomToastProvider />
                 <AndroidBackButtonHandler />
+                <MobilePermissionPrompt />
                 <PremiumNavbar />
 
                 <main className="flex-1">
