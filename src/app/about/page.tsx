@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, addDoc, collection } from "firebase/firestore";
 import { Mail, Phone, MapPin, Globe, GraduationCap, Users, BookOpen, Star, ChevronDown, ShieldCheck, Clock, Send } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -154,7 +154,15 @@ export default function AboutPage() {
                     </div>
                     <div>
                       <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">{item.label}</div>
-                      <div className="text-foreground font-medium break-all">{item.value}</div>
+                      {item.label === 'Email' ? (
+                        <a href={`mailto:${item.value}`} className="text-foreground font-medium break-all hover:text-[#d4af37] transition-colors">{item.value}</a>
+                      ) : item.label === 'Phone' ? (
+                        <a href={`tel:${item.value}`} className="text-foreground font-medium break-all hover:text-[#d4af37] transition-colors">{item.value}</a>
+                      ) : item.label === 'Website' ? (
+                        <a href={item.value.startsWith('http') ? item.value : `https://${item.value}`} target="_blank" rel="noopener noreferrer" className="text-foreground font-medium break-all hover:text-[#d4af37] transition-colors">{item.value}</a>
+                      ) : (
+                        <div className="text-foreground font-medium break-all">{item.value}</div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -180,38 +188,65 @@ export default function AboutPage() {
                   <h3 className="text-4xl font-semibold text-white mb-10 tracking-tight">How can we help?</h3>
 
                   <form 
-                    onSubmit={(e) => { 
-                      e.preventDefault(); 
-                      toast.success("Message sent successfully! We will get back to you soon."); 
-                      e.currentTarget.reset(); 
+                    onSubmit={async (e) => { 
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const formData = new FormData(form);
+                      const data = Object.fromEntries(formData.entries());
+                      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+                      
+                      try {
+                        submitBtn.disabled = true;
+                        submitBtn.innerText = "Sending...";
+                        
+                        await addDoc(collection(db, "examMessages"), {
+                          type: "contact_us",
+                          studentName: data.fullName,
+                          email: data.email,
+                          phone: data.phone || "",
+                          topic: data.topic,
+                          message: data.message,
+                          timestamp: Date.now(),
+                          status: "unread",
+                        });
+                        
+                        toast.success("Message sent successfully! We will get back to you soon."); 
+                        form.reset(); 
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Failed to send message. Please try again.");
+                      } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = "Send Message";
+                      }
                     }} 
                     className="space-y-6"
                   >
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">Full Name</label>
-                      <input required type="text" placeholder="Your name" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
+                      <input name="fullName" required type="text" placeholder="Your name" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
                     </div>
                     
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">Email Address</label>
-                      <input required type="email" placeholder="you@example.com" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
+                      <input name="email" required type="email" placeholder="you@example.com" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">Phone <span className="text-zinc-600 ml-1 font-medium">· Optional</span></label>
-                      <input type="tel" placeholder="+94 7X XXX XXXX" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
+                      <input name="phone" type="tel" placeholder="+94 7X XXX XXXX" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">I'm Asking About</label>
                       <div className="relative">
-                        <select required defaultValue="" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white appearance-none cursor-pointer outline-none">
+                        <select name="topic" required defaultValue="" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white appearance-none cursor-pointer outline-none">
                           <option value="" disabled hidden className="text-zinc-600">Choose a topic</option>
-                          <option value="al_physics">A/L Physics classes</option>
-                          <option value="recordings">Recordings & access</option>
-                          <option value="enrollment">Course enrollment</option>
-                          <option value="technical">Technical support</option>
-                          <option value="other">Something else</option>
+                          <option value="A/L Physics classes">A/L Physics classes</option>
+                          <option value="Recordings & access">Recordings & access</option>
+                          <option value="Course enrollment">Course enrollment</option>
+                          <option value="Technical support">Technical support</option>
+                          <option value="Something else">Something else</option>
                         </select>
                         <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 pointer-events-none" />
                       </div>
@@ -219,7 +254,7 @@ export default function AboutPage() {
 
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">Your Message</label>
-                      <textarea required rows={4} placeholder="Tell us what you need help with..." className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors resize-none outline-none" />
+                      <textarea name="message" required rows={4} placeholder="Tell us what you need help with..." className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors resize-none outline-none" />
                     </div>
 
                     <div className="pt-2">

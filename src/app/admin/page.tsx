@@ -107,6 +107,8 @@ export default function AdminDashboard() {
   
   const [newBatchName, setNewBatchName] = useState("");
   const [newBatchYear, setNewBatchYear] = useState("");
+  const [streams, setStreams] = useState<any[]>([]);
+  const [newStreamName, setNewStreamName] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseDescription, setNewCourseDescription] = useState("");
   const [newCourseImage, setNewCourseImage] = useState<File | null>(null);
@@ -188,10 +190,15 @@ export default function AdminDashboard() {
       setPublishedExams(list);
     });
 
+    const unsubStreams = onSnapshot(collection(db, 'streams'), (snapshot) => {
+      setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubStudents();
       unsubMessages();
       unsubBatches();
+      unsubStreams();
       unsubCourses();
       unsubFolders();
       unsubVideos();
@@ -483,6 +490,24 @@ export default function AdminDashboard() {
       setSelectedBatchId(ref.id); // Auto-select so user can immediately add courses
     } catch (err) {
       console.log(err);
+    }
+  };
+
+  const handleCreateStream = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStreamName) return;
+    try {
+      const ref = doc(collection(db, 'streams'));
+      await setDoc(ref, { name: newStreamName, createdAt: Date.now() });
+      setNewStreamName("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteStream = async (id: string) => {
+    if (confirm("Are you sure you want to delete this stream?")) {
+      await deleteDoc(doc(db, 'streams', id));
     }
   };
 
@@ -1358,7 +1383,7 @@ export default function AdminDashboard() {
     const isTeacher = user?.role === 'teacher';
     
     // 1. Role-based restrictions
-    const adminOnlyTypes = ['exam_exit', 'technical', 'approval', 'apprual', 'exam_issue'];
+    const adminOnlyTypes = ['exam_exit', 'technical', 'approval', 'apprual', 'exam_issue', 'contact_us'];
     if (isTeacher && adminOnlyTypes.includes(msg.type)) {
       return false;
     }
@@ -1826,7 +1851,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   {/* BATCHES COLUMN */}
                   <div className="border border-border/50 rounded-lg p-4 space-y-4">
                     <h3 className="font-bold text-lg border-b pb-2">1. Batches (Years)</h3>
@@ -1861,6 +1886,26 @@ export default function AdminDashboard() {
                       <Input placeholder="Batch Name (e.g. 2026 Batch)" value={newBatchName} onChange={e => setNewBatchName(e.target.value)} required />
                       <Input placeholder="Year (e.g. 2026)" value={newBatchYear} onChange={e => setNewBatchYear(e.target.value)} required />
                       <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Batch</Button>
+                    </form>
+                  </div>
+
+                  {/* STREAMS COLUMN */}
+                  <div className="border border-border/50 rounded-lg p-4 space-y-4">
+                    <h3 className="font-bold text-lg border-b pb-2">Global Streams</h3>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {streams.map(s => (
+                        <div key={s.id} className="p-3 rounded-md bg-secondary/20 flex justify-between items-center">
+                          <p className="font-bold text-sm">{s.name}</p>
+                          <button onClick={() => handleDeleteStream(s.id)} className="p-1 hover:bg-destructive/20 rounded-md text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {streams.length === 0 && <p className="text-sm text-muted-foreground italic">No streams yet.</p>}
+                    </div>
+                    <form onSubmit={handleCreateStream} className="pt-2 border-t space-y-2">
+                      <Input placeholder="Stream Name (e.g. Maths)" value={newStreamName} onChange={e => setNewStreamName(e.target.value)} required />
+                      <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Stream</Button>
                     </form>
                   </div>
 
@@ -3005,6 +3050,7 @@ export default function AdminDashboard() {
                       <option value="exam_exit">Exam Exit Alerts</option>
                       <option value="approval">Approval Requests</option>
                       <option value="technical">Technical Problems</option>
+                      <option value="contact_us">Contact Us Form</option>
                     </>
                   )}
                 </select>
@@ -3043,8 +3089,20 @@ export default function AdminDashboard() {
                           {msg.status === 'unread' && <span className="bg-primary text-primary-foreground text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>}
                         </div>
                         <div>
-                          <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
-                          <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
+                          {msg.type === 'contact_us' ? (
+                            <>
+                              <span className="font-medium text-sm text-foreground">Email:</span> <span className="text-sm text-muted-foreground">{msg.email}</span>
+                              {msg.phone && <><span className="ml-4 font-medium text-sm text-foreground">Phone:</span> <span className="text-sm text-muted-foreground">{msg.phone}</span></>}
+                              <span className="ml-4 font-medium text-sm text-foreground">Topic:</span> <span className="text-sm text-muted-foreground">{msg.topic}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle || 'N/A'}</span>
+                            </>
+                          )}
+                          <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">
+                            {msg.type === 'contact_us' ? 'Contact Us' : msg.type === 'exam_issue' ? 'In-Exam Issue' : msg.type === 'exam_exit' ? 'Exam Exit' : msg.type === 'technical' ? 'Technical' : msg.type === 'approval' ? 'Approval' : 'Post-Exam Doubt'}
+                          </span>
                         </div>
                         <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
                           {msg.message || "No text provided."}
@@ -3058,12 +3116,16 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       <div className="flex flex-col gap-2 min-w-[140px]">
-                        <Button size="sm" variant="outline" className="w-full" render={<Link href={`/exam/${msg.examId}/results`} />}>
-                          Review Paper
-                        </Button>
-                        <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
-                          Allow Redo
-                        </Button>
+                        {msg.examId && (
+                          <>
+                            <Button size="sm" variant="outline" className="w-full" render={<Link href={`/exam/${msg.examId}/results`} />}>
+                              Review Paper
+                            </Button>
+                            <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
+                              Allow Redo
+                            </Button>
+                          </>
+                        )}
                         {msg.status === 'unread' ? (
                           <Button size="sm" className="w-full" onClick={() => handleResolveMessage(msg.id)}>
                             Mark Resolved

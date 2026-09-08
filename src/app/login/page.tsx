@@ -114,7 +114,22 @@ export default function LoginPage() {
           console.error("Failed to fetch batches", e);
         }
       };
+      
+      const fetchStreams = async () => {
+        try {
+          const snapshot = await getDocs(query(collection(db, 'streams'), orderBy('createdAt', 'desc')));
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setStreams(data);
+          if (data.length > 0 && !stream) {
+            setStream(data[0].name);
+          }
+        } catch (e) {
+          console.error("Failed to fetch streams", e);
+        }
+      };
+      
       fetchBatches();
+      fetchStreams();
     }
   }, [isLogin, isGoogleSignupForm]);
 
