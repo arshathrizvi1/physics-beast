@@ -103,6 +103,17 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         timestamp: Date.now(),
         status: 'unread'
       });
+      
+      await addDoc(collection(db, 'notifications'), {
+        target: "admin",
+        title: "New Exam Exit Message",
+        message: `${user.name || user.email?.split('@')[0] || "A student"} sent an exit message for "${exam?.title || "Unknown Exam"}".`,
+        link: "/admin#messages",
+        timestamp: Date.now(),
+        type: "exam",
+        readBy: []
+      });
+
       alert("Message sent to admin successfully.");
       setIsExitMessageDialogOpen(false);
       setExitMessageText("");
@@ -134,6 +145,17 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         timestamp: Date.now(),
         status: 'unread'
       });
+      
+      await addDoc(collection(db, 'notifications'), {
+        target: "admin",
+        title: "New Exam Doubt 🤔",
+        message: `${user.name || user.email?.split('@')[0] || "A student"} submitted a doubt for "${exam.title}".`,
+        link: "/admin#messages",
+        timestamp: Date.now(),
+        type: "exam",
+        readBy: []
+      });
+
       alert("Your doubt has been submitted to the admin.");
       setDoubtText("");
       setDoubtImage(null);

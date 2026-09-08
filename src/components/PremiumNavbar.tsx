@@ -12,6 +12,7 @@ import {
   Search, X, LogOut, LayoutDashboard, Menu, GraduationCap,
   ChevronDown, User
 } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
 
 const NAV_LINKS = [
   { href: "/courses",     label: "Courses"     },
@@ -232,6 +233,7 @@ export default function PremiumNavbar() {
               {/* User or Login */}
               {user ? (
                 <div className="flex items-center gap-2">
+                  <NotificationBell />
                   <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}

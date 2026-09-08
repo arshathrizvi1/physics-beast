@@ -287,38 +287,42 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteStudentAccount = async (studentId: string, studentName: string) => {
-    if (confirmingDeleteId !== studentId) {
-      setConfirmingDeleteId(studentId);
-      alert(`⚠️ DANGER: You are about to PERMANENTLY delete ${studentName}'s account and ALL their history. Click the delete button again to confirm.`);
+  const handleDeleteUserAccount = async (userId: string, userName: string, role: string = "User") => {
+    if (confirmingDeleteId !== userId) {
+      setConfirmingDeleteId(userId);
+      alert(`⚠️ DANGER: You are about to PERMANENTLY delete ${userName}'s account (${role}) and ALL their history from the database. Click the delete button again to confirm.`);
       return;
     }
     
     try {
       // 1. Delete user from Firestore
-      await deleteDoc(doc(db, 'users', studentId));
+      await deleteDoc(doc(db, 'users', userId));
       
       // 2. Delete all exam results for this user
-      const qExams = query(collection(db, 'examResults'), where("userId", "==", studentId));
+      const qExams = query(collection(db, 'examResults'), where("userId", "==", userId));
       const examSnaps = await getDocs(qExams);
       const batch = writeBatch(db);
       examSnaps.forEach(docSnap => batch.delete(docSnap.ref));
       
       // 3. Delete payments for this user
-      const qPayments = query(collection(db, 'payments'), where("studentId", "==", studentId));
+      const qPayments = query(collection(db, 'payments'), where("studentId", "==", userId));
       const paymentSnaps = await getDocs(qPayments);
       paymentSnaps.forEach(docSnap => batch.delete(docSnap.ref));
       
       await batch.commit();
 
-      alert(`✅ Account for ${studentName} has been permanently deleted. They can now sign up from the beginning.`);
-      setSelectedStudentInfo(null);
+      alert(`✅ Account for ${userName} (${role}) has been permanently deleted from the database. They can now sign up from the beginning.`);
+      if (selectedStudentInfo?.id === userId) setSelectedStudentInfo(null);
+      if (selectedTeacherDetails?.id === userId) setSelectedTeacherDetails(null);
       setConfirmingDeleteId(null);
     } catch (err) {
       alert("Failed to delete account. Please try again.");
       console.error(err);
     }
   };
+
+  const handleDeleteStudentAccount = (studentId: string, studentName: string) => 
+    handleDeleteUserAccount(studentId, studentName, "Student");
 
   const handleRejectStudent = async (studentId: string) => {
     try {
@@ -571,6 +575,19 @@ export default function AdminDashboard() {
         teacherSubject: assignedTeacher?.subject || null,
         createdAt: Date.now() 
       });
+
+      // Notify students about the new course
+      const notifRef = doc(collection(db, 'notifications'));
+      await setDoc(notifRef, {
+        target: "all_students",
+        title: "New Course Available! 🎓",
+        message: `A new course "${newCourseName}" has been added to your batch.`,
+        link: "/courses",
+        timestamp: Date.now(),
+        type: "course",
+        readBy: []
+      });
+
       setNewCourseName("");
       setNewCourseDescription("");
       setNewCourseImage(null);
@@ -1256,7 +1273,20 @@ export default function AdminDashboard() {
       if (editingExamId) {
         await updateDoc(doc(db, 'exams', editingExamId), newExam);
       } else {
-        await setDoc(doc(collection(db, 'exams')), { ...newExam, hidden: false, createdAt: Date.now() });
+        const newExamRef = doc(collection(db, 'exams'));
+        await setDoc(newExamRef, { ...newExam, hidden: false, createdAt: Date.now() });
+        
+        // Notify students about the new exam
+        const notifRef = doc(collection(db, 'notifications'));
+        await setDoc(notifRef, {
+          target: "all_students",
+          title: "New Exam Published! 🚀",
+          message: `The exam "${newExam.title}" is now available.`,
+          link: "/exams",
+          timestamp: Date.now(),
+          type: "exam",
+          readBy: []
+        });
       }
       
       // Reset form
@@ -3276,8 +3306,11 @@ export default function AdminDashboard() {
                             <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprovePendingTeacher(teacher.id, teacher.name)}>
                               <Check className="w-3 h-3 mr-1" /> Approve
                             </Button>
-                            <Button size="sm" variant="destructive" onClick={() => handleRejectPendingTeacher(teacher.id, teacher.name)}>
+                            <Button size="sm" variant="outline" className="text-yellow-500 border-yellow-500/30 hover:bg-yellow-500/10" onClick={() => handleRejectPendingTeacher(teacher.id, teacher.name)}>
                               <X className="w-3 h-3 mr-1" /> Reject
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleDeleteUserAccount(teacher.id, teacher.name || teacher.email, 'Teacher')}>
+                              <Trash2 className="w-3 h-3 mr-1" /> {confirmingDeleteId === teacher.id ? "Confirm Delete" : "Delete Account"}
                             </Button>
                           </div>
                         </div>
@@ -3403,13 +3436,23 @@ export default function AdminDashboard() {
                                     <Eye className="w-3 h-3" /> Details
                                   </Button>
                                   {member.id !== user?.uid ? (
-                                    <Button
-                                      size="sm" variant="outline"
-                                      className="text-red-500 border-red-500/20 hover:bg-red-500/10 text-xs h-7"
-                                      onClick={() => handleRemoveTeamMember(member.id, member.email)}
-                                    >
-                                      <Trash2 className="w-3 h-3 mr-1" /> Remove
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm" variant="outline"
+                                        className="text-xs h-7 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/10"
+                                        onClick={() => handleRemoveTeamMember(member.id, member.email)}
+                                        title="Revoke role and convert to student"
+                                      >
+                                        Revoke Role
+                                      </Button>
+                                      <Button
+                                        size="sm" variant="destructive"
+                                        className="text-xs h-7"
+                                        onClick={() => handleDeleteUserAccount(member.id, member.name || member.email, member.role)}
+                                      >
+                                        <Trash2 className="w-3 h-3 mr-1" /> {confirmingDeleteId === member.id ? "Confirm Erase" : "Delete Account"}
+                                      </Button>
+                                    </>
                                   ) : (
                                     <span className="text-[10px] text-muted-foreground italic">You</span>
                                   )}
@@ -4403,6 +4446,32 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* DANGER ZONE: Delete Teacher Account */}
+              {selectedTeacherDetails.id !== user?.uid && (
+                <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-xl mt-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="font-bold text-destructive text-sm flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4" /> Danger Zone: Delete Teacher Account
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Completely erase this teacher's account from the database. They will be logged out and permanently removed from the system.
+                      </p>
+                    </div>
+
+                    <Button 
+                      variant={confirmingDeleteId === selectedTeacherDetails.id ? "destructive" : "outline"}
+                      size="sm"
+                      className={`shrink-0 font-bold flex items-center gap-1.5 shadow-sm ${confirmingDeleteId === selectedTeacherDetails.id ? 'animate-pulse' : 'text-destructive border-destructive/50 hover:bg-destructive hover:text-white'}`}
+                      onClick={() => handleDeleteUserAccount(selectedTeacherDetails.id, selectedTeacherDetails.name || selectedTeacherDetails.email, selectedTeacherDetails.role || 'Teacher')}
+                    >
+                      <Trash2 className="w-4 h-4" /> 
+                      {confirmingDeleteId === selectedTeacherDetails.id ? "Click to Confirm Permanent Deletion" : "Delete Account"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}

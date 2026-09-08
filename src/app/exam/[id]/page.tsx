@@ -345,6 +345,17 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         timestamp: Date.now(),
         status: 'unread'
       });
+      
+      await addDoc(collection(db, 'notifications'), {
+        target: "admin",
+        title: "New Exam Issue Reported 📝",
+        message: `${user.name || user.email?.split('@')[0] || "A student"} reported an issue in exam "${examData.title}".`,
+        link: "/admin#messages",
+        timestamp: Date.now(),
+        type: "exam",
+        readBy: []
+      });
+
       alert("Message sent to admin successfully.");
       setIsMessageDialogOpen(false);
       setMessageText("");

@@ -10,6 +10,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import PremiumNavbar from "@/components/PremiumNavbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CustomToastProvider } from "@/components/providers/ToastProvider";
+import { NotificationProvider } from "@/components/providers/NotificationProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,19 +41,21 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <LenisProvider>
-              <CustomToastProvider />
-              <PremiumNavbar />
+            <NotificationProvider>
+              <LenisProvider>
+                <CustomToastProvider />
+                <PremiumNavbar />
 
-              <main className="flex-1">
-                {children}
-              </main>
+                <main className="flex-1">
+                  {children}
+                </main>
 
-              <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12">
-                <FooterContent />
-              </footer>
-              <MobileBottomNav />
-            </LenisProvider>
+                <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12">
+                  <FooterContent />
+                </footer>
+                <MobileBottomNav />
+              </LenisProvider>
+            </NotificationProvider>
           </AuthProvider>
           <ThemeToggle />
           <SpeedInsights />

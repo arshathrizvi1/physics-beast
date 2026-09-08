@@ -71,6 +71,16 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
         status: "unread",
       });
 
+      await addDoc(collection(db, "notifications"), {
+        target: "admin",
+        title: "New Technical Issue Reported 🚨",
+        message: `A student reported a ${issueCategory}.`,
+        link: "/admin#messages",
+        timestamp: Date.now(),
+        type: "technical",
+        readBy: []
+      });
+
       toast.success("Technical issue reported to Admin successfully!");
       setMessage("");
       handleRemoveImage();

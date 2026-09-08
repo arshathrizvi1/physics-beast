@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where } from "firebase/firestore";
-import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X } from "lucide-react";
+import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
 // Simple counter component using Framer Motion
@@ -719,8 +719,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
+          {/* Action Buttons: Reviews */}
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
             <Link href="/reviews">
               <motion.div
                 whileHover={{ scale: 1.04 }}
@@ -738,12 +738,84 @@ export default function Home() {
               <motion.div
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300"
+                className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
               >
                 View All Reviews
                 <ArrowRight className="w-4 h-4" />
               </motion.div>
             </Link>
+          </div>
+
+          {/* Spacing & Contact Details Panel */}
+          <div className="mt-16 pt-10 border-t border-white/5">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-foreground mb-2">Get in Touch with Us</h3>
+              <p className="text-muted-foreground text-sm">Reach out to Brilliant Academy anytime</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-10">
+              <a href="mailto:contact@brilliantacademy.com" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5 text-[#d4af37]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Email</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">contact@brilliantacademy.com</div>
+                </div>
+              </a>
+
+              <a href="tel:+94771234567" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
+                  <Phone className="w-5 h-5 text-[#d4af37]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Phone</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">+94 77 123 4567</div>
+                </div>
+              </a>
+
+              <div className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-[#d4af37]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Location</div>
+                  <div className="text-sm font-medium text-foreground truncate">Colombo, Sri Lanka</div>
+                </div>
+              </div>
+
+              <a href="https://www.brilliantacademy.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+                <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
+                  <Globe className="w-5 h-5 text-[#d4af37]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Website</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">www.brilliantacademy.com</div>
+                </div>
+              </a>
+            </div>
+
+            {/* About Us & Contact Us Buttons */}
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/about">
+                <motion.div
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                >
+                  About Us
+                </motion.div>
+              </Link>
+              <Link href="/about#contact">
+                <motion.div
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                >
+                  Contact Us
+                </motion.div>
+              </Link>
+            </div>
           </div>
         </section>
 

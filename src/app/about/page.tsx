@@ -29,6 +29,17 @@ export default function AboutPage() {
     fetchAbout();
   }, []);
 
+  useEffect(() => {
+    if (!loading && typeof window !== "undefined" && window.location.hash === "#contact") {
+      setTimeout(() => {
+        const el = document.getElementById("contact");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 150);
+    }
+  }, [loading]);
+
   const data = aboutData || defaultAbout;
 
   return (
@@ -224,6 +235,16 @@ export default function AboutPage() {
                           message: data.message,
                           timestamp: Date.now(),
                           status: "unread",
+                        });
+                        
+                        await addDoc(collection(db, "notifications"), {
+                          target: "admin",
+                          title: "New Contact Message",
+                          message: `${data.fullName} sent a message regarding: ${data.topic}`,
+                          link: "/admin#messages",
+                          timestamp: Date.now(),
+                          type: "contact_us",
+                          readBy: []
                         });
                         
                         toast.success("Message sent successfully! We will get back to you soon."); 
