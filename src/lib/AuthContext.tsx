@@ -46,6 +46,7 @@ export interface UserProfile {
   pendingReason?: string;
   deviceId?: string;
   deviceName?: string;
+  totpSecret?: string | null;
   // Real Student Stats
   totalStudyTimeMins?: number;
   todayStudyTimeMins?: number;
@@ -259,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   examsDone: fresh.examsDone ?? prev.examsDone ?? 0,
                   examsMissed: fresh.examsMissed ?? prev.examsMissed ?? 0,
                   studyHistory: fresh.studyHistory ?? prev.studyHistory ?? {},
+                  totpSecret: fresh.totpSecret ?? null,
                 };
                 // Keep cache in sync so fast-reloads also reflect the new access & XP
                 if (typeof window !== 'undefined') {

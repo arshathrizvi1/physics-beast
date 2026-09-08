@@ -99,6 +99,26 @@ export default function Admin2FAPage() {
     }
   };
 
+  const handleDisable2FA = async () => {
+    if (!user) return;
+    if (!confirm("Are you sure you want to disable 2FA for your account?")) return;
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        totpSecret: null
+      }, { merge: true });
+      setExistingSecret(null);
+      setNewSecret(null);
+      sessionStorage.removeItem("admin_2fa_passed");
+      setSuccessMessage("Two-Factor Authentication has been disabled.");
+      setTimeout(() => {
+        router.replace("/admin");
+      }, 1000);
+    } catch (err) {
+      console.error("Failed to disable 2FA", err);
+      setError("Failed to disable 2FA.");
+    }
+  };
+
   const handleStartChange2FA = async () => {
     if (!user) return;
     await generateNewSetup(user.email || "Admin");
@@ -242,12 +262,19 @@ export default function Admin2FAPage() {
                 >
                   <RotateCcw className="w-4 h-4" /> Change / Reconfigure 2FA Device
                 </Button>
+                <Button 
+                  onClick={handleDisable2FA}
+                  variant="destructive"
+                  className="w-full gap-2 font-bold text-sm mt-2"
+                >
+                  <ShieldAlert className="w-4 h-4" /> Disable 2FA
+                </Button>
               </div>
 
               <div className="pt-2">
                 <Link href="/admin">
                   <Button variant="outline" className="w-full gap-2 text-sm">
-                    <ArrowLeft className="w-4 h-4" /> Return to Admin Dashboard
+                    <ArrowLeft className="w-4 h-4" /> Return to Dashboard
                   </Button>
                 </Link>
               </div>
@@ -291,6 +318,18 @@ export default function Admin2FAPage() {
                   ? "Confirm & Save New 2FA" 
                   : "Verify & Enter"}
               </Button>
+
+              {/* Optional Skip button for teachers */}
+              {user?.role === "teacher" && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => router.replace("/admin")}
+                >
+                  Skip 2FA & Continue to Dashboard
+                </Button>
+              )}
 
               {/* Cancel Button if changing from inside dashboard */}
               {mode === "setup" && isSessionVerified && existingSecret && (

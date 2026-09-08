@@ -22,8 +22,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Check if 2FA passed for this session
     const passed2FA = sessionStorage.getItem("admin_2fa_passed") === "true";
     
-    // If they haven't passed 2FA and they aren't on the 2FA page, kick them to it
-    if (!passed2FA && pathname !== "/admin/2fa") {
+    // Teachers do NOT require 2FA by default unless they have explicitly configured a totpSecret
+    const isTeacherWithout2FA = user.role === "teacher" && !user.totpSecret;
+
+    // If they haven't passed 2FA and 2FA is required for their role/account, kick them to 2FA page
+    if (!passed2FA && !isTeacherWithout2FA && pathname !== "/admin/2fa") {
       router.replace("/admin/2fa");
     } else {
       setIsVerified(true);
