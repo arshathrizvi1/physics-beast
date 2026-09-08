@@ -95,8 +95,8 @@ export default function PremiumNavbar() {
             borderBottom: "1px solid rgba(212,175,55,0.12)",
           }}
         >
-          {/* Background effects with overflow-hidden */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Background effects container */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-b-lg">
             {/* Mouse-tracking glow */}
             <div
               className="absolute inset-0 transition-opacity duration-500"
@@ -206,12 +206,12 @@ export default function PremiumNavbar() {
 
               {/* Search */}
               <motion.div
-                className="hidden md:flex items-center"
+                className="hidden md:flex items-center overflow-hidden"
                 animate={{ width: searchOpen ? 220 : 36 }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               >
                 {searchOpen ? (
-                  <div className="flex items-center w-full bg-card border border-[#d4af37]/30 rounded-full px-3 py-1.5 gap-2">
+                  <div className="flex items-center w-full bg-card border border-[#d4af37]/30 rounded-full px-3 py-1.5 gap-2 shrink-0">
                     <Search className="w-4 h-4 text-[#d4af37] shrink-0" />
                     <input
                       ref={searchRef}
@@ -219,22 +219,21 @@ export default function PremiumNavbar() {
                       onChange={e => setSearchVal(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && searchVal.trim()) {
-                          router.push(`/courses?search=${encodeURIComponent(searchVal)}`);
+                          router.push(`/courses?search=${encodeURIComponent(searchVal.trim())}`);
                           setSearchOpen(false);
-                          setSearchVal("");
                         }
                       }}
                       placeholder="Search courses..."
                       className="flex-1 min-w-0 bg-transparent text-foreground text-sm outline-none placeholder:text-zinc-600"
                     />
-                    <button onClick={() => { setSearchOpen(false); setSearchVal(""); }} className="shrink-0 flex items-center justify-center">
+                    <button onClick={() => { setSearchOpen(false); setSearchVal(""); }} className="shrink-0">
                       <X className="w-4 h-4 text-zinc-500 hover:text-foreground transition-colors" />
                     </button>
                   </div>
                 ) : (
                   <button
                     onClick={() => setSearchOpen(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 hover:bg-secondary transition-all group"
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 hover:bg-secondary transition-all group shrink-0"
                   >
                     <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
                   </button>

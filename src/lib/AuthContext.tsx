@@ -12,7 +12,7 @@ import {
   signInWithPopup,
   updatePassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 import { calculateXpLevel } from './xp';
@@ -488,6 +488,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
             }
+
+            addDoc(collection(db, "notifications"), {
+              target: "admin",
+              title: "Student Logged In",
+              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in to Brilliant Academy.`,
+              link: "/admin#students",
+              timestamp: Date.now(),
+              type: "student_login",
+              readBy: []
+            }).catch(console.error);
           } else if (data.deviceId !== currentLocalDeviceId) {
             console.log("New device detected without prior admin signout. Requiring admin approval.");
             // Require Admin Approval for unapproved device collisions
@@ -507,6 +517,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined') {
               safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
             }
+
+            addDoc(collection(db, "notifications"), {
+              target: "admin",
+              title: "New Device Login Request",
+              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in from a new device and is waiting for access approval.`,
+              link: "/admin#students",
+              timestamp: Date.now(),
+              type: "student_login",
+              readBy: []
+            }).catch(console.error);
+          } else {
+            // Regular successful login
+            addDoc(collection(db, "notifications"), {
+              target: "admin",
+              title: "Student Logged In",
+              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in to Brilliant Academy.`,
+              link: "/admin#students",
+              timestamp: Date.now(),
+              type: "student_login",
+              readBy: []
+            }).catch(console.error);
           }
         }
       }
@@ -858,6 +889,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             safeStorage.session.setItem('admin_2fa_passed', 'true');
           }
         }
+
+        if (data.role !== 'admin' && data.role !== 'teacher') {
+          addDoc(collection(db, "notifications"), {
+            target: "admin",
+            title: "Student Logged In (Google)",
+            message: `${finalProfile.name || result.user.email} (${data.studentId || 'Student'}) logged in via Google.`,
+            link: "/admin#students",
+            timestamp: Date.now(),
+            type: "student_login",
+            readBy: []
+          }).catch(console.error);
+        }
         safeStorage.session.removeItem('isLoggingIn');
         safeStorage.session.removeItem('isGoogleLoggingIn');
         return { success: true, isNewUser: false };
@@ -982,6 +1025,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           safeStorage.session.setItem('admin_2fa_passed', 'true');
         }
       }
+
+      addDoc(collection(db, "notifications"), {
+        target: "admin",
+        title: "New Student Registration",
+        message: `${newProfile.name} (${newProfile.studentId}) registered as a student and is pending approval.`,
+        link: "/admin#students",
+        timestamp: Date.now(),
+        type: "student_signup",
+        readBy: []
+      }).catch(console.error);
+
       safeStorage.session.removeItem('isSigningUp');
       return true;
     } catch (error: any) {
@@ -1043,6 +1097,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
       }
 
+      addDoc(collection(db, "notifications"), {
+        target: "admin",
+        title: "New Teacher Application",
+        message: `${newProfile.name} applied for a Teacher account (${newProfile.subject}).`,
+        link: "/admin#team",
+        timestamp: Date.now(),
+        type: "teacher_signup",
+        readBy: []
+      }).catch(console.error);
+
       safeStorage.session.removeItem('isSigningUp');
       return true;
     } catch (error: any) {
@@ -1083,6 +1147,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
       }
+
+      addDoc(collection(db, "notifications"), {
+        target: "admin",
+        title: "New Teacher Application",
+        message: `${newProfile.name} applied for a Teacher account (${newProfile.subject}).`,
+        link: "/admin#team",
+        timestamp: Date.now(),
+        type: "teacher_signup",
+        readBy: []
+      }).catch(console.error);
+
       safeStorage.session.removeItem('isSigningUp');
       return true;
     } catch (error: any) {

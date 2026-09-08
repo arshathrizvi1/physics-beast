@@ -160,6 +160,9 @@ function NotificationItem({ notif, markAsRead }: { notif: any, markAsRead: (id: 
     if (notif.type === 'contact_us') return 'text-blue-500 bg-blue-500/10';
     if (notif.type === 'exam') return 'text-purple-500 bg-purple-500/10';
     if (notif.type === 'course') return 'text-green-500 bg-green-500/10';
+    if (notif.type === 'student_login') return 'text-cyan-400 bg-cyan-400/10';
+    if (notif.type === 'student_signup') return 'text-emerald-400 bg-emerald-400/10';
+    if (notif.type === 'teacher_signup') return 'text-yellow-400 bg-yellow-400/10';
     return 'text-[#d4af37] bg-[#d4af37]/10';
   };
 

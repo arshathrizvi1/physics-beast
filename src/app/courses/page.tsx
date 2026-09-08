@@ -11,10 +11,12 @@ import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-function CoursesPageContent() {
+function CoursesContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search')?.toLowerCase() || "";
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
 
@@ -78,13 +80,17 @@ function CoursesPageContent() {
     fetchCourses();
   }, [user]);
 
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams?.get("search")?.toLowerCase() || "";
-
   const displayedCourses = courses.filter(c => {
-    const matchesTeacher = selectedTeacherId === 'all' || c.teacherId === selectedTeacherId;
-    const matchesSearch = !searchQuery || c.name?.toLowerCase().includes(searchQuery) || c.description?.toLowerCase().includes(searchQuery);
-    return matchesTeacher && matchesSearch;
+    // text search
+    if (searchQuery) {
+      const matchName = c.name?.toLowerCase().includes(searchQuery);
+      const matchDesc = c.description?.toLowerCase().includes(searchQuery);
+      if (!matchName && !matchDesc) return false;
+    }
+    
+    // teacher filter
+    if (selectedTeacherId === 'all') return true;
+    return c.teacherId === selectedTeacherId;
   });
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
@@ -268,7 +274,7 @@ function CoursesPageContent() {
 export default function CoursesPage() {
   return (
     <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div>}>
-      <CoursesPageContent />
+      <CoursesContent />
     </Suspense>
   );
 }
