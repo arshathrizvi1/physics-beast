@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where, doc, getDoc } from "firebase/firestore";
-import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin } from "lucide-react";
+import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin, Smartphone, Download, Wifi, Battery, Bell, CheckCircle2 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
 // Simple counter component using Framer Motion
@@ -63,7 +63,6 @@ export default function Home() {
   const [showSearch, setShowSearch] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [topReviews, setTopReviews] = useState<any[]>([]);
-  const [showVideoModal, setShowVideoModal] = useState(false);
   const [aboutContact, setAboutContact] = useState<{ email?: string; phone?: string; location?: string; website?: string }>({});
 
   useEffect(() => {
@@ -241,11 +240,6 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-12">
           <div className="flex-1 space-y-8 w-full">
-            {/* LIVE TEST BADGE */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 font-extrabold text-sm sm:text-base tracking-wide shadow-lg animate-pulse">
-              🚀 LIVE SYNC TEST: APPLIED WITHOUT REINSTALLING!
-            </div>
-
             {/* 5. Heading Text Animation */}
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1] break-words">
               {headingText.map((word, i) => (
@@ -551,97 +545,206 @@ export default function Home() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8 }}
-                className="flex-1 relative group cursor-pointer"
-                onClick={() => setShowVideoModal(true)}
+                className="flex-1 relative group w-full flex justify-center cursor-default"
               >
                 {/* Glowing ambient background light effect on hover */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/40 to-[#d4af37]/0 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                <div className="absolute -inset-2 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/35 to-[#d4af37]/0 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 aspect-video transition-all duration-500 bg-black">
-                  {/* Image with zoom and full-color transition when cursor hovers */}
-                  <img 
-                    src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1000" 
-                    alt="Study group" 
-                    className="w-full h-full object-cover mix-blend-luminosity opacity-70 group-hover:mix-blend-normal group-hover:opacity-100 group-hover:scale-105 group-hover:brightness-105 transition-all duration-700 ease-out"
-                  />
+                {/* Outer Card Display Container */}
+                <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 transition-all duration-500 bg-gradient-to-b from-[#111115] via-[#09090c] to-black p-5 sm:p-8 flex flex-col items-center justify-center min-h-[520px]">
                   
-                  {/* Overlay sheen */}
-                  <div className="absolute inset-0 bg-[#d4af37]/10 mix-blend-overlay group-hover:opacity-0 transition-opacity duration-500" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 group-hover:from-black/60 transition-colors duration-500" />
+                  {/* Subtle background grid pattern */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(212,175,55,0.09),transparent_70%)] pointer-events-none" />
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-                  {/* Top Badge Tag */}
-                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white">
+                  {/* Top Badge Tag: Interactive Preview */}
+                  <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white shadow-lg">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     <span>Interactive Preview</span>
                   </div>
 
-                  {/* Center Animated Play Button with Sonar Ping Rings */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="relative flex items-center justify-center">
-                      {/* Outer Sonar Pulse Ping */}
-                      <span className="absolute w-24 h-24 rounded-full bg-[#d4af37]/30 animate-ping pointer-events-none" />
-                      <span className="absolute w-20 h-20 rounded-full bg-[#d4af37]/20 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
+                  {/* Top Right Quick Action: Direct APK Download Link */}
+                  <a 
+                    href="/Brilliant-Academy.apk" 
+                    download="Brilliant-Academy.apk"
+                    className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20 flex items-center gap-1.5 bg-[#d4af37]/15 hover:bg-[#d4af37] text-[#d4af37] hover:text-black transition-all duration-300 px-3 py-1.5 rounded-full border border-[#d4af37]/40 hover:border-[#d4af37] text-xs font-bold backdrop-blur-md shadow-lg"
+                    title="Download Android App APK"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Get APK</span>
+                  </a>
+
+                  {/* Modern Smartphone Mockup Frame */}
+                  <div className="relative z-10 transition-all duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-2 mt-6 sm:mt-4">
+                    
+                    {/* Side physical buttons (Volume on left, Power on right) */}
+                    <div className="absolute -left-[3px] top-24 w-[3px] h-9 bg-zinc-600 rounded-l-sm" />
+                    <div className="absolute -left-[3px] top-36 w-[3px] h-9 bg-zinc-600 rounded-l-sm" />
+                    <div className="absolute -right-[3px] top-28 w-[3px] h-12 bg-zinc-600 rounded-r-sm" />
+
+                    {/* Outer phone body with metallic rim and gold accents */}
+                    <div className="w-[270px] sm:w-[290px] h-[500px] rounded-[2.8rem] p-[3px] bg-gradient-to-b from-zinc-500 via-zinc-800 to-[#d4af37]/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_35px_rgba(212,175,55,0.15)] group-hover:shadow-[0_30px_75px_-12px_rgba(0,0,0,0.98),0_0_55px_rgba(212,175,55,0.35)] transition-shadow duration-500">
                       
-                      {/* Main Play Circle Button */}
-                      <motion.div 
-                        whileHover={{ scale: 1.15, rotate: 3 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="w-20 h-20 bg-[#d4af37] text-black rounded-full flex items-center justify-center shadow-[0_0_35px_rgba(212,175,55,0.7)] group-hover:shadow-[0_0_55px_rgba(212,175,55,0.95)] transition-all duration-500 relative z-10"
-                      >
-                        <PlayCircle className="w-9 h-9 text-black ml-1 group-hover:scale-110 transition-transform duration-300" />
-                      </motion.div>
+                      {/* Inner phone bezel */}
+                      <div className="w-full h-full bg-[#08080a] rounded-[2.65rem] p-2 flex flex-col relative overflow-hidden border border-white/5">
+                        
+                        {/* Top speaker slit */}
+                        <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto my-1 shrink-0 z-30 opacity-80" />
+
+                        {/* OLED Phone Screen Container */}
+                        <div className="relative w-full flex-1 rounded-[2.1rem] overflow-hidden bg-gradient-to-b from-[#0e0e12] via-[#08080a] to-black border border-white/10 flex flex-col text-white select-none">
+                          
+                          {/* Phone Status Bar */}
+                          <div className="px-5 pt-2 pb-1 flex items-center justify-between text-[11px] text-zinc-300 font-semibold z-30 shrink-0">
+                            <span>9:41</span>
+                            
+                            {/* Dynamic Island Pill */}
+                            <div className="w-16 h-4 bg-black rounded-full flex items-center justify-end px-2 gap-1 border border-zinc-800/80 shadow-sm">
+                              <div className="w-1.5 h-1.5 rounded-full bg-zinc-900 border border-zinc-800" />
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/90 animate-pulse" />
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-zinc-400">
+                              <Wifi className="w-3 h-3" />
+                              <Battery className="w-3.5 h-3.5 text-[#d4af37]" />
+                            </div>
+                          </div>
+
+                          {/* Mini LMS App Header */}
+                          <div className="px-3.5 py-2 flex items-center justify-between border-b border-border/40 shrink-0 bg-zinc-950/70 backdrop-blur-md">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4af37] to-[#8d711c] flex items-center justify-center text-black font-black text-xs shadow-sm">
+                                B
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-bold text-foreground leading-tight">Brilliant Academy</h4>
+                                <p className="text-[9px] text-[#d4af37] font-medium">LMS Mobile App</p>
+                              </div>
+                            </div>
+                            <div className="w-6 h-6 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                              <Bell className="w-3 h-3 text-[#d4af37]" />
+                            </div>
+                          </div>
+
+                          {/* Screen Scrollable Body Content */}
+                          <div className="flex-1 p-3 space-y-2.5 overflow-hidden flex flex-col justify-between">
+                            
+                            {/* Featured Live Class Card */}
+                            <div className="rounded-2xl bg-gradient-to-br from-zinc-900/95 to-zinc-950/95 border border-[#d4af37]/35 p-3 shadow-lg relative overflow-hidden group/card">
+                              <div className="absolute -right-6 -bottom-6 w-20 h-20 bg-[#d4af37]/15 rounded-full blur-xl pointer-events-none" />
+                              
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="flex items-center gap-1 bg-red-500/20 text-red-400 text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-500/30 animate-pulse">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> LIVE NOW
+                                </span>
+                                <span className="text-[10px] text-zinc-400 font-medium">480 Students</span>
+                              </div>
+
+                              <h5 className="text-xs font-bold text-white line-clamp-1">Advanced Physics 2026</h5>
+                              <p className="text-[10px] text-zinc-400 mb-2">Unit 04: Electromagnetic Theory</p>
+
+                              {/* Progress bar */}
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[9px] text-zinc-400">
+                                  <span>Class Progress</span>
+                                  <span className="text-[#d4af37] font-bold">78%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-[#d4af37] to-[#f3e198] rounded-full w-[78%]" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Quick Feature Grid in App */}
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <div className="bg-zinc-900/80 border border-border/40 p-2 rounded-xl text-center flex flex-col items-center">
+                                <BookOpen className="w-4 h-4 text-[#d4af37] mb-1" />
+                                <span className="text-[9px] font-bold text-zinc-200">Courses</span>
+                                <span className="text-[8px] text-zinc-500">12 Active</span>
+                              </div>
+                              <div className="bg-zinc-900/80 border border-border/40 p-2 rounded-xl text-center flex flex-col items-center">
+                                <Award className="w-4 h-4 text-[#d4af37] mb-1" />
+                                <span className="text-[9px] font-bold text-zinc-200">Exams</span>
+                                <span className="text-[8px] text-emerald-400">Top 3%</span>
+                              </div>
+                              <div className="bg-zinc-900/80 border border-border/40 p-2 rounded-xl text-center flex flex-col items-center">
+                                <MonitorPlay className="w-4 h-4 text-[#d4af37] mb-1" />
+                                <span className="text-[9px] font-bold text-zinc-200">Videos</span>
+                                <span className="text-[8px] text-zinc-500">Full HD</span>
+                              </div>
+                            </div>
+
+                            {/* Student XP Rank Card */}
+                            <div className="bg-zinc-900/60 border border-border/50 rounded-xl p-2 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] font-bold text-xs">
+                                  🏆
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-bold text-white leading-tight">Student XP Rank</p>
+                                  <p className="text-[8px] text-[#d4af37]">#1 on Leaderboard</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-black text-[#d4af37] bg-[#d4af37]/10 px-2 py-0.5 rounded-md border border-[#d4af37]/20">
+                                +2,450 XP
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Phone Bottom Navigation Bar */}
+                          <div className="px-5 py-2 bg-zinc-950/95 border-t border-border/30 flex items-center justify-around text-zinc-400 shrink-0">
+                            <div className="flex flex-col items-center text-[#d4af37]">
+                              <PlayCircle className="w-3.5 h-3.5" />
+                              <span className="text-[8px] font-bold mt-0.5">Home</span>
+                            </div>
+                            <div className="flex flex-col items-center hover:text-zinc-200">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span className="text-[8px] mt-0.5">Learn</span>
+                            </div>
+                            <div className="flex flex-col items-center hover:text-zinc-200">
+                              <Award className="w-3.5 h-3.5" />
+                              <span className="text-[8px] mt-0.5">Exams</span>
+                            </div>
+                            <div className="flex flex-col items-center hover:text-zinc-200">
+                              <Users className="w-3.5 h-3.5" />
+                              <span className="text-[8px] mt-0.5">Profile</span>
+                            </div>
+                          </div>
+
+                          {/* Phone Bottom Home Swipe Bar */}
+                          <div className="w-20 h-1 bg-zinc-600 rounded-full mx-auto my-1.5 shrink-0" />
+
+                          {/* Glass sheen overlay that glides across on hover */}
+                          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Subtitle Tag */}
-                    <span className="text-xs font-semibold uppercase tracking-wider text-white/90 group-hover:text-[#d4af37] bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 transition-colors duration-300">
-                      Click to Watch Demo
-                    </span>
+                    {/* Floating Chip 1: Android App Support */}
+                    <div className="hidden lg:flex absolute -left-6 bottom-14 bg-zinc-900/95 border border-[#d4af37]/40 backdrop-blur-xl px-3.5 py-2 rounded-2xl shadow-2xl items-center gap-2.5 group-hover:-translate-x-2 group-hover:scale-105 transition-all duration-500 z-20 pointer-events-none">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#9d7d1e] text-black flex items-center justify-center font-bold shadow-md">
+                        <Smartphone className="w-4 h-4 text-black" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">Full Android App</p>
+                        <p className="text-[9px] text-zinc-400">Immersive & Fullscreen</p>
+                      </div>
+                    </div>
+
+                    {/* Floating Chip 2: Fast Streaming */}
+                    <div className="hidden lg:flex absolute -right-6 top-16 bg-zinc-900/95 border border-emerald-500/40 backdrop-blur-xl px-3.5 py-2 rounded-2xl shadow-2xl items-center gap-2.5 group-hover:translate-x-2 group-hover:scale-105 transition-all duration-500 z-20 pointer-events-none">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white">Zero Lag Learning</p>
+                        <p className="text-[9px] text-zinc-400">Pinch-Zoom PDF & HD Video</p>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               </motion.div>
-
-              {/* Video Player Modal */}
-              <AnimatePresence>
-                {showVideoModal && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8"
-                    onClick={() => setShowVideoModal(false)}
-                  >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                      className="relative w-full max-w-4xl bg-zinc-900 border border-[#d4af37]/40 rounded-3xl overflow-hidden shadow-2xl"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-between p-4 px-6 border-b border-border bg-black/40">
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-[#d4af37] animate-pulse" />
-                          <h3 className="text-sm md:text-base font-bold text-foreground">Brilliant Academy - Platform Interactive Tour</h3>
-                        </div>
-                        <button
-                          onClick={() => setShowVideoModal(false)}
-                          className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                      <div className="aspect-video w-full relative bg-black">
-                        <iframe
-                          src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
-                          title="Platform Preview Video"
-                          className="w-full h-full border-0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </section>
