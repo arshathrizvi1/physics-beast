@@ -14,6 +14,7 @@ import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, g
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
+import { uploadToS3 } from "@/lib/s3Storage";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
 
 export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
@@ -254,7 +255,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     let answerPdfUrl = "";
     if (exam?.examType === 'essay' && essayPdfFile) {
       try {
-        answerPdfUrl = await uploadToCloudinary(essayPdfFile);
+        answerPdfUrl = await uploadToS3(essayPdfFile, "student-answers");
       } catch (err: any) {
         console.error("Answer PDF upload failed", err);
         alert(`Failed to upload your answer sheet: ${err.message || 'Please try again.'}`);

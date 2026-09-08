@@ -14,6 +14,7 @@ import Link from "next/link";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToS3 } from "@/lib/s3Storage";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -778,6 +779,7 @@ export default function AdminDashboard() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadItemType, setUploadItemType] = useState<"video" | "resource">("video");
   const [uploadFileBase64, setUploadFileBase64] = useState<string | null>(null);
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [videoPlatform, setVideoPlatform] = useState("youtube");
@@ -1030,16 +1032,21 @@ export default function AdminDashboard() {
 
   const handleUploadItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
-    
-    if (!videoTitle || !finalUrl || !videoFolderId) {
-      alert("Please provide a title, a folder, and either a URL or a file to upload.");
-      return;
-    }
-    
     setIsUploading(true);
     setUploadSuccess(false);
     try {
+      let finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
+      
+      if (uploadItemType === "resource" && resourceFile) {
+        finalUrl = await uploadToS3(resourceFile, "course-resources");
+      }
+      
+      if (!videoTitle || !finalUrl || !videoFolderId) {
+        alert("Please provide a title, a folder, and either a URL or a file to upload.");
+        setIsUploading(false);
+        return;
+      }
+
       const ref = doc(collection(db, 'videos')); // we keep it in 'videos' collection for simplicity, just add type
       await setDoc(ref, {
         title: videoTitle,
@@ -1056,9 +1063,11 @@ export default function AdminDashboard() {
       setVideoTitle("");
       setVideoUrl("");
       setUploadFileBase64(null);
+      setResourceFile(null);
       setTimeout(() => setUploadSuccess(false), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert("Upload failed: " + (err?.message || "Unknown error"));
       setIsUploading(false);
     }
   };
@@ -1137,7 +1146,7 @@ export default function AdminDashboard() {
     try {
       let correctedPdfUrl = null;
       if (gradingPdfFile) {
-        correctedPdfUrl = await uploadToCloudinary(gradingPdfFile);
+        correctedPdfUrl = await uploadToS3(gradingPdfFile, "grading-pdfs");
       }
 
       const scoreNum = parseFloat(gradingScore);
@@ -1274,7 +1283,7 @@ export default function AdminDashboard() {
       setExamPdfUploading(true);
       setExamPdfUploadProgress(0);
       try {
-        finalPdfUrl = await uploadToCloudinary(examPdfFile);
+        finalPdfUrl = await uploadToS3(examPdfFile, "exam-pdfs");
       } catch (err: any) {
         console.error("PDF upload failed", err);
         alert(`Failed to upload the PDF paper. Error: ${err.message || 'Unknown error'}`);
@@ -2423,12 +2432,7 @@ export default function AdminDashboard() {
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {
                             const file = e.target.files[0];
-                            if (file.size > 1048576) {
-                              alert("File size must be under 1MB due to Firebase Free Tier limits. Please compress your PDF/Image before uploading.");
-                              e.target.value = '';
-                              setUploadFileBase64(null);
-                              return;
-                            }
+                            setResourceFile(file);
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               setUploadFileBase64(event.target?.result as string);
@@ -2438,11 +2442,11 @@ export default function AdminDashboard() {
                         }} 
                         required={uploadItemType === 'resource'}
                       />
-                      <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !uploadFileBase64}>
-                        {isUploading ? "Uploading..." : "Upload Resource"}
+                      <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || (!uploadFileBase64 && !resourceFile)}>
+                        {isUploading ? "Uploading to S3..." : "Upload Resource (S3)"}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">Files are converted and stored securely. Max limit 1MB.</p>
+                    <p className="text-xs text-muted-foreground mt-2">PDFs and Resources are uploaded securely to Amazon S3.</p>
                   </div>
                 )}
               </form>
