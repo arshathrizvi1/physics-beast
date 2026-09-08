@@ -135,7 +135,7 @@ export default function AboutPage() {
       </section>
 
       {/* Contact Section */}
-      <section className="py-24 border-t border-border/50 relative overflow-hidden">
+      <section id="contact" className="py-24 border-t border-border/50 relative overflow-hidden">
         <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[500px] h-[500px] bg-[#d4af37]/5 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="container mx-auto px-6 max-w-6xl relative z-10">

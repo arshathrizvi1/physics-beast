@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Upload, X, CheckCircle2, ShieldAlert, Image as ImageIcon, Loader2 } from "lucide-react";
+import { X, ShieldAlert, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
@@ -24,6 +23,8 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -84,18 +85,29 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-white/10 text-white rounded-2xl p-6 shadow-2xl">
-        <DialogHeader className="space-y-2">
-          <DialogTitle className="text-xl font-bold flex items-center gap-2 text-[#d4af37]">
-            <ShieldAlert className="w-5 h-5" /> Report Technical Issue
-          </DialogTitle>
-          <DialogDescription className="text-zinc-400 text-xs">
-            Notice a bug or glitch? Send technical problems directly to System Administrators.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-[500px] bg-zinc-950 border border-white/10 text-white rounded-2xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-        <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+        {/* Modal Header */}
+        <div className="space-y-1">
+          <h3 className="text-xl font-bold flex items-center gap-2 text-[#d4af37]">
+            <ShieldAlert className="w-5 h-5" /> Report Technical Issue
+          </h3>
+          <p className="text-zinc-400 text-xs">
+            Notice a bug or glitch? Send technical problems directly to System Administrators.
+          </p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div>
             <Label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 block">
               Issue Type / Category
@@ -162,7 +174,7 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
             )}
           </div>
 
-          <div className="pt-2 flex items-center justify-between border-t border-white/10">
+          <div className="pt-3 flex items-center justify-between border-t border-white/10">
             <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-semibold uppercase tracking-wider">
               <ShieldAlert className="w-3.5 h-3.5 text-[#d4af37]" /> Admin Only
             </div>
@@ -193,7 +205,7 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
             </div>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
