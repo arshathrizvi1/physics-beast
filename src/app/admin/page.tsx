@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -1097,6 +1097,22 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, 'exams', id), { hidden: !exam.hidden });
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleEndExamNow = async (id: string, examTitle?: string) => {
+    const title = examTitle || "this exam";
+    if (!confirm(`Are you sure you want to END "${title}" right now? Submissions will close immediately for all students.`)) {
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'exams', id), {
+        endTime: Date.now() - 1000,
+      });
+      alert(`✅ "${title}" has been ended now! Submissions are now closed.`);
+    } catch (e: any) {
+      console.error(e);
+      alert(`Failed to end exam: ${e.message || 'Unknown error'}`);
     }
   };
 
@@ -2740,11 +2756,27 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        {isEnded && (
+                        {isEnded ? (
                           <div className="bg-destructive/10 border border-destructive/20 text-destructive text-[11px] p-2 rounded-md font-medium flex items-center justify-between">
                             <span>🔒 Submission window ended. Students cannot take this exam.</span>
                           </div>
-                        )}
+                        ) : isActive ? (
+                          <div className="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Exam is currently running
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 px-2.5 text-xs font-bold gap-1 bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                              onClick={() => handleEndExamNow(exam.id, exam.title)}
+                              title="End this exam right now for all students"
+                            >
+                              <StopCircle className="w-3.5 h-3.5" /> End Exam Now
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -4636,6 +4668,17 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        {isActive && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="h-8 px-2.5 text-xs font-bold gap-1 bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                            onClick={() => handleEndExamNow(exam.id, exam.title)}
+                            title="End Exam Now for all students"
+                          >
+                            <StopCircle className="w-3.5 h-3.5" /> End Now
+                          </Button>
+                        )}
                         <Button 
                           size="sm" 
                           variant="outline"
@@ -4716,6 +4759,28 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex items-center gap-2">
+                {(() => {
+                  const now = Date.now();
+                  const hasStart = !!selectedExamDetails.startTime;
+                  const hasEnd = !!selectedExamDetails.endTime;
+                  const isActive = (!hasStart || now >= selectedExamDetails.startTime) && (!hasEnd || now <= selectedExamDetails.endTime);
+                  if (isActive) {
+                    return (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold gap-1 text-xs"
+                        onClick={async () => {
+                          await handleEndExamNow(selectedExamDetails.id, selectedExamDetails.title);
+                          setSelectedExamDetails((prev: any) => prev ? { ...prev, endTime: Date.now() - 1000 } : null);
+                        }}
+                      >
+                        <StopCircle className="w-3.5 h-3.5" /> End Exam Now
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
                 {!selectedExamDetails.gradesPublished && selectedExamDetails.examType === 'essay' && (
                   <Button 
                     size="sm" 

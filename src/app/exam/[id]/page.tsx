@@ -10,7 +10,7 @@ import { Clock, AlertTriangle, Send, Trophy, Award, Zap, CheckCircle2, ArrowRigh
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, getDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, increment, getDocs, query, where, getDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { calculateExamXp, calculateXpLevel, formatSeconds, ExamXpResult, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
@@ -44,9 +44,12 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (!user) return;
     
+    let unsubExamDoc: (() => void) | null = null;
+
     const initExam = async () => {
       try {
-        const examDoc = await getDoc(doc(db, 'exams', id));
+        const examDocRef = doc(db, 'exams', id);
+        const examDoc = await getDoc(examDocRef);
         if (!examDoc.exists()) {
           setErrorMsg("Exam not found or has been deleted.");
           return;
@@ -91,6 +94,18 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         setTimeLeft(remaining);
         setIsLoaded(true);
 
+        // Real-time listener for exam changes (e.g. admin ending exam early)
+        unsubExamDoc = onSnapshot(examDocRef, (snap) => {
+          if (snap.exists()) {
+            const updated = snap.data();
+            setExam(updated);
+            if (updated.endTime && Date.now() >= updated.endTime) {
+              setTimeUp(true);
+              if (handleSubmitRef.current) handleSubmitRef.current(true);
+            }
+          }
+        });
+
       } catch (err) {
         console.error("Failed to load exam", err);
         setErrorMsg("Failed to load exam data.");
@@ -98,6 +113,10 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     };
 
     initExam();
+
+    return () => {
+      if (unsubExamDoc) unsubExamDoc();
+    };
   }, [id, user]);
 
   const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
