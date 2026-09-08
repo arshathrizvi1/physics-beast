@@ -9,13 +9,17 @@ export function MobileBottomNav() {
   const { user, loading } = useAuth();
   const pathname = usePathname();
 
-  // Only show for logged in students
-  if (loading || !user || user.role !== 'student') {
+  // Hide on admin routes or auth routes
+  if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/signup' || pathname === '/teacher-signup') {
     return null;
   }
 
-  // Hide on admin routes or auth routes just in case
-  if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/signup' || pathname === '/teacher-signup') {
+  // Only show if loading finishes and user exists (allow both student role or default logged in user)
+  if (loading) {
+    return null;
+  }
+
+  if (user && user.role && user.role !== 'student') {
     return null;
   }
 
@@ -27,8 +31,8 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
-      <div className="bg-[#1a1a1a] border border-white/5 backdrop-blur-xl shadow-2xl rounded-[32px] flex items-center justify-between px-2 py-2 h-20">
+    <div className="fixed bottom-3 left-3 right-3 z-50 pointer-events-auto">
+      <div className="bg-[#1a1a1a] border border-white/10 backdrop-blur-xl shadow-2xl rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
         {links.map((link) => {
           const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
           return (
