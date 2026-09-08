@@ -8,7 +8,7 @@ import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import {
   Search, X, BookOpen, PlayCircle, FileQuestion, GraduationCap,
   User, Award, Calendar, Clock, ExternalLink, ArrowRight, ArrowLeft, Compass,
-  Sparkles, CheckCircle2, ShieldCheck, Mail, Phone, Hash
+  Sparkles, CheckCircle2, ShieldCheck, Mail, Phone, Hash, Maximize2, Minimize2
 } from "lucide-react";
 
 interface SearchResultItem {
@@ -417,28 +417,25 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col sm:items-start sm:justify-center sm:pt-24 sm:px-4 bg-black/90 sm:bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={onClose}
+      className="fixed inset-0 z-[100] w-full h-full bg-[#080808]/98 backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in duration-200"
+      onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-3xl bg-[#0d0d0d] sm:border sm:border-white/10 sm:rounded-2xl shadow-2xl shadow-[#d4af37]/10 flex flex-col overflow-hidden relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Gold Accent Line */}
-        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#d4af37] to-transparent shrink-0" />
+      {/* Top Gold Accent Line */}
+      <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#d4af37] to-transparent shrink-0" />
 
-        {/* Search Header Input */}
-        <div className="p-3.5 sm:p-5 border-b border-white/10 flex items-center gap-2.5 sm:gap-3 bg-zinc-950/80 shrink-0">
-          {/* Mobile Back button */}
+      {/* Search Header Input Bar */}
+      <div className="border-b border-white/10 bg-zinc-950/90 shrink-0">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-8 py-4 sm:py-5 flex items-center gap-3 sm:gap-4">
+          {/* Back/Close button */}
           <button
             onClick={onClose}
-            className="sm:hidden p-1.5 -ml-1 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 active:scale-90 transition-transform shrink-0"
-            title="Close"
+            className="p-2 -ml-2 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 active:scale-95 transition-transform shrink-0"
+            title="Close Search"
           >
             <ArrowLeft className="w-5 h-5 text-[#d4af37]" />
           </button>
 
-          <Search className="w-5 h-5 text-[#d4af37] shrink-0 hidden sm:block" />
+          <Search className="w-6 h-6 text-[#d4af37] shrink-0 hidden sm:block" />
           <input
             ref={inputRef}
             type="text"
@@ -451,26 +448,34 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={
               canAccessStudentData
-                ? "Search courses, exams, videos, student IDs, marks..."
+                ? "Search courses, exams, videos, teachers, student IDs, marks..."
                 : "Search courses, exams, lessons, teachers, your marks..."
             }
-            className="flex-1 bg-transparent text-white placeholder:text-zinc-500 text-base sm:text-lg outline-none font-medium min-w-0"
+            className="flex-1 bg-transparent text-white placeholder:text-zinc-500 text-lg sm:text-2xl outline-none font-semibold min-w-0"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="p-1.5 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              title="Clear search"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-semibold text-zinc-400 bg-white/5 border border-white/10 rounded-lg shrink-0">
-            ESC
-          </kbd>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all shrink-0"
+            title="Close Search (ESC)"
+          >
+            <span>Close</span>
+            <kbd className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 bg-black/40 rounded border border-white/10 text-zinc-400">ESC</kbd>
+          </button>
         </div>
+      </div>
 
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/5 bg-zinc-950/40 overflow-x-auto no-scrollbar text-xs">
+      {/* Category Filter Pills Bar */}
+      <div className="border-b border-white/5 bg-zinc-950/50 shrink-0">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-8 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar text-xs sm:text-sm">
           {[
             { id: "all", label: "All" },
             { id: "courses", label: "Courses" },
@@ -486,17 +491,17 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
               <button
                 key={tab.id}
                 onClick={() => setActiveCategory(tab.id)}
-                className={`px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-full font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
                   isActive
-                    ? "bg-[#d4af37] text-black font-bold shadow-md shadow-[#d4af37]/20"
+                    ? "bg-[#d4af37] text-black font-bold shadow-lg shadow-[#d4af37]/20"
                     : "text-zinc-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <span>{tab.label}</span>
                 {count > 0 && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      isActive ? "bg-black/20 text-black font-bold" : "bg-white/10 text-zinc-400"
+                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive ? "bg-black/25 text-black" : "bg-white/10 text-zinc-400"
                     }`}
                   >
                     {count}
@@ -506,22 +511,24 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
             );
           })}
         </div>
+      </div>
 
-        {/* Results List */}
-        <div
-          ref={listRef}
-          className="flex-1 sm:max-h-[460px] overflow-y-auto p-2.5 sm:p-3 space-y-1.5 custom-scrollbar overscroll-contain touch-pan-y"
-        >
+      {/* Results List */}
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain touch-pan-y"
+      >
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-8 py-5 space-y-2.5">
           {isLoading ? (
-            <div className="py-16 text-center text-zinc-400 flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 rounded-full border-2 border-[#d4af37] border-t-transparent animate-spin" />
-              <p className="text-sm">Searching Academy Database...</p>
+            <div className="py-24 text-center text-zinc-400 flex flex-col items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-full border-2 border-[#d4af37] border-t-transparent animate-spin" />
+              <p className="text-base font-medium">Searching Academy Database...</p>
             </div>
           ) : filteredResults.length === 0 ? (
-            <div className="py-16 text-center text-zinc-500 flex flex-col items-center justify-center gap-2">
-              <Search className="w-10 h-10 text-zinc-700" />
-              <p className="text-base font-semibold text-zinc-300">No results found for &ldquo;{searchTerm}&rdquo;</p>
-              <p className="text-xs text-zinc-500 max-w-sm">
+            <div className="py-24 text-center text-zinc-500 flex flex-col items-center justify-center gap-3">
+              <Search className="w-12 h-12 text-zinc-700" />
+              <p className="text-lg font-semibold text-zinc-300">No results found for &ldquo;{searchTerm}&rdquo;</p>
+              <p className="text-sm text-zinc-500 max-w-md">
                 Try searching for specific course titles, teacher names, exam categories, dates, or student IDs.
               </p>
             </div>
@@ -533,36 +540,36 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
                   key={item.id}
                   onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`p-3 sm:p-3.5 rounded-xl cursor-pointer transition-all flex items-center gap-3.5 border ${
+                  className={`p-4 sm:p-4.5 rounded-2xl cursor-pointer transition-all flex items-center gap-4 border ${
                     isSelected
-                      ? "bg-white/[0.07] border-[#d4af37]/40 shadow-md shadow-[#d4af37]/5"
-                      : "bg-transparent border-transparent hover:bg-white/[0.03]"
+                      ? "bg-white/[0.08] border-[#d4af37]/50 shadow-lg shadow-[#d4af37]/10"
+                      : "bg-zinc-950/40 border-white/5 hover:bg-white/[0.03] hover:border-white/10"
                   }`}
                 >
                   {/* Category Icon Container */}
-                  <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center shrink-0">
                     {getCategoryIcon(item.category)}
                   </div>
 
                   {/* Text Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <h4 className="text-sm font-semibold text-white truncate max-w-[400px]">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h4 className="text-base sm:text-lg font-semibold text-white truncate max-w-[550px]">
                         {item.title}
                       </h4>
                       {item.badges?.map(renderBadge)}
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-zinc-400 truncate">
+                    <div className="flex items-center gap-3 text-xs sm:text-sm text-zinc-400 truncate">
                       {item.subtitle && <span>{item.subtitle}</span>}
                       {item.date && (
-                        <span className="flex items-center gap-1 text-zinc-500">
-                          <Calendar className="w-3 h-3" /> {item.date}
+                        <span className="flex items-center gap-1.5 text-zinc-500">
+                          <Calendar className="w-3.5 h-3.5" /> {item.date}
                         </span>
                       )}
                       {item.time && (
-                        <span className="flex items-center gap-1 text-zinc-500">
-                          <Clock className="w-3 h-3" /> {item.time}
+                        <span className="flex items-center gap-1.5 text-zinc-500">
+                          <Clock className="w-3.5 h-3.5" /> {item.time}
                         </span>
                       )}
                       {item.description && !item.subtitle && (
@@ -572,10 +579,10 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
                   </div>
 
                   {/* Action Link Arrow */}
-                  <div className="shrink-0 flex items-center text-zinc-500">
+                  <div className="shrink-0 flex items-center pr-2">
                     <ArrowRight
-                      className={`w-4 h-4 transition-transform ${
-                        isSelected ? "text-[#d4af37] translate-x-1" : "opacity-40"
+                      className={`w-5 h-5 transition-transform ${
+                        isSelected ? "text-[#d4af37] translate-x-1.5" : "text-zinc-600"
                       }`}
                     />
                   </div>
@@ -584,24 +591,30 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
             })
           )}
         </div>
+      </div>
 
-        {/* Footer info bar */}
-        <div className="p-3 border-t border-white/10 bg-zinc-950 flex items-center justify-between text-[11px] text-zinc-500 px-4">
+      {/* Footer info bar */}
+      <div className="border-t border-white/10 bg-zinc-950/90 shrink-0">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-8 py-3.5 flex items-center justify-between text-xs text-zinc-500">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[10px]">↑</kbd>
-              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[10px]">↓</kbd>
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[11px]">↑</kbd>
+              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[11px]">↓</kbd>
               Navigate
             </span>
-            <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[10px]">↵</kbd>
+            <span className="flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[11px]">↵</kbd>
               Select
+            </span>
+            <span className="hidden sm:flex items-center gap-1.5">
+              <kbd className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded font-mono text-[11px]">ESC</kbd>
+              Close
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <Sparkles className="w-3 h-3 text-[#d4af37]" />
-            <span>Brilliant Academy Spotlight</span>
+            <Sparkles className="w-3.5 h-3.5 text-[#d4af37]" />
+            <span className="font-medium text-zinc-400">Brilliant Academy Spotlight</span>
           </div>
         </div>
       </div>
