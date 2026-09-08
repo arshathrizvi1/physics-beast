@@ -10,7 +10,6 @@ import PremiumNavbar from "@/components/PremiumNavbar";
 import { CustomToastProvider } from "@/components/providers/ToastProvider";
 import { NotificationProvider } from "@/components/providers/NotificationProvider";
 import { AndroidBackButtonHandler } from "@/components/AndroidBackButtonHandler";
-import { AndroidSwipeReloadHandler } from "@/components/AndroidSwipeReloadHandler";
 import { MobilePermissionPrompt } from "@/components/MobilePermissionPrompt";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -55,7 +54,6 @@ export default function RootLayout({
               <LenisProvider>
                 <CustomToastProvider />
                 <AndroidBackButtonHandler />
-                <AndroidSwipeReloadHandler />
                 <MobilePermissionPrompt />
                 <PremiumNavbar />
 

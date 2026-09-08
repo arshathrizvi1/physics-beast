@@ -24,37 +24,17 @@ export function MobileBottomNav() {
   }
 
   const links = [
-    { 
-      name: "Home", 
-      href: "/", 
-      icon: Home,
-      isActive: pathname === "/" 
-    },
-    { 
-      name: "Study", 
-      href: "/courses", 
-      icon: BookOpen,
-      isActive: pathname === "/courses" || pathname.startsWith("/course/") 
-    },
-    { 
-      name: "Exams", 
-      href: "/exams", 
-      icon: FileText,
-      isActive: pathname.startsWith("/exam") 
-    },
-    { 
-      name: "Live", 
-      href: "/live", 
-      icon: Video,
-      isActive: pathname.startsWith("/live") 
-    },
+    { name: "Home", href: "/", icon: Home },
+    { name: "Study", href: "/courses", icon: BookOpen },
+    { name: "Exam", href: "/exams", icon: FileText },
+    { name: "Live", href: "/live", icon: Video },
   ];
 
   return (
     <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 pointer-events-auto">
-      <div className="bg-[#1a1a1a]/95 border border-white/10 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.85)] rounded-[32px] flex items-center justify-between px-2.5 py-1.5 h-[68px] max-w-sm mx-auto">
+      <div className="bg-black border border-[#C0C0C0]/20 shadow-[0_8px_32px_rgba(0,0,0,0.9)] rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
         {links.map((link) => {
-          const isActive = link.isActive;
+          const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
           return (
             <Link 
               key={link.name} 
@@ -62,14 +42,14 @@ export function MobileBottomNav() {
               className="flex-1 flex justify-center items-center h-full"
             >
               <div 
-                className={`flex flex-col items-center justify-center w-full max-w-[76px] h-[54px] rounded-[22px] transition-all duration-300 ${
+                className={`flex flex-col items-center justify-center w-[72px] h-[58px] rounded-[24px] transition-all duration-300 ${
                   isActive 
-                    ? "bg-[#F5BF42] text-black shadow-[0_4px_20px_rgba(245,191,66,0.35)]" 
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-gradient-to-tr from-[#FFD700] to-[#FDB931] text-black shadow-[0_0_20px_rgba(255,215,0,0.4)]" 
+                    : "text-[#C0C0C0] hover:text-white"
                 }`}
               >
                 <link.icon 
-                  className={`w-5 h-5 mb-0.5 ${isActive ? "text-black stroke-[2.4px]" : "stroke-[1.8px]"}`} 
+                  className={`w-5 h-5 mb-1 ${isActive ? "fill-black/10 stroke-[2.5px]" : "stroke-[2px]"}`} 
                 />
                 <span className={`text-[10px] ${isActive ? "font-bold text-black" : "font-medium"}`}>
                   {link.name}
