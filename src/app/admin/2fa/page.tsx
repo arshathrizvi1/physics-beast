@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import * as OTPAuth from "otpauth";
 import QRCode from "qrcode";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,9 +127,9 @@ export default function Admin2FAPage() {
       if (isValid) {
         if (mode === "setup" && user) {
           // Save new secret to Firestore
-          await updateDoc(doc(db, "users", user.uid), {
+          await setDoc(doc(db, "users", user.uid), {
             totpSecret: activeSecret
-          });
+          }, { merge: true });
           setExistingSecret(activeSecret);
           setSuccessMessage("✅ 2FA Authenticator successfully configured!");
         }
