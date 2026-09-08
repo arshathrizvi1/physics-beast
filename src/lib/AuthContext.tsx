@@ -491,48 +491,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             addDoc(collection(db, "notifications"), {
               target: "admin",
-              title: "Student Logged In",
-              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in to Brilliant Academy.`,
-              link: "/admin#students",
-              timestamp: Date.now(),
-              type: "student_login",
-              readBy: []
-            }).catch(console.error);
-          } else if (data.deviceId !== currentLocalDeviceId) {
-            console.log("New device detected without prior admin signout. Requiring admin approval.");
-            // Require Admin Approval for unapproved device collisions
-            updateDoc(userDocRef, { 
-              deviceId: currentLocalDeviceId,
-              isApproved: false,
-              pendingReason: 'New Device Login'
-            }).catch(e => console.log("Could not update deviceId in DB (quota or network):", e));
-            
-            const updatedProfile = { 
-              ...data, 
-              deviceId: currentLocalDeviceId,
-              isApproved: false,
-              pendingReason: 'New Device Login'
-            } as UserProfile;
-            setUser(updatedProfile);
-            if (typeof window !== 'undefined') {
-              safeStorage.local.setItem('cachedUserProfile', JSON.stringify(updatedProfile));
-            }
-
-            addDoc(collection(db, "notifications"), {
-              target: "admin",
-              title: "New Device Login Request",
-              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in from a new device and is waiting for access approval.`,
-              link: "/admin#students",
-              timestamp: Date.now(),
-              type: "student_login",
-              readBy: []
-            }).catch(console.error);
-          } else {
-            // Regular successful login
-            addDoc(collection(db, "notifications"), {
-              target: "admin",
-              title: "Student Logged In",
-              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in to Brilliant Academy.`,
+              title: "New Device Login Approval Required",
+              message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in from a new device and is waiting for your approval.`,
               link: "/admin#students",
               timestamp: Date.now(),
               type: "student_login",
@@ -890,11 +850,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        if (data.role !== 'admin' && data.role !== 'teacher') {
+        if (data.role !== 'admin' && data.role !== 'teacher' && data.pendingReason === 'New Device Login') {
           addDoc(collection(db, "notifications"), {
             target: "admin",
-            title: "Student Logged In (Google)",
-            message: `${finalProfile.name || result.user.email} (${data.studentId || 'Student'}) logged in via Google.`,
+            title: "New Device Login Approval Required",
+            message: `${finalProfile.name || result.user.email} (${data.studentId || 'Student'}) logged in via Google from a new device and is waiting for your approval.`,
             link: "/admin#students",
             timestamp: Date.now(),
             type: "student_login",

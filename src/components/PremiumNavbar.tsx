@@ -13,6 +13,7 @@ import {
   ChevronDown, User
 } from "lucide-react";
 import NotificationBell from "@/components/NotificationBell";
+import GlobalSearchModal from "@/components/GlobalSearchModal";
 
 const NAV_LINKS = [
   { href: "/courses",     label: "Courses"     },
@@ -39,11 +40,19 @@ export default function PremiumNavbar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { const t = setTimeout(() => setMounted(true), 100); return () => clearTimeout(t); }, []);
 
-  // Search
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchVal, setSearchVal] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (searchOpen) searchRef.current?.focus(); }, [searchOpen]);
+  // Global Search Modal state & shortcut listener
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Mobile menu
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -204,41 +213,21 @@ export default function PremiumNavbar() {
                 )}
               </AnimatePresence>
 
-              {/* Search */}
-              <motion.div
-                className="hidden md:flex items-center overflow-hidden"
-                animate={{ width: searchOpen ? 220 : 36 }}
-                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              {/* Global Search Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsSearchModalOpen(true)}
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-card border border-border hover:border-[#d4af37]/50 hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-all group shrink-0"
+                title="Global Search (Ctrl+K / ⌘K)"
               >
-                {searchOpen ? (
-                  <div className="flex items-center w-full bg-card border border-[#d4af37]/30 rounded-full px-3 py-1.5 gap-2 shrink-0">
-                    <Search className="w-4 h-4 text-[#d4af37] shrink-0" />
-                    <input
-                      ref={searchRef}
-                      value={searchVal}
-                      onChange={e => setSearchVal(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && searchVal.trim()) {
-                          router.push(`/courses?search=${encodeURIComponent(searchVal.trim())}`);
-                          setSearchOpen(false);
-                        }
-                      }}
-                      placeholder="Search courses..."
-                      className="flex-1 min-w-0 bg-transparent text-foreground text-sm outline-none placeholder:text-zinc-600"
-                    />
-                    <button onClick={() => { setSearchOpen(false); setSearchVal(""); }} className="shrink-0">
-                      <X className="w-4 h-4 text-zinc-500 hover:text-foreground transition-colors" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setSearchOpen(true)}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 hover:bg-secondary transition-all group shrink-0"
-                  >
-                    <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
-                  </button>
-                )}
-              </motion.div>
+                <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
+                <span className="hidden sm:inline text-xs font-medium text-zinc-400 group-hover:text-zinc-200">
+                  Search...
+                </span>
+                <kbd className="hidden lg:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-500 group-hover:text-zinc-300">
+                  <span className="text-[9px]">⌘</span>K
+                </kbd>
+              </button>
 
               {/* User or Login */}
               {user ? (
@@ -381,6 +370,12 @@ export default function PremiumNavbar() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Global Spotlight Search Modal */}
+        <GlobalSearchModal
+          isOpen={isSearchModalOpen}
+          onClose={() => setIsSearchModalOpen(false)}
+        />
     </>
   );
 }
