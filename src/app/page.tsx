@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, limit as fsLimit, where } from "firebase/firestore";
+import { collection, getDocs, query, limit as fsLimit, where, doc, getDoc } from "firebase/firestore";
 import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
@@ -64,6 +64,19 @@ export default function Home() {
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [topReviews, setTopReviews] = useState<any[]>([]);
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [aboutContact, setAboutContact] = useState<{ email?: string; phone?: string; location?: string; website?: string }>({});
+
+  useEffect(() => {
+    const fetchAboutContact = async () => {
+      try {
+        const snap = await getDoc(doc(db, "siteConfig", "about"));
+        if (snap.exists() && snap.data().contact) {
+          setAboutContact(snap.data().contact);
+        }
+      } catch {}
+    };
+    fetchAboutContact();
+  }, []);
 
   // Initial loading animation
   useEffect(() => {
@@ -754,23 +767,23 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-10">
-              <a href="mailto:contact@brilliantacademy.com" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <a href={`mailto:${aboutContact.email || "contact@brilliantacademy.com"}`} className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Mail className="w-5 h-5 text-[#d4af37]" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Email</div>
-                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">contact@brilliantacademy.com</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">{aboutContact.email || "contact@brilliantacademy.com"}</div>
                 </div>
               </a>
 
-              <a href="tel:+94771234567" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <a href={`tel:${aboutContact.phone || "+94 77 123 4567"}`} className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Phone className="w-5 h-5 text-[#d4af37]" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Phone</div>
-                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">+94 77 123 4567</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">{aboutContact.phone || "+94 77 123 4567"}</div>
                 </div>
               </a>
 
@@ -780,17 +793,22 @@ export default function Home() {
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Location</div>
-                  <div className="text-sm font-medium text-foreground truncate">Colombo, Sri Lanka</div>
+                  <div className="text-sm font-medium text-foreground truncate">{aboutContact.location || "Colombo, Sri Lanka"}</div>
                 </div>
               </div>
 
-              <a href="https://www.brilliantacademy.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <a 
+                href={(aboutContact.website || "www.brilliantacademy.com").startsWith("http") ? (aboutContact.website || "www.brilliantacademy.com") : `https://${aboutContact.website || "www.brilliantacademy.com"}`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
+              >
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Globe className="w-5 h-5 text-[#d4af37]" />
                 </div>
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Website</div>
-                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">www.brilliantacademy.com</div>
+                  <div className="text-sm font-medium text-foreground truncate hover:text-[#d4af37]">{aboutContact.website || "www.brilliantacademy.com"}</div>
                 </div>
               </a>
             </div>

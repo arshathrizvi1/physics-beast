@@ -71,12 +71,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const isAdmin = user.role === "admin";
     const targetValue = isAdmin ? "admin" : "all_students";
     
-    // Build query: Get global notifications or user-specific ones
-    // We will do a single query for now: target == userRoleOrID
+    // Query by target without orderBy to avoid requiring a composite index in Firestore Console
     const q = query(
       collection(db, "notifications"),
       where("target", "in", [targetValue, user.uid]),
-      orderBy("timestamp", "desc"),
       limit(50)
     );
 
@@ -104,6 +102,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           seenIdsRef.current.add(notif.id);
         }
       });
+
+      // Sort client-side by timestamp descending
+      fetched.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
       setNotifications(fetched);
 
