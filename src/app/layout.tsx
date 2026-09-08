@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -67,7 +66,6 @@ export default function RootLayout({
               </LenisProvider>
             </NotificationProvider>
           </AuthProvider>
-          <ThemeToggle />
           <SpeedInsights />
         </ThemeProvider>
       </body>
