@@ -31,7 +31,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 z-50 pointer-events-auto">
+    <div className="md:hidden fixed bottom-3 left-3 right-3 z-50 pointer-events-auto">
       <div className="bg-[#1a1a1a] border border-white/10 backdrop-blur-xl shadow-2xl rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
         {links.map((link) => {
           const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
