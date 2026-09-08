@@ -81,7 +81,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoadingComplete(true);
-    }, 800); // Quick intro
+    }, 2000); // 2 second intro
     return () => clearTimeout(timer);
   }, []);
 
