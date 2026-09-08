@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { Home, BookOpen, FileText } from "lucide-react";
+import { Home, BookOpen, FileText, Video } from "lucide-react";
 
 export function MobileBottomNav() {
   const { user, loading } = useAuth();
@@ -23,25 +23,32 @@ export function MobileBottomNav() {
     { name: "Home", href: "/", icon: Home },
     { name: "Courses", href: "/courses", icon: BookOpen },
     { name: "Exams", href: "/exams", icon: FileText },
+    { name: "Live", href: "/live", icon: Video },
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-safe">
-      <div className="flex items-center justify-around h-16">
+    <div className="md:hidden fixed bottom-4 left-4 right-4 z-50">
+      <div className="bg-[#1a1a1a] border border-white/5 backdrop-blur-xl shadow-2xl rounded-[32px] flex items-center justify-between px-2 py-2 h-20">
         {links.map((link) => {
           const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
           return (
             <Link 
               key={link.name} 
               href={link.href}
-              className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                isActive ? "text-[#d4af37]" : "text-zinc-500 hover:text-foreground/90"
-              }`}
+              className="flex-1 flex justify-center items-center h-full"
             >
-              <link.icon className={`w-5 h-5 ${isActive ? "drop-shadow-[0_0_8px_rgba(212,175,55,0.5)]" : ""}`} />
-              <span className="text-[10px] font-medium tracking-wide">
-                {link.name}
-              </span>
+              <div 
+                className={`flex flex-col items-center justify-center w-[72px] h-[64px] rounded-3xl transition-all duration-300 ${
+                  isActive 
+                    ? "bg-[#ffc107] text-black shadow-[0_0_20px_rgba(255,193,7,0.3)]" 
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <link.icon className={`w-5 h-5 mb-1 ${isActive ? "fill-current" : ""}`} />
+                <span className={`text-[10px] font-semibold ${isActive ? "text-black" : ""}`}>
+                  {link.name}
+                </span>
+              </div>
             </Link>
           );
         })}

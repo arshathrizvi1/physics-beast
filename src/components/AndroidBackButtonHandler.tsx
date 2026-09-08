@@ -15,6 +15,14 @@ export function AndroidBackButtonHandler() {
     let unsub: any;
 
     import("@capacitor/app").then(async ({ App }) => {
+      // Hide status bar to make it fully immersive
+      try {
+        const { StatusBar } = await import("@capacitor/status-bar");
+        await StatusBar.hide();
+      } catch (err) {
+        console.error("Failed to hide status bar", err);
+      }
+
       unsub = await App.addListener("backButton", (event) => {
         // If can Go Back in browser history and not on homepage, go back
         if (window.location.pathname !== "/" && window.location.pathname !== "/login") {

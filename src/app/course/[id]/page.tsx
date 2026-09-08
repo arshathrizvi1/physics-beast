@@ -147,10 +147,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
         if (accessibleFolders.length > 0) {
           const firstFolder = accessibleFolders[0];
-          setActiveFolderId(firstFolder.id);
+          setActiveFolderId((prev: string | null) => prev || firstFolder.id);
           const firstFolderVideos = videosData.filter((v: any) => v.folderId === firstFolder.id);
           if (firstFolderVideos.length > 0) {
-            setActiveVideo(firstFolderVideos[0]);
+            setActiveVideo((prev: any) => prev || firstFolderVideos[0]);
           }
         }
       } catch (err) {
@@ -749,21 +749,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {activeVideo && activeVideo.type === 'resource' && (
-                <Button 
-                  onClick={() => {
-                    const a = document.createElement('a');
-                    a.href = activeVideo.url;
-                    a.download = activeVideo.title || "resource.pdf";
-                    a.target = "_blank";
-                    a.click();
-                  }}
-                  variant="default"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md font-semibold gap-2"
-                >
-                  <Download className="w-4 h-4" /> Download PDF
-                </Button>
-              )}
               {activeVideo && activeVideo.type !== 'resource' && (
                 <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
                   <Eye className="w-4 h-4" />
@@ -870,34 +855,74 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             {folderVideos.length === 0 ? (
                               <p className="p-3 text-xs text-muted-foreground italic">No items in this folder.</p>
                             ) : (
-                              folderVideos.map((video) => {
-                                const isPlaying = activeVideo?.id === video.id;
-                                const isResource = video.type === 'resource';
-                                return (
-                                  <button
-                                    key={video.id}
-                                    onClick={() => { if (user) { setActiveVideo(video); setPlaying(false); } }}
-                                    disabled={!user}
-                                    className={`flex items-center gap-3 p-3 text-sm text-left transition-colors border-b border-secondary/10 last:border-0
-                                      ${isPlaying ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-secondary/10'}
-                                      ${!user ? 'opacity-60 cursor-not-allowed' : ''}
-                                    `}
-                                  >
-                                    {!user ? (
-                                      <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-                                    ) : (
-                                      isResource ? (
-                                        <FileText className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
-                                      ) : (
-                                        <PlayCircle className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
-                                      )
-                                    )}
-                                    <span className={`truncate ${isPlaying ? 'font-bold text-primary' : ''}`}>
-                                      {video.title}
-                                    </span>
-                                  </button>
-                                );
-                              })
+                              <>
+                                {(() => {
+                                  const onlyVideos = folderVideos.filter(v => v.type !== 'resource');
+                                  const onlyPdfs = folderVideos.filter(v => v.type === 'resource');
+                                  
+                                  return (
+                                    <>
+                                      {onlyVideos.length > 0 && (
+                                        <div className="flex flex-col">
+                                          <div className="px-3 py-1 bg-secondary/5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-secondary/10">Videos</div>
+                                          {onlyVideos.map((video) => {
+                                            const isPlaying = activeVideo?.id === video.id;
+                                            return (
+                                              <button
+                                                key={video.id}
+                                                onClick={() => { if (user) { setActiveVideo(video); setPlaying(false); } }}
+                                                disabled={!user}
+                                                className={`flex items-center gap-3 p-3 text-sm text-left transition-colors border-b border-secondary/10 last:border-0
+                                                  ${isPlaying ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-secondary/10'}
+                                                  ${!user ? 'opacity-60 cursor-not-allowed' : ''}
+                                                `}
+                                              >
+                                                {!user ? (
+                                                  <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                                ) : (
+                                                  <PlayCircle className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                )}
+                                                <span className={`truncate ${isPlaying ? 'font-bold text-primary' : ''}`}>
+                                                  {video.title}
+                                                </span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                      
+                                      {onlyPdfs.length > 0 && (
+                                        <div className="flex flex-col">
+                                          <div className="px-3 py-1 bg-secondary/5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-secondary/10">Resources & PDFs</div>
+                                          {onlyPdfs.map((video) => {
+                                            const isPlaying = activeVideo?.id === video.id;
+                                            return (
+                                              <button
+                                                key={video.id}
+                                                onClick={() => { if (user) { setActiveVideo(video); setPlaying(false); } }}
+                                                disabled={!user}
+                                                className={`flex items-center gap-3 p-3 text-sm text-left transition-colors border-b border-secondary/10 last:border-0
+                                                  ${isPlaying ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-secondary/10'}
+                                                  ${!user ? 'opacity-60 cursor-not-allowed' : ''}
+                                                `}
+                                              >
+                                                {!user ? (
+                                                  <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                                ) : (
+                                                  <FileText className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                )}
+                                                <span className={`truncate ${isPlaying ? 'font-bold text-primary' : ''}`}>
+                                                  {video.title}
+                                                </span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </>
                             )}
                           </div>
                         )}

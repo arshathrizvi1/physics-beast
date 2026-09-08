@@ -391,6 +391,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                           url={myResult.correctedPdfUrl} 
                           title="Teacher's Corrected Answer Sheet" 
                           height="650px" 
+                          allowDownload={true}
                         />
                       </CardContent>
                     </Card>
