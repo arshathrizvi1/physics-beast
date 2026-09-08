@@ -11,6 +11,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  signInWithCredential,
   updatePassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
@@ -820,9 +821,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       let result;
       if (isCapacitor) {
-        await signInWithRedirect(auth, provider);
-        // Execution stops here because the page will navigate away
-        return;
+        try {
+          const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
+          const nativeResult = await FirebaseAuthentication.signInWithGoogle();
+          if (nativeResult.credential?.idToken) {
+            const credential = GoogleAuthProvider.credential(nativeResult.credential.idToken);
+            result = await signInWithCredential(auth, credential);
+          } else {
+            throw new Error("Google Sign-In failed or was cancelled.");
+          }
+        } catch (e: any) {
+          console.error("Native Google Sign-In Error:", e);
+          safeStorage.session.removeItem('isLoggingIn');
+          safeStorage.session.removeItem('isGoogleLoggingIn');
+          return { success: false, error: e.message || "Native Google Sign-In failed. Check configuration." };
+        }
       } else {
         result = await signInWithPopup(auth, provider);
       }
