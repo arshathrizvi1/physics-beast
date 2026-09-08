@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Shield, Settings, CheckCircle, X, Sparkles } from "lucide-react";
+import { Shield, Settings, CheckCircle, X, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function MobilePermissionPrompt() {
@@ -12,28 +12,44 @@ export function MobilePermissionPrompt() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Detect if running inside the installed mobile APK (Capacitor native app)
-    const isCapacitor = !!((window as any).Capacitor && (window as any).Capacitor.isNativePlatform());
-    if (!isCapacitor) return;
+    const checkPerms = async () => {
+      // Detect if running inside the installed mobile APK (Capacitor native app)
+      const isCapacitor = !!((window as any).Capacitor && (window as any).Capacitor.isNativePlatform());
+      if (!isCapacitor) return;
 
-    setIsMobileApp(true);
+      setIsMobileApp(true);
 
-    // Check if previously dismissed in this session
-    const hasPrompted = sessionStorage.getItem("mobile_perm_prompt_shown");
-    if (!hasPrompted) {
-      // Show the permission prompt after a brief delay so the app loads smoothly
-      const timer = setTimeout(() => {
-        setIsOpen(true);
-      }, 1200);
-      return () => clearTimeout(timer);
-    }
+      try {
+        const { registerPlugin } = await import("@capacitor/core");
+        const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
+        
+        // Check if the permission is ALREADY granted at the OS level
+        const { isIgnoring } = await BackgroundPermission.checkBatteryOptimization();
+        if (isIgnoring) {
+          return; // Never show the prompt again if already permitted!
+        }
+      } catch (err) {
+        console.log("Error checking battery status", err);
+      }
+
+      // Check if previously dismissed in THIS active session
+      const hasPrompted = sessionStorage.getItem("mobile_perm_prompt_shown");
+      if (!hasPrompted) {
+        // Show the permission prompt after a brief delay
+        const timer = setTimeout(() => {
+          setIsOpen(true);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkPerms();
   }, []);
 
-  const handleGrantPermission = async () => {
+  const handleGrantBattery = async () => {
     setStatus("redirecting");
 
     try {
-      // 1. Request notification permissions via Capacitor LocalNotifications
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       await LocalNotifications.requestPermissions();
     } catch (err) {
@@ -41,7 +57,6 @@ export function MobilePermissionPrompt() {
     }
 
     try {
-      // 2. Trigger native Android Battery Optimization / Settings redirect
       const { registerPlugin } = await import("@capacitor/core");
       const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
       await BackgroundPermission.requestBatteryOptimization();
@@ -49,12 +64,18 @@ export function MobilePermissionPrompt() {
       console.log("BackgroundPermission error:", err);
     }
 
-    setStatus("granted");
-    sessionStorage.setItem("mobile_perm_prompt_shown", "true");
+    // Give them a moment to come back
+    setTimeout(() => setStatus("idle"), 3000);
+  };
 
-    setTimeout(() => {
-      setIsOpen(false);
-    }, 1500);
+  const handleAutoStart = async () => {
+    try {
+      const { registerPlugin } = await import("@capacitor/core");
+      const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
+      await BackgroundPermission.requestAutoStart();
+    } catch (err) {
+      console.log("AutoStart error:", err);
+    }
   };
 
   const handleDismiss = () => {
@@ -98,25 +119,29 @@ export function MobilePermissionPrompt() {
         </div>
 
         {/* Actions */}
-        <div className="space-y-2.5 pt-2">
+        <div className="space-y-3 pt-2">
           <Button
-            onClick={handleGrantPermission}
+            onClick={handleGrantBattery}
             disabled={status === "redirecting"}
             className="w-full h-12 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all active:scale-95"
           >
             {status === "redirecting" ? (
               <span>Opening Settings...</span>
-            ) : status === "granted" ? (
-              <>
-                <CheckCircle className="w-5 h-5 text-white" />
-                <span>Permission Configured!</span>
-              </>
             ) : (
               <>
                 <Settings className="w-5 h-5" />
-                <span>Open Settings & Allow</span>
+                <span>Unrestrict Battery</span>
               </>
             )}
+          </Button>
+
+          <Button
+            onClick={handleAutoStart}
+            variant="outline"
+            className="w-full h-12 border-emerald-500/30 bg-zinc-900 text-emerald-400 hover:bg-emerald-500/10 font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            <Zap className="w-5 h-5" />
+            <span>Enable Auto-Start</span>
           </Button>
 
           <Button
