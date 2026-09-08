@@ -160,22 +160,8 @@ export default function Home() {
 
   const headingText = "Your Brighter Future Starts Here".split(" ");
 
-  const [isMobileAppTest, setIsMobileAppTest] = useState(false);
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform()) {
-      setIsMobileAppTest(true);
-    }
-  }, []);
-
   return (
     <>
-      {/* OTA UPDATE TEST BANNER */}
-      {isMobileAppTest && (
-        <div className="fixed top-16 left-0 right-0 bg-red-600 text-white font-black text-center p-2 text-sm z-[9999] shadow-2xl uppercase tracking-widest border-b-4 border-yellow-400">
-          ✅ Cloud Update is Working!
-        </div>
-      )}
-
       {/* 1. Initial Page Loading Animation */}
       <AnimatePresence>
         {!loadingComplete && (

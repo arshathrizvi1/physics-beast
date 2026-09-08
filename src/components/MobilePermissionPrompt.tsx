@@ -42,10 +42,9 @@ export function MobilePermissionPrompt() {
 
     try {
       // 2. Trigger native Android Battery Optimization / Settings redirect
-      const capacitorPlugins = (window as any).Capacitor?.Plugins;
-      if (capacitorPlugins?.BackgroundPermission) {
-        await capacitorPlugins.BackgroundPermission.requestBatteryOptimization();
-      }
+      const { registerPlugin } = await import("@capacitor/core");
+      const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
+      await BackgroundPermission.requestBatteryOptimization();
     } catch (err) {
       console.log("BackgroundPermission error:", err);
     }
