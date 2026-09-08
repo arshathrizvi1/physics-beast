@@ -1064,11 +1064,12 @@ export default function AdminDashboard() {
       });
       setIsUploading(false);
       setUploadSuccess(true);
+      alert("✅ Done! File uploaded and saved successfully.");
       setVideoTitle("");
       setVideoUrl("");
       setUploadFileBase64(null);
       setResourceFile(null);
-      setTimeout(() => setUploadSuccess(false), 3000);
+      setTimeout(() => setUploadSuccess(false), 6000);
     } catch (err: any) {
       console.error(err);
       alert("Upload failed: " + (err?.message || "Unknown error"));
@@ -2332,6 +2333,15 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="space-y-8 pt-6 max-w-3xl">
               <form onSubmit={handleUploadItem} className="space-y-6">
+                {uploadSuccess && (
+                  <div className="p-4 bg-emerald-500/15 border-2 border-emerald-500/40 text-emerald-400 rounded-xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+                    <div>
+                      <p className="font-bold text-base">✅ Upload Completed Successfully!</p>
+                      <p className="text-xs text-emerald-300/80">Your file has been uploaded to Amazon S3 and linked to this folder.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Batch (Year)</Label>
