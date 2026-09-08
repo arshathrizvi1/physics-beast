@@ -81,7 +81,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoadingComplete(true);
-    }, 2000); // 2 second intro
+    }, 800); // Quick intro
     return () => clearTimeout(timer);
   }, []);
 
@@ -195,46 +195,10 @@ export default function Home() {
 
       <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
         
-        {/* 3. Hero Background Particles */}
+        {/* 3. Hero Background — lightweight static glows only */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#d4af37]/5 blur-[100px] rounded-full mix-blend-screen" />
-          {/* Subtle floating stars */}
-          {[
-            { top: 12, left: 15, duration: 5.2 },
-            { top: 45, left: 8, duration: 6.1 },
-            { top: 78, left: 22, duration: 7.3 },
-            { top: 23, left: 45, duration: 4.8 },
-            { top: 67, left: 51, duration: 5.5 },
-            { top: 89, left: 34, duration: 6.9 },
-            { top: 34, left: 78, duration: 7.1 },
-            { top: 18, left: 88, duration: 4.5 },
-            { top: 56, left: 92, duration: 6.6 },
-            { top: 92, left: 81, duration: 5.9 },
-            { top: 7, left: 63, duration: 7.8 },
-            { top: 51, left: 37, duration: 5.1 },
-            { top: 82, left: 60, duration: 6.2 },
-            { top: 33, left: 12, duration: 4.9 },
-            { top: 95, left: 10, duration: 5.7 }
-          ].map((p, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-[#d4af37]/40 rounded-full"
-              style={{
-                top: `${p.top}%`,
-                left: `${p.left}%`,
-              }}
-              animate={{
-                y: [0, -30, 0],
-                opacity: [0.2, 0.8, 0.2],
-              }}
-              transition={{
-                duration: p.duration,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
         </div>
 
         {/* Hero Section */}
@@ -341,24 +305,20 @@ export default function Home() {
             animate={loadingComplete ? { opacity: 1, x: 0 } : {}}
             transition={{ delay: 0.4, duration: 1, ease: "easeOut" }}
           >
-            <motion.div
-              animate={{ y: [-10, 10, -10] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              className="relative w-full max-w-[500px] mx-auto aspect-square rounded-[2rem] overflow-hidden border border-border bg-gradient-to-b from-zinc-900 to-black shadow-2xl"
+            <div
+              className="relative w-full max-w-[500px] mx-auto aspect-square rounded-[2rem] overflow-hidden border border-border bg-gradient-to-b from-zinc-900 to-black shadow-2xl animate-[float_6s_ease-in-out_infinite]"
             >
-              {/* Fallback image if Unsplash fails, using generic student stock style */}
               <img 
                 src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" 
                 alt="Student" 
                 className="w-full h-full object-cover mix-blend-luminosity opacity-80"
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
               
               {/* Floating Badge */}
-              <motion.div 
-                animate={{ y: [-5, 5, -5] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-4 right-2 md:bottom-8 md:-right-5 bg-card border border-[#d4af37]/30 p-3 md:p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 md:gap-4 scale-90 md:scale-100 origin-bottom-right"
+              <div 
+                className="absolute bottom-4 right-2 md:bottom-8 md:-right-5 bg-card border border-[#d4af37]/30 p-3 md:p-4 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 md:gap-4 scale-90 md:scale-100 origin-bottom-right animate-[float_4s_ease-in-out_1s_infinite]"
               >
                 <div className="w-12 h-12 bg-[#d4af37]/20 rounded-full flex items-center justify-center">
                   <Award className="w-6 h-6 text-[#d4af37]" />
@@ -367,8 +327,8 @@ export default function Home() {
                   <p className="text-foreground font-bold text-sm">Quality Education</p>
                   <p className="text-muted-foreground text-xs">For a Brighter Tomorrow</p>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </motion.div>
         </section>
 
@@ -803,10 +763,8 @@ export default function Home() {
           {/* Slider — only if we have reviews */}
           {topReviews.length > 0 ? (
             <div className="relative w-full overflow-hidden mb-14">
-              <motion.div
-                className="flex gap-6 w-max pl-6"
-                animate={{ x: ["0px", `-${topReviews.length * 424}px`] }}
-                transition={{ duration: Math.max(topReviews.length * 2, 6), repeat: Infinity, ease: "linear" }}
+              <div
+                className="flex gap-6 w-max pl-6 animate-[marquee_30s_linear_infinite]"
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
                   <div key={`${r.id}-${i}`} className="w-[360px] bg-card border border-border rounded-2xl p-7 shrink-0 flex flex-col justify-between">
@@ -830,7 +788,7 @@ export default function Home() {
                     </div>
                   </div>
                 ))}
-              </motion.div>
+              </div>
               <div className="absolute top-0 bottom-0 left-0 w-20 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
               <div className="absolute top-0 bottom-0 right-0 w-20 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
             </div>
