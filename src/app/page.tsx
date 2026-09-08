@@ -241,6 +241,11 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-12">
           <div className="flex-1 space-y-8 w-full">
+            {/* LIVE TEST BADGE */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400 font-extrabold text-sm sm:text-base tracking-wide shadow-lg animate-pulse">
+              🚀 LIVE SYNC TEST: APPLIED WITHOUT REINSTALLING!
+            </div>
+
             {/* 5. Heading Text Animation */}
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1] break-words">
               {headingText.map((word, i) => (
