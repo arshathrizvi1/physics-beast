@@ -806,7 +806,7 @@ export default function Home() {
               <motion.div
                 className="flex gap-6 w-max pl-6"
                 animate={{ x: ["0px", `-${topReviews.length * 424}px`] }}
-                transition={{ duration: Math.max(topReviews.length * 5, 20), repeat: Infinity, ease: "linear" }}
+                transition={{ duration: Math.max(topReviews.length * 1.8, 6), repeat: Infinity, ease: "linear" }}
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
                   <div key={`${r.id}-${i}`} className="w-[360px] bg-card border border-border rounded-2xl p-7 shrink-0 flex flex-col justify-between">
