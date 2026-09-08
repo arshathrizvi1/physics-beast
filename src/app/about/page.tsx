@@ -250,7 +250,7 @@ export default function AboutPage() {
 
                     <div>
                       <label className="block text-[11px] font-bold tracking-[0.15em] text-zinc-500 uppercase mb-2">Phone <span className="text-zinc-600 ml-1 font-medium">· Optional</span></label>
-                      <input name="phone" type="tel" placeholder="+94 7X XXX XXXX" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
+                      <input name="phone" type="number" placeholder="07XXXXXXXX" className="w-full bg-[#161616] border border-white/5 focus:border-[#d4af37]/50 focus:ring-1 focus:ring-[#d4af37]/50 rounded-2xl px-5 py-4 text-white placeholder:text-zinc-600 transition-colors outline-none" />
                     </div>
 
                     <div>

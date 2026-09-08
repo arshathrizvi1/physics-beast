@@ -3838,10 +3838,9 @@ export default function AdminDashboard() {
                       onChange={(e) => setEditingStudentData({...editingStudentData, stream: e.target.value})}
                     >
                       <option value="" disabled>Select Stream</option>
-                      <option value="Physical Science (Maths)">Physical Science (Maths)</option>
-                      <option value="Biological Science (Bio)">Biological Science (Bio)</option>
-                      <option value="Engineering Technology (ET)">Engineering Technology (ET)</option>
-                      <option value="Bio Systems Technology (BST)">Bio Systems Technology (BST)</option>
+                      {streams.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
                     </select>
                   ) : (
                     <p className="font-medium text-base">{selectedStudentInfo.stream || 'N/A'}</p>
