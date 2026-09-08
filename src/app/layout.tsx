@@ -17,6 +17,13 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Brilliant Academy LMS",
   description: "Learn Today, Build Tomorrow",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Brilliant Academy LMS",
+  },
+  applicationName: "Brilliant Academy LMS",
 };
 
 export const viewport = {
@@ -24,6 +31,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

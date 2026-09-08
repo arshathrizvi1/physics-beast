@@ -180,8 +180,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     
     observer.observe(document.body, { childList: true, subtree: true });
 
+    // Unlock orientation when exiting fullscreen (e.g. via hardware back button)
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
     };
   }, [id, user]);
@@ -683,11 +692,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </div>
 
                       <button 
-                        onClick={() => {
-                          if (!document.fullscreenElement) {
-                            playerContainerRef.current?.requestFullscreen();
-                          } else {
-                            document.exitFullscreen();
+                        onClick={async () => {
+                          try {
+                            if (!document.fullscreenElement) {
+                              if (playerContainerRef.current) {
+                                await playerContainerRef.current.requestFullscreen();
+                                if (screen.orientation && screen.orientation.lock) {
+                                  try {
+                                    await screen.orientation.lock('landscape');
+                                  } catch (e) {
+                                    console.log("Orientation lock failed/unsupported", e);
+                                  }
+                                }
+                              }
+                            } else {
+                              await document.exitFullscreen();
+                              if (screen.orientation && screen.orientation.unlock) {
+                                screen.orientation.unlock();
+                              }
+                            }
+                          } catch (err) {
+                            console.error("Fullscreen toggle failed", err);
                           }
                         }} 
                         className="hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2"
