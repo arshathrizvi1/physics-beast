@@ -86,6 +86,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           setBrowserEnabled(true);
           localStorage.setItem("browser_notifications_enabled", "true");
           toast.success("Native push notifications enabled!");
+
+          // Prompt for background battery optimization bypass
+          try {
+            const BackgroundPermission = (window as any).Capacitor?.Plugins?.BackgroundPermission;
+            if (BackgroundPermission) {
+              await BackgroundPermission.requestBatteryOptimization();
+            }
+          } catch (err) {
+            console.log("Battery optimization check error", err);
+          }
         } else {
           setBrowserEnabled(false);
           localStorage.setItem("browser_notifications_enabled", "false");
