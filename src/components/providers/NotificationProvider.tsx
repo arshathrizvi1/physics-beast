@@ -22,6 +22,7 @@ interface NotificationContextType {
   unreadCount: number;
   browserEnabled: boolean;
   requestBrowserPermission: () => void;
+  toggleBrowserNotifications: () => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
 }
@@ -31,6 +32,7 @@ const NotificationContext = createContext<NotificationContextType>({
   unreadCount: 0,
   browserEnabled: false,
   requestBrowserPermission: () => {},
+  toggleBrowserNotifications: () => {},
   markAsRead: async () => {},
   markAllAsRead: async () => {},
 });
@@ -41,11 +43,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [browserEnabled, setBrowserEnabled] = useState(false);
   const seenIdsRef = useRef<Set<string>>(new Set());
 
-  // Check initial browser permission and register Service Worker for Android
+  // Check initial browser permission and saved preference
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const savedPref = localStorage.getItem("browser_notifications_enabled");
       if ("Notification" in window) {
-        setBrowserEnabled(Notification.permission === "granted");
+        if (savedPref !== null) {
+          setBrowserEnabled(savedPref === "true" && Notification.permission === "granted");
+        } else {
+          setBrowserEnabled(Notification.permission === "granted");
+        }
       }
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -61,15 +68,44 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return;
     }
     const permission = await Notification.requestPermission();
-    setBrowserEnabled(permission === "granted");
     if (permission === "granted") {
-      toast.success("Notifications enabled!");
-      // Ensure service worker is ready
+      setBrowserEnabled(true);
+      localStorage.setItem("browser_notifications_enabled", "true");
+      toast.success("Push notifications enabled!");
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch(() => {});
       }
     } else {
-      toast.error("Notifications denied.");
+      setBrowserEnabled(false);
+      localStorage.setItem("browser_notifications_enabled", "false");
+      toast.error("Notifications permission denied in browser settings.");
+    }
+  };
+
+  const toggleBrowserNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Your browser does not support notifications.");
+      return;
+    }
+    
+    if (Notification.permission === "denied") {
+      toast.error("Notifications are blocked in your browser settings. Please allow them first.");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      await requestBrowserPermission();
+      return;
+    }
+
+    // Toggle on/off state if granted
+    const newState = !browserEnabled;
+    setBrowserEnabled(newState);
+    localStorage.setItem("browser_notifications_enabled", String(newState));
+    if (newState) {
+      toast.success("Push notifications turned ON");
+    } else {
+      toast.success("Push notifications turned OFF");
     }
   };
 
@@ -178,7 +214,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, browserEnabled, requestBrowserPermission, markAsRead, markAllAsRead }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, browserEnabled, requestBrowserPermission, toggleBrowserNotifications, markAsRead, markAllAsRead }}>
       {children}
     </NotificationContext.Provider>
   );

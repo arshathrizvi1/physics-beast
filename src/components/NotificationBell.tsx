@@ -25,7 +25,7 @@ function timeAgo(timestamp: number | string | Date): string {
 }
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, browserEnabled, requestBrowserPermission, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, browserEnabled, toggleBrowserNotifications, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -67,42 +67,69 @@ export default function NotificationBell() {
 
       {/* Dropdown Panel */}
       {isOpen && (
-        <div className="absolute -right-12 sm:right-0 mt-3 w-[calc(100vw-2rem)] max-w-[380px] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-top-2 fade-in duration-200 origin-top-right">
+        <div className="fixed inset-x-3 top-16 max-w-[380px] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-3 w-auto sm:w-[380px] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[1000] animate-in slide-in-from-top-2 fade-in duration-200">
           
           {/* Header */}
           <div className="p-4 border-b border-white/5 flex items-center justify-between bg-zinc-900/50">
-            <h3 className="font-bold text-base text-white flex items-center gap-2">
-              Notifications
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-white">
+                Notifications
+              </h3>
               {unreadCount > 0 && (
-                <span className="bg-red-500/20 text-red-500 text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-red-500/20 text-red-500 text-xs px-2 py-0.5 rounded-full font-semibold">
                   {unreadCount} new
                 </span>
               )}
-            </h3>
-            {unreadCount > 0 && (
-              <button 
-                onClick={markAllAsRead}
-                className="text-xs text-[#d4af37] hover:text-white font-medium transition-colors"
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={markAllAsRead}
+                  className="text-xs text-[#d4af37] hover:text-white font-medium transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+              {/* Push Toggle Switch Button */}
+              <button
+                onClick={toggleBrowserNotifications}
+                title={browserEnabled ? "Push Notifications: ON (Click to Turn Off)" : "Push Notifications: OFF (Click to Turn On)"}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  browserEnabled 
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' 
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                }`}
               >
-                Mark all read
+                {browserEnabled ? (
+                  <>
+                    <BellRing className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    <span>Push: ON</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Push: OFF</span>
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
 
-          {/* Browser Permission Prompt Banner */}
+          {/* Browser Push Quick Enable Banner if OFF */}
           {!browserEnabled && (
-            <div className="bg-[#d4af37]/10 border-b border-[#d4af37]/20 p-3 flex flex-col gap-2">
-              <div className="flex items-start gap-3">
-                <BellRing className="w-4 h-4 text-[#d4af37] shrink-0 mt-0.5" />
-                <div className="text-xs text-zinc-300 leading-relaxed">
-                  Turn on desktop notifications so you don't miss important class updates or messages!
-                </div>
+            <div className="bg-[#d4af37]/10 border-b border-[#d4af37]/20 p-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <BellRing className="w-4 h-4 text-[#d4af37] shrink-0" />
+                <span className="text-xs text-zinc-300 truncate">
+                  Get instant PC & Mobile alerts
+                </span>
               </div>
               <button 
-                onClick={requestBrowserPermission}
-                className="ml-7 bg-[#d4af37] text-black hover:bg-[#b5952f] text-xs font-bold py-1.5 px-3 rounded-lg w-fit transition-colors"
+                onClick={toggleBrowserNotifications}
+                className="bg-[#d4af37] text-black hover:bg-[#b5952f] text-xs font-bold py-1 px-3 rounded-lg shrink-0 transition-colors"
               >
-                Enable Notifications
+                Turn On
               </button>
             </div>
           )}
