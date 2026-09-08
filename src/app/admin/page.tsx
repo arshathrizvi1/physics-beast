@@ -4092,6 +4092,30 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* DANGER ZONE: Delete Account */}
+              <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-xl mt-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="font-bold text-destructive text-sm flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4" /> Danger Zone: Delete Account
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Permanently delete this student's account, including their exam results and history. They will be logged out and can sign up from the beginning later if needed.
+                    </p>
+                  </div>
+
+                  <Button 
+                    variant={confirmingDeleteId === selectedStudentInfo.id ? "destructive" : "outline"}
+                    size="sm"
+                    className={`shrink-0 font-bold flex items-center gap-1.5 shadow-sm ${confirmingDeleteId === selectedStudentInfo.id ? 'animate-pulse' : 'text-destructive border-destructive/50 hover:bg-destructive hover:text-white'}`}
+                    onClick={() => handleDeleteStudentAccount(selectedStudentInfo.id, selectedStudentInfo.name)}
+                  >
+                    <Trash2 className="w-4 h-4" /> 
+                    {confirmingDeleteId === selectedStudentInfo.id ? "Click to Confirm Permanent Deletion" : "Delete Account"}
+                  </Button>
+                </div>
+              </div>
+
             </CardContent>
           </Card>
         </div>
