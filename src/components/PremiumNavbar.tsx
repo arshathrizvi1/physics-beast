@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -25,6 +25,7 @@ const NAV_LINKS = [
 export default function PremiumNavbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   // Live class indicator
   const [isLive, setIsLive] = useState(false);
@@ -86,7 +87,7 @@ export default function PremiumNavbar() {
 
         {/* Glass panel */}
         <div
-          className="relative overflow-hidden"
+          className="relative"
           style={{
             background: "rgba(8,8,8,0.82)",
             backdropFilter: "blur(20px)",
@@ -94,21 +95,24 @@ export default function PremiumNavbar() {
             borderBottom: "1px solid rgba(212,175,55,0.12)",
           }}
         >
-          {/* Mouse-tracking glow */}
-          <div
-            className="absolute inset-0 pointer-events-none transition-opacity duration-500"
-            style={{
-              background: `radial-gradient(400px circle at ${glowPos.x}% ${glowPos.y}%, rgba(212,175,55,0.06), transparent 60%)`,
-            }}
-          />
+          {/* Background effects with overflow-hidden */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Mouse-tracking glow */}
+            <div
+              className="absolute inset-0 transition-opacity duration-500"
+              style={{
+                background: `radial-gradient(400px circle at ${glowPos.x}% ${glowPos.y}%, rgba(212,175,55,0.06), transparent 60%)`,
+              }}
+            />
 
-          {/* Slow-moving liquid shine strip */}
-          <motion.div
-            className="absolute top-0 bottom-0 w-40 pointer-events-none"
-            style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.04), transparent)" }}
-            animate={{ x: ["-160px", "calc(100vw + 160px)"] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
-          />
+            {/* Slow-moving liquid shine strip */}
+            <motion.div
+              className="absolute top-0 bottom-0 w-40"
+              style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.04), transparent)" }}
+              animate={{ x: ["-160px", "calc(100vw + 160px)"] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
+            />
+          </div>
 
           <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4 relative z-10">
 
@@ -213,10 +217,17 @@ export default function PremiumNavbar() {
                       ref={searchRef}
                       value={searchVal}
                       onChange={e => setSearchVal(e.target.value)}
-                      placeholder="Search..."
-                      className="flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-zinc-600"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchVal.trim()) {
+                          router.push(`/courses?search=${encodeURIComponent(searchVal)}`);
+                          setSearchOpen(false);
+                          setSearchVal("");
+                        }
+                      }}
+                      placeholder="Search courses..."
+                      className="flex-1 min-w-0 bg-transparent text-foreground text-sm outline-none placeholder:text-zinc-600"
                     />
-                    <button onClick={() => { setSearchOpen(false); setSearchVal(""); }}>
+                    <button onClick={() => { setSearchOpen(false); setSearchVal(""); }} className="shrink-0 flex items-center justify-center">
                       <X className="w-4 h-4 text-zinc-500 hover:text-foreground transition-colors" />
                     </button>
                   </div>

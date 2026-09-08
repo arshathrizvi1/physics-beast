@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, GraduationCap } from "lucide-react";
+import { AlertCircle, CheckCircle2, GraduationCap, X } from "lucide-react";
 
 export default function TeacherSignupPage() {
   const { user, loading, googleSignIn, signupTeacher, completeGoogleTeacherSignup, logout } = useAuth();
@@ -23,16 +23,16 @@ export default function TeacherSignupPage() {
   const [signupSuccess, setSignupSuccess] = useState(false);
 
   useEffect(() => {
-    if (user && user.isApproved) {
+    if (user && user.isApproved && !error && !signupSuccess) {
       if (user.role === 'admin' || user.role === 'teacher') {
         router.push('/admin');
       } else {
         router.push('/login');
       }
     }
-  }, [user, router]);
+  }, [user, router, error, signupSuccess]);
 
-  if (loading) {
+  if (loading && !error && !signupSuccess) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -74,7 +74,7 @@ export default function TeacherSignupPage() {
   }
 
   // If user is logged in but not approved (pending teacher)
-  if (user && !user.isApproved && user.role === 'teacher') {
+  if (user && !user.isApproved && user.role === 'teacher' && !isGoogleSignupForm && !error && !signupSuccess) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4">
         <Card className="w-full max-w-md border-yellow-500/50 shadow-lg">
@@ -112,16 +112,16 @@ export default function TeacherSignupPage() {
           await logout();
         }
       } else {
+        let msg = res.error || "Google sign-in failed.";
         if (res.error?.includes('auth/popup-closed-by-user')) {
-          setError("Google sign-in was cancelled.");
+          msg = "Google sign-in was cancelled (popup closed).";
         } else if (res.error?.includes('auth/unauthorized-domain')) {
-          setError("Firebase: Error (auth/unauthorized-domain). Please add this domain to Firebase authorized domains.");
-        } else {
-          setError(res.error || "Google sign-in failed.");
+          msg = "Firebase Error: Unauthorized Domain. Please add this domain to Firebase Console > Authentication > Settings > Authorized domains.";
         }
+        setError(msg);
       }
-    } catch (err) {
-      setError("An unexpected error occurred during Google sign-in.");
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during Google sign-in.");
     } finally {
       setIsSubmitting(false);
     }
@@ -191,9 +191,19 @@ export default function TeacherSignupPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {error}
+              <div className="bg-destructive/15 text-destructive border border-destructive/30 text-sm p-4 rounded-lg flex items-start justify-between gap-3 shadow-md my-2 animate-in fade-in zoom-in-95">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <span className="font-medium leading-relaxed">{error}</span>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setError("")} 
+                  className="text-destructive/70 hover:text-destructive p-1 rounded hover:bg-destructive/10 shrink-0"
+                  title="Dismiss error message"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             )}
 
