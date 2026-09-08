@@ -75,6 +75,7 @@ export interface UserProfile {
   studentId?: string; // e.g. PB-0001
   accessibleCourses?: string[]; // array of course IDs they can access
   folderAccess?: Record<string, number>; // folderId -> expiration timestamp
+  subject?: string;
 }
 
 interface AuthContextType {

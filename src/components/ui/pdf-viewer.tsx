@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { RefreshCw, AlertCircle, ShieldCheck, Maximize, Minimize, Download } from "lucide-react";
+import { RefreshCw, AlertCircle, ShieldCheck, Maximize, Minimize, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Document, Page, pdfjs } from "react-pdf";
+
+// We import the styles required by react-pdf
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
+
+// Configure PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
   url: string;
@@ -19,28 +27,59 @@ export function PdfViewer({
   height = "650px",
   allowDownload = false 
 }: PdfViewerProps) {
-  const [viewerMode, setViewerMode] = useState<"native" | "gdocs">("native");
-  const [reloadKey, setReloadKey] = useState<number>(0);
+  const [numPages, setNumPages] = useState<number>();
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  
   const containerRef = useRef<HTMLDivElement>(null);
+  const documentContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
+
+  // Update container width for responsive PDF rendering
+  useEffect(() => {
+    const updateWidth = () => {
+      if (documentContainerRef.current) {
+        setContainerWidth(documentContainerRef.current.clientWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, [isFullscreen]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen().catch(err => {
+      containerRef.current?.requestFullscreen().catch((err) => {
         console.error(`Error attempting to enable fullscreen: ${err.message}`);
       });
     } else {
       document.exitFullscreen();
     }
   };
+
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setNumPages(numPages);
+    setPageNumber(1);
+  };
+
+  const changePage = (offset: number) => {
+    setPageNumber((prevPageNumber) => prevPageNumber + offset);
+  };
+
+  const previousPage = () => changePage(-1);
+  const nextPage = () => changePage(1);
+  const zoomIn = () => setScale((prev) => Math.min(prev + 0.5, 3));
+  const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+  const resetZoom = () => setScale(1.0);
 
   if (!url) {
     return (
@@ -58,85 +97,104 @@ export function PdfViewer({
     trimmed = trimmed.replace("http://", "https://");
   }
 
-  const isGoogleDrive = trimmed.includes("drive.google.com");
-
-  // Format the direct source URL for native embedding or Google Drive embed
-  let directViewerUrl = trimmed;
-  if (isGoogleDrive) {
-    const fileIdMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch && fileIdMatch[1]) {
-      directViewerUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
-    }
-  } else if (directViewerUrl.includes("cloudinary.com") && !directViewerUrl.toLowerCase().includes(".pdf")) {
-    // Cloudinary URLs need a .pdf extension for the browser's PDF viewer to activate
-    directViewerUrl += ".pdf";
+  // Cloudinary URLs may need a .pdf extension
+  if (trimmed.includes("cloudinary.com") && !trimmed.toLowerCase().includes(".pdf")) {
+    trimmed += ".pdf";
   }
-
-  const googleDocsViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(directViewerUrl)}&embedded=true`;
-
-  const handleReload = () => {
-    setReloadKey((prev) => prev + 1);
-  };
 
   return (
     <div 
       ref={containerRef}
-      className={`flex flex-col w-full h-full bg-secondary/5 rounded-b-xl overflow-hidden ${isFullscreen ? 'bg-background' : ''} ${className}`}
+      aria-label={title}
+      className={`flex flex-col w-full bg-secondary/5 rounded-b-xl overflow-hidden border border-border/50 ${
+        isFullscreen ? "bg-background h-screen z-50 fixed inset-0" : ""
+      } ${className}`}
+      style={!isFullscreen ? { height } : undefined}
     >
       {/* Viewer Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-secondary/20 border-b border-border text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          {!isGoogleDrive && (
-            <div className="flex items-center bg-background/80 rounded-md p-0.5 border border-border">
-              <button
-                type="button"
-                onClick={() => setViewerMode("native")}
-                className={`px-2 py-1 rounded transition-colors text-xs font-medium cursor-pointer ${
-                  viewerMode === "native" 
-                    ? "bg-primary text-primary-foreground shadow-xs" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Standard Viewer
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewerMode("gdocs")}
-                className={`px-2 py-1 rounded transition-colors text-xs font-medium cursor-pointer ${
-                  viewerMode === "gdocs" 
-                    ? "bg-primary text-primary-foreground shadow-xs" 
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Alternative Viewer
-              </button>
-            </div>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-secondary/20 border-b border-border text-xs text-muted-foreground shrink-0">
+        <div className="flex items-center gap-1">
           <Button
             type="button"
             variant="ghost"
             size="xs"
-            onClick={handleReload}
+            onClick={zoomOut}
             className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-            title="Reload Viewer"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </Button>
+          <span className="min-w-[40px] text-center font-medium">
+            {Math.round(scale * 100)}%
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={zoomIn}
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </Button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={resetZoom}
+            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hidden sm:flex"
+            title="Reset Zoom"
           >
             <RefreshCw className="w-3 h-3" />
-            <span className="hidden sm:inline">Reload</span>
+            <span>Reset</span>
           </Button>
-
-          {allowDownload && !isGoogleDrive && (
-            <a
-              href={directViewerUrl}
-              download
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 font-medium bg-primary/10 hover:bg-primary/20 text-primary px-2 py-1 rounded-md transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Download</span>
-            </a>
+          
+          {allowDownload && (
+            <>
+              <div className="w-px h-4 bg-border mx-1 hidden sm:block" />
+              <a
+                href={trimmed}
+                download
+                target="_blank"
+                rel="noreferrer"
+                className="hidden sm:inline-flex items-center gap-1 font-medium bg-primary/10 hover:bg-primary/20 text-primary px-2 py-1 rounded-md transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
+              </a>
+            </>
           )}
         </div>
+
+        {/* Pagination controls */}
+        {numPages && (
+          <div className="flex items-center gap-2 bg-background/80 rounded-md p-0.5 border border-border">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={pageNumber <= 1}
+              onClick={previousPage}
+              className="h-6 w-6"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="px-2 font-medium">
+              Page {pageNumber} of {numPages}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={pageNumber >= numPages}
+              onClick={nextPage}
+              className="h-6 w-6"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {!allowDownload && (
@@ -154,68 +212,76 @@ export function PdfViewer({
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+            <span className="hidden sm:inline">{isFullscreen ? "Exit Full Screen" : "Full Screen"}</span>
           </Button>
         </div>
       </div>
 
       {/* Embedded PDF container */}
-      <div className="relative w-full flex-1 min-h-[650px] bg-white flex flex-col" style={{ minHeight: isFullscreen ? '100vh' : height }}>
-        
-        {/* Anti-Download Overlay to hide Google Drive/Docs Pop-out button */}
-        {!allowDownload && (isGoogleDrive || viewerMode === "gdocs") && (
-          <div 
-            className="absolute top-0 right-0 w-[100px] h-[80px] bg-white z-50 flex flex-col items-center justify-center pointer-events-auto cursor-not-allowed border-b border-l border-gray-200 shadow-sm"
-            title="Pop-out disabled for exam security"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <ShieldCheck className="w-6 h-6 text-green-600/60 mb-1" />
-            <span className="text-[10px] font-bold text-gray-400">SECURE</span>
-          </div>
-        )}
-
-        {isGoogleDrive ? (
-          <iframe
-            key={`drive-${reloadKey}`}
-            src={directViewerUrl}
-            className="w-full h-full min-h-[650px] border-0 flex-1"
-            title={title}
-            allow="autoplay"
-            sandbox={allowDownload ? undefined : "allow-scripts allow-same-origin"}
-          />
-        ) : viewerMode === "native" ? (
-          <object
-            key={`native-${reloadKey}`}
-            data={allowDownload ? directViewerUrl : `${directViewerUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            type="application/pdf"
-            className="w-full h-full min-h-[650px] border-0 flex-1"
-            title={title}
-            onContextMenu={(e) => {
-              if (!allowDownload) e.preventDefault();
-            }}
-          >
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-gray-50">
-              <AlertCircle className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-gray-800 mb-2">Browser PDF Viewer Not Supported</h3>
-              <p className="text-sm text-gray-600 max-w-md">
-                Your browser doesn't support rendering this PDF inline. Please switch to the "Alternative Viewer" to view the question paper.
+      <div 
+        ref={documentContainerRef}
+        className="relative w-full flex-1 overflow-auto bg-black/5 flex justify-center py-4 custom-scrollbar"
+      >
+        <Document
+          file={trimmed}
+          onLoadSuccess={onDocumentLoadSuccess}
+          loading={
+            <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground">
+              <RefreshCw className="w-8 h-8 mb-4 animate-spin text-primary" />
+              <p>Loading document...</p>
+            </div>
+          }
+          error={
+            <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-destructive p-6 text-center">
+              <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
+              <p className="font-medium">Failed to load PDF file.</p>
+              <p className="text-sm mt-2 opacity-80">
+                The file might be corrupted, or your server is blocking cross-origin requests (CORS).
+              </p>
+              <p className="text-xs mt-4 max-w-sm text-center font-mono bg-destructive/10 p-2 rounded">
+                If using Amazon S3, ensure your bucket&apos;s CORS configuration allows GET requests from this domain.
               </p>
             </div>
-          </object>
-        ) : (
-          <iframe
-            key={`gdocs-${reloadKey}`}
-            src={googleDocsViewerUrl}
-            className="w-full h-full min-h-[650px] border-0 flex-1"
-            title={title}
-            allow="autoplay"
-            sandbox={allowDownload ? undefined : "allow-scripts allow-same-origin"}
+          }
+          className="flex flex-col items-center"
+        >
+          <Page 
+            pageNumber={pageNumber} 
+            scale={scale}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
+            className="shadow-xl bg-white"
+            width={containerWidth ? Math.min(containerWidth - 32, 1000) : undefined}
           />
-        )}
+        </Document>
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .react-pdf__Page__canvas {
+          margin: 0 auto;
+          border-radius: 4px;
+        }
+        .react-pdf__Page__textContent {
+          border-radius: 4px;
+        }
+        .react-pdf__Page__annotations {
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+      `}} />
     </div>
   );
 }

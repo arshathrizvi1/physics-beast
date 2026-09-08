@@ -656,9 +656,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               if (!document.fullscreenElement) {
                                 if (playerContainerRef.current) {
                                   await playerContainerRef.current.requestFullscreen();
-                                  if (screen.orientation && screen.orientation.lock) {
+                                  if (screen.orientation && (screen.orientation as any).lock) {
                                     try {
-                                      await screen.orientation.lock('landscape');
+                                      await (screen.orientation as any).lock('landscape');
                                     } catch (e) {
                                       console.log("Orientation lock failed/unsupported", e);
                                     }
@@ -666,8 +666,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                 }
                               } else {
                                 await document.exitFullscreen();
-                                if (screen.orientation && screen.orientation.unlock) {
-                                  screen.orientation.unlock();
+                                if (screen.orientation && (screen.orientation as any).unlock) {
+                                  (screen.orientation as any).unlock();
                                 }
                               }
                             } catch (err) {

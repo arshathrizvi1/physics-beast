@@ -14,8 +14,8 @@ export function AndroidBackButtonHandler() {
 
     let unsub: any;
 
-    import("@capacitor/app").then(({ App }) => {
-      unsub = App.addListener("backButton", (event) => {
+    import("@capacitor/app").then(async ({ App }) => {
+      unsub = await App.addListener("backButton", (event) => {
         // If can Go Back in browser history and not on homepage, go back
         if (window.location.pathname !== "/" && window.location.pathname !== "/login") {
           window.history.back();

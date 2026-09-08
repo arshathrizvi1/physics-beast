@@ -108,7 +108,7 @@ export default function LoginPage() {
       const fetchBatches = async () => {
         try {
           const snapshot = await getDocs(query(collection(db, 'batches'), orderBy('createdAt', 'desc')));
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
           setBatches(data);
           if (data.length > 0 && graduationYear === "2026") {
             setGraduationYear(data[0].year);
@@ -121,7 +121,7 @@ export default function LoginPage() {
       const fetchStreams = async () => {
         try {
           const snapshot = await getDocs(query(collection(db, 'streams'), orderBy('createdAt', 'desc')));
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
           setStreams(data);
           if (data.length > 0 && !stream) {
             setStream(data[0].name);

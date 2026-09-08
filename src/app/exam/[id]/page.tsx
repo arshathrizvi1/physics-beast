@@ -343,8 +343,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
       }
     }
 
-    localStorage.removeItem(`exam_start_${id}_${user.uid}`);
-    localStorage.removeItem(`exam_strikes_${id}_${user.uid}`);
+    localStorage.removeItem(`exam_start_${id}_${user?.uid}`);
+    localStorage.removeItem(`exam_strikes_${id}_${user?.uid}`);
     setIsSubmitting(false);
     setIsSubmitted(true);
   };
@@ -554,7 +554,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
             </CardContent>
             <CardFooter className="pt-2 pb-6 px-6">
               <Button 
-                onClick={handleSubmit} 
+                onClick={() => handleSubmit()} 
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12"
                 disabled={isSubmitting || !essayPdfFile}
               >
@@ -635,7 +635,7 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
           </Button>
           
           {currentQuestion === questions.length - 1 ? (
-            <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2">
+            <Button onClick={() => handleSubmit()} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2">
               <Send className="w-4 h-4" /> Submit Exam
             </Button>
           ) : (
