@@ -780,6 +780,7 @@ export default function AdminDashboard() {
   const [uploadFileBase64, setUploadFileBase64] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [videoPlatform, setVideoPlatform] = useState("youtube");
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
@@ -1044,6 +1045,7 @@ export default function AdminDashboard() {
         title: videoTitle,
         url: finalUrl,
         type: uploadItemType,
+        platform: uploadItemType === 'video' ? videoPlatform : null,
         batchId: videoBatchId,
         courseId: videoCourseId,
         folderId: videoFolderId,
@@ -2380,15 +2382,35 @@ export default function AdminDashboard() {
                 </div>
 
                 {uploadItemType === 'video' ? (
-                  <div className="space-y-2">
-                    <Label>External Secure Stream URL (Mux/Vimeo/Cloudflare)</Label>
-                    <div className="flex gap-2">
-                      <Input placeholder="https://stream.mux.com/..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
-                      <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
-                        {isUploading ? "Linking..." : "Link Video"}
-                      </Button>
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Video Source Platform</Label>
+                      <select 
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={videoPlatform} 
+                        onChange={(e) => setVideoPlatform(e.target.value)}
+                        required={uploadItemType === 'video'}
+                      >
+                        <option value="youtube">YouTube</option>
+                        <option value="vimeo">Vimeo</option>
+                        <option value="dailymotion">Dailymotion</option>
+                        <option value="direct">Direct Link (Google Drive, MP4, etc.)</option>
+                      </select>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Recommended for high-speed DRM streaming.</p>
+                    <div className="space-y-2">
+                      <Label>Video URL</Label>
+                      <div className="flex gap-2">
+                        <Input placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
+                        <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
+                          {isUploading ? "Linking..." : "Link Video"}
+                        </Button>
+                      </div>
+                      {videoPlatform === 'direct' && (
+                        <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                          <strong>Note for Google Drive:</strong> To play directly inside the custom player with quality controls, you must use a direct download link. Format: <code>https://drive.google.com/uc?export=download&id=FILE_ID</code> instead of the standard sharing link. Standard sharing links will not work in the custom player.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2 p-4 border border-primary/20 rounded-xl bg-primary/5">
