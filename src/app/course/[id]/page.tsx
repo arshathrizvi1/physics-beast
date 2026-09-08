@@ -41,6 +41,12 @@ const formatVideoUrl = (url: string) => {
   return cleanUrl;
 };
 
+const getDailymotionId = (url: string) => {
+  if (!url) return null;
+  const match = url.trim().match(/(?:dailymotion\.com\/(?:embed\/)?video\/|dai\.ly\/)([a-zA-Z0-9]+)/i);
+  return match ? match[1] : null;
+};
+
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
@@ -485,116 +491,119 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying YouTube iframe */}
-                  <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
-                    <ReactPlayer
-                      ref={playerRef}
-                      url={formatVideoUrl(activeVideo.url)}
-                      width="100%"
-                      height="100%"
-                    playing={playing}
-                    playbackRate={playbackRate}
-                    volume={volume}
-                    muted={muted}
-                    onProgress={(state) => {
-                      setPlayed(state.played);
-                      if (activeVideo && user?.uid) {
-                        localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
-                      }
-                    }}
-                    onDuration={(dur) => setDuration(dur)}
-                    onReady={() => {
-                      if (activeVideo && user?.uid && playerRef.current) {
-                        const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
-                        if (saved) {
-                          playerRef.current.seekTo(parseFloat(saved), 'seconds');
-                        }
-                      }
-                      
-                      const internal = playerRef.current?.getInternalPlayer();
-                      if (internal && typeof internal.unloadModule === 'function') {
-                        try {
-                          internal.unloadModule("captions");
-                          internal.unloadModule("cc");
-                        } catch (e) {}
-                      }
-                    }}
-                    config={{
-                      youtube: {
-                        playerVars: { 
-                          showinfo: 0, 
-                          controls: 0, 
-                          rel: 0, 
-                          modestbranding: 1,
-                          disablekb: 1,
-                          iv_load_policy: 3,
-                          cc_load_policy: 3
-                        }
-                      },
-                      dailymotion: {
-                        params: {
-                          controls: false,
-                          'ui-start-screen-info': false,
-                          'ui-logo': false,
-                          autoplay: false
-                        }
-                      },
-                      file: {
-                        attributes: {
-                          controlsList: "nodownload",
-                          onContextMenu: (e: any) => e.preventDefault(),
-                          disablePictureInPicture: true
-                        }
-                      }
-                    }}
-                  />
-                </div>
-                
-                {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
-                <div className="absolute inset-0 z-10 cursor-pointer flex">
-                  <div 
-                    className="w-1/2 h-full"
-                    onClick={(e) => {
-                      if (clickTimeoutRef.current) {
-                        clearTimeout(clickTimeoutRef.current);
-                        clickTimeoutRef.current = null;
-                        // Double click Left: Seek -10s
-                        if (playerRef.current) {
-                          const ct = playerRef.current.getCurrentTime();
-                          playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
-                        }
-                      } else {
-                        clickTimeoutRef.current = setTimeout(() => {
-                          clickTimeoutRef.current = null;
-                          setPlaying(!playing);
-                          setShowQualityMenu(false);
-                          setShowSpeedMenu(false);
-                        }, 250);
-                      }
-                    }}
-                  />
-                  <div 
-                    className="w-1/2 h-full"
-                    onClick={(e) => {
-                      if (clickTimeoutRef.current) {
-                        clearTimeout(clickTimeoutRef.current);
-                        clickTimeoutRef.current = null;
-                        // Double click Right: Seek +10s
-                        if (playerRef.current) {
-                          const ct = playerRef.current.getCurrentTime();
-                          playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
-                        }
-                      } else {
-                        clickTimeoutRef.current = setTimeout(() => {
-                          clickTimeoutRef.current = null;
-                          setPlaying(!playing);
-                          setShowQualityMenu(false);
-                          setShowSpeedMenu(false);
-                        }, 250);
-                      }
-                    }}
-                  />
-                </div>
+                  {getDailymotionId(activeVideo?.url) ? (
+                    <iframe
+                      src={`https://www.dailymotion.com/embed/video/${getDailymotionId(activeVideo.url)}?autoplay=0&ui-logo=0&queue-enable=false`}
+                      className="w-full h-full border-0 relative z-10"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <>
+                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying YouTube iframe */}
+                      <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
+                        <ReactPlayer
+                          ref={playerRef}
+                          url={formatVideoUrl(activeVideo.url)}
+                          width="100%"
+                          height="100%"
+                        playing={playing}
+                        playbackRate={playbackRate}
+                        volume={volume}
+                        muted={muted}
+                        onProgress={(state) => {
+                          setPlayed(state.played);
+                          if (activeVideo && user?.uid) {
+                            localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
+                          }
+                        }}
+                        onDuration={(dur) => setDuration(dur)}
+                        onReady={() => {
+                          if (activeVideo && user?.uid && playerRef.current) {
+                            const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
+                            if (saved) {
+                              playerRef.current.seekTo(parseFloat(saved), 'seconds');
+                            }
+                          }
+                          
+                          const internal = playerRef.current?.getInternalPlayer();
+                          if (internal && typeof internal.unloadModule === 'function') {
+                            try {
+                              internal.unloadModule("captions");
+                              internal.unloadModule("cc");
+                            } catch (e) {}
+                          }
+                        }}
+                        config={{
+                          youtube: {
+                            playerVars: { 
+                              showinfo: 0, 
+                              controls: 0, 
+                              rel: 0, 
+                              modestbranding: 1,
+                              disablekb: 1,
+                              iv_load_policy: 3,
+                              cc_load_policy: 3
+                            }
+                          },
+                          file: {
+                            attributes: {
+                              controlsList: "nodownload",
+                              onContextMenu: (e: any) => e.preventDefault(),
+                              disablePictureInPicture: true
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
+                    <div className="absolute inset-0 z-10 cursor-pointer flex">
+                      <div 
+                        className="w-1/2 h-full"
+                        onClick={(e) => {
+                          if (clickTimeoutRef.current) {
+                            clearTimeout(clickTimeoutRef.current);
+                            clickTimeoutRef.current = null;
+                            // Double click Left: Seek -10s
+                            if (playerRef.current) {
+                              const ct = playerRef.current.getCurrentTime();
+                              playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
+                            }
+                          } else {
+                            clickTimeoutRef.current = setTimeout(() => {
+                              clickTimeoutRef.current = null;
+                              setPlaying(!playing);
+                              setShowQualityMenu(false);
+                              setShowSpeedMenu(false);
+                            }, 250);
+                          }
+                        }}
+                      />
+                      <div 
+                        className="w-1/2 h-full"
+                        onClick={(e) => {
+                          if (clickTimeoutRef.current) {
+                            clearTimeout(clickTimeoutRef.current);
+                            clickTimeoutRef.current = null;
+                            // Double click Right: Seek +10s
+                            if (playerRef.current) {
+                              const ct = playerRef.current.getCurrentTime();
+                              playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
+                            }
+                          } else {
+                            clickTimeoutRef.current = setTimeout(() => {
+                              clickTimeoutRef.current = null;
+                              setPlaying(!playing);
+                              setShowQualityMenu(false);
+                              setShowSpeedMenu(false);
+                            }, 250);
+                          }
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* Floating Email Watermark */}
                 <div
@@ -612,7 +621,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Big Center Play Button Overlay when paused */}
-                {!playing && (
+                {!getDailymotionId(activeVideo?.url) && !playing && (
                   <div className="absolute inset-0 z-[15] pointer-events-none flex items-center justify-center">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center shadow-2xl backdrop-blur-sm animate-pulse">
                       <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1" />
@@ -621,7 +630,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 )}
 
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                {!getDailymotionId(activeVideo?.url) && (
+                  <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                   
                   {/* Progress Bar */}
                   <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
@@ -762,7 +772,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </button>
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
               </div>
               )
             ) : (
