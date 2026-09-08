@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   // Message Filters
   const [msgFilterType, setMsgFilterType] = useState("All");
   const [msgFilterCourse, setMsgFilterCourse] = useState("All");
+  const [msgSearchQuery, setMsgSearchQuery] = useState("");
 
   const [selectedStudentForAccess, setSelectedStudentForAccess] = useState<any>(null);
   const [studentFolderAccess, setStudentFolderAccess] = useState<Record<string, number>>({});
@@ -1301,6 +1302,14 @@ export default function AdminDashboard() {
     // 3. UI Filters
     if (msgFilterType !== "All" && msg.type !== msgFilterType) return false;
     if (msgFilterCourse !== "All" && msgCourseId !== msgFilterCourse) return false;
+
+    if (msgSearchQuery.trim()) {
+      const q = msgSearchQuery.toLowerCase();
+      const matchName = msg.studentName?.toLowerCase().includes(q);
+      const matchExam = msg.examTitle?.toLowerCase().includes(q);
+      const matchMsg = msg.message?.toLowerCase().includes(q);
+      if (!matchName && !matchExam && !matchMsg) return false;
+    }
 
     return true;
   });
@@ -2889,6 +2898,16 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="pt-4">
               <div className="flex flex-wrap gap-2 mb-6 p-3 bg-secondary/5 border-b border-border/50 rounded-md">
+                <div className="flex-1 min-w-[200px] relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search by student, exam, or message..."
+                    className="h-9 w-full pl-9 pr-3 py-1 text-sm rounded-md border border-input bg-background"
+                    value={msgSearchQuery}
+                    onChange={(e) => setMsgSearchQuery(e.target.value)}
+                  />
+                </div>
                 <select
                   className="h-9 px-3 py-1 text-sm rounded-md border border-input bg-background flex-1 sm:flex-none"
                   value={msgFilterType}
@@ -2919,58 +2938,81 @@ export default function AdminDashboard() {
                 </select>
               </div>
 
-              {filteredMessages.length === 0 ? (
-                <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
-                  {examMessages.length === 0 ? "No messages from students." : "No messages match your filters."}
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {filteredMessages.map(msg => (
-                    <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
-                      <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-lg">{msg.studentName}</span>
-                            <span className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString()}</span>
-                            {msg.status === 'unread' && <span className="bg-primary text-primary-foreground text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>}
-                          </div>
-                          <div>
-                            <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
-                            <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
-                          </div>
-                          <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
-                            {msg.message || "No text provided."}
-                          </div>
-                          {msg.imageUrl && (
-                            <div className="mt-2">
-                              <a href={msg.imageUrl} target="_blank" rel="noreferrer" className="text-primary text-sm font-medium hover:underline flex items-center gap-1">
-                                <ExternalLink className="w-4 h-4" /> View Attached Image
-                              </a>
-                            </div>
-                          )}
+              {(() => {
+                const unresolvedMessages = filteredMessages.filter(m => m.status === 'unread');
+                const resolvedMessages = filteredMessages.filter(m => m.status !== 'unread');
+                
+                if (filteredMessages.length === 0) {
+                  return (
+                    <div className="text-center p-8 text-muted-foreground border-2 border-dashed border-secondary/20 rounded-xl">
+                      {examMessages.length === 0 ? "No messages from students." : "No messages match your filters."}
+                    </div>
+                  );
+                }
+
+                const renderMsg = (msg: any) => (
+                  <Card key={msg.id} className={`border-l-4 ${msg.status === 'unread' ? 'border-l-primary bg-primary/5' : 'border-l-secondary/50 bg-secondary/10 opacity-70'}`}>
+                    <CardContent className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg">{msg.studentName}</span>
+                          <span className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString()}</span>
+                          {msg.status === 'unread' && <span className="bg-primary text-primary-foreground text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">New</span>}
                         </div>
-                        <div className="flex flex-col gap-2 min-w-[140px]">
-                          <Button size="sm" variant="outline" className="w-full" render={<Link href={`/exam/${msg.examId}/results`} />}>
-                            Review Paper
-                          </Button>
-                          <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
-                            Allow Redo
-                          </Button>
-                          {msg.status === 'unread' ? (
-                            <Button size="sm" className="w-full" onClick={() => handleResolveMessage(msg.id)}>
-                              Mark Resolved
-                            </Button>
-                          ) : (
-                            <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-medium py-1">
-                              <CheckCircle2 className="w-4 h-4" /> Resolved
-                            </div>
-                          )}
+                        <div>
+                          <span className="font-medium text-sm text-foreground">Exam:</span> <span className="text-sm text-muted-foreground">{msg.examTitle}</span>
+                          <span className="ml-4 font-medium text-sm text-foreground">Type:</span> <span className="text-sm text-muted-foreground">{msg.type === 'exam_issue' ? 'In-Exam Issue' : 'Post-Exam Doubt'}</span>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                        <div className="p-3 bg-background rounded-md border border-border text-sm whitespace-pre-wrap">
+                          {msg.message || "No text provided."}
+                        </div>
+                        {msg.imageUrl && (
+                          <div className="mt-2">
+                            <a href={msg.imageUrl} target="_blank" rel="noreferrer" className="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+                              <ExternalLink className="w-4 h-4" /> View Attached Image
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 min-w-[140px]">
+                        <Button size="sm" variant="outline" className="w-full" render={<Link href={`/exam/${msg.examId}/results`} />}>
+                          Review Paper
+                        </Button>
+                        <Button size="sm" variant="destructive" className="w-full" onClick={() => handleAllowRedo(msg.examId, msg.userId)}>
+                          Allow Redo
+                        </Button>
+                        {msg.status === 'unread' ? (
+                          <Button size="sm" className="w-full" onClick={() => handleResolveMessage(msg.id)}>
+                            Mark Resolved
+                          </Button>
+                        ) : (
+                          <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground font-medium py-1">
+                            <CheckCircle2 className="w-4 h-4" /> Resolved
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+
+                return (
+                  <div className="grid gap-8">
+                    {unresolvedMessages.length > 0 && (
+                      <div className="grid gap-4">
+                        {resolvedMessages.length > 0 && <h3 className="font-bold text-lg text-primary">Unresolved Messages</h3>}
+                        {unresolvedMessages.map(renderMsg)}
+                      </div>
+                    )}
+                    
+                    {resolvedMessages.length > 0 && (
+                      <div className="grid gap-4">
+                        <h3 className="font-bold text-lg text-muted-foreground border-t border-border pt-4 mt-2">Resolved</h3>
+                        {resolvedMessages.map(renderMsg)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
