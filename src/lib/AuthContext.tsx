@@ -7,7 +7,10 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
-  User as FirebaseUser
+  User as FirebaseUser,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updatePassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -77,6 +80,8 @@ interface AuthContextType {
   updateProfilePicture: (file: File) => Promise<boolean>;
   updateProfileName: (newName: string) => Promise<boolean>;
   resetPassword: (email: string) => Promise<{ success: boolean; email?: string; error?: string }>;
+  googleSignIn: () => Promise<{ success: boolean; isNewUser?: boolean; googleUser?: any; error?: string }>;
+  completeGoogleSignup: (profileData: any, nicFile: File | null, password?: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -88,6 +93,8 @@ const AuthContext = createContext<AuthContextType>({
   updateProfilePicture: async () => false,
   updateProfileName: async () => false,
   resetPassword: async () => ({ success: false }),
+  googleSignIn: async () => ({ success: false }),
+  completeGoogleSignup: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -295,11 +302,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               } catch (e) {
                 console.log("Could not save initial profile to Firestore");
               }
-            }
-            
-            setUser(fallbackUser);
-            if (typeof window !== 'undefined') {
-              safeStorage.local.setItem('cachedUserProfile', JSON.stringify(fallbackUser));
+              setUser(fallbackUser);
+              if (typeof window !== 'undefined') {
+                safeStorage.local.setItem('cachedUserProfile', JSON.stringify(fallbackUser));
+              }
+            } else {
+              // We are signing up, so don't set user, just stop loading
+              setLoading(false);
             }
           }
         } catch (error: any) {
@@ -771,8 +780,181 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const googleSignIn = async () => {
+    try {
+      safeStorage.session.setItem('isLoggingIn', 'true');
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      
+      const userDocRef = doc(db, 'users', result.user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        let currentLocalDeviceId = typeof window !== 'undefined' ? safeStorage.local.getItem('localDeviceId') : null;
+        if (!currentLocalDeviceId && typeof window !== 'undefined') {
+          currentLocalDeviceId = Math.random().toString(36).substring(2, 15);
+          safeStorage.local.setItem('localDeviceId', currentLocalDeviceId);
+          safeStorage.local.setItem('localDeviceIdTime', Date.now().toString());
+        }
+
+        if (data.role !== 'admin' && data.role !== 'teacher') {
+          const wasRevokedByAdmin = data.deviceId === 'REVOKED' || !data.deviceId;
+          if (wasRevokedByAdmin) {
+            updateDoc(userDocRef, {
+              deviceId: currentLocalDeviceId,
+              isApproved: true,
+              pendingReason: null
+            }).catch(e => console.log("Could not update deviceId in DB:", e));
+            data.deviceId = currentLocalDeviceId;
+            data.isApproved = true;
+            data.pendingReason = null;
+          } else if (data.deviceId !== currentLocalDeviceId) {
+            updateDoc(userDocRef, { 
+              deviceId: currentLocalDeviceId,
+              isApproved: false,
+              pendingReason: 'New Device Login'
+            }).catch(e => console.log("Could not update deviceId in DB:", e));
+            data.deviceId = currentLocalDeviceId;
+            data.isApproved = false;
+            data.pendingReason = 'New Device Login';
+          }
+        }
+
+        const initialXp = data.totalXp ?? 0;
+        const initialLevel = data.xpLevel || calculateXpLevel(initialXp);
+        const finalProfile = { ...data, totalXp: initialXp, xpLevel: initialLevel, name: data.name || result.user.email?.split('@')[0] || 'Student' } as UserProfile;
+        
+        setUser(finalProfile);
+        if (typeof window !== 'undefined') {
+          safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
+        }
+        safeStorage.session.removeItem('isLoggingIn');
+        return { success: true, isNewUser: false };
+      } else {
+        // New user - keep them in Firebase Auth but wait for extra details
+        safeStorage.session.removeItem('isLoggingIn');
+        safeStorage.session.setItem('isSigningUp', 'true');
+        return { 
+          success: true, 
+          isNewUser: true, 
+          googleUser: { 
+            email: result.user.email, 
+            name: result.user.displayName 
+          } 
+        };
+      }
+    } catch (error: any) {
+       safeStorage.session.removeItem('isLoggingIn');
+       return { success: false, error: error.message };
+    }
+  };
+
+  const completeGoogleSignup = async (profileData: any, nicFile: File | null, password?: string) => {
+    try {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) throw new Error("Not authenticated with Google.");
+
+      const usersRef = collection(db, 'users');
+      if (profileData.nicNumber) {
+        const qNic = query(usersRef, where("nicNumber", "==", profileData.nicNumber));
+        const nicSnapshot = await getDocs(qNic);
+        if (!nicSnapshot.empty) throw new Error("NIC_DUPLICATE");
+      }
+      if (profileData.phone) {
+        const qPhone = query(usersRef, where("phone", "==", profileData.phone));
+        const phoneSnapshot = await getDocs(qPhone);
+        if (!phoneSnapshot.empty) throw new Error("PHONE_DUPLICATE");
+      }
+
+      if (password) {
+        await updatePassword(firebaseUser, password);
+      }
+
+      let nicUrl = "";
+      if (nicFile) {
+        try {
+          nicUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width; let height = img.height;
+                if (width > 900) { height = Math.round((height * 900) / width); width = 900; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) { ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }
+                else resolve(e.target?.result as string);
+              };
+              img.onerror = reject;
+              if (e.target?.result) img.src = e.target.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(nicFile);
+          });
+        } catch (uploadError) {}
+      }
+
+      const newDeviceId = Math.random().toString(36).substring(2, 15);
+      if (typeof window !== 'undefined') {
+        safeStorage.local.setItem('localDeviceId', newDeviceId);
+        safeStorage.local.setItem('localDeviceIdTime', Date.now().toString());
+      }
+
+      let studentId = "";
+      try {
+        const qStudents = query(collection(db, 'users'), where("role", "==", "student"));
+        const countSnap = await getCountFromServer(qStudents);
+        studentId = `PB-${(countSnap.data().count + 1).toString().padStart(4, '0')}`;
+      } catch (e) {
+        studentId = `PB-${Math.floor(Math.random() * 9000) + 1000}`;
+      }
+
+      const email = firebaseUser.email || '';
+      const newProfile: UserProfile = {
+        uid: firebaseUser.uid,
+        email: email,
+        name: profileData.name || firebaseUser.displayName,
+        role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
+        isApproved: email === 'arshathrizvi1010@gmail.com',
+        pendingReason: email === 'arshathrizvi1010@gmail.com' ? undefined : 'ID Verification',
+        graduationYear: profileData.graduationYear,
+        address: profileData.address,
+        phone: profileData.phone,
+        parentPhone: profileData.parentPhone,
+        nicNumber: profileData.nicNumber,
+        nicUrl: nicUrl,
+        deviceId: newDeviceId,
+        totalStudyTimeMins: 0,
+        streakDays: 0,
+        averageGrade: 0,
+        examsDone: 0,
+        examsMissed: 0,
+        xpLevel: 1,
+        totalXp: 0,
+        studentId: studentId,
+        accessibleCourses: [],
+        createdAt: Date.now()
+      };
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+      setUser(newProfile);
+      if (typeof window !== 'undefined') {
+        safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
+      }
+      safeStorage.session.removeItem('isSigningUp');
+      return true;
+    } catch (error: any) {
+      if (error.message === "NIC_DUPLICATE") {
+        alert("Registration Failed: This NIC Number is already registered to another account!");
+      }
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup }}>
       {children}
     </AuthContext.Provider>
   );
