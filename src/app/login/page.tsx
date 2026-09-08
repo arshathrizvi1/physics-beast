@@ -32,6 +32,7 @@ export default function LoginPage() {
   const [stream, setStream] = useState("");
   
   const [batches, setBatches] = useState<any[]>([]);
+  const [streams, setStreams] = useState<any[]>([]);
   
   const [isUploadingPfp, setIsUploadingPfp] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -727,10 +728,9 @@ export default function LoginPage() {
                       required
                     >
                       <option value="" disabled>Select Stream</option>
-                      <option value="Physical Science (Maths)">Physical Science (Maths)</option>
-                      <option value="Biological Science (Bio)">Biological Science (Bio)</option>
-                      <option value="Engineering Technology (ET)">Engineering Technology (ET)</option>
-                      <option value="Bio Systems Technology (BST)">Bio Systems Technology (BST)</option>
+                      {streams.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -751,6 +751,7 @@ export default function LoginPage() {
                     <Label htmlFor="student-phone">Your Phone <span className="text-red-500">*</span></Label>
                     <Input 
                       id="student-phone" 
+                      type="number"
                       placeholder="077..." 
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
@@ -764,6 +765,7 @@ export default function LoginPage() {
                     <Label htmlFor="student-parent-phone">Parent's Phone <span className="text-red-500">*</span></Label>
                     <Input 
                       id="student-parent-phone" 
+                      type="number"
                       placeholder="077..." 
                       value={parentPhone}
                       onChange={(e) => setParentPhone(e.target.value)}

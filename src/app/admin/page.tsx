@@ -3546,6 +3546,7 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   <Label>Phone Number</Label>
                   <Input
+                    type="number"
                     placeholder="+94 7X XXX XXXX"
                     value={profilePhone}
                     onChange={e => setProfilePhone(e.target.value)}
@@ -3849,7 +3850,7 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-muted-foreground mb-1">Student Phone</p>
                   {isEditingStudent ? (
-                    <Input value={editingStudentData.phone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, phone: e.target.value})} className="h-8" />
+                    <Input type="number" value={editingStudentData.phone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, phone: e.target.value})} className="h-8" />
                   ) : (
                     <p className="font-medium text-base">{selectedStudentInfo.phone || 'N/A'}</p>
                   )}
@@ -3857,7 +3858,7 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-muted-foreground mb-1">Parent Phone</p>
                   {isEditingStudent ? (
-                    <Input value={editingStudentData.parentPhone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, parentPhone: e.target.value})} className="h-8" />
+                    <Input type="number" value={editingStudentData.parentPhone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, parentPhone: e.target.value})} className="h-8" />
                   ) : (
                     <p className="font-medium text-base">{selectedStudentInfo.parentPhone || 'N/A'}</p>
                   )}

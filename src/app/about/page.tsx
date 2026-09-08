@@ -64,9 +64,25 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-bold text-foreground">Our Mission</h2>
-              <p className="text-lg text-muted-foreground leading-relaxed">{data.mission}</p>
-              <p className="text-lg text-muted-foreground leading-relaxed">{data.vision}</p>
+              <div className="space-y-4">
+                <h2 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                  <span className="w-2 h-7 bg-[#d4af37] rounded-full inline-block" />
+                  Our Mission
+                </h2>
+                <p className="text-lg text-muted-foreground leading-relaxed pl-5 border-l border-white/10">
+                  {data.mission}
+                </p>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <h2 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                  <span className="w-2 h-7 bg-[#d4af37] rounded-full inline-block" />
+                  Our Vision
+                </h2>
+                <p className="text-lg text-muted-foreground leading-relaxed pl-5 border-l border-white/10">
+                  {data.vision}
+                </p>
+              </div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 40 }}
