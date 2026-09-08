@@ -1,0 +1,15 @@
+{
+  "appId": "com.physicsbeast.app",
+  "appName": "Physics Beast",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://physics-beast.vercel.app",
+    "cleartext": true
+  },
+  "plugins": {
+    "PrivacyScreen": {
+      "enable": true
+    }
+  }
+}
