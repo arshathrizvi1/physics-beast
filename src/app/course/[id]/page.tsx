@@ -18,29 +18,6 @@ import { Label } from "@/components/ui/label";
 import dynamic from 'next/dynamic';
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
-const formatVideoUrl = (url: string) => {
-  if (!url) return '';
-  let cleanUrl = url.trim();
-
-  // Dailymotion link cleaning: handle embed, dai.ly, and standard video links
-  if (cleanUrl.includes('dailymotion.com/embed/video/')) {
-    const videoId = cleanUrl.split('dailymotion.com/embed/video/')[1]?.split('?')[0];
-    if (videoId) return `https://www.dailymotion.com/video/${videoId}`;
-  }
-  if (cleanUrl.includes('dai.ly/')) {
-    const videoId = cleanUrl.split('dai.ly/')[1]?.split('?')[0];
-    if (videoId) return `https://www.dailymotion.com/video/${videoId}`;
-  }
-
-  // Google Drive link cleaning: convert file/d/ ID to direct stream URL
-  if (cleanUrl.includes('drive.google.com/file/d/')) {
-    const fileId = cleanUrl.split('/file/d/')[1]?.split('/')[0];
-    if (fileId) return `https://drive.google.com/uc?export=download&id=${fileId}`;
-  }
-
-  return cleanUrl;
-};
-
 const getDailymotionId = (url: string) => {
   if (!url) return null;
   const match = url.trim().match(/(?:dailymotion\.com\/(?:embed\/)?video\/|dai\.ly\/)([a-zA-Z0-9]+)/i);
@@ -77,8 +54,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [quality, setQuality] = useState('Auto');
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -499,111 +474,106 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       allowFullScreen
                     />
                   ) : (
-                    <>
-                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying YouTube iframe */}
-                      <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
-                        <ReactPlayer
-                          ref={playerRef}
-                          url={formatVideoUrl(activeVideo.url)}
-                          width="100%"
-                          height="100%"
-                        playing={playing}
-                        playbackRate={playbackRate}
-                        volume={volume}
-                        muted={muted}
-                        onProgress={(state) => {
-                          setPlayed(state.played);
-                          if (activeVideo && user?.uid) {
-                            localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
+                    <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
+                      <ReactPlayer
+                        ref={playerRef}
+                        url={activeVideo.url}
+                        width="100%"
+                        height="100%"
+                      playing={playing}
+                      playbackRate={playbackRate}
+                      volume={volume}
+                      muted={muted}
+                      onProgress={(state) => {
+                        setPlayed(state.played);
+                        if (activeVideo && user?.uid) {
+                          localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
+                        }
+                      }}
+                      onDuration={(dur) => setDuration(dur)}
+                      onReady={() => {
+                        if (activeVideo && user?.uid && playerRef.current) {
+                          const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
+                          if (saved) {
+                            playerRef.current.seekTo(parseFloat(saved), 'seconds');
                           }
-                        }}
-                        onDuration={(dur) => setDuration(dur)}
-                        onReady={() => {
-                          if (activeVideo && user?.uid && playerRef.current) {
-                            const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
-                            if (saved) {
-                              playerRef.current.seekTo(parseFloat(saved), 'seconds');
-                            }
+                        }
+                        
+                        const internal = playerRef.current?.getInternalPlayer();
+                        if (internal && typeof internal.unloadModule === 'function') {
+                          try {
+                            internal.unloadModule("captions");
+                            internal.unloadModule("cc");
+                          } catch (e) {}
+                        }
+                      }}
+                      config={{
+                        youtube: {
+                          playerVars: { 
+                            showinfo: 0, 
+                            controls: 0, 
+                            rel: 0, 
+                            modestbranding: 1,
+                            disablekb: 1,
+                            iv_load_policy: 3,
+                            cc_load_policy: 3
                           }
-                          
-                          const internal = playerRef.current?.getInternalPlayer();
-                          if (internal && typeof internal.unloadModule === 'function') {
-                            try {
-                              internal.unloadModule("captions");
-                              internal.unloadModule("cc");
-                            } catch (e) {}
+                        },
+                        file: {
+                          attributes: {
+                            controlsList: "nodownload",
+                            onContextMenu: (e: any) => e.preventDefault(),
+                            disablePictureInPicture: true
                           }
-                        }}
-                        config={{
-                          youtube: {
-                            playerVars: { 
-                              showinfo: 0, 
-                              controls: 0, 
-                              rel: 0, 
-                              modestbranding: 1,
-                              disablekb: 1,
-                              iv_load_policy: 3,
-                              cc_load_policy: 3
-                            }
-                          },
-                          file: {
-                            attributes: {
-                              controlsList: "nodownload",
-                              onContextMenu: (e: any) => e.preventDefault(),
-                              disablePictureInPicture: true
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                    
-                    {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
-                    <div className="absolute inset-0 z-10 cursor-pointer flex">
-                      <div 
-                        className="w-1/2 h-full"
-                        onClick={(e) => {
-                          if (clickTimeoutRef.current) {
-                            clearTimeout(clickTimeoutRef.current);
-                            clickTimeoutRef.current = null;
-                            // Double click Left: Seek -10s
-                            if (playerRef.current) {
-                              const ct = playerRef.current.getCurrentTime();
-                              playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
-                            }
-                          } else {
-                            clickTimeoutRef.current = setTimeout(() => {
-                              clickTimeoutRef.current = null;
-                              setPlaying(!playing);
-                              setShowQualityMenu(false);
-                              setShowSpeedMenu(false);
-                            }, 250);
-                          }
-                        }}
-                      />
-                      <div 
-                        className="w-1/2 h-full"
-                        onClick={(e) => {
-                          if (clickTimeoutRef.current) {
-                            clearTimeout(clickTimeoutRef.current);
-                            clickTimeoutRef.current = null;
-                            // Double click Right: Seek +10s
-                            if (playerRef.current) {
-                              const ct = playerRef.current.getCurrentTime();
-                              playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
-                            }
-                          } else {
-                            clickTimeoutRef.current = setTimeout(() => {
-                              clickTimeoutRef.current = null;
-                              setPlaying(!playing);
-                              setShowQualityMenu(false);
-                              setShowSpeedMenu(false);
-                            }, 250);
-                          }
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
+                        }
+                      }}
+                    />
+                  </div>
+                  )}
+                
+                {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
+                <div className="absolute inset-0 z-10 cursor-pointer flex">
+                  <div 
+                    className="w-1/2 h-full"
+                    onClick={(e) => {
+                      if (clickTimeoutRef.current) {
+                        clearTimeout(clickTimeoutRef.current);
+                        clickTimeoutRef.current = null;
+                        // Double click Left: Seek -10s
+                        if (playerRef.current) {
+                          const ct = playerRef.current.getCurrentTime();
+                          playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
+                        }
+                      } else {
+                        clickTimeoutRef.current = setTimeout(() => {
+                          clickTimeoutRef.current = null;
+                          setPlaying(!playing);
+                          setShowSpeedMenu(false);
+                        }, 250);
+                      }
+                    }}
+                  />
+                  <div 
+                    className="w-1/2 h-full"
+                    onClick={(e) => {
+                      if (clickTimeoutRef.current) {
+                        clearTimeout(clickTimeoutRef.current);
+                        clickTimeoutRef.current = null;
+                        // Double click Right: Seek +10s
+                        if (playerRef.current) {
+                          const ct = playerRef.current.getCurrentTime();
+                          playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
+                        }
+                      } else {
+                        clickTimeoutRef.current = setTimeout(() => {
+                          clickTimeoutRef.current = null;
+                          setPlaying(!playing);
+                          setShowSpeedMenu(false);
+                        }, 250);
+                      }
+                    }}
+                  />
+                </div>
 
                 {/* Floating Email Watermark */}
                 <div
@@ -620,18 +590,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </span>
                 </div>
 
-                {/* Big Center Play Button Overlay when paused */}
-                {!getDailymotionId(activeVideo?.url) && !playing && (
-                  <div className="absolute inset-0 z-[15] pointer-events-none flex items-center justify-center">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center shadow-2xl backdrop-blur-sm animate-pulse">
-                      <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1" />
-                    </div>
-                  </div>
-                )}
-
                 {/* Custom Controls Overlay */}
-                {!getDailymotionId(activeVideo?.url) && (
-                  <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                   
                   {/* Progress Bar */}
                   <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
@@ -675,40 +635,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     </div>
 
                     <div className="flex items-center gap-4">
-                      {/* Quality Control (Hidden for YouTube) */}
-                      {activeVideo?.platform !== 'youtube' && (
-                        <div className="relative flex items-center">
-                          <button 
-                            className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowQualityMenu(!showQualityMenu);
-                              setShowSpeedMenu(false);
-                            }}
-                          >
-                            {quality}
-                          </button>
-                          {showQualityMenu && (
-                            <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                              <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
-                                <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
-                                  <span className="text-xs text-foreground/50 font-medium py-2">Quality</span>
-                                  <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
-                                </div>
-                                {['Auto', '1080p', '720p', '480p'].map(q => (
-                                  <button 
-                                    key={q} 
-                                    onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
-                                    className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
-                                  >
-                                    {q}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Quality Control (Removed: YouTube auto-adapts quality) */}
+
                       {/* Speed Control */}
                       <div className="relative flex items-center">
                         <button 
@@ -716,7 +644,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowSpeedMenu(!showSpeedMenu);
-                            setShowQualityMenu(false);
                           }}
                         >
                           {playbackRate}x <Settings className="w-4 h-4 ml-1" />
@@ -772,8 +699,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
               </div>
               )
             ) : (
