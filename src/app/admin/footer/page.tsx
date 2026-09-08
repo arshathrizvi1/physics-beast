@@ -24,6 +24,7 @@ const defaultFooter = {
   companyLinks: [
     { label: "About Us", href: "/about" },
     { label: "Reviews", href: "/reviews" },
+    { label: "Contact Us", href: "/about#contact" },
     { label: "Login", href: "/login" },
   ],
 };

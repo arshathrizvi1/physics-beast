@@ -36,6 +36,7 @@ export default function AdminDashboard() {
   const [examMessages, setExamMessages] = useState<any[]>([]);
   
   // Message Filters
+  const [msgCategory, setMsgCategory] = useState<"all" | "academic" | "support">("academic");
   const [msgFilterType, setMsgFilterType] = useState("All");
   const [msgFilterCourse, setMsgFilterCourse] = useState("All");
   const [msgSearchQuery, setMsgSearchQuery] = useState("");
