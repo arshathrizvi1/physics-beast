@@ -55,6 +55,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [quality, setQuality] = useState('Auto');
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -656,6 +658,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             onClick={(e) => {
                               e.stopPropagation();
                               setShowSpeedMenu(!showSpeedMenu);
+                              setShowQualityMenu(false);
                             }}
                           >
                             {playbackRate}x <Settings className="w-4 h-4 ml-1" />

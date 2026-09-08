@@ -78,9 +78,6 @@ export function PdfViewer({
 
   const previousPage = () => changePage(-1);
   const nextPage = () => changePage(1);
-  
-  
-  
 
   if (!url) {
     return (
