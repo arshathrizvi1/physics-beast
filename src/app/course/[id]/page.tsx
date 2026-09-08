@@ -16,6 +16,7 @@ import { calculateXpLevel, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import dynamic from 'next/dynamic';
+import { PdfViewer } from "@/components/ui/pdf-viewer";
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
 const getDailymotionId = (url: string) => {
@@ -421,43 +422,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           {user ? (
             activeVideo ? (
               activeVideo.type === 'resource' ? (
-                <div className="w-full h-full absolute inset-0 z-0 bg-secondary/10 flex flex-col items-center justify-center p-8 text-center border-4 border-secondary/20 rounded-xl">
-                  <FileText className="w-24 h-24 text-primary mb-6" />
-                  <h2 className="text-2xl font-bold mb-2">{activeVideo.title}</h2>
-                  <p className="text-muted-foreground mb-8 max-w-md">This is a course resource file. You can view or download it to study along with the course.</p>
-                  <div className="flex gap-4">
-                    <Button onClick={() => {
-                       try {
-                         if (activeVideo.url.startsWith('data:')) {
-                           // Convert data URI to blob URL (works in all browsers)
-                           const arr = activeVideo.url.split(',');
-                           const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf';
-                           const bstr = atob(arr[1]);
-                           let n = bstr.length;
-                           const u8arr = new Uint8Array(n);
-                           while (n--) u8arr[n] = bstr.charCodeAt(n);
-                           const blob = new Blob([u8arr], { type: mime });
-                           const blobUrl = URL.createObjectURL(blob);
-                           window.open(blobUrl, '_blank');
-                         } else {
-                           window.open(activeVideo.url, '_blank');
-                         }
-                       } catch (err) {
-                         console.error('Failed to open resource', err);
-                         alert('Could not open resource. Please try the Download button instead.');
-                       }
-                     }} size="lg">
-                      View Resource
-                    </Button>
-                    <Button onClick={() => {
-                      const a = document.createElement('a');
-                      a.href = activeVideo.url;
-                      a.download = activeVideo.title || "resource";
-                      a.click();
-                    }} variant="outline" size="lg">
-                      <Download className="w-4 h-4 mr-2" /> Download
-                    </Button>
-                  </div>
+                <div className="w-full h-full absolute inset-0 z-[5] bg-background border border-border rounded-xl overflow-hidden flex flex-col">
+                  <PdfViewer 
+                    url={activeVideo.url} 
+                    title={activeVideo.title} 
+                    height="100%" 
+                    allowDownload={true} 
+                    className="w-full h-full"
+                  />
                 </div>
               ) : (
                 <div 
@@ -736,17 +708,36 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         
         <div className="space-y-2">
           <div className="flex justify-between items-start">
-            <h1 className="text-2xl font-bold">{activeVideo ? activeVideo.title : course.name}</h1>
-            {activeVideo && (
-              <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1 rounded-full animate-pulse">
-                <Eye className="w-4 h-4" />
-                {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
-              </div>
-            )}
+            <div>
+              <h1 className="text-2xl font-bold">{activeVideo ? activeVideo.title : course.name}</h1>
+              <p className="text-muted-foreground mt-1">
+                {activeVideo ? (activeVideo.type === 'resource' ? "Course Resource / PDF document." : "Currently playing from the course syllabus.") : "Course overview."}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {activeVideo && activeVideo.type === 'resource' && (
+                <Button 
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = activeVideo.url;
+                    a.download = activeVideo.title || "resource.pdf";
+                    a.target = "_blank";
+                    a.click();
+                  }}
+                  variant="default"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md font-semibold gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download PDF
+                </Button>
+              )}
+              {activeVideo && activeVideo.type !== 'resource' && (
+                <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
+                  <Eye className="w-4 h-4" />
+                  {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-muted-foreground">
-            {activeVideo ? "Currently playing from the course syllabus." : "Course overview."}
-          </p>
         </div>
         <Separator className="bg-secondary/30" />
         
