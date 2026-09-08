@@ -14,15 +14,6 @@ export function MobileBottomNav() {
     return null;
   }
 
-  // Only show if loading finishes and user exists (allow both student role or default logged in user)
-  if (loading) {
-    return null;
-  }
-
-  if (user && user.role && user.role !== 'student') {
-    return null;
-  }
-
   const links = [
     { 
       name: "Home", 
