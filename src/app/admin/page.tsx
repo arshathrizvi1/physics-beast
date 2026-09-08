@@ -872,6 +872,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApprovePendingTeacher = async (memberId: string, memberName: string) => {
+    if (!confirm(`Approve ${memberName} as a teacher? They will gain full teacher access.`)) return;
+    try {
+      await updateDoc(doc(db, 'users', memberId), { isApproved: true, pendingReason: null });
+      alert(`✅ ${memberName} has been approved as a teacher!`);
+    } catch (err) {
+      alert("Failed to approve teacher.");
+      console.error(err);
+    }
+  };
+
+  const handleRejectPendingTeacher = async (memberId: string, memberName: string) => {
+    if (!confirm(`Reject ${memberName}'s teacher application? Their account will be converted to a student.`)) return;
+    try {
+      await updateDoc(doc(db, 'users', memberId), { role: 'student', isApproved: false, pendingReason: 'Teacher application rejected' });
+      alert(`${memberName}'s teacher application has been rejected.`);
+    } catch (err) {
+      alert("Failed to reject teacher application.");
+      console.error(err);
+    }
+  };
+
   const handleUploadItem = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
@@ -3066,9 +3088,42 @@ export default function AdminDashboard() {
                 </Button>
               </form>
 
+              {/* Pending Teacher Applications */}
+              {(() => {
+                const pendingTeachers = teamMembers.filter(m => m.role === 'teacher' && !m.isApproved);
+                if (pendingTeachers.length === 0) return null;
+                return (
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <h3 className="font-bold text-base mb-3 text-yellow-500 flex items-center gap-2">
+                      <Clock className="w-4 h-4" /> Pending Teacher Applications ({pendingTeachers.length})
+                    </h3>
+                    <div className="grid gap-3">
+                      {pendingTeachers.map(teacher => (
+                        <div key={teacher.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-background rounded-md border border-border">
+                          <div className="flex-1">
+                            <p className="font-bold text-sm">{teacher.name || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground">{teacher.email}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Subject: <span className="font-medium text-foreground">{teacher.subject || 'Not specified'}</span></p>
+                            {teacher.createdAt && <p className="text-xs text-muted-foreground">Applied: {new Date(teacher.createdAt).toLocaleDateString()}</p>}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprovePendingTeacher(teacher.id, teacher.name)}>
+                              <Check className="w-3 h-3 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => handleRejectPendingTeacher(teacher.id, teacher.name)}>
+                              <X className="w-3 h-3 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Current Team Table */}
               <div>
-                <h3 className="font-bold text-base mb-3">Current Team ({teamMembers.length})</h3>
+                <h3 className="font-bold text-base mb-3">Current Team ({teamMembers.filter(m => m.isApproved).length})</h3>
                 {teamMembers.length === 0 ? (
                   <p className="text-muted-foreground text-sm italic p-4 text-center">No team members yet.</p>
                 ) : (
@@ -3085,7 +3140,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {teamMembers.map((member) => {
+                        {teamMembers.filter(m => m.isApproved).map((member) => {
                           const assignedCourses = courses.filter(c => c.teacherId === member.id);
                           const isEditingSubject = editingTeacherSubjectId === member.id;
                           return (

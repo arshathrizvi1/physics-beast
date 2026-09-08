@@ -15,7 +15,7 @@ export function MobileBottomNav() {
   }
 
   // Hide on admin routes or auth routes just in case
-  if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/signup') {
+  if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/signup' || pathname === '/teacher-signup') {
     return null;
   }
 
