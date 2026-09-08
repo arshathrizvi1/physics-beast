@@ -37,6 +37,10 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   name?: string;
+  dob?: string;
+  school?: string;
+  gender?: string;
+  stream?: string;
   batchId?: string;
   graduationYear?: string;
   address?: string;
@@ -622,6 +626,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
         isApproved: email === 'arshathrizvi1010@gmail.com', // Admins are auto-approved, students must be reviewed
         pendingReason: email === 'arshathrizvi1010@gmail.com' ? undefined : 'ID Verification',
+        dob: profileData.dob,
+        school: profileData.school,
+        gender: profileData.gender,
+        stream: profileData.stream,
         graduationYear: profileData.graduationYear,
         address: profileData.address,
         phone: profileData.phone,
@@ -943,6 +951,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
         isApproved: email === 'arshathrizvi1010@gmail.com',
         pendingReason: email === 'arshathrizvi1010@gmail.com' ? undefined : 'ID Verification',
+        dob: profileData.dob,
+        school: profileData.school,
+        gender: profileData.gender,
+        stream: profileData.stream,
         graduationYear: profileData.graduationYear,
         address: profileData.address,
         phone: profileData.phone,

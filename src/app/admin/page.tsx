@@ -101,6 +101,8 @@ export default function AdminDashboard() {
 
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [editingStudentData, setEditingStudentData] = useState<any>(null);
   
   const [newBatchName, setNewBatchName] = useState("");
   const [newBatchYear, setNewBatchYear] = useState("");
@@ -228,6 +230,31 @@ export default function AdminDashboard() {
         console.error("Failed to reject payment", e);
         alert("Failed to reject payment.");
       }
+    }
+  };
+
+  const handleSaveStudentDetails = async () => {
+    if (!editingStudentData || !selectedStudentInfo) return;
+    try {
+      await updateDoc(doc(db, 'users', selectedStudentInfo.id), {
+        name: editingStudentData.name,
+        email: editingStudentData.email,
+        phone: editingStudentData.phone,
+        parentPhone: editingStudentData.parentPhone,
+        nicNumber: editingStudentData.nicNumber,
+        graduationYear: editingStudentData.graduationYear,
+        address: editingStudentData.address,
+        dob: editingStudentData.dob,
+        school: editingStudentData.school,
+        gender: editingStudentData.gender,
+        stream: editingStudentData.stream,
+      });
+      setSelectedStudentInfo({ ...selectedStudentInfo, ...editingStudentData });
+      setIsEditingStudent(false);
+      alert("Student details updated successfully!");
+    } catch (err) {
+      console.error("Failed to update student", err);
+      alert("Failed to update student details.");
     }
   };
 
@@ -3602,15 +3629,52 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <Card className="w-full max-w-2xl border-primary/20 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <CardHeader className="bg-secondary/20 border-b relative flex-shrink-0">
+              <div className="absolute right-12 top-4 flex gap-2">
+                {!isEditingStudent ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => {
+                      setEditingStudentData(selectedStudentInfo);
+                      setIsEditingStudent(true);
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4" /> Edit
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-8"
+                      onClick={() => setIsEditingStudent(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={handleSaveStudentDetails}
+                    >
+                      <Check className="w-4 h-4" /> Save
+                    </Button>
+                  </>
+                )}
+              </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="absolute right-4 top-4 rounded-full hover:bg-destructive/20 hover:text-destructive"
-                onClick={() => setSelectedStudentInfo(null)}
+                className="absolute right-2 top-3 rounded-full hover:bg-destructive/20 hover:text-destructive"
+                onClick={() => {
+                  setSelectedStudentInfo(null);
+                  setIsEditingStudent(false);
+                }}
               >
                 <X className="w-5 h-5" />
               </Button>
-              <CardTitle className="text-xl flex items-center gap-2">
+              <CardTitle className="text-xl flex items-center gap-2 pt-1">
                 <UserPlus className="w-5 h-5 text-primary" /> 
                 Student Details
               </CardTitle>
@@ -3622,31 +3686,118 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground mb-1">Full Name</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.name}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.name} onChange={(e) => setEditingStudentData({...editingStudentData, name: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.name}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Email</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.email}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.email} onChange={(e) => setEditingStudentData({...editingStudentData, email: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.email}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Date of Birth</p>
+                  {isEditingStudent ? (
+                    <Input type="date" value={editingStudentData.dob || ''} onChange={(e) => setEditingStudentData({...editingStudentData, dob: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.dob || 'N/A'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Gender</p>
+                  {isEditingStudent ? (
+                    <select 
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background"
+                      value={editingStudentData.gender || ''}
+                      onChange={(e) => setEditingStudentData({...editingStudentData, gender: e.target.value})}
+                    >
+                      <option value="" disabled>Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.gender || 'N/A'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">School</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.school || ''} onChange={(e) => setEditingStudentData({...editingStudentData, school: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.school || 'N/A'}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Stream</p>
+                  {isEditingStudent ? (
+                    <select 
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background"
+                      value={editingStudentData.stream || ''}
+                      onChange={(e) => setEditingStudentData({...editingStudentData, stream: e.target.value})}
+                    >
+                      <option value="" disabled>Select Stream</option>
+                      <option value="Physical Science (Maths)">Physical Science (Maths)</option>
+                      <option value="Biological Science (Bio)">Biological Science (Bio)</option>
+                      <option value="Engineering Technology (ET)">Engineering Technology (ET)</option>
+                      <option value="Bio Systems Technology (BST)">Bio Systems Technology (BST)</option>
+                    </select>
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.stream || 'N/A'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Student Phone</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.phone || 'N/A'}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.phone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, phone: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.phone || 'N/A'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Parent Phone</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.parentPhone || 'N/A'}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.parentPhone || ''} onChange={(e) => setEditingStudentData({...editingStudentData, parentPhone: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.parentPhone || 'N/A'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">NIC Number</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.nicNumber || 'N/A'}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.nicNumber || ''} onChange={(e) => setEditingStudentData({...editingStudentData, nicNumber: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.nicNumber || 'N/A'}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Batch / Class ID</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.graduationYear || 'N/A'}</p>
+                  {isEditingStudent ? (
+                    <select 
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background"
+                      value={editingStudentData.graduationYear || ''}
+                      onChange={(e) => setEditingStudentData({...editingStudentData, graduationYear: e.target.value})}
+                    >
+                      <option value="">Select Batch</option>
+                      {batches.map(b => (
+                        <option key={b.id} value={b.year}>{b.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.graduationYear || 'N/A'}</p>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <p className="text-muted-foreground mb-1">Address</p>
-                  <p className="font-medium text-base">{selectedStudentInfo.address || 'N/A'}</p>
+                  {isEditingStudent ? (
+                    <Input value={editingStudentData.address || ''} onChange={(e) => setEditingStudentData({...editingStudentData, address: e.target.value})} className="h-8" />
+                  ) : (
+                    <p className="font-medium text-base">{selectedStudentInfo.address || 'N/A'}</p>
+                  )}
                 </div>
               </div>
 

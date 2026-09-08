@@ -26,6 +26,13 @@ export default function LoginPage() {
   const [nicNumber, setNicNumber] = useState("");
   const [nicFile, setNicFile] = useState<File | null>(null);
   
+  const [dob, setDob] = useState("");
+  const [school, setSchool] = useState("");
+  const [gender, setGender] = useState("");
+  const [stream, setStream] = useState("");
+  
+  const [batches, setBatches] = useState<any[]>([]);
+  
   const [isUploadingPfp, setIsUploadingPfp] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -92,6 +99,24 @@ export default function LoginPage() {
       setFetchingExams(false);
     }
   }, [user, router]);
+
+  useEffect(() => {
+    if (!isLogin || isGoogleSignupForm) {
+      const fetchBatches = async () => {
+        try {
+          const snapshot = await getDocs(query(collection(db, 'batches'), orderBy('createdAt', 'desc')));
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setBatches(data);
+          if (data.length > 0 && graduationYear === "2026") {
+            setGraduationYear(data[0].year);
+          }
+        } catch (e) {
+          console.error("Failed to fetch batches", e);
+        }
+      };
+      fetchBatches();
+    }
+  }, [isLogin, isGoogleSignupForm]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
@@ -182,6 +207,10 @@ export default function LoginPage() {
         // Validate all required fields before submitting
         const missingFields: string[] = [];
         if (!name.trim()) missingFields.push("Full Name");
+        if (!dob.trim()) missingFields.push("Date of Birth");
+        if (!school.trim()) missingFields.push("School");
+        if (!gender) missingFields.push("Gender");
+        if (!stream) missingFields.push("Stream");
         if (!address.trim()) missingFields.push("Address");
         if (!phone.trim()) missingFields.push("Your Phone Number");
         if (!parentPhone.trim()) missingFields.push("Parent's Phone Number");
@@ -201,7 +230,7 @@ export default function LoginPage() {
           setIsSubmitting(false);
           return;
         }
-        const profileData = { name, graduationYear, address, phone, parentPhone, nicNumber };
+        const profileData = { name, dob, school, gender, stream, graduationYear, address, phone, parentPhone, nicNumber };
         if (isGoogleSignupForm) {
           success = await completeGoogleSignup(profileData, nicFile, password);
         } else {
@@ -636,6 +665,60 @@ export default function LoginPage() {
                     className={isGoogleSignupForm && name ? "bg-secondary/30 text-muted-foreground focus-visible:ring-0 cursor-not-allowed" : ""}
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-dob">Date of Birth <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="student-dob" 
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gender <span className="text-red-500">*</span></Label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="student-school">School <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="student-school" 
+                      placeholder="Your School Name" 
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stream <span className="text-red-500">*</span></Label>
+                    <select 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      value={stream}
+                      onChange={(e) => setStream(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>Select Stream</option>
+                      <option value="Physical Science (Maths)">Physical Science (Maths)</option>
+                      <option value="Biological Science (Bio)">Biological Science (Bio)</option>
+                      <option value="Engineering Technology (ET)">Engineering Technology (ET)</option>
+                      <option value="Bio Systems Technology (BST)">Bio Systems Technology (BST)</option>
+                    </select>
+                  </div>
+                </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="student-address">Address <span className="text-red-500">*</span></Label>
@@ -684,11 +767,13 @@ export default function LoginPage() {
                     value={graduationYear}
                     onChange={(e) => setGraduationYear(e.target.value)}
                   >
-                    <option value="2025">Class of 2025</option>
-                    <option value="2026">Class of 2026</option>
-                    <option value="2027">Class of 2027</option>
-                    <option value="2028">Class of 2028</option>
-                    <option value="2029">Class of 2029</option>
+                    {batches.length === 0 ? (
+                      <option value="2026">Loading batches...</option>
+                    ) : (
+                      batches.map(b => (
+                        <option key={b.id} value={b.year}>{b.name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
