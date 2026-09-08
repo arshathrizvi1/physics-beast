@@ -82,6 +82,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ success: boolean; email?: string; error?: string }>;
   googleSignIn: () => Promise<{ success: boolean; isNewUser?: boolean; googleUser?: any; error?: string }>;
   completeGoogleSignup: (profileData: any, nicFile: File | null, password?: string) => Promise<boolean>;
+  signupTeacher: (email: string, password: string, profileData: { name: string; subject: string }) => Promise<boolean>;
+  completeGoogleTeacherSignup: (profileData: { name: string; subject: string }, password?: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -95,6 +97,8 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => ({ success: false }),
   googleSignIn: async () => ({ success: false }),
   completeGoogleSignup: async () => false,
+  signupTeacher: async () => false,
+  completeGoogleTeacherSignup: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -295,22 +299,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               isApproved: role === 'admin'
             };
             
-            // Skip saving fallback if we are currently in the middle of signup
+            // Skip saving fallback if we are currently in the middle of signup or google login
             const isSigningUp = safeStorage.session.getItem('isSigningUp') === 'true';
+            const isGoogleLoggingIn = safeStorage.session.getItem('isGoogleLoggingIn') === 'true';
             
-            if (!isSigningUp) {
-              // Try to save this fallback profile to Firestore
-              try {
-                await setDoc(docRef, fallbackUser);
-              } catch (e) {
-                console.log("Could not save initial profile to Firestore");
-              }
-              setUser(fallbackUser);
-              if (typeof window !== 'undefined') {
-                safeStorage.local.setItem('cachedUserProfile', JSON.stringify(fallbackUser));
+            if (!isSigningUp && !isGoogleLoggingIn) {
+              if (role === 'admin') {
+                // Auto-create for the admin ONLY
+                try {
+                  await setDoc(docRef, fallbackUser);
+                } catch (e) {
+                  console.log("Could not save initial profile to Firestore");
+                }
+                setUser(fallbackUser);
+                if (typeof window !== 'undefined') {
+                  safeStorage.local.setItem('cachedUserProfile', JSON.stringify(fallbackUser));
+                }
+              } else {
+                // Orphaned student (Firebase Auth exists but no DB doc). 
+                // They likely abandoned signup halfway. Force signout instead of making a blank profile.
+                await auth.signOut();
+                setUser(null);
+                setLoading(false);
               }
             } else {
-              // We are signing up, so don't set user, just stop loading
+              // We are in the middle of a signup process (either manual or Google popup), 
+              // so don't set user, just stop loading and wait for the process to finish
               setLoading(false);
             }
           }
@@ -966,8 +980,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signupTeacher = async (email: string, password: string, profileData: { name: string; subject: string }) => {
+    try {
+      safeStorage.session.setItem('isSigningUp', 'true');
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      const newProfile: UserProfile = {
+        uid: firebaseUser.uid,
+        email: email,
+        name: profileData.name,
+        role: 'teacher',
+        isApproved: false,
+        pendingReason: 'Teacher Verification',
+        subject: profileData.subject,
+        createdAt: Date.now()
+      } as any;
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+      setUser(newProfile);
+      if (typeof window !== 'undefined') {
+        safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
+      }
+
+      safeStorage.session.removeItem('isSigningUp');
+      return true;
+    } catch (error: any) {
+      safeStorage.session.removeItem('isSigningUp');
+      if (error.code === 'auth/email-already-in-use') {
+        alert("This email is already registered. Please use a different email or sign in.");
+      }
+      console.log("Teacher signup failed:", error?.message || "Unknown error");
+      return false;
+    }
+  };
+
+  const completeGoogleTeacherSignup = async (profileData: { name: string; subject: string }, password?: string) => {
+    try {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) throw new Error("Not authenticated with Google.");
+
+      if (password) {
+        await updatePassword(firebaseUser, password);
+      }
+
+      const email = firebaseUser.email || '';
+
+      const newProfile: UserProfile = {
+        uid: firebaseUser.uid,
+        email: email,
+        name: profileData.name || firebaseUser.displayName || email.split('@')[0],
+        role: 'teacher',
+        isApproved: false,
+        pendingReason: 'Teacher Verification',
+        subject: profileData.subject,
+        createdAt: Date.now()
+      } as any;
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+      setUser(newProfile);
+      if (typeof window !== 'undefined') {
+        safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
+      }
+      safeStorage.session.removeItem('isSigningUp');
+      return true;
+    } catch (error: any) {
+      console.log("Google teacher signup failed:", error?.message || "Unknown error");
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup }}>
       {children}
     </AuthContext.Provider>
   );
