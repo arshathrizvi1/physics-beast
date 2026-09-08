@@ -218,10 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
 
-            setUser(finalProfile);
             if (typeof window !== 'undefined') {
+              if (safeStorage.session.getItem('isGoogleLoggingIn') === 'true' && (finalProfile.role === 'admin' || finalProfile.role === 'teacher')) {
+                safeStorage.session.setItem('admin_2fa_passed', 'true');
+              }
               safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
             }
+            setUser(finalProfile);
 
             // ── REAL-TIME ACCESS & STATS SYNC ──────────────────────────────────
             // When an admin updates access, or when the student earns study XP / completes exams,
@@ -783,6 +786,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const googleSignIn = async () => {
     try {
       safeStorage.session.setItem('isLoggingIn', 'true');
+      safeStorage.session.setItem('isGoogleLoggingIn', 'true');
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       
@@ -833,10 +837,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         safeStorage.session.removeItem('isLoggingIn');
+        safeStorage.session.removeItem('isGoogleLoggingIn');
         return { success: true, isNewUser: false };
       } else {
         // New user - keep them in Firebase Auth but wait for extra details
         safeStorage.session.removeItem('isLoggingIn');
+        safeStorage.session.removeItem('isGoogleLoggingIn');
         safeStorage.session.setItem('isSigningUp', 'true');
         return { 
           success: true, 
@@ -849,6 +855,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
        safeStorage.session.removeItem('isLoggingIn');
+       safeStorage.session.removeItem('isGoogleLoggingIn');
        return { success: false, error: error.message };
     }
   };
