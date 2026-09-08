@@ -24,17 +24,37 @@ export function MobileBottomNav() {
   }
 
   const links = [
-    { name: "Home", href: "/", icon: Home },
-    { name: "Study", href: "/courses", icon: BookOpen },
-    { name: "Exam", href: "/exams", icon: FileText },
-    { name: "Live", href: "/live", icon: Video },
+    { 
+      name: "Home", 
+      href: "/", 
+      icon: Home,
+      isActive: pathname === "/" 
+    },
+    { 
+      name: "Study", 
+      href: "/courses", 
+      icon: BookOpen,
+      isActive: pathname === "/courses" || pathname.startsWith("/course/") 
+    },
+    { 
+      name: "Exam", 
+      href: "/exams", 
+      icon: FileText,
+      isActive: pathname.startsWith("/exam") 
+    },
+    { 
+      name: "Live", 
+      href: "/live", 
+      icon: Video,
+      isActive: pathname.startsWith("/live") 
+    },
   ];
 
   return (
     <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 pointer-events-auto">
       <div className="bg-black border border-[#C0C0C0]/20 shadow-[0_8px_32px_rgba(0,0,0,0.9)] rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
         {links.map((link) => {
-          const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
+          const isActive = link.isActive;
           return (
             <Link 
               key={link.name} 
