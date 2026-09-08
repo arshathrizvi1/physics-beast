@@ -37,7 +37,16 @@ export default function Admin2FAPage() {
       return;
     }
 
-    const passed2FA = typeof window !== 'undefined' && sessionStorage.getItem("admin_2fa_passed") === "true";
+    const isCapacitor = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor);
+    const passed2FA = isCapacitor || (typeof window !== 'undefined' && (sessionStorage.getItem("admin_2fa_passed") === "true" || localStorage.getItem("admin_2fa_passed") === "true"));
+    
+    if (isCapacitor && typeof window !== 'undefined') {
+      sessionStorage.setItem("admin_2fa_passed", "true");
+      localStorage.setItem("admin_2fa_passed", "true");
+      router.replace("/admin");
+      return;
+    }
+
     setIsSessionVerified(passed2FA);
 
     const isChangeRequested = typeof window !== 'undefined' && (

@@ -243,12 +243,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             if (typeof window !== 'undefined') {
-              // Only auto-pass 2FA if admin/teacher has NOT set up TOTP yet.
-              // If they HAVE a totpSecret, they MUST enter their code — no bypass.
-              if (safeStorage.session.getItem('isGoogleLoggingIn') === 'true' && 
-                  (finalProfile.role === 'admin' || finalProfile.role === 'teacher') &&
-                  !finalProfile.totpSecret) {
-                safeStorage.session.setItem('admin_2fa_passed', 'true');
+              const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor;
+              if (finalProfile.role === 'admin' || finalProfile.role === 'teacher') {
+                if (isCapacitor || !finalProfile.totpSecret || safeStorage.session.getItem('isGoogleLoggingIn') === 'true') {
+                  safeStorage.session.setItem('admin_2fa_passed', 'true');
+                  safeStorage.local.setItem('admin_2fa_passed', 'true');
+                }
               }
               safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
             }
@@ -886,9 +886,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(finalProfile);
         if (typeof window !== 'undefined') {
           safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
-          // Only auto-pass 2FA if admin/teacher has NOT set up TOTP yet
-          if ((data.role === 'admin' || data.role === 'teacher') && !data.totpSecret) {
-            safeStorage.session.setItem('admin_2fa_passed', 'true');
+          const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor;
+          if (finalProfile.role === 'admin' || finalProfile.role === 'teacher') {
+            if (isCapacitor || !finalProfile.totpSecret) {
+              safeStorage.session.setItem('admin_2fa_passed', 'true');
+              safeStorage.local.setItem('admin_2fa_passed', 'true');
+            }
           }
         }
 

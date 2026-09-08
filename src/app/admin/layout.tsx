@@ -19,11 +19,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
 
-    // Check if 2FA passed for this session
-    const passed2FA = sessionStorage.getItem("admin_2fa_passed") === "true";
+    // Check if running on Phone App (Capacitor native platform)
+    const isCapacitor = typeof window !== "undefined" && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor);
+
+    // Check if 2FA passed for this session, persistent storage, or on phone app
+    const passed2FA = isCapacitor || 
+                      sessionStorage.getItem("admin_2fa_passed") === "true" || 
+                      localStorage.getItem("admin_2fa_passed") === "true";
     
     // Teachers do NOT require 2FA by default unless they have explicitly configured a totpSecret
     const isTeacherWithout2FA = user.role === "teacher" && !user.totpSecret;
+
+    // If on Capacitor, auto-set 2FA passed in storage for consistency
+    if (isCapacitor && typeof window !== "undefined") {
+      sessionStorage.setItem("admin_2fa_passed", "true");
+      localStorage.setItem("admin_2fa_passed", "true");
+    }
 
     // If they haven't passed 2FA and 2FA is required for their role/account, kick them to 2FA page
     if (!passed2FA && !isTeacherWithout2FA && pathname !== "/admin/2fa") {
