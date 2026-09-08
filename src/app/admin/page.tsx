@@ -61,6 +61,7 @@ export default function AdminDashboard() {
   const [studentFilterStatus, setStudentFilterStatus] = useState("All");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudentInfo, setSelectedStudentInfo] = useState<any>(null);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [activeAnalyticsList, setActiveAnalyticsList] = useState<{ title: string, students: any[] } | null>(null);
 
   // Exam Views & Detailed Analytics State
@@ -275,6 +276,39 @@ export default function AdminDashboard() {
       // The onSnapshot listener will automatically move them to pendingStudents.
     } catch (err) {
       console.log("Failed to suspend student", err);
+    }
+  };
+
+  const handleDeleteStudentAccount = async (studentId: string, studentName: string) => {
+    if (confirmingDeleteId !== studentId) {
+      setConfirmingDeleteId(studentId);
+      alert(`⚠️ DANGER: You are about to PERMANENTLY delete ${studentName}'s account and ALL their history. Click the delete button again to confirm.`);
+      return;
+    }
+    
+    try {
+      // 1. Delete user from Firestore
+      await deleteDoc(doc(db, 'users', studentId));
+      
+      // 2. Delete all exam results for this user
+      const qExams = query(collection(db, 'examResults'), where("userId", "==", studentId));
+      const examSnaps = await getDocs(qExams);
+      const batch = writeBatch(db);
+      examSnaps.forEach(docSnap => batch.delete(docSnap.ref));
+      
+      // 3. Delete payments for this user
+      const qPayments = query(collection(db, 'payments'), where("studentId", "==", studentId));
+      const paymentSnaps = await getDocs(qPayments);
+      paymentSnaps.forEach(docSnap => batch.delete(docSnap.ref));
+      
+      await batch.commit();
+
+      alert(`✅ Account for ${studentName} has been permanently deleted. They can now sign up from the beginning.`);
+      setSelectedStudentInfo(null);
+      setConfirmingDeleteId(null);
+    } catch (err) {
+      alert("Failed to delete account. Please try again.");
+      console.error(err);
     }
   };
 
