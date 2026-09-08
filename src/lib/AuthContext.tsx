@@ -996,8 +996,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       safeStorage.session.setItem('isSigningUp', 'true');
 
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+      let firebaseUser: any = null;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        firebaseUser = userCredential.user;
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          // If email is already in use in Firebase Auth, check if the Firestore doc was deleted by admin!
+          try {
+            const loginCred = await signInWithEmailAndPassword(auth, email, password);
+            const userDocSnap = await getDoc(doc(db, 'users', loginCred.user.uid));
+            if (!userDocSnap.exists()) {
+              // The Firestore document was deleted by admin! Allow re-creating the teacher account!
+              firebaseUser = loginCred.user;
+            } else {
+              throw new Error("EMAIL_ALREADY_EXISTS_WITH_PROFILE");
+            }
+          } catch (loginErr: any) {
+            if (loginErr.message === "EMAIL_ALREADY_EXISTS_WITH_PROFILE") {
+              throw new Error("This email is already registered with an active account. Please log in from the main login page.");
+            }
+            throw new Error("This email is already registered in Authentication with a different password. If your account was deleted by an admin, please use your original password or sign up with Google.");
+          }
+        } else {
+          throw authErr;
+        }
+      }
+
+      if (!firebaseUser) throw new Error("Could not authenticate user.");
 
       const newProfile: UserProfile = {
         uid: firebaseUser.uid,
@@ -1020,21 +1047,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error: any) {
       safeStorage.session.removeItem('isSigningUp');
-      if (error.code === 'auth/email-already-in-use') {
-        alert("This email is already registered. Please use a different email or sign in.");
-      }
       console.log("Teacher signup failed:", error?.message || "Unknown error");
-      return false;
+      throw error;
     }
   };
 
   const completeGoogleTeacherSignup = async (profileData: { name: string; subject: string }, password?: string) => {
     try {
       const firebaseUser = auth.currentUser;
-      if (!firebaseUser) throw new Error("Not authenticated with Google.");
+      if (!firebaseUser) throw new Error("Not authenticated with Google. Please click 'Sign up with Google' again.");
 
       if (password) {
-        await updatePassword(firebaseUser, password);
+        try {
+          await updatePassword(firebaseUser, password);
+        } catch (pwErr) {
+          console.log("Could not update password during Google teacher signup:", pwErr);
+        }
       }
 
       const email = firebaseUser.email || '';
@@ -1059,7 +1087,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error: any) {
       console.log("Google teacher signup failed:", error?.message || "Unknown error");
-      return false;
+      throw error;
     }
   };
 

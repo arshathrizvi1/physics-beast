@@ -8,8 +8,10 @@ import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function CoursesPage() {
+function CoursesPageContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
@@ -76,9 +78,13 @@ export default function CoursesPage() {
     fetchCourses();
   }, [user]);
 
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get("search")?.toLowerCase() || "";
+
   const displayedCourses = courses.filter(c => {
-    if (selectedTeacherId === 'all') return true;
-    return c.teacherId === selectedTeacherId;
+    const matchesTeacher = selectedTeacherId === 'all' || c.teacherId === selectedTeacherId;
+    const matchesSearch = !searchQuery || c.name?.toLowerCase().includes(searchQuery) || c.description?.toLowerCase().includes(searchQuery);
+    return matchesTeacher && matchesSearch;
   });
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
@@ -256,6 +262,14 @@ export default function CoursesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CoursesPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div>}>
+      <CoursesPageContent />
+    </Suspense>
   );
 }
 
