@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import {
   Search, X, BookOpen, PlayCircle, FileQuestion, GraduationCap,
-  User, Award, Calendar, Clock, ExternalLink, ArrowRight, Compass,
+  User, Award, Calendar, Clock, ExternalLink, ArrowRight, ArrowLeft, Compass,
   Sparkles, CheckCircle2, ShieldCheck, Mail, Phone, Hash
 } from "lucide-react";
 
@@ -417,48 +417,56 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex flex-col sm:items-start sm:justify-center sm:pt-24 sm:px-4 bg-black/90 sm:bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl bg-[#0d0d0d] border border-white/10 rounded-2xl shadow-2xl shadow-[#d4af37]/10 flex flex-col overflow-hidden relative"
+        className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-3xl bg-[#0d0d0d] sm:border sm:border-white/10 sm:rounded-2xl shadow-2xl shadow-[#d4af37]/10 flex flex-col overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Gold Accent Line */}
-        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#d4af37] to-transparent" />
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#d4af37] to-transparent shrink-0" />
 
         {/* Search Header Input */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center gap-3 bg-zinc-950/60">
-          <Search className="w-5 h-5 text-[#d4af37] shrink-0" />
+        <div className="p-3.5 sm:p-5 border-b border-white/10 flex items-center gap-2.5 sm:gap-3 bg-zinc-950/80 shrink-0">
+          {/* Mobile Back button */}
+          <button
+            onClick={onClose}
+            className="sm:hidden p-1.5 -ml-1 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 active:scale-90 transition-transform shrink-0"
+            title="Close"
+          >
+            <ArrowLeft className="w-5 h-5 text-[#d4af37]" />
+          </button>
+
+          <Search className="w-5 h-5 text-[#d4af37] shrink-0 hidden sm:block" />
           <input
             ref={inputRef}
             type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={
               canAccessStudentData
-                ? "Search courses, exams, videos, teachers, student IDs, marks..."
+                ? "Search courses, exams, videos, student IDs, marks..."
                 : "Search courses, exams, lessons, teachers, your marks..."
             }
-            className="flex-1 bg-transparent text-white placeholder:text-zinc-500 text-base sm:text-lg outline-none font-medium"
+            className="flex-1 bg-transparent text-white placeholder:text-zinc-500 text-base sm:text-lg outline-none font-medium min-w-0"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="p-1 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-semibold text-zinc-400 bg-white/5 border border-white/10 rounded-lg">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono font-semibold text-zinc-400 bg-white/5 border border-white/10 rounded-lg shrink-0">
             ESC
           </kbd>
-          <button
-            onClick={onClose}
-            className="sm:hidden p-1 text-zinc-400 hover:text-white"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Category Filter Pills */}
@@ -502,7 +510,7 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
         {/* Results List */}
         <div
           ref={listRef}
-          className="max-h-[55vh] sm:max-h-[460px] overflow-y-auto p-2 space-y-1 custom-scrollbar"
+          className="flex-1 sm:max-h-[460px] overflow-y-auto p-2.5 sm:p-3 space-y-1.5 custom-scrollbar overscroll-contain touch-pan-y"
         >
           {isLoading ? (
             <div className="py-16 text-center text-zinc-400 flex flex-col items-center justify-center gap-3">

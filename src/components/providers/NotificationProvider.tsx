@@ -41,10 +41,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [browserEnabled, setBrowserEnabled] = useState(false);
   const seenIdsRef = useRef<Set<string>>(new Set());
 
-  // Check initial browser permission
+  // Check initial browser permission and register Service Worker for Android
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setBrowserEnabled(Notification.permission === "granted");
+    if (typeof window !== "undefined") {
+      if ("Notification" in window) {
+        setBrowserEnabled(Notification.permission === "granted");
+      }
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.log("Service Worker registration:", err);
+        });
+      }
     }
   }, []);
 
@@ -56,9 +63,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const permission = await Notification.requestPermission();
     setBrowserEnabled(permission === "granted");
     if (permission === "granted") {
-      toast.success("Browser notifications enabled!");
+      toast.success("Notifications enabled!");
+      // Ensure service worker is ready
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      }
     } else {
-      toast.error("Browser notifications denied.");
+      toast.error("Notifications denied.");
     }
   };
 
@@ -108,13 +119,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       setNotifications(fetched);
 
-      // Trigger browser notifications for newly arrived docs
-      if (newNotifs.length > 0 && browserEnabled && typeof window !== "undefined" && "Notification" in window) {
-        newNotifs.forEach((n) => {
-          new Notification(n.title, {
-            body: n.message,
-            icon: "/icon.png", // Assuming there is an icon.png in public folder
-          });
+      // Trigger notifications: works on Android via ServiceWorker, desktop via ServiceWorker or Notification API
+      if (newNotifs.length > 0 && browserEnabled && typeof window !== "undefined") {
+        newNotifs.forEach(async (n) => {
+          try {
+            if ("serviceWorker" in navigator) {
+              const reg = await navigator.serviceWorker.ready;
+              reg.showNotification(n.title, {
+                body: n.message,
+                icon: "/logo.jpg",
+                badge: "/logo.jpg",
+                data: { link: n.link || "/" }
+              } as NotificationOptions);
+            } else if ("Notification" in window) {
+              new Notification(n.title, {
+                body: n.message,
+                icon: "/logo.jpg",
+              });
+            }
+          } catch (e) {
+            console.error("Error firing notification:", e);
+          }
         });
       }
     });

@@ -61,7 +61,7 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
 
       await addDoc(collection(db, "examMessages"), {
         type: "technical",
-        studentName: user?.displayName || user?.email?.split("@")[0] || "Student",
+        studentName: user?.name || user?.email?.split("@")[0] || "Student",
         studentEmail: user?.email || "",
         studentId: user?.uid || "",
         topic: issueCategory,

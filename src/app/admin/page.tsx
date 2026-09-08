@@ -31,20 +31,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Open student profile automatically if navigated from Global Search
-  useEffect(() => {
-    if (typeof window !== 'undefined' && allStudents.length > 0) {
-      const params = new URLSearchParams(window.location.search);
-      const studentIdParam = params.get('studentId');
-      if (studentIdParam) {
-        const found = allStudents.find((s) => s.id === studentIdParam);
-        if (found) {
-          setSelectedStudentInfo(found);
-          setActiveTab('students');
-        }
-      }
-    }
-  }, [allStudents]);
   const [activeUsers, setActiveUsers] = useState(0);
   const [pendingStudents, setPendingStudents] = useState<any[]>([]);
   const [allStudents, setAllStudents] = useState<any[]>([]);
@@ -72,11 +58,26 @@ export default function AdminDashboard() {
   const [bulkStudentIds, setBulkStudentIds] = useState("");
   const [bulkFolderId, setBulkFolderId] = useState("");
 
-  // Student Filters
   const [studentFilterBatch, setStudentFilterBatch] = useState("All");
   const [studentFilterStatus, setStudentFilterStatus] = useState("All");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [selectedStudentInfo, setSelectedStudentInfo] = useState<any>(null);
+
+  // Open student profile automatically if navigated from Global Search
+  useEffect(() => {
+    if (typeof window !== 'undefined' && allStudents.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const studentIdParam = params.get('studentId');
+      if (studentIdParam) {
+        const found = allStudents.find((s) => s.id === studentIdParam);
+        if (found) {
+          setSelectedStudentInfo(found);
+          setActiveTab('students');
+        }
+      }
+    }
+  }, [allStudents]);
+
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [activeAnalyticsList, setActiveAnalyticsList] = useState<{ title: string, students: any[] } | null>(null);
 
