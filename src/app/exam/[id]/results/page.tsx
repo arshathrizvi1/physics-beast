@@ -108,7 +108,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         target: "admin",
         title: "New Exam Exit Message",
         message: `${user.name || user.email?.split('@')[0] || "A student"} sent an exit message for "${exam?.title || "Unknown Exam"}".`,
-        link: "/admin#messages",
+        link: "/admin#messages-support",
         timestamp: Date.now(),
         type: "exam",
         readBy: []

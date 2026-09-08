@@ -24,10 +24,23 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hash = window.location.hash.replace('#', '');
-      if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'messages', 'team', 'site', 'myprofile'].includes(hash)) {
-        setActiveTab(hash);
-      }
+      const handleHash = () => {
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'messages-support') {
+          setActiveTab('messages');
+          setMsgCategory('support');
+        } else if (hash === 'messages-academic') {
+          setActiveTab('messages');
+          setMsgCategory('academic');
+        } else if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'messages', 'team', 'site', 'myprofile'].includes(hash)) {
+          setActiveTab(hash);
+          if (hash === 'messages') setMsgCategory('support');
+        }
+      };
+
+      handleHash();
+      window.addEventListener('hashchange', handleHash);
+      return () => window.removeEventListener('hashchange', handleHash);
     }
   }, []);
 
