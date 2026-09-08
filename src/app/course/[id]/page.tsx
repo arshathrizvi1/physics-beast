@@ -611,6 +611,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </span>
                 </div>
 
+                {/* Big Center Play Button Overlay when paused */}
+                {!playing && (
+                  <div className="absolute inset-0 z-[15] pointer-events-none flex items-center justify-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 text-primary-foreground flex items-center justify-center shadow-2xl backdrop-blur-sm animate-pulse">
+                      <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-1" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Custom Controls Overlay */}
                 <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                   
