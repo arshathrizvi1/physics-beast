@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where } from "firebase/firestore";
-import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star } from "lucide-react";
+import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 
 // Simple counter component using Framer Motion
@@ -63,6 +63,7 @@ export default function Home() {
   const [showSearch, setShowSearch] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [topReviews, setTopReviews] = useState<any[]>([]);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   // Initial loading animation
   useEffect(() => {
@@ -532,22 +533,97 @@ export default function Home() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8 }}
-                className="flex-1 relative"
+                className="flex-1 relative group cursor-pointer"
+                onClick={() => setShowVideoModal(true)}
               >
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border aspect-video">
+                {/* Glowing ambient background light effect on hover */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/40 to-[#d4af37]/0 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 aspect-video transition-all duration-500 bg-black">
+                  {/* Image with zoom and full-color transition when cursor hovers */}
                   <img 
                     src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1000" 
                     alt="Study group" 
-                    className="w-full h-full object-cover mix-blend-luminosity opacity-70"
+                    className="w-full h-full object-cover mix-blend-luminosity opacity-70 group-hover:mix-blend-normal group-hover:opacity-100 group-hover:scale-105 group-hover:brightness-105 transition-all duration-700 ease-out"
                   />
-                  <div className="absolute inset-0 bg-[#d4af37]/10 mix-blend-overlay" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 bg-[#d4af37] rounded-full flex items-center justify-center cursor-pointer shadow-[0_0_30px_rgba(212,175,55,0.6)] hover:scale-110 transition-transform">
-                      <PlayCircle className="w-8 h-8 text-black ml-1" />
+                  
+                  {/* Overlay sheen */}
+                  <div className="absolute inset-0 bg-[#d4af37]/10 mix-blend-overlay group-hover:opacity-0 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 group-hover:from-black/60 transition-colors duration-500" />
+
+                  {/* Top Badge Tag */}
+                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    <span>Interactive Preview</span>
+                  </div>
+
+                  {/* Center Animated Play Button with Sonar Ping Rings */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                    <div className="relative flex items-center justify-center">
+                      {/* Outer Sonar Pulse Ping */}
+                      <span className="absolute w-24 h-24 rounded-full bg-[#d4af37]/30 animate-ping pointer-events-none" />
+                      <span className="absolute w-20 h-20 rounded-full bg-[#d4af37]/20 group-hover:scale-125 transition-transform duration-500 pointer-events-none" />
+                      
+                      {/* Main Play Circle Button */}
+                      <motion.div 
+                        whileHover={{ scale: 1.15, rotate: 3 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="w-20 h-20 bg-[#d4af37] text-black rounded-full flex items-center justify-center shadow-[0_0_35px_rgba(212,175,55,0.7)] group-hover:shadow-[0_0_55px_rgba(212,175,55,0.95)] transition-all duration-500 relative z-10"
+                      >
+                        <PlayCircle className="w-9 h-9 text-black ml-1 group-hover:scale-110 transition-transform duration-300" />
+                      </motion.div>
                     </div>
+
+                    {/* Subtitle Tag */}
+                    <span className="text-xs font-semibold uppercase tracking-wider text-white/90 group-hover:text-[#d4af37] bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10 transition-colors duration-300">
+                      Click to Watch Demo
+                    </span>
                   </div>
                 </div>
               </motion.div>
+
+              {/* Video Player Modal */}
+              <AnimatePresence>
+                {showVideoModal && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-8"
+                    onClick={() => setShowVideoModal(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                      className="relative w-full max-w-4xl bg-zinc-900 border border-[#d4af37]/40 rounded-3xl overflow-hidden shadow-2xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between p-4 px-6 border-b border-border bg-black/40">
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-[#d4af37] animate-pulse" />
+                          <h3 className="text-sm md:text-base font-bold text-foreground">Brilliant Academy - Platform Interactive Tour</h3>
+                        </div>
+                        <button
+                          onClick={() => setShowVideoModal(false)}
+                          className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10 transition-colors"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="aspect-video w-full relative bg-black">
+                        <iframe
+                          src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
+                          title="Platform Preview Video"
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </section>
