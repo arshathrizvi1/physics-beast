@@ -63,6 +63,7 @@ export function CustomToastProvider() {
           maxWidth: '500px',
           fontSize: '14px',
           lineHeight: '1.5',
+          whiteSpace: 'pre-wrap',
         },
         success: {
           style: {

@@ -9,6 +9,7 @@ import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import PremiumNavbar from "@/components/PremiumNavbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { CustomToastProvider } from "@/components/providers/ToastProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             <LenisProvider>
+              <CustomToastProvider />
               <PremiumNavbar />
 
               <main className="flex-1">
