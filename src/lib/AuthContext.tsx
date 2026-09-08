@@ -10,6 +10,7 @@ import {
   User as FirebaseUser,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   updatePassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
@@ -162,24 +163,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const isMismatched = !wasRevokedOrEmpty && data.deviceId && localDeviceId && data.deviceId !== localDeviceId;
 
             // If session was revoked by admin, treat this login as an authorized new device binding!
-            if (data.role !== 'admin' && data.role !== 'teacher' && wasRevokedOrEmpty && localDeviceId) {
-              console.log("Device session was revoked or unassigned. Binding current device as authorized device.");
-              updateDoc(docRef, {
-                deviceId: localDeviceId,
-                isApproved: true,
-                pendingReason: null
-              }).catch(console.error);
-              data.deviceId = localDeviceId;
-              data.isApproved = true;
-              data.pendingReason = null;
-            } else if (data.role !== 'admin' && data.role !== 'teacher' && !isLoggingIn && isMismatched) {
-              // Active session accessed from another unauthorized device
-              console.log("Logged out because session was accessed on another device.");
-              await firebaseSignOut(auth);
-              setUser(null);
-              setLoading(false);
-              alert("You have been logged out because your account was accessed from another device.");
-              return;
+            if (data.role !== 'admin' && data.role !== 'teacher') {
+              if (wasRevokedOrEmpty && localDeviceId) {
+                console.log("Device session was revoked or unassigned. Binding current device as authorized device.");
+                updateDoc(docRef, {
+                  deviceId: localDeviceId,
+                  isApproved: true,
+                  pendingReason: null
+                }).catch(console.error);
+                data.deviceId = localDeviceId;
+                data.isApproved = true;
+                data.pendingReason = null;
+              } else if (isMismatched) {
+                if (isLoggingIn) {
+                  console.log("New device login. Binding current device and awaiting approval.");
+                  updateDoc(docRef, {
+                    deviceId: localDeviceId,
+                    isApproved: false,
+                    pendingReason: 'New Device Login'
+                  }).catch(console.error);
+                  data.deviceId = localDeviceId;
+                  data.isApproved = false;
+                  data.pendingReason = 'New Device Login';
+                } else {
+                  // Active session accessed from another unauthorized device
+                  console.log("Logged out because session was accessed on another device.");
+                  await firebaseSignOut(auth);
+                  setUser(null);
+                  setLoading(false);
+                  alert("You have been logged out because your account was accessed from another device.");
+                  return;
+                }
+              }
             }
 
             const initialXp = data.totalXp ?? 0;
@@ -801,7 +816,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       safeStorage.session.setItem('isLoggingIn', 'true');
       safeStorage.session.setItem('isGoogleLoggingIn', 'true');
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      const isCapacitor = typeof window !== 'undefined' && !!(window as any).Capacitor;
+      
+      let result;
+      if (isCapacitor) {
+        await signInWithRedirect(auth, provider);
+        // Execution stops here because the page will navigate away
+        return;
+      } else {
+        result = await signInWithPopup(auth, provider);
+      }
       
       const userDocRef = doc(db, 'users', result.user.uid);
       const userDoc = await getDoc(userDocRef);

@@ -47,14 +47,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedPref = localStorage.getItem("browser_notifications_enabled");
-      if ("Notification" in window) {
+      const isCapacitor = (window as any).Capacitor && (window as any).Capacitor.isNativePlatform();
+
+      if (isCapacitor) {
+        import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+          LocalNotifications.checkPermissions().then(permStatus => {
+            if (savedPref !== null) {
+              setBrowserEnabled(savedPref === "true" && permStatus.display === "granted");
+            } else {
+              setBrowserEnabled(permStatus.display === "granted");
+            }
+          });
+        });
+      } else if ("Notification" in window) {
         if (savedPref !== null) {
           setBrowserEnabled(savedPref === "true" && Notification.permission === "granted");
         } else {
           setBrowserEnabled(Notification.permission === "granted");
         }
       }
-      if ("serviceWorker" in navigator) {
+      
+      if (!isCapacitor && "serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch((err) => {
           console.log("Service Worker registration:", err);
         });
@@ -63,6 +76,28 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const requestBrowserPermission = async () => {
+    const isCapacitor = typeof window !== "undefined" && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform();
+
+    if (isCapacitor) {
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        const permStatus = await LocalNotifications.requestPermissions();
+        if (permStatus.display === "granted") {
+          setBrowserEnabled(true);
+          localStorage.setItem("browser_notifications_enabled", "true");
+          toast.success("Native push notifications enabled!");
+        } else {
+          setBrowserEnabled(false);
+          localStorage.setItem("browser_notifications_enabled", "false");
+          toast.error("Notifications permission denied in Android settings.");
+        }
+      } catch (e) {
+        console.error("Capacitor notification error", e);
+        toast.error("Failed to enable native notifications.");
+      }
+      return;
+    }
+
     if (typeof window === "undefined" || !("Notification" in window)) {
       toast.error("Your browser does not support notifications.");
       return;
@@ -83,6 +118,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const toggleBrowserNotifications = async () => {
+    const isCapacitor = typeof window !== "undefined" && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform();
+
+    if (isCapacitor) {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const permStatus = await LocalNotifications.checkPermissions();
+      
+      if (permStatus.display !== "granted") {
+        await requestBrowserPermission();
+        return;
+      }
+      
+      const newState = !browserEnabled;
+      setBrowserEnabled(newState);
+      localStorage.setItem("browser_notifications_enabled", String(newState));
+      toast.success(newState ? "Push notifications turned ON" : "Push notifications turned OFF");
+      return;
+    }
+
     if (typeof window === "undefined" || !("Notification" in window)) {
       toast.error("Your browser does not support notifications.");
       return;
@@ -155,11 +208,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
       setNotifications(fetched);
 
-      // Trigger notifications: works on Android via ServiceWorker, desktop via ServiceWorker or Notification API
+      // Trigger notifications: works on Android via ServiceWorker, desktop via Notification API, and Capacitor via LocalNotifications
       if (newNotifs.length > 0 && browserEnabled && typeof window !== "undefined") {
         newNotifs.forEach(async (n) => {
           try {
-            if ("serviceWorker" in navigator) {
+            // Check if running in Capacitor Native App
+            const isCapacitor = (window as any).Capacitor && (window as any).Capacitor.isNativePlatform();
+            if (isCapacitor) {
+              const { LocalNotifications } = await import('@capacitor/local-notifications');
+              await LocalNotifications.schedule({
+                notifications: [
+                  {
+                    title: n.title,
+                    body: n.message,
+                    id: Math.floor(Math.random() * 1000000),
+                    schedule: { at: new Date(Date.now() + 100) },
+                    smallIcon: "ic_stat_icon",
+                    extra: { link: n.link || "/" }
+                  }
+                ]
+              });
+            } else if ("serviceWorker" in navigator) {
               const reg = await navigator.serviceWorker.ready;
               reg.showNotification(n.title, {
                 body: n.message,

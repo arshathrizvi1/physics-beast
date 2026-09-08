@@ -5,7 +5,11 @@
   "bundledWebRuntime": false,
   "server": {
     "url": "https://brilliantacademy.vercel.app",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "physics-beastsl.firebaseapp.com",
+      "accounts.google.com"
+    ]
   },
   "plugins": {
     "PrivacyScreen": {
