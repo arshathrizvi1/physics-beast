@@ -466,20 +466,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {getDailymotionId(activeVideo?.url) ? (
-                    <iframe
-                      src={`https://www.dailymotion.com/embed/video/${getDailymotionId(activeVideo.url)}?autoplay=0&ui-logo=0&queue-enable=false`}
-                      className="w-full h-full border-0 relative z-10"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
-                      <ReactPlayer
-                        ref={playerRef}
-                        url={activeVideo.url}
-                        width="100%"
-                        height="100%"
+                  <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
+                    <ReactPlayer
+                      ref={playerRef}
+                      url={activeVideo.url}
+                      width="100%"
+                      height="100%"
                       playing={playing}
                       playbackRate={playbackRate}
                       volume={volume}
@@ -508,6 +500,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                       config={{
+                        dailymotion: {
+                          params: {
+                            controls: false,
+                            'queue-enable': false,
+                            'ui-logo': false
+                          }
+                        },
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
@@ -529,7 +528,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
                   </div>
-                  )}
+
+                {/* Big Center Play Button Overlay when !playing */}
+                {!playing && (
+                  <div 
+                    className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+                  >
+                    <div className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center pl-2 shadow-2xl drop-shadow-2xl">
+                      <Play className="w-10 h-10 fill-current" />
+                    </div>
+                  </div>
+                )}
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div className="absolute inset-0 z-10 cursor-pointer flex">
@@ -592,115 +601,115 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                 {/* Custom Controls Overlay */}
                 <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
-                    onMouseDown={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const x = e.clientX - rect.left;
-                      const percentage = Math.max(0, Math.min(1, x / rect.width));
-                      setPlayed(percentage);
-                      playerRef.current?.seekTo(percentage);
-                    }}
-                  >
-                    <div className="absolute w-full h-1 bg-white/20 rounded-full group-hover/progress:h-2 transition-all" />
-                    <div className="absolute h-1 bg-primary rounded-full group-hover/progress:h-2 transition-all" style={{ width: `${played * 100}%` }} />
-                    <div className="absolute h-3 w-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 shadow-md" style={{ left: `calc(${played * 100}% - 6px)` }} />
-                  </div>
-
-                  <div className="flex items-center justify-between text-foreground mt-1">
-                    <div className="flex items-center gap-5">
-                      <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
-                        {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                      </button>
-                      
-                      <div className="flex items-center gap-2 group/vol">
-                        <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none">
-                          {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                        </button>
-                        <input 
-                          type="range" min={0} max={1} step="any"
-                          value={muted ? 0 : volume}
-                          onChange={(e) => {
-                            setVolume(parseFloat(e.target.value));
-                            setMuted(parseFloat(e.target.value) === 0);
-                          }}
-                          className="w-0 opacity-0 group-hover/vol:w-20 group-hover/vol:opacity-100 transition-all duration-300 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white"
-                        />
-                      </div>
-
-                      <span className="text-sm font-medium tracking-wider opacity-80">
-                        {formatTime(played * duration)} / {formatTime(duration)}
-                      </span>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
+                      onMouseDown={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const percentage = Math.max(0, Math.min(1, x / rect.width));
+                        setPlayed(percentage);
+                        playerRef.current?.seekTo(percentage);
+                      }}
+                    >
+                      <div className="absolute w-full h-1 bg-white/20 rounded-full group-hover/progress:h-2 transition-all" />
+                      <div className="absolute h-1 bg-primary rounded-full group-hover/progress:h-2 transition-all" style={{ width: `${played * 100}%` }} />
+                      <div className="absolute h-3 w-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 shadow-md" style={{ left: `calc(${played * 100}% - 6px)` }} />
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      {/* Quality Control (Removed: YouTube auto-adapts quality) */}
-
-                      {/* Speed Control */}
-                      <div className="relative flex items-center">
-                        <button 
-                          className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowSpeedMenu(!showSpeedMenu);
-                          }}
-                        >
-                          {playbackRate}x <Settings className="w-4 h-4 ml-1" />
+                    <div className="flex items-center justify-between text-foreground mt-1">
+                      <div className="flex items-center gap-5">
+                        <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
+                          {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                         </button>
-                        {showSpeedMenu && (
-                          <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                            <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
-                              <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
-                                <span className="text-xs text-foreground/50 font-medium py-2">Speed</span>
-                                <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(false); }} />
-                              </div>
-                              {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
-                                <button 
-                                  key={rate} 
-                                  onClick={(e) => { e.stopPropagation(); setPlaybackRate(rate); setShowSpeedMenu(false); }}
-                                  className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
-                                >
-                                  {rate === 1 ? 'Normal' : `${rate}x`}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        
+                        <div className="flex items-center gap-2 group/vol">
+                          <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none">
+                            {muted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                          </button>
+                          <input 
+                            type="range" min={0} max={1} step="any"
+                            value={muted ? 0 : volume}
+                            onChange={(e) => {
+                              setVolume(parseFloat(e.target.value));
+                              setMuted(parseFloat(e.target.value) === 0);
+                            }}
+                            className="w-0 opacity-0 group-hover/vol:w-20 group-hover/vol:opacity-100 transition-all duration-300 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white"
+                          />
+                        </div>
+
+                        <span className="text-sm font-medium tracking-wider opacity-80">
+                          {formatTime(played * duration)} / {formatTime(duration)}
+                        </span>
                       </div>
 
-                      <button 
-                        onClick={async () => {
-                          try {
-                            if (!document.fullscreenElement) {
-                              if (playerContainerRef.current) {
-                                await playerContainerRef.current.requestFullscreen();
-                                if (screen.orientation && screen.orientation.lock) {
-                                  try {
-                                    await screen.orientation.lock('landscape');
-                                  } catch (e) {
-                                    console.log("Orientation lock failed/unsupported", e);
+                      <div className="flex items-center gap-4">
+                        {/* Quality Control (Removed: YouTube auto-adapts quality) */}
+
+                        {/* Speed Control */}
+                        <div className="relative flex items-center">
+                          <button 
+                            className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowSpeedMenu(!showSpeedMenu);
+                            }}
+                          >
+                            {playbackRate}x <Settings className="w-4 h-4 ml-1" />
+                          </button>
+                          {showSpeedMenu && (
+                            <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
+                              <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
+                                <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
+                                  <span className="text-xs text-foreground/50 font-medium py-2">Speed</span>
+                                  <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(false); }} />
+                                </div>
+                                {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                                  <button 
+                                    key={rate} 
+                                    onClick={(e) => { e.stopPropagation(); setPlaybackRate(rate); setShowSpeedMenu(false); }}
+                                    className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
+                                  >
+                                    {rate === 1 ? 'Normal' : `${rate}x`}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <button 
+                          onClick={async () => {
+                            try {
+                              if (!document.fullscreenElement) {
+                                if (playerContainerRef.current) {
+                                  await playerContainerRef.current.requestFullscreen();
+                                  if (screen.orientation && screen.orientation.lock) {
+                                    try {
+                                      await screen.orientation.lock('landscape');
+                                    } catch (e) {
+                                      console.log("Orientation lock failed/unsupported", e);
+                                    }
                                   }
                                 }
+                              } else {
+                                await document.exitFullscreen();
+                                if (screen.orientation && screen.orientation.unlock) {
+                                  screen.orientation.unlock();
+                                }
                               }
-                            } else {
-                              await document.exitFullscreen();
-                              if (screen.orientation && screen.orientation.unlock) {
-                                screen.orientation.unlock();
-                              }
+                            } catch (err) {
+                              console.error("Fullscreen toggle failed", err);
                             }
-                          } catch (err) {
-                            console.error("Fullscreen toggle failed", err);
-                          }
-                        }} 
-                        className="hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2"
-                      >
-                        <Maximize className="w-5 h-5" />
-                      </button>
+                          }} 
+                          className="hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2"
+                        >
+                          <Maximize className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
               )
             ) : (
               <div className="text-zinc-500 flex flex-col items-center gap-2">
