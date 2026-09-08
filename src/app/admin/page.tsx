@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -1407,7 +1407,16 @@ export default function AdminDashboard() {
       }
     }
 
-    // 3. UI Filters
+    // 3. Category Filter (Academic vs Support)
+    if (msgCategory === "academic") {
+      const academicTypes = ['post_exam_doubt', 'video_doubt', 'exam_issue'];
+      if (msg.type && !academicTypes.includes(msg.type)) return false;
+    } else if (msgCategory === "support") {
+      const supportTypes = ['contact_us', 'technical', 'exam_exit', 'approval', 'apprual'];
+      if (!supportTypes.includes(msg.type)) return false;
+    }
+
+    // 4. UI Filters
     if (msgFilterType !== "All" && msg.type !== msgFilterType) return false;
     if (msgFilterCourse !== "All" && msgCourseId !== msgFilterCourse) return false;
 
@@ -3024,8 +3033,41 @@ export default function AdminDashboard() {
               </CardTitle>
               <CardDescription>Review and resolve issues reported during exams or doubts asked post-exam.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
-              <div className="flex flex-wrap gap-2 mb-6 p-3 bg-secondary/5 border-b border-border/50 rounded-md">
+            <CardContent className="pt-4 space-y-4">
+              {/* Category Switcher Buttons */}
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-zinc-900 border border-white/10 rounded-xl">
+                <Button 
+                  type="button"
+                  size="sm"
+                  variant={msgCategory === "academic" ? "default" : "ghost"} 
+                  onClick={() => setMsgCategory("academic")}
+                  className={`flex-1 sm:flex-none gap-2 font-bold ${msgCategory === "academic" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <BookOpen className="w-4 h-4" /> Academic Doubts & Paper Reviews
+                </Button>
+                {user?.role === 'admin' && (
+                  <Button 
+                    type="button"
+                    size="sm"
+                    variant={msgCategory === "support" ? "default" : "ghost"} 
+                    onClick={() => setMsgCategory("support")}
+                    className={`flex-1 sm:flex-none gap-2 font-bold ${msgCategory === "support" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <ShieldAlert className="w-4 h-4" /> Contact Us & Technical Support
+                  </Button>
+                )}
+                <Button 
+                  type="button"
+                  size="sm"
+                  variant={msgCategory === "all" ? "default" : "ghost"} 
+                  onClick={() => setMsgCategory("all")}
+                  className={`flex-1 sm:flex-none text-xs ${msgCategory === "all" ? "bg-zinc-800 text-foreground font-bold" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Show All ({examMessages.length})
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 p-3 bg-secondary/5 border-b border-border/50 rounded-md">
                 <div className="flex-1 min-w-[200px] relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input
