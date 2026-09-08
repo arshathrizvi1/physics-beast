@@ -828,6 +828,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(finalProfile);
         if (typeof window !== 'undefined') {
           safeStorage.local.setItem('cachedUserProfile', JSON.stringify(finalProfile));
+          if (data.role === 'admin' || data.role === 'teacher') {
+            safeStorage.session.setItem('admin_2fa_passed', 'true');
+          }
         }
         safeStorage.session.removeItem('isLoggingIn');
         return { success: true, isNewUser: false };
@@ -942,6 +945,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(newProfile);
       if (typeof window !== 'undefined') {
         safeStorage.local.setItem('cachedUserProfile', JSON.stringify(newProfile));
+        if (newProfile.role === 'admin' || newProfile.role === 'teacher') {
+          safeStorage.session.setItem('admin_2fa_passed', 'true');
+        }
       }
       safeStorage.session.removeItem('isSigningUp');
       return true;
