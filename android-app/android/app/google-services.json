@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "326758596614",
+    "firebase_url": "https://physics-beastsl-default-rtdb.firebaseio.com",
+    "project_id": "physics-beastsl",
+    "storage_bucket": "physics-beastsl.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:326758596614:android:61227662fedc93fd38c387",
+        "android_client_info": {
+          "package_name": "com.physicsbeast.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "326758596614-a790gkghl9irjp3cp5d25a4r7f2ptf6q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMaYJlpNXsU4FXPtMDNQAfmHXJivo_2qU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "326758596614-a790gkghl9irjp3cp5d25a4r7f2ptf6q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
