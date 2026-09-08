@@ -1036,9 +1036,13 @@ export default function AdminDashboard() {
     setUploadSuccess(false);
     try {
       let finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
+      let effectivePlatform = videoPlatform;
       
       if (uploadItemType === "resource" && resourceFile) {
         finalUrl = await uploadToS3(resourceFile, "course-resources");
+      } else if (uploadItemType === "video" && videoPlatform === "s3" && resourceFile) {
+        finalUrl = await uploadToS3(resourceFile, "course-videos");
+        effectivePlatform = "direct";
       }
       
       if (!videoTitle || !finalUrl || !videoFolderId) {
@@ -1052,7 +1056,7 @@ export default function AdminDashboard() {
         title: videoTitle,
         url: finalUrl,
         type: uploadItemType,
-        platform: uploadItemType === 'video' ? videoPlatform : null,
+        platform: uploadItemType === 'video' ? effectivePlatform : null,
         batchId: videoBatchId,
         courseId: videoCourseId,
         folderId: videoFolderId,
@@ -2400,26 +2404,51 @@ export default function AdminDashboard() {
                         onChange={(e) => setVideoPlatform(e.target.value)}
                         required={uploadItemType === 'video'}
                       >
+                        <option value="s3">Upload Video File directly to Amazon S3 (.mp4, .mov, .mkv)</option>
                         <option value="youtube">YouTube</option>
                         <option value="vimeo">Vimeo</option>
                         <option value="dailymotion">Dailymotion</option>
-                        <option value="direct">Direct Link (Google Drive, MP4, etc.)</option>
+                        <option value="direct">Direct External Link (Google Drive, URL, etc.)</option>
                       </select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Video URL</Label>
-                      <div className="flex gap-2">
-                        <Input placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
-                        <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
-                          {isUploading ? "Linking..." : "Link Video"}
-                        </Button>
+
+                    {videoPlatform === 's3' ? (
+                      <div className="space-y-2 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                        <Label className="text-primary font-medium">Upload Video File to Amazon S3</Label>
+                        <div className="flex flex-col sm:flex-row gap-3 mt-2">
+                          <Input 
+                            type="file" 
+                            accept="video/*,.mp4,.mov,.mkv,.webm" 
+                            className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setResourceFile(e.target.files[0]);
+                              }
+                            }} 
+                            required={videoPlatform === 's3'}
+                          />
+                          <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
+                            {isUploading ? "Uploading Video to S3..." : "Upload Video (S3)"}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">Video files are uploaded directly to Amazon S3 and will play seamlessly in the student video player.</p>
                       </div>
-                      {videoPlatform === 'direct' && (
-                        <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                          <strong>Note for Google Drive:</strong> To play directly inside the custom player with quality controls, you must use a direct download link. Format: <code>https://drive.google.com/uc?export=download&id=FILE_ID</code> instead of the standard sharing link. Standard sharing links will not work in the custom player.
-                        </p>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label>Video URL</Label>
+                        <div className="flex gap-2">
+                          <Input placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
+                          <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
+                            {isUploading ? "Linking..." : "Link Video"}
+                          </Button>
+                        </div>
+                        {videoPlatform === 'direct' && (
+                          <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                            <strong>Note for Google Drive:</strong> To play directly inside the custom player with quality controls, you must use a direct download link. Format: <code>https://drive.google.com/uc?export=download&id=FILE_ID</code> instead of the standard sharing link. Standard sharing links will not work in the custom player.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2 p-4 border border-primary/20 rounded-xl bg-primary/5">
