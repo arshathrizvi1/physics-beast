@@ -4,7 +4,7 @@
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://physics-beast.vercel.app",
+    "url": "https://brilliantacademy.vercel.app",
     "cleartext": true
   },
   "plugins": {
