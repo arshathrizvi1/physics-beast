@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bell, Check, Trash2, BellOff, BellRing, ChevronRight } from "lucide-react";
+import { Bell, Check, Trash2, BellOff, BellRing, ChevronRight, Smartphone, UserCheck } from "lucide-react";
 import { useNotifications } from "@/components/providers/NotificationProvider";
+import { useAuth } from "@/lib/AuthContext";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 function timeAgo(timestamp: number | string | Date): string {
   if (!timestamp) return "";
@@ -31,7 +32,7 @@ export default function NotificationBell() {
 
   const handleToggle = () => setIsOpen(!isOpen);
 
-  // Close dropdown if clicking outside (simple hack for now, could use a ref hook)
+  // Close dropdown if clicking outside
   React.useEffect(() => {
     const handleOutClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -56,6 +57,7 @@ export default function NotificationBell() {
       <button 
         onClick={handleToggle}
         className="relative p-2 rounded-full hover:bg-white/5 transition-colors group focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50"
+        aria-label="Open notifications"
       >
         <Bell className="w-5 h-5 text-zinc-300 group-hover:text-white transition-colors" />
         {unreadCount > 0 && (
@@ -146,19 +148,14 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="flex flex-col">
-                {notifications.map((notif) => {
-                  const isRead = notif.readBy?.includes("currentUser"); // We need to check read status against user ID, but Provider returns unreadCount properly.
-                  // Actually Provider has `unreadCount`. Let's assume Provider gives `notif.readBy`.
-                  // Wait, we need `user.uid`. Let's import it.
-                  
-                  return (
-                    <NotificationItem 
-                      key={notif.id} 
-                      notif={notif} 
-                      markAsRead={markAsRead} 
-                    />
-                  );
-                })}
+                {notifications.map((notif) => (
+                  <NotificationItem 
+                    key={notif.id} 
+                    notif={notif} 
+                    markAsRead={markAsRead}
+                    onClose={() => setIsOpen(false)}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -174,33 +171,122 @@ export default function NotificationBell() {
   );
 }
 
-function NotificationItem({ notif, markAsRead }: { notif: any, markAsRead: (id: string) => void }) {
-  const { user } = require('@/lib/AuthContext').useAuth();
-  const isRead = notif.readBy?.includes(user?.uid);
+function NotificationItem({ 
+  notif, 
+  markAsRead, 
+  onClose 
+}: { 
+  notif: any; 
+  markAsRead: (id: string) => void; 
+  onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const isRead = notif.readBy?.includes(user?.uid || "");
   
-  const handleClick = () => {
+  // Detect if notification is for Device Login Approval or Student Signup Approval
+  const isDeviceLogin = notif.type === 'student_login' || 
+    notif.title?.toLowerCase().includes('device login') || 
+    notif.message?.toLowerCase().includes('new device');
+
+  const isStudentSignup = notif.type === 'student_signup' || 
+    notif.title?.toLowerCase().includes('registration') || 
+    notif.title?.toLowerCase().includes('signup') || 
+    notif.title?.toLowerCase().includes('permission allow') ||
+    notif.message?.toLowerCase().includes('registered as a student') ||
+    notif.message?.toLowerCase().includes('permission allow') ||
+    notif.message?.toLowerCase().includes('pending approval');
+
+  // Direct approval notifications straight to Admin Live Dashboard -> Pending Student Approvals
+  let targetLink = notif.link;
+  if (isDeviceLogin || isStudentSignup) {
+    targetLink = '/admin#pending-approvals';
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
     if (!isRead) markAsRead(notif.id);
+    onClose();
+
+    if (targetLink && targetLink.includes('#pending-approvals')) {
+      if (pathname === '/admin') {
+        e.preventDefault();
+        window.location.hash = 'pending-approvals';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        const el = document.getElementById('pending-approvals');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-primary', 'transition-all', 'duration-500');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary');
+          }, 2500);
+        }
+      }
+    }
   };
 
-  const getIconColor = () => {
-    if (notif.type === 'technical') return 'text-amber-500 bg-amber-500/10';
-    if (notif.type === 'contact_us') return 'text-blue-500 bg-blue-500/10';
-    if (notif.type === 'exam') return 'text-purple-500 bg-purple-500/10';
-    if (notif.type === 'course') return 'text-green-500 bg-green-500/10';
-    if (notif.type === 'student_login') return 'text-cyan-400 bg-cyan-400/10';
-    if (notif.type === 'student_signup') return 'text-emerald-400 bg-emerald-400/10';
-    if (notif.type === 'teacher_signup') return 'text-yellow-400 bg-yellow-400/10';
-    return 'text-[#d4af37] bg-[#d4af37]/10';
+  const getIcon = () => {
+    if (isDeviceLogin) {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-orange-400 bg-orange-400/10">
+          <Smartphone className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (isStudentSignup) {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-emerald-400 bg-emerald-400/10">
+          <UserCheck className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (notif.type === 'technical') {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-amber-500 bg-amber-500/10">
+          <Bell className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (notif.type === 'contact_us') {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-blue-500 bg-blue-500/10">
+          <Bell className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (notif.type === 'exam') {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-purple-500 bg-purple-500/10">
+          <Bell className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (notif.type === 'course') {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-green-500 bg-green-500/10">
+          <Bell className="w-4 h-4" />
+        </div>
+      );
+    }
+    if (notif.type === 'teacher_signup') {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-yellow-400 bg-yellow-400/10">
+          <Bell className="w-4 h-4" />
+        </div>
+      );
+    }
+    return (
+      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-[#d4af37] bg-[#d4af37]/10">
+        <Bell className="w-4 h-4" />
+      </div>
+    );
   };
 
   const content = (
     <div 
       onClick={handleClick}
-      className={`p-4 flex gap-4 transition-colors cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/[0.02] ${!isRead ? 'bg-white/[0.04]' : 'opacity-70'}`}
+      className={`p-4 flex gap-4 transition-colors cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/[0.04] ${!isRead ? 'bg-white/[0.04]' : 'opacity-70'}`}
     >
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 ${getIconColor()}`}>
-        <Bell className="w-4 h-4" />
-      </div>
+      {getIcon()}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h4 className={`text-sm font-semibold truncate ${!isRead ? 'text-white' : 'text-zinc-300'}`}>
@@ -220,8 +306,8 @@ function NotificationItem({ notif, markAsRead }: { notif: any, markAsRead: (id: 
     </div>
   );
 
-  if (notif.link) {
-    return <Link href={notif.link}>{content}</Link>;
+  if (targetLink) {
+    return <Link href={targetLink} onClick={handleClick}>{content}</Link>;
   }
 
   return content;

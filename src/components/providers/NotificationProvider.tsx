@@ -58,6 +58,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               setBrowserEnabled(permStatus.display === "granted");
             }
           });
+
+          // Handle tapping on native mobile notification
+          LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+            const link = action.notification?.extra?.link;
+            if (link && typeof window !== 'undefined') {
+              window.location.href = link;
+            }
+          });
         });
       } else if ("Notification" in window) {
         if (savedPref !== null) {
@@ -222,6 +230,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (newNotifs.length > 0 && browserEnabled && typeof window !== "undefined") {
         newNotifs.forEach(async (n) => {
           try {
+            // Determine target link for approval notifications
+            let targetLink = n.link || "/";
+            const isDeviceLogin = n.type === 'student_login' || 
+              n.title?.toLowerCase().includes('device login') || 
+              n.message?.toLowerCase().includes('new device');
+
+            const isStudentSignup = n.type === 'student_signup' || 
+              n.title?.toLowerCase().includes('registration') || 
+              n.title?.toLowerCase().includes('signup') || 
+              n.title?.toLowerCase().includes('permission allow') ||
+              n.message?.toLowerCase().includes('registered as a student') ||
+              n.message?.toLowerCase().includes('permission allow') ||
+              n.message?.toLowerCase().includes('pending approval');
+
+            if (isDeviceLogin || isStudentSignup) {
+              targetLink = '/admin#pending-approvals';
+            }
+
             // Check if running in Capacitor Native App
             const isCapacitor = (window as any).Capacitor && (window as any).Capacitor.isNativePlatform();
             if (isCapacitor) {
@@ -234,7 +260,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                     id: Math.floor(Math.random() * 1000000),
                     schedule: { at: new Date(Date.now() + 100) },
                     smallIcon: "ic_stat_icon",
-                    extra: { link: n.link || "/" }
+                    extra: { link: targetLink }
                   }
                 ]
               });
@@ -244,13 +270,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 body: n.message,
                 icon: "/logo.jpg",
                 badge: "/logo.jpg",
-                data: { link: n.link || "/" }
+                data: { link: targetLink }
               } as NotificationOptions);
             } else if ("Notification" in window) {
-              new Notification(n.title, {
+              const desktopNotif = new Notification(n.title, {
                 body: n.message,
                 icon: "/logo.jpg",
               });
+              desktopNotif.onclick = () => {
+                window.focus();
+                window.location.href = targetLink;
+              };
             }
           } catch (e) {
             console.error("Error firing notification:", e);

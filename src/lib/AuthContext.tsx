@@ -514,7 +514,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               target: "admin",
               title: "New Device Login Approval Required",
               message: `${data.name || data.email} (${data.studentId || 'Student'}) logged in from a new device and is waiting for your approval.`,
-              link: "/admin#students",
+              link: "/admin#pending-approvals",
               timestamp: Date.now(),
               type: "student_login",
               readBy: []
@@ -664,6 +664,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Create document in Firestore
       await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
       
+      // Notify admin for student signup approval
+      if (newProfile.role === 'student' && !newProfile.isApproved) {
+        addDoc(collection(db, "notifications"), {
+          target: "admin",
+          title: "New Student Registration",
+          message: `${newProfile.name} (${newProfile.studentId || 'Student'}) registered and is waiting for your approval.`,
+          link: "/admin#pending-approvals",
+          timestamp: Date.now(),
+          type: "student_signup",
+          readBy: []
+        }).catch(console.error);
+      }
+
       // Update local state immediately (onAuthStateChanged might have fired too early before setDoc finished)
       setUser(newProfile);
       if (typeof window !== 'undefined') {
@@ -901,7 +914,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             target: "admin",
             title: "New Device Login Approval Required",
             message: `${finalProfile.name || result.user.email} (${data.studentId || 'Student'}) logged in via Google from a new device and is waiting for your approval.`,
-            link: "/admin#students",
+            link: "/admin#pending-approvals",
             timestamp: Date.now(),
             type: "student_login",
             readBy: []
@@ -1036,8 +1049,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       addDoc(collection(db, "notifications"), {
         target: "admin",
         title: "New Student Registration",
-        message: `${newProfile.name} (${newProfile.studentId}) registered as a student and is pending approval.`,
-        link: "/admin#students",
+        message: `${newProfile.name} (${newProfile.studentId || 'Student'}) registered and is waiting for your approval.`,
+        link: "/admin#pending-approvals",
         timestamp: Date.now(),
         type: "student_signup",
         readBy: []

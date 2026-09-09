@@ -33,6 +33,18 @@ export default function AdminDashboard() {
         } else if (hash === 'messages-academic') {
           setActiveTab('messages');
           setMsgCategory('academic');
+        } else if (hash === 'pending-approvals') {
+          setActiveTab('dashboard');
+          setTimeout(() => {
+            const el = document.getElementById('pending-approvals');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('ring-2', 'ring-primary', 'transition-all', 'duration-500');
+              setTimeout(() => {
+                el.classList.remove('ring-2', 'ring-primary');
+              }, 2500);
+            }
+          }, 200);
         } else if (['dashboard', 'students', 'payments', 'courses', 'content', 'exams', 'messages', 'team', 'site', 'myprofile'].includes(hash)) {
           setActiveTab(hash);
           if (hash === 'messages') setMsgCategory('support');
@@ -2240,7 +2252,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-secondary/50 shadow-md">
+            <Card id="pending-approvals" className="border-secondary/50 shadow-md scroll-mt-24 transition-all duration-300">
               <CardHeader className="border-b border-border/50 bg-secondary/5 pb-4">
                 <CardTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5 text-primary" /> Pending Student Approvals</CardTitle>
                 <CardDescription>Review new account registrations</CardDescription>
