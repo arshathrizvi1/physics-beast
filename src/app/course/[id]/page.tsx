@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
-import { useEffect, useState, use, useRef } from "react";
+import { useEffect, useState, use, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, increment, onSnapshot, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -28,7 +28,7 @@ const getDailymotionId = (url: string) => {
 
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { user } = useAuth();
+  const { user, updateVideoProgress } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
   const [folders, setFolders] = useState<any[]>([]);
@@ -88,6 +88,70 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setBunnyEmbedUrl('');
     }
   }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform]);
+
+  // Video Progress Tracking State & Persistence
+  const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
+  const lastSavedProgressRef = useRef<Record<string, number>>({});
+
+  // Sync with user's videoProgress from Firestore when profile updates
+  useEffect(() => {
+    if (user?.videoProgress) {
+      setLocalVideoProgress(prev => ({ ...prev, ...user.videoProgress }));
+    }
+  }, [user?.videoProgress]);
+
+  // Load cached progress from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const storageKey = user?.uid ? `user_progress_${user.uid}` : 'guest_video_progress';
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        setLocalVideoProgress(prev => ({ ...JSON.parse(raw), ...prev }));
+      }
+    } catch {}
+  }, [user?.uid]);
+
+  // Record progress callback with throttling
+  const recordProgress = useCallback((videoId: string, percent: number) => {
+    if (!videoId) return;
+    const clean = Math.min(100, Math.max(0, Math.round(percent)));
+    // If student watched 90% or more, count as 100% completed
+    const finalPct = clean >= 90 ? 100 : clean;
+
+    setLocalVideoProgress(prev => {
+      const current = prev[videoId] || 0;
+      if (finalPct <= current) return prev;
+      return { ...prev, [videoId]: finalPct };
+    });
+
+    const prevSaved = lastSavedProgressRef.current[videoId] || 0;
+    if (finalPct - prevSaved >= 3 || finalPct === 100) {
+      lastSavedProgressRef.current[videoId] = finalPct;
+      updateVideoProgress?.(videoId, finalPct);
+    }
+  }, [updateVideoProgress]);
+
+  // Listen to postMessage from Bunny Stream Player iframe (Player.js standard)
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      try {
+        let data = e.data;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
+        }
+        if ((data?.event === 'timeupdate' || data?.type === 'timeupdate') && activeVideoRef.current?.id) {
+          const seconds = data?.value?.seconds ?? data?.seconds ?? 0;
+          const duration = data?.value?.duration ?? data?.duration ?? 0;
+          if (duration > 0) {
+            const pct = Math.min(100, Math.round((seconds / duration) * 100));
+            recordProgress(activeVideoRef.current.id, pct);
+          }
+        }
+      } catch {}
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [recordProgress]);
 
   // Quality Control for HLS
   useEffect(() => {
@@ -651,6 +715,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         if (activeVideo && user?.uid) {
                           localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
                         }
+                        if (activeVideo?.id && state.played != null) {
+                          const pct = Math.min(100, Math.round(state.played * 100));
+                          recordProgress(activeVideo.id, pct);
+                        }
                       }}
                       onDuration={(dur) => setDuration(dur)}
                       onReady={() => {
@@ -1064,8 +1132,32 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       {/* Course Sidebar */}
       <div className="space-y-6">
         <Card className="border-secondary/50">
-          <CardHeader>
-            <CardTitle>Course Syllabus</CardTitle>
+          <CardHeader className="pb-3">
+            {(() => {
+              const courseVideos = videos.filter(v => v.type !== 'resource');
+              const courseProgress = courseVideos.length > 0
+                ? Math.round(courseVideos.reduce((sum, v) => sum + (localVideoProgress[v.id] || user?.videoProgress?.[v.id] || 0), 0) / courseVideos.length)
+                : 0;
+
+              return (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Course Syllabus</CardTitle>
+                    <span className="text-xs font-bold text-primary">{courseProgress}%</span>
+                  </div>
+                  {/* Main Course Progress Bar (matches student screenshot) */}
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="w-full bg-secondary/30 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-primary h-full rounded-full transition-all duration-300"
+                        style={{ width: `${courseProgress}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-foreground shrink-0">{courseProgress}%</span>
+                  </div>
+                </div>
+              );
+            })()}
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-[500px]">
@@ -1076,6 +1168,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   folders.map((folder) => {
                     const isExpanded = activeFolderId === folder.id;
                     const folderVideos = videos.filter(v => v.folderId === folder.id);
+                    const folderOnlyVideos = folderVideos.filter(v => v.type !== 'resource');
+                    const folderProgress = folderOnlyVideos.length > 0
+                      ? Math.round(folderOnlyVideos.reduce((sum, v) => sum + (localVideoProgress[v.id] || user?.videoProgress?.[v.id] || 0), 0) / folderOnlyVideos.length)
+                      : 0;
                     
                     const folderExpiration = user?.folderAccess?.[folder.id];
                     const hasSpecificFolderAccess = (folderExpiration && folderExpiration > Date.now()) || user?.role === 'admin' || user?.role === 'teacher' || legacyCourseAccess;
@@ -1098,15 +1194,29 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             }
                           }}
                         >
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1 w-full mr-2">
                             <div className="flex items-center gap-2 font-bold text-sm">
-                              {hasSpecificFolderAccess ? <Folder className="w-4 h-4 text-primary" /> : <Lock className="w-4 h-4 text-red-500" />}
-                              {folder.name}
-                              {folder.price ? <span className="ml-2 text-xs bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded font-mono">Rs. {folder.price}</span> : null}
+                              {hasSpecificFolderAccess ? <Folder className="w-4 h-4 text-primary shrink-0" /> : <Lock className="w-4 h-4 text-red-500 shrink-0" />}
+                              <span className="truncate">{folder.name}</span>
+                              {folder.price ? <span className="ml-2 text-xs bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded font-mono shrink-0">Rs. {folder.price}</span> : null}
                             </div>
                             {hasSpecificFolderAccess && user?.role !== 'admin' && !legacyCourseAccess && folderExpiration ? (
                               <p className="text-xs text-green-600 font-bold">{daysLeft} days remaining</p>
                             ) : null}
+
+                            {/* Folder Progress Bar + Percentage (matches student screenshot) */}
+                            {hasSpecificFolderAccess && (
+                              <div className="flex items-center gap-2 mt-1.5 w-full max-w-[200px]">
+                                <div className="w-full bg-secondary/40 h-1.5 rounded-full overflow-hidden">
+                                  <div 
+                                    className="bg-primary h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${folderProgress}%` }}
+                                  />
+                                </div>
+                                <span className="text-[10px] font-bold text-muted-foreground shrink-0">{folderProgress}%</span>
+                              </div>
+                            )}
+
                             {!hasSpecificFolderAccess && (
                                 <div className="mt-1">
                                   <p className="text-xs text-red-500 font-bold mb-2">Locked - Requires Access</p>
@@ -1128,7 +1238,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             )}
                           </div>
                           {hasSpecificFolderAccess && (
-                            isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+                            isExpanded ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />
                           )}
                         </div>
                         
@@ -1149,23 +1259,36 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                           <div className="px-3 py-1 bg-secondary/5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-secondary/10">Videos</div>
                                           {onlyVideos.map((video) => {
                                             const isPlaying = activeVideo?.id === video.id;
+                                            const vPct = localVideoProgress[video.id] || user?.videoProgress?.[video.id] || 0;
                                             return (
                                               <button
                                                 key={video.id}
                                                 onClick={() => { if (user) { setActiveVideo(video); setPlaying(false); } }}
                                                 disabled={!user}
-                                                className={`flex items-center gap-3 p-3 text-sm text-left transition-colors border-b border-secondary/10 last:border-0
+                                                className={`flex items-center justify-between p-3 text-sm text-left transition-colors border-b border-secondary/10 last:border-0
                                                   ${isPlaying ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-secondary/10'}
                                                   ${!user ? 'opacity-60 cursor-not-allowed' : ''}
                                                 `}
                                               >
-                                                {!user ? (
-                                                  <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
-                                                ) : (
-                                                  <PlayCircle className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
-                                                )}
-                                                <span className={`truncate ${isPlaying ? 'font-bold text-primary' : ''}`}>
-                                                  {video.title}
+                                                <div className="flex items-center gap-3 min-w-0 flex-1 mr-2">
+                                                  {!user ? (
+                                                    <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+                                                  ) : (
+                                                    <PlayCircle className={`w-4 h-4 shrink-0 ${isPlaying ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                  )}
+                                                  <span className={`truncate ${isPlaying ? 'font-bold text-primary' : ''}`}>
+                                                    {video.title}
+                                                  </span>
+                                                </div>
+                                                {/* Percentage only in video, no bar (as requested) */}
+                                                <span className={`text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
+                                                  vPct >= 90
+                                                    ? 'bg-green-500/10 text-green-500'
+                                                    : vPct > 0
+                                                      ? 'bg-primary/10 text-primary'
+                                                      : 'text-muted-foreground/50'
+                                                }`}>
+                                                  {vPct}%
                                                 </span>
                                               </button>
                                             );

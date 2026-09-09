@@ -153,3 +153,58 @@ input[type="number"] {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+
+/* ========================================================================= */
+/* Print & PDF Export Rules */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  /* Completely eliminate website header, navigation, search, logout, and footers */
+  header,
+  nav,
+  footer,
+  aside,
+  .mobile-bottom-nav,
+  .print-hidden,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Reset document flow and colors for high-clarity paper/PDF output */
+  html, body, #__next, main {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide all scrollbars across all elements on print */
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Prevent awkward page cuts */
+  tr, .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

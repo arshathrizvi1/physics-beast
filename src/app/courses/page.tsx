@@ -14,6 +14,7 @@ import { Suspense } from "react";
 function CoursesContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [videos, setVideos] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
@@ -29,10 +30,11 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
         );
 
-        const [querySnapshot, teachersSnap] = await Promise.race([
+        const [querySnapshot, teachersSnap, videosSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
-            getDocs(query(collection(db, "users"), where("role", "==", "teacher")))
+            getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
+            getDocs(collection(db, "videos"))
           ]),
           timeoutPromise
         ]);
@@ -47,6 +49,10 @@ function CoursesContent() {
           ...doc.data() as any
         }));
         setTeachers(fetchedTeachers);
+
+        if (videosSnap) {
+          setVideos(videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any })));
+        }
         
         if (user && user.role === 'student') {
           const batchesSnap = await Promise.race([
@@ -257,6 +263,29 @@ function CoursesContent() {
                   </div>
                 )}
                 <CardDescription className="mt-1">{course.description || "A comprehensive Brilliant Academy learning path."}</CardDescription>
+
+                {/* Progress Bar matching student screenshot */}
+                {(() => {
+                  const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
+                  const userProgress = user?.videoProgress || {};
+                  const courseProgress = courseVideos.length > 0
+                    ? Math.round(courseVideos.reduce((acc, v) => acc + (userProgress[v.id] || 0), 0) / courseVideos.length)
+                    : 0;
+
+                  return (
+                    <div className="mt-4 pt-3 border-t border-secondary/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-full bg-secondary/40 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-primary h-full rounded-full transition-all duration-300"
+                            style={{ width: `${courseProgress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-foreground shrink-0">{courseProgress}%</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </CardHeader>
               <CardFooter className="bg-secondary/5 border-t border-secondary/20 p-4 mt-auto">
                 <Link href={`/course/${course.id}`} className={buttonVariants({ variant: "default", className: "w-full" })}>

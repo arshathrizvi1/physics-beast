@@ -31,7 +31,40 @@ public class MainActivity extends BridgeActivity {
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         );
+        
+        clearServiceWorkerCache();
+        
         hideSystemUI();
+    }
+
+    private void clearServiceWorkerCache() {
+        try {
+            java.io.File dataDir = new java.io.File(getApplicationInfo().dataDir, "app_webview/Default/Service Worker");
+            if (dataDir.exists()) {
+                deleteRecursively(dataDir);
+                Log.d(TAG, "Service Worker cache deleted successfully.");
+            }
+            
+            // Also clear the general WebView cache for good measure (doesn't clear IndexedDB)
+            android.webkit.WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.clearCache(true);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to delete Service Worker cache", e);
+        }
+    }
+
+    private void deleteRecursively(java.io.File fileOrDirectory) {
+        if (fileOrDirectory.isDirectory()) {
+            java.io.File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (java.io.File child : children) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        fileOrDirectory.delete();
     }
 
     @Override

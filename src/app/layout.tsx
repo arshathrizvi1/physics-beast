@@ -69,7 +69,7 @@ export default function RootLayout({
                   {children}
                 </main>
 
-                <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12">
+                <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12 print:hidden">
                   <FooterContent />
                 </footer>
                 <MobileBottomNav />

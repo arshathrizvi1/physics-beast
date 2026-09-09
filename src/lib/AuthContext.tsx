@@ -76,6 +76,7 @@ export interface UserProfile {
   accessibleCourses?: string[]; // array of course IDs they can access
   folderAccess?: Record<string, number>; // folderId -> expiration timestamp
   subject?: string;
+  videoProgress?: Record<string, number>; // videoId -> percentage (0 - 100)
 }
 
 interface AuthContextType {
@@ -92,6 +93,7 @@ interface AuthContextType {
   signupTeacher: (email: string, password: string, profileData: { name: string; subject: string }) => Promise<boolean>;
   completeGoogleTeacherSignup: (profileData: { name: string; subject: string }, password?: string) => Promise<boolean>;
   loginWithCustomToken: (token: string) => Promise<boolean>;
+  updateVideoProgress: (videoId: string, percent: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -108,6 +110,7 @@ const AuthContext = createContext<AuthContextType>({
   signupTeacher: async () => false,
   completeGoogleTeacherSignup: async () => false,
   loginWithCustomToken: async () => false,
+  updateVideoProgress: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -1249,8 +1252,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateVideoProgress = async (videoId: string, percent: number) => {
+    if (!videoId) return;
+    const cleanPercent = Math.min(100, Math.max(0, Math.round(percent)));
+
+    // Save locally immediately
+    try {
+      const storageKey = user?.uid ? `user_progress_${user.uid}` : 'guest_video_progress';
+      const raw = safeStorage.local.getItem(storageKey);
+      const existing = raw ? JSON.parse(raw) : {};
+      if (cleanPercent > (existing[videoId] || 0)) {
+        existing[videoId] = cleanPercent;
+        safeStorage.local.setItem(storageKey, JSON.stringify(existing));
+      }
+    } catch {}
+
+    // Update state & Firestore if user is authenticated
+    if (user?.uid) {
+      setUser(prev => {
+        if (!prev) return prev;
+        const current = prev.videoProgress?.[videoId] || 0;
+        if (cleanPercent <= current) return prev;
+        return {
+          ...prev,
+          videoProgress: {
+            ...(prev.videoProgress || {}),
+            [videoId]: cleanPercent
+          }
+        };
+      });
+
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          [`videoProgress.${videoId}`]: cleanPercent
+        });
+      } catch (err) {
+        console.error("Failed to update video progress in Firestore:", err);
+      }
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup, loginWithCustomToken }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup, loginWithCustomToken, updateVideoProgress }}>
       {children}
     </AuthContext.Provider>
   );
