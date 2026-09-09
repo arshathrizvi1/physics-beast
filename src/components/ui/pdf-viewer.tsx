@@ -95,7 +95,7 @@ export function PdfViewer({
     <div 
       ref={containerRef}
       aria-label={title}
-      className={`flex flex-col w-full bg-secondary/5 rounded-b-xl overflow-hidden border border-border/50 ${
+      className={`flex flex-col w-full bg-secondary/5 rounded-b-xl overflow-hidden border border-border/50 no-swipe-reload overscroll-contain ${
         isFullscreen ? "bg-background h-screen z-50 fixed inset-0" : ""
       } ${className}`}
       style={!isFullscreen ? { height } : undefined}
@@ -172,7 +172,7 @@ export function PdfViewer({
         {/* Embedded PDF container (Continuous Scroll) */}
         <div 
           ref={documentContainerRef}
-          className="relative w-full flex-1 overflow-y-auto overflow-x-auto bg-[#323639] custom-scrollbar flex flex-col items-center py-6 gap-6"
+          className="relative w-full flex-1 overflow-y-auto overflow-x-auto bg-[#323639] custom-scrollbar flex flex-col items-center py-6 gap-6 overscroll-contain touch-pan-y no-swipe-reload"
         >
           <Document
             file={trimmed}

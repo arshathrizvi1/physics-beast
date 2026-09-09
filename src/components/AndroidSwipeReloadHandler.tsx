@@ -17,8 +17,19 @@ export function AndroidSwipeReloadHandler() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Do not enable reload gesture during active exams to prevent accidental data loss
+    // ONLY enable custom swipe reload in the native Capacitor Android app!
+    // In mobile web browsers (Chrome/Android Browser), the browser already has its own native pull-to-refresh.
+    // Custom touch listeners on web interfere with PDF scrolling and page reading.
+    const isCapacitor = typeof window !== "undefined" && !!(window as any).Capacitor?.isNativePlatform?.();
+    if (!isCapacitor) {
+      return;
+    }
+
+    // Do not enable reload gesture during active exams or inside course video/pdf viewer
     if (pathname.startsWith("/exam/") && !pathname.endsWith("/results")) {
+      return;
+    }
+    if (pathname.startsWith("/course/")) {
       return;
     }
 
@@ -29,9 +40,9 @@ export function AndroidSwipeReloadHandler() {
       const touch = e.touches[0];
       const target = e.target as HTMLElement | null;
 
-      // Ignore if touching interactive form elements, video players, or range sliders
+      // Ignore if touching interactive form elements, video players, PDF canvas, or range sliders
       if (target) {
-        const interactive = target.closest("input, textarea, select, button, video, audio, [role='slider'], .no-swipe-reload");
+        const interactive = target.closest("input, textarea, select, button, video, audio, [role='slider'], .no-swipe-reload, .react-pdf__Page, canvas, iframe");
         if (interactive) return;
       }
 
