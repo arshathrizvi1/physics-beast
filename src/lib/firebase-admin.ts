@@ -1,5 +1,4 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { db } from './firebase';
 import {
@@ -107,12 +106,13 @@ const clientDbFallback = {
   },
 };
 
-export const adminAuth = new Proxy({} as ReturnType<typeof getAuth>, {
+export const adminAuth = new Proxy({} as any, {
   get(target, prop) {
     if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') {
       return undefined;
     }
     if (getApps().length) {
+      const { getAuth } = require('firebase-admin/auth');
       const auth = getAuth();
       const val = (auth as any)[prop];
       return typeof val === 'function' ? val.bind(auth) : val;
