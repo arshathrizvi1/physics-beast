@@ -56,6 +56,66 @@ export function PdfViewer({
     return () => window.removeEventListener("resize", updateWidth);
   }, [isFullscreen]);
 
+  // Keep track of zoomLevel in a ref for the touch event listener
+  const zoomLevelRef = useRef(zoomLevel);
+  useEffect(() => {
+    zoomLevelRef.current = zoomLevel;
+  }, [zoomLevel]);
+
+  // Pinch-to-zoom logic for PDF pages
+  useEffect(() => {
+    const container = documentContainerRef.current;
+    if (!container) return;
+
+    let pinchStartDist: number | null = null;
+    let pinchStartZoom = 1.0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        pinchStartDist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        pinchStartZoom = zoomLevelRef.current;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchStartDist !== null) {
+        e.preventDefault(); // Stop native browser page zoom
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        
+        const scaleFactor = dist / pinchStartDist;
+        const dampening = 0.3; // Dampen the sensitivity to make it smooth and small
+        const dampenedScale = 1 + (scaleFactor - 1) * dampening;
+        
+        let newZoom = pinchStartZoom * dampenedScale;
+        newZoom = Math.max(0.5, Math.min(newZoom, 4.0));
+        
+        setZoomLevel(newZoom);
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        pinchStartDist = null;
+      }
+    };
+
+    container.addEventListener("touchstart", onTouchStart, { passive: false });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd, { passive: false });
+    container.addEventListener("touchcancel", onTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen().catch((err) => {
@@ -172,7 +232,8 @@ export function PdfViewer({
         {/* Embedded PDF container (Continuous Scroll) */}
         <div 
           ref={documentContainerRef}
-          className="relative w-full flex-1 overflow-y-auto overflow-x-auto bg-[#323639] custom-scrollbar flex flex-col items-center py-6 gap-6 overscroll-contain touch-pan-y no-swipe-reload"
+          className="relative w-full flex-1 overflow-auto bg-[#323639] custom-scrollbar flex flex-col py-6 gap-6 overscroll-contain no-swipe-reload"
+          style={{ touchAction: 'pan-x pan-y' }}
         >
           <Document
             file={trimmed}
@@ -195,10 +256,10 @@ export function PdfViewer({
                 </p>
               </div>
             }
-            className="flex flex-col items-center gap-6"
+            className="flex flex-col gap-6 min-w-max mx-auto"
           >
             {numPages && Array.from(new Array(numPages), (el, index) => (
-              <div key={`page_${index + 1}`} className="relative group">
+              <div key={`page_${index + 1}`} className="relative group mx-auto">
                 <Page 
                   pageNumber={index + 1} 
                   scale={zoomLevel}
