@@ -209,23 +209,27 @@ export default function AdminLiveStudio() {
       if (newStatus === 'ended') {
         const cls = liveClasses.find(c => c.id === id);
         if (cls && cls.targetFolderId) {
-          const videoRef = doc(collection(db, 'videos'));
-          await setDoc(videoRef, {
-            id: videoRef.id,
-            title: `${cls.title} (Recorded Live)`,
-            description: cls.description || '',
-            link: cls.link,
-            courseId: cls.courseId || null,
-            folderId: cls.targetFolderId,
-            type: 'video',
-            createdAt: Date.now(),
-            views: 0
-          });
-
           const folderRef = doc(db, 'folders', cls.targetFolderId);
           const folderSnap = await getDoc(folderRef);
+          
+          let actualCourseId = cls.courseId || null;
           if (folderSnap.exists()) {
+            actualCourseId = folderSnap.data().courseId || actualCourseId;
             const items = folderSnap.data().items || [];
+            
+            const videoRef = doc(collection(db, 'videos'));
+            await setDoc(videoRef, {
+              id: videoRef.id,
+              title: `${cls.title} (Recorded Live)`,
+              description: cls.description || '',
+              link: cls.link,
+              courseId: actualCourseId,
+              folderId: cls.targetFolderId,
+              type: 'video',
+              createdAt: Date.now(),
+              views: 0
+            });
+
             await updateDoc(folderRef, {
               items: [...items, { id: videoRef.id, type: 'video' }]
             });
