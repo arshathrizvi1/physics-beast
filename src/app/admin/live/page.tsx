@@ -345,8 +345,33 @@ export default function AdminLiveStudio() {
               )}
               
               <div className="space-y-2">
-                <Label>Live Link *</Label>
-                <Input value={link} onChange={e => setLink(e.target.value)} required disabled={editingClass?.status === 'draft'} />
+                <Label>
+                  {platform === "zoom" 
+                    ? "Zoom Meeting Link *" 
+                    : platform === "youtube" 
+                    ? "YouTube Live / Video Link *" 
+                    : platform === "meet" 
+                    ? "Google Meet Link *" 
+                    : "Live Stream Link *"}
+                </Label>
+                <Input 
+                  value={link} 
+                  onChange={e => setLink(e.target.value)} 
+                  required 
+                  disabled={editingClass?.status === 'draft'} 
+                  placeholder={
+                    platform === "zoom" 
+                      ? "https://zoom.us/j/... (or start in Zoom to auto-fill)" 
+                      : platform === "youtube" 
+                      ? "https://www.youtube.com/watch?v=..." 
+                      : "https://..."
+                  }
+                />
+                {platform === "zoom" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    💡 <em>Tip: If you start a meeting directly in Zoom, this link is <strong>automatically filled</strong> for you!</em>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
