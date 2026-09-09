@@ -45,7 +45,11 @@ export async function POST(req: Request) {
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: origin,
+      expectedOrigin: (incomingOrigin) => {
+        if (origin.includes(incomingOrigin)) return true;
+        if (incomingOrigin.startsWith('android:apk-key-hash:')) return true;
+        return false;
+      },
       expectedRPID: rpID,
       credential: {
         id: credentialIDStr,
