@@ -12,6 +12,12 @@ export function PasskeyShim() {
         if (Capacitor.isNativePlatform()) {
           const { CapacitorPasskey } = await import("@capgo/capacitor-passkey");
           await CapacitorPasskey.autoShimWebAuthn();
+          // Polyfill PublicKeyCredential so @simplewebauthn/browser doesn't throw "not supported" error
+          if (typeof window !== "undefined" && !window.PublicKeyCredential) {
+            (window as any).PublicKeyCredential = function() {};
+            (window as any).PublicKeyCredential.isConditionalMediationAvailable = async () => false;
+            (window as any).PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => true;
+          }
           console.log("[PasskeyShim] CapacitorPasskey.autoShimWebAuthn() initialized");
         }
       } catch (e) {
