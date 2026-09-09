@@ -3,6 +3,9 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { rpID, origin } from '@/lib/passkey-config';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { uid, response } = await req.json();

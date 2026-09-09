@@ -4,6 +4,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { rpID } from '@/lib/passkey-config';
 import crypto from 'crypto';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const options = await generateAuthenticationOptions({
