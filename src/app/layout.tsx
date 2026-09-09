@@ -14,6 +14,7 @@ import { AndroidSwipeReloadHandler } from "@/components/AndroidSwipeReloadHandle
 import { MobilePermissionPrompt } from "@/components/MobilePermissionPrompt";
 import { PushNotificationSetup } from "@/components/PushNotificationSetup";
 import { PasskeyShim } from "@/components/PasskeyShim";
+import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -56,6 +57,7 @@ export default function RootLayout({
             <NotificationProvider>
               <LenisProvider>
                 <CustomToastProvider />
+                <ServiceWorkerCleanup />
                 <PushNotificationSetup />
                 <PasskeyShim />
                 <AndroidBackButtonHandler />
