@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { MediaConvertClient, CreateJobCommand } from '@aws-sdk/client-mediaconvert';
+import { MediaConvertClient, CreateJobCommand, GetJobCommand } from '@aws-sdk/client-mediaconvert';
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     const s3OutputPath = `s3://${bucketName}/hls-videos/${baseName}/`;
     
     // The final HLS URL to return to the frontend
-    const finalHlsUrl = `https://${bucketName}.s3.${region}.amazonaws.com/hls-videos/${baseName}/master.m3u8`;
+    const finalHlsUrl = `https://${bucketName}.s3.${region}.amazonaws.com/hls-videos/${baseName}/${baseName}.m3u8`;
 
     // MediaConvert endpoint and Role ARN with automatic fallbacks
     const endpoint = (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() || 'https://mediaconvert.eu-north-1.amazonaws.com';
@@ -188,5 +188,37 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('MediaConvert error:', error);
     return NextResponse.json({ error: error.message || 'Failed to start MediaConvert job' }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const jobId = searchParams.get('jobId');
+
+    if (!jobId) {
+      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+    }
+
+    const region = process.env.AWS_REGION || 'eu-north-1';
+    const endpoint = (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() || 'https://mediaconvert.eu-north-1.amazonaws.com';
+
+    const mediaconvert = new MediaConvertClient({
+      region,
+      endpoint,
+      credentials: {
+        accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
+        secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
+      }
+    });
+
+    const data = await mediaconvert.send(new GetJobCommand({ Id: jobId }));
+    return NextResponse.json({
+      status: data.Job?.Status, // 'SUBMITTED' | 'PROGRESSING' | 'COMPLETE' | 'CANCELED' | 'ERROR'
+      errorMessage: data.Job?.ErrorMessage || null
+    });
+  } catch (error: any) {
+    console.error('MediaConvert status error:', error);
+    return NextResponse.json({ error: error.message || 'Failed to get job status' }, { status: 500 });
   }
 }

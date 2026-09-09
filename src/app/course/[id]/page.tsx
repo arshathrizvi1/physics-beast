@@ -505,6 +505,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     className="w-full h-full"
                   />
                 </div>
+              ) : activeVideo.transcodeStatus === 'processing' ? (
+                <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
+                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+                  <h3 className="text-lg font-bold text-white mb-2">Optimizing Video for Smooth Playback</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm">
+                    AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1–2 minutes after uploading. It will start playing automatically once ready!
+                  </p>
+                </div>
               ) : (
                 <div 
                   ref={playerContainerRef} 

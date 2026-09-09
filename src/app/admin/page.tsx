@@ -264,6 +264,57 @@ export default function AdminDashboard() {
     };
   }, [user]);
 
+  // Poll and monitor active MediaConvert transcoding jobs and notify Admin when complete
+  useEffect(() => {
+    const processingVideos = videos.filter(v => v.transcodeStatus === 'processing' && v.transcodeJobId);
+    if (processingVideos.length === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const vid of processingVideos) {
+        try {
+          const res = await fetch(`/api/s3/convert?jobId=${vid.transcodeJobId}`);
+          if (!res.ok) continue;
+          const data = await res.json();
+          if (data.status === 'COMPLETE') {
+            // Update Firestore video status
+            await updateDoc(doc(db, 'videos', vid.id), {
+              transcodeStatus: 'ready'
+            });
+
+            // Send in-app notification to Admin
+            await addDoc(collection(db, 'notifications'), {
+              target: 'admin',
+              title: 'Video Conversion Complete! 🎬',
+              message: `Video "${vid.title}" has finished converting into 1080p, 720p, 480p, and 144p quality formats and is now ready for students!`,
+              link: `/course/${vid.courseId}`,
+              timestamp: Date.now(),
+              type: 'video_ready',
+              readBy: []
+            });
+          } else if (data.status === 'ERROR') {
+            await updateDoc(doc(db, 'videos', vid.id), {
+              transcodeStatus: 'error',
+              transcodeError: data.errorMessage || 'Conversion failed'
+            });
+            await addDoc(collection(db, 'notifications'), {
+              target: 'admin',
+              title: 'Video Conversion Failed ⚠️',
+              message: `Failed to convert "${vid.title}": ${data.errorMessage || 'Unknown error'}`,
+              link: `/admin#content`,
+              timestamp: Date.now(),
+              type: 'video_error',
+              readBy: []
+            });
+          }
+        } catch (err) {
+          console.error("Error polling MediaConvert status:", err);
+        }
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [videos]);
+
   const handleApprovePayment = async (paymentId: string, studentId: string, folderId: string) => {
     try {
       const userRef = doc(db, 'users', studentId);
@@ -1125,6 +1176,8 @@ export default function AdminDashboard() {
       } else if (uploadItemType === "video" && videoPlatform === "s3" && resourceFile) {
         // Step 1: Upload original raw MP4 to S3
         const originalS3Url = await uploadToS3(resourceFile, "course-videos");
+        var transcodeJobId: string | null = null;
+        var transcodeStatus: string = 'ready';
         
         // Step 2: Trigger AWS Elemental MediaConvert to generate 1080p, 720p, 480p, 144p HLS!
         try {
@@ -1136,11 +1189,13 @@ export default function AdminDashboard() {
           const convertData = await convertRes.json();
           if (convertRes.ok && convertData.finalHlsUrl) {
             finalUrl = convertData.finalHlsUrl; // Use the HLS link instead of the MP4 link!
-            console.log("MediaConvert triggered successfully. Using HLS URL:", finalUrl);
+            transcodeJobId = convertData.jobId || null;
+            transcodeStatus = 'processing';
+            console.log("MediaConvert triggered successfully. Using HLS URL:", finalUrl, "JobId:", transcodeJobId);
           } else {
             console.warn("MediaConvert trigger failed:", convertData.error);
             finalUrl = originalS3Url; // Fallback to original MP4 if not configured
-            if (convertData.error.includes("Missing endpoint or role ARN")) {
+            if (convertData.error && convertData.error.includes("Missing endpoint or role ARN")) {
               alert("Video uploaded, but MediaConvert is not configured. Please complete the AWS setup for quality options to work.");
             }
           }
@@ -1167,6 +1222,8 @@ export default function AdminDashboard() {
         batchId: videoBatchId,
         courseId: videoCourseId,
         folderId: videoFolderId,
+        transcodeJobId: transcodeJobId || null,
+        transcodeStatus: transcodeStatus || 'ready',
         createdAt: Date.now()
       });
       setIsUploading(false);
