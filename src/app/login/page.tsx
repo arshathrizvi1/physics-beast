@@ -44,6 +44,23 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [isGoogleSignupForm, setIsGoogleSignupForm] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isWebAuthnSupported, setIsWebAuthnSupported] = useState(false);
+
+  useEffect(() => {
+    const checkSupport = async () => {
+      if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+        try {
+          const { Capacitor } = await import('@capacitor/core');
+          if (!Capacitor.isNativePlatform()) {
+            setIsWebAuthnSupported(true);
+          }
+        } catch (e) {
+          setIsWebAuthnSupported(true);
+        }
+      }
+    };
+    checkSupport();
+  }, []);
 
   // Real Student Dashboard Stats
   const studyMins = user?.totalStudyTimeMins || 0;
@@ -703,7 +720,7 @@ export default function LoginPage() {
                   {isLogin ? "Sign in with Google" : "Sign up with Google"}
                 </Button>
 
-                {isLogin && (
+                {isLogin && isWebAuthnSupported && (
                   <Button
                     type="button"
                     variant="outline"
