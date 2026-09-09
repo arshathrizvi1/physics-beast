@@ -18,6 +18,17 @@ function cleanPrivateKey(key: string | undefined): string | undefined {
   if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
     cleaned = cleaned.slice(1, -1);
   }
+  // If provided as a base64 encoded string, decode it
+  if (cleaned.startsWith('LS0t') || !cleaned.includes('-----BEGIN')) {
+    try {
+      const decoded = Buffer.from(cleaned, 'base64').toString('utf8');
+      if (decoded.includes('-----BEGIN PRIVATE KEY-----')) {
+        return decoded;
+      }
+    } catch (e) {
+      // not base64
+    }
+  }
   return cleaned.replace(/\\n/g, '\n');
 }
 
