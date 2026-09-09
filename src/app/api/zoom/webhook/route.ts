@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 
+export async function GET() {
+  return NextResponse.json({ status: "Zoom Webhook Endpoint Active", timestamp: Date.now() });
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
