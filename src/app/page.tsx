@@ -710,14 +710,6 @@ export default function Home() {
             </div>
           </section>
 
-          {user && (
-            <section className="py-12 bg-background relative z-10">
-              <div className="container mx-auto px-6 max-w-4xl">
-                <PasskeySettings />
-              </div>
-            </section>
-          )}
-
           {/* Student Reviews Section */}
         <section className="py-24 bg-background relative z-10 overflow-hidden">
           {/* background gold glow blob */}

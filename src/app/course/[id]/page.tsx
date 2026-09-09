@@ -61,6 +61,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
+  const readyFiredRef = useRef<Set<string>>(new Set());
+
+  // Quality Control for HLS
+  useEffect(() => {
+    if (activeVideo?.url?.includes('.m3u8') && playerRef.current) {
+      const hls = playerRef.current.getInternalPlayer('hls');
+      if (hls && hls.levels) {
+        if (quality === 'Auto') {
+          hls.currentLevel = -1;
+        } else {
+          const height = parseInt(quality);
+          const levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+          if (levelIndex !== -1) {
+            hls.currentLevel = levelIndex;
+          }
+        }
+      }
+    }
+  }, [quality, activeVideo]);
+
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds)) return '0:00';
@@ -459,9 +479,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       onDuration={(dur) => setDuration(dur)}
                       onReady={() => {
                         if (activeVideo && user?.uid && playerRef.current) {
-                          const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
-                          if (saved) {
-                            playerRef.current.seekTo(parseFloat(saved), 'seconds');
+                          if (!readyFiredRef.current.has(activeVideo.id)) {
+                            readyFiredRef.current.add(activeVideo.id);
+                            const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
+                            if (saved) {
+                              playerRef.current.seekTo(parseFloat(saved), 'seconds');
+                            }
                           }
                         }
                         
@@ -583,7 +606,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         const x = e.clientX - rect.left;
                         const percentage = Math.max(0, Math.min(1, x / rect.width));
                         setPlayed(percentage);
-                        playerRef.current?.seekTo(percentage);
+                        playerRef.current?.seekTo(percentage, 'fraction');
                       }}
                     >
                       <div className="absolute w-full h-1 bg-white/20 rounded-full group-hover/progress:h-2 transition-all" />
