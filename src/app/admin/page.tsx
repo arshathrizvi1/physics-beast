@@ -1877,11 +1877,6 @@ export default function AdminDashboard() {
             <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">🌐 Site Settings</TabsTrigger>
           )}
           <TabsTrigger value="myprofile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👤 My Profile</TabsTrigger>
-          <Link href="/admin/finance" className="inline-flex items-center ml-auto">
-            <Button variant="ghost" size="sm" className="font-bold text-green-500 hover:text-green-400 hover:bg-green-500/10 gap-1.5 h-7 text-xs">
-              <TrendingUp className="w-3.5 h-3.5" /> {user?.role === 'teacher' ? "My Revenue" : "Revenue & Statements"}
-            </Button>
-          </Link>
         </TabsList>
         
         {/* STUDENTS TAB */}
