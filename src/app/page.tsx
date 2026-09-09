@@ -205,6 +205,28 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-12">
           <div className="flex-1 space-y-8 w-full">
+            {/* 5-Star Rating Hero Badge */}
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={loadingComplete ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.1, duration: 0.8 }}
+              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 text-xs font-semibold text-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.2)] backdrop-blur-md"
+            >
+              <div className="flex items-center gap-1">
+                {[1,2,3,4,5].map(s => (
+                  <motion.div
+                    key={s}
+                    initial={{ opacity: 0, scale: 0, rotate: -30 }}
+                    animate={loadingComplete ? { opacity: 1, scale: 1, rotate: 0 } : {}}
+                    transition={{ delay: 0.3 + s * 0.15, duration: 0.6, type: "spring", stiffness: 180 }}
+                  >
+                    <Star className="w-4 h-4 fill-[#d4af37] text-[#d4af37] drop-shadow-[0_0_10px_rgba(212,175,55,0.9)]" />
+                  </motion.div>
+                ))}
+              </div>
+              <span className="text-foreground/90 font-bold tracking-wide">5.0 Top Rated Academy</span>
+            </motion.div>
+
             {/* 5. Heading Text Animation */}
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-foreground leading-[1.1] break-words">
               {headingText.map((word, i) => (
@@ -718,21 +740,21 @@ export default function Home() {
           <div className="container mx-auto px-6 text-center mb-14 relative z-10">
             {/* Animated gold star row */}
             <motion.div
-              className="flex justify-center gap-2 mb-5"
+              className="flex justify-center gap-2.5 mb-6"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
               {[1,2,3,4,5].map(s => (
                 <motion.div
                   key={s}
-                  initial={{ opacity: 0, scale: 0, rotate: -20 }}
+                  initial={{ opacity: 0, scale: 0, rotate: -35 }}
                   whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: 0.1 + s * 0.08, duration: 0.5, type: "spring", stiffness: 300 }}
+                  transition={{ delay: 0.2 + s * 0.18, duration: 0.7, type: "spring", stiffness: 180, damping: 12 }}
                 >
-                  <Star className="w-5 h-5 fill-[#d4af37] text-[#d4af37] drop-shadow-[0_0_6px_rgba(212,175,55,0.8)]" />
+                  <Star className="w-6 h-6 fill-[#d4af37] text-[#d4af37] drop-shadow-[0_0_12px_rgba(212,175,55,0.95)]" />
                 </motion.div>
               ))}
             </motion.div>
