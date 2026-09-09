@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where, doc, getDoc } from "firebase/firestore";
 import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin, Smartphone, Download, Wifi, Battery, Bell, CheckCircle2 } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
+import PasskeySettings from "@/components/PasskeySettings";
 
 // Simple counter component using Framer Motion
 const Counter = ({ end, duration = 2, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
@@ -705,11 +706,19 @@ export default function Home() {
                   </div>
                 </div>
               </motion.div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Student Reviews Section */}
+          {user && (
+            <section className="py-12 bg-background relative z-10">
+              <div className="container mx-auto px-6 max-w-4xl">
+                <PasskeySettings />
+              </div>
+            </section>
+          )}
+
+          {/* Student Reviews Section */}
         <section className="py-24 bg-background relative z-10 overflow-hidden">
           {/* background gold glow blob */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#d4af37]/5 rounded-full blur-[80px] pointer-events-none" />

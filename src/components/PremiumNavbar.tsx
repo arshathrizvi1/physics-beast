@@ -233,7 +233,7 @@ export default function PremiumNavbar() {
               {user ? (
                 <div className="flex items-center gap-2">
                   <NotificationBell />
-                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/profile"}>
+                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -347,7 +347,7 @@ export default function PremiumNavbar() {
                     className="mt-6 flex items-center justify-between"
                   >
                     <Link 
-                      href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/profile"} 
+                      href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/"} 
                       className="flex items-center gap-3"
                       onClick={() => setMobileOpen(false)}
                     >
