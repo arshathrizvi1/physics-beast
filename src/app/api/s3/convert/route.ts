@@ -28,9 +28,9 @@ export async function POST(req: Request) {
     // The final HLS URL to return to the frontend
     const finalHlsUrl = `https://${bucketName}.s3.${region}.amazonaws.com/hls-videos/${baseName}/master.m3u8`;
 
-    // Make sure they have configured these in .env.local!
-    const endpoint = process.env.AWS_MEDIACONVERT_ENDPOINT;
-    const roleArn = process.env.AWS_MEDIACONVERT_ROLE_ARN;
+    // MediaConvert endpoint and Role ARN with automatic fallbacks
+    const endpoint = (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() || 'https://mediaconvert.eu-north-1.amazonaws.com';
+    const roleArn = (process.env.AWS_MEDIACONVERT_ROLE_ARN || '').trim() || 'arn:aws:iam::556071986448:role/MediaConvertRole';
 
     if (!endpoint || !roleArn) {
       return NextResponse.json({ 
@@ -43,8 +43,8 @@ export async function POST(req: Request) {
       region,
       endpoint,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
+        secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
       }
     });
 
