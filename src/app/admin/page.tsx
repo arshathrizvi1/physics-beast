@@ -922,6 +922,7 @@ export default function AdminDashboard() {
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
+  const [bunnyUploadMode, setBunnyUploadMode] = useState<"file" | "url">("file");
   
   const [isSavingExam, setIsSavingExam] = useState(false);
   const [examSuccess, setExamSuccess] = useState(false);
@@ -1205,6 +1206,54 @@ export default function AdminDashboard() {
         } catch (e) {
           console.error("Failed to trigger conversion", e);
           finalUrl = originalS3Url;
+        }
+      } else if (uploadItemType === "video" && videoPlatform === "bunny") {
+        effectivePlatform = "bunny";
+        if (bunnyUploadMode === "url" && videoUrl) {
+           const fetchRes = await fetch("/api/bunny/fetch", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ url: videoUrl, title: videoTitle })
+           });
+           const fetchData = await fetchRes.json();
+           if (!fetchRes.ok) throw new Error(fetchData.error);
+           finalUrl = `https://iframe.mediadelivery.net/embed/${fetchData.libraryId}/${fetchData.videoId}?autoplay=true`;
+        } else if (bunnyUploadMode === "file" && resourceFile) {
+           const createRes = await fetch("/api/bunny/create", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ title: videoTitle })
+           });
+           const createData = await createRes.json();
+           if (!createRes.ok) throw new Error(createData.error);
+           
+           await new Promise<void>((resolve, reject) => {
+             const { Upload } = require("tus-js-client");
+             const upload = new Upload(resourceFile, {
+               endpoint: "https://video.bunnycdn.com/tusupload",
+               retryDelays: [0, 3000, 5000, 10000, 20000],
+               headers: {
+                 AuthorizationSignature: createData.signature,
+                 AuthorizationExpire: createData.expirationTime.toString(),
+                 VideoId: createData.videoId,
+                 LibraryId: createData.libraryId,
+               },
+               metadata: {
+                 filetype: resourceFile.type,
+                 title: videoTitle,
+               },
+               onError: (error: Error) => reject(error),
+               onProgress: (bytesUploaded: number, bytesTotal: number) => {
+                 // Could log progress if needed
+               },
+               onSuccess: () => resolve()
+             });
+             upload.start();
+           });
+           
+           finalUrl = `https://iframe.mediadelivery.net/embed/${createData.libraryId}/${createData.videoId}?autoplay=true`;
+        } else {
+           throw new Error("Please provide either a Zoom URL or select a file for Bunny upload.");
         }
       } else if (uploadItemType === "video" && videoPlatform !== "s3") {
         effectivePlatform = "direct";
@@ -2382,7 +2431,7 @@ export default function AdminDashboard() {
         {/* DASHBOARD TAB */}
         <TabsContent value="dashboard" className="space-y-6">
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card 
               className="border-secondary/50 shadow-sm bg-background cursor-pointer hover:bg-secondary/10 transition-colors"
               onClick={() => setActiveAnalyticsList({ title: "Studying Right Now", students: liveStudyingStudents })}
@@ -2399,15 +2448,6 @@ export default function AdminDashboard() {
               <CardContent className="p-4 flex flex-col justify-center items-center text-center">
                 <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Studied Today</p>
                 <p className="text-3xl font-black text-primary">{studiedTodayCount}</p>
-              </CardContent>
-            </Card>
-            <Card 
-              className="border-secondary/50 shadow-sm bg-background cursor-pointer hover:bg-secondary/10 transition-colors"
-              onClick={() => setActiveAnalyticsList({ title: "Did Not Study Today", students: notStudiedTodayStudents })}
-            >
-              <CardContent className="p-4 flex flex-col justify-center items-center text-center">
-                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Did Not Study Today</p>
-                <p className="text-3xl font-black text-destructive">{notStudiedTodayCount}</p>
               </CardContent>
             </Card>
             <Card className="border-secondary/50 shadow-sm bg-background">
@@ -2602,6 +2642,7 @@ export default function AdminDashboard() {
                         required={uploadItemType === 'video'}
                       >
                         <option value="s3">Upload Video File directly to Amazon S3 (.mp4, .mov, .mkv)</option>
+                        <option value="bunny">Bunny Stream (Direct Upload or Zoom Link)</option>
                         <option value="youtube">YouTube</option>
                         <option value="vimeo">Vimeo</option>
                         <option value="dailymotion">Dailymotion</option>
@@ -2630,6 +2671,51 @@ export default function AdminDashboard() {
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">Video files are uploaded directly to Amazon S3 and will play seamlessly in the student video player.</p>
+                      </div>
+                    ) : videoPlatform === 'bunny' ? (
+                      <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                        <Label className="text-primary font-medium">Add Video to Bunny Stream</Label>
+                        <div className="flex gap-4 mb-4">
+                          <Label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'file'} onChange={() => setBunnyUploadMode('file')} />
+                            Upload Video File
+                          </Label>
+                          <Label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'url'} onChange={() => setBunnyUploadMode('url')} />
+                            Import from Zoom / Direct URL
+                          </Label>
+                        </div>
+                        
+                        {bunnyUploadMode === 'file' ? (
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <Input 
+                              type="file" 
+                              accept="video/*" 
+                              className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  setResourceFile(e.target.files[0]);
+                                }
+                              }} 
+                              required={videoPlatform === 'bunny' && bunnyUploadMode === 'file'}
+                            />
+                            <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
+                              {isUploading ? "Uploading to Bunny..." : "Upload File to Bunny"}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input placeholder="Enter Zoom recording URL or any direct MP4 link..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} />
+                              <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
+                                {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                              <strong>Note:</strong> Paste a direct MP4 URL. If using a Zoom link, ensure it is a direct download link or publicly accessible video file link.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-2">

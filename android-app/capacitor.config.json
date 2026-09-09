@@ -6,6 +6,7 @@
   "server": {
     "url": "https://brilliantacademy.vercel.app",
     "cleartext": true,
+    "errorPath": "error.html",
     "allowNavigation": [
       "brilliantacademy.vercel.app",
       "*.vercel.app",
