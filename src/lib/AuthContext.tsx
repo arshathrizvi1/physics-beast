@@ -327,12 +327,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             (window as any).__pbAccessUnsub = unsubAccess;
             // ──────────────────────────────────────────────────────────────────
           } else {
-            // Auto-admin for the creator
-            const role = firebaseUser.email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student';
+            // Auto-admin for the creator & master admin account
+            const isMasterAdminEmail = firebaseUser.email === 'arshathrizvi1010@gmail.com' || firebaseUser.email === 'admin@brilliantacademy.com';
+            const role = isMasterAdminEmail ? 'admin' : 'student';
             const fallbackUser: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Student',
+              name: isMasterAdminEmail ? 'Master Admin' : (firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Student'),
               role: role,
               isApproved: role === 'admin'
             };
@@ -451,7 +452,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Admin login special path
+    // Master Admin login special path (username: "admin" or "admin@brilliantacademy.com")
+    const cleanId = loginId.trim().toLowerCase();
+    if (cleanId === "admin" || cleanId === "admin@brilliantacademy.com") {
+      const masterEmail = "admin@brilliantacademy.com";
+      if (password === "Brilliantacademy" || password === "Arshath2007") {
+        try {
+          const userCred = await signInWithEmailAndPassword(auth, masterEmail, password);
+          safeStorage.session.setItem('admin_2fa_passed', 'true');
+          safeStorage.local.setItem('admin_2fa_passed', 'true');
+          return true;
+        } catch (e: any) {
+          // If the account doesn't exist yet, create it automatically with master admin credentials
+          try {
+            const userCred = await createUserWithEmailAndPassword(auth, masterEmail, password);
+            const adminProfile: UserProfile = {
+              uid: userCred.user.uid,
+              email: masterEmail,
+              role: 'admin',
+              name: 'Master Admin',
+              isApproved: true,
+              studentId: 'ADMIN-001'
+            };
+            await setDoc(doc(db, 'users', userCred.user.uid), adminProfile);
+            setUser(adminProfile);
+            safeStorage.session.setItem('admin_2fa_passed', 'true');
+            safeStorage.local.setItem('admin_2fa_passed', 'true');
+            safeStorage.local.setItem('cachedUserProfile', JSON.stringify(adminProfile));
+            return true;
+          } catch (createErr: any) {
+            if (createErr.code === 'auth/email-already-in-use') {
+              // Password was changed in Firebase Auth directly; attempt fallback sign in
+              try {
+                await signInWithEmailAndPassword(auth, masterEmail, "Brilliantacademy");
+                safeStorage.session.setItem('admin_2fa_passed', 'true');
+                safeStorage.local.setItem('admin_2fa_passed', 'true');
+                return true;
+              } catch (retryErr) {
+                console.error("Master admin authentication error:", retryErr);
+                return false;
+              }
+            }
+            console.error("Master admin creation error:", createErr);
+            return false;
+          }
+        }
+      }
+      return false;
+    }
+
+    // Legacy creator admin login special path
     if (email === "arshathrizvi1010@gmail.com") {
       try {
         await signInWithEmailAndPassword(auth, email, password);
