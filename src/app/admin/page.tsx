@@ -2539,6 +2539,7 @@ export default function AdminDashboard() {
                         <Label className="text-primary font-medium">Upload Video File to Amazon S3</Label>
                         <div className="flex flex-col sm:flex-row gap-3 mt-2">
                           <Input 
+                            key="s3-video-file-input"
                             type="file" 
                             accept="video/*,.mp4,.mov,.mkv,.webm" 
                             className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
@@ -2559,7 +2560,7 @@ export default function AdminDashboard() {
                       <div className="space-y-2">
                         <Label>Video URL</Label>
                         <div className="flex gap-2">
-                          <Input placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
+                          <Input key="video-url-text-input" placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
                           <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
                             {isUploading ? "Linking..." : "Link Video"}
                           </Button>
@@ -2577,6 +2578,7 @@ export default function AdminDashboard() {
                     <Label className="text-primary">Upload Resource File</Label>
                     <div className="flex flex-col sm:flex-row gap-3 mt-2">
                       <Input 
+                        key="resource-file-upload-input"
                         type="file" 
                         accept=".pdf,image/*,.docx,.txt" 
                         className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"

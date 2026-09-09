@@ -17,7 +17,7 @@ import ReportIssueModal from "@/components/ReportIssueModal";
 import PasskeySettings from "@/components/PasskeySettings";
 
 export default function LoginPage() {
-  const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup } = useAuth();
+  const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup, loginWithCustomToken } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
