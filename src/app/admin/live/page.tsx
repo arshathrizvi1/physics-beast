@@ -31,6 +31,8 @@ export default function AdminLiveStudio() {
   const [courseId, setCourseId] = useState("all");
   const [batchId, setBatchId] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
+  const [targetFolderId, setTargetFolderId] = useState("none");
+  const [folders, setFolders] = useState<any[]>([]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,10 @@ export default function AdminLiveStudio() {
       setBatches(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.year.localeCompare(a.year)));
     }, (err) => console.error(err));
 
+    const unsubFolders = onSnapshot(collection(db, 'folders'), (snap) => {
+      setFolders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.error(err));
+
     const q = query(collection(db, 'live_classes'));
     const unsubLive = onSnapshot(q, (snap) => {
       const cls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -70,32 +76,39 @@ export default function AdminLiveStudio() {
     return () => {
       unsubCourses();
       unsubBatches();
+      unsubFolders();
       unsubLive();
     };
   }, [user]);
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !link || !scheduledFor) return;
+    if (!title || (!link && platform !== "rtmp") || !scheduledFor) return;
     
     setIsSubmitting(true);
     try {
+      const streamKey = platform === "rtmp" ? `stream_${Date.now()}_${Math.random().toString(36).substring(7)}` : null;
+      const finalLink = platform === "rtmp" ? `/live-hls/${streamKey}` : link;
+
       await addDoc(collection(db, 'live_classes'), {
         title,
         description,
         platform,
-        link,
+        link: finalLink,
+        streamKey, // store streamKey for UI display and backend API reference
         scheduledFor: new Date(scheduledFor).getTime(),
         courseId: courseId === "all" ? null : courseId,
         batchId: batchId === "all" ? null : batchId,
+        targetFolderId: targetFolderId === "none" ? null : targetFolderId,
         status: 'scheduled',
         createdAt: serverTimestamp()
       });
       
       setTitle("");
       setDescription("");
-      setLink("");
+      if (platform !== "rtmp") setLink("");
       setScheduledFor("");
+      setTargetFolderId("none");
     } catch (error) {
       alert("Failed to create class. Quota exceeded?");
     } finally {
@@ -197,17 +210,36 @@ export default function AdminLiveStudio() {
                   <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)}>
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="rtmp">Native RTMP (OBS/Zoom)</SelectItem>
                     <SelectItem value="youtube">YouTube Live (Embeds Native)</SelectItem>
-                    <SelectItem value="zoom">Zoom</SelectItem>
+                    <SelectItem value="zoom">Zoom Link</SelectItem>
                     <SelectItem value="meet">Google Meet</SelectItem>
                     <SelectItem value="other">Other Link</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Live Link *</Label>
-                <Input value={link} onChange={e => setLink(e.target.value)} required type="url" />
-              </div>
+
+              {platform === "rtmp" && (
+                <div className="space-y-2">
+                  <Label>Save VOD to Folder (After live ends)</Label>
+                  <Select value={targetFolderId} onValueChange={(val: any) => setTargetFolderId(val)}>
+                    <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Don't save automatically</SelectItem>
+                      {folders.filter(f => courseId === "all" || f.courseId === courseId).map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {platform !== "rtmp" && (
+                <div className="space-y-2">
+                  <Label>Live Link *</Label>
+                  <Input value={link} onChange={e => setLink(e.target.value)} required type="url" />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Date & Time *</Label>
                 <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
@@ -277,10 +309,24 @@ export default function AdminLiveStudio() {
                       </Button>
                     )}
                     
-                    <div className="flex gap-2 w-full">
-                      <a href={cls.link} target="_blank" rel="noreferrer" className="flex-1">
-                        <Button size="sm" variant="outline" className="w-full h-8"><ExternalLink className="w-3 h-3 mr-1"/> Test</Button>
-                      </a>
+                    {cls.platform === 'rtmp' && (cls.status === 'live' || cls.status === 'scheduled') && (
+                      <div className="bg-zinc-900 p-2 rounded text-xs text-muted-foreground w-full mt-2">
+                        <div><strong className="text-foreground">RTMP URL:</strong> rtmp://YOUR_SERVER_IP:1935/live</div>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <span className="truncate"><strong className="text-foreground">Stream Key:</strong> {cls.streamKey}</span>
+                          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 w-full mt-2">
+                      {cls.platform !== 'rtmp' && (
+                        <a href={cls.link} target="_blank" rel="noreferrer" className="flex-1">
+                          <Button size="sm" variant="outline" className="w-full h-8"><ExternalLink className="w-3 h-3 mr-1"/> Test</Button>
+                        </a>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => {
                         setEditingClass(cls);
                         setEditTitle(cls.title);

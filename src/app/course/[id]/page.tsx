@@ -31,6 +31,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const { user, updateVideoProgress } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
+  const [courseNotFound, setCourseNotFound] = useState(false);
   const [folders, setFolders] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
   const [pastLiveClasses, setPastLiveClasses] = useState<any[]>([]);
@@ -38,6 +39,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [activeVideo, setActiveVideo] = useState<any>(null);
   const [viewersCount, setViewersCount] = useState(0);
+
+  // Instant recovery from sessionStorage so course never disappears during playback
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(`cached_course_${id}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setCourse((prev: any) => prev || parsed);
+        setLoading(false);
+      }
+    } catch {}
+  }, [id]);
   
   // Checkout States
   const [checkoutFolder, setCheckoutFolder] = useState<any>(null);
@@ -251,7 +264,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   }, []);
 
   useEffect(() => {
-    if (!user) return; // wait for auth
+    if (!id) return;
 
     let unsubCourse: any;
     let unsubFolders: any;
@@ -261,10 +274,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     const setupListeners = () => {
       try {
-        setLoading(true);
         // Course listener
         unsubCourse = onSnapshot(doc(db, "courses", id), (docSnap) => {
-          if (docSnap.exists()) setCourse({ id: docSnap.id, ...docSnap.data() });
+          if (docSnap.exists()) {
+            const courseData = { id: docSnap.id, ...docSnap.data() };
+            setCourse((prev: any) => ({ ...(prev || {}), ...courseData }));
+            setCourseNotFound(false);
+            try {
+              sessionStorage.setItem(`cached_course_${id}`, JSON.stringify(courseData));
+            } catch {}
+          } else {
+            // Only set not found if we genuinely don't have the course cached
+            setCourse((prev: any) => {
+              if (!prev) setCourseNotFound(true);
+              return prev;
+            });
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error("Course listener error:", err);
+          setLoading(false);
         });
 
         // Folders listener
@@ -272,21 +301,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         unsubFolders = onSnapshot(qFolders, (snap) => {
           const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
           setFolders(data);
-        });
+        }, (err) => console.error("Folders listener error:", err));
 
         // Videos listener
         const qVideos = query(collection(db, "videos"), where("courseId", "==", id));
         unsubVideos = onSnapshot(qVideos, (snap) => {
           const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
           setVideos(data);
-        });
+        }, (err) => console.error("Videos listener error:", err));
 
         // Past live classes listener
         const qLive = query(collection(db, "live_classes"), where("courseId", "==", id), where("status", "==", "ended"));
         unsubLive = onSnapshot(qLive, (snap) => {
           const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.scheduledFor - a.scheduledFor);
           setPastLiveClasses(data);
-        });
+        }, (err) => console.error("Live listener error:", err));
 
         // Payment config listener
         unsubConfig = onSnapshot(doc(db, "siteConfig", "payments"), (docSnap) => {
@@ -296,11 +325,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             if (conf.cardEnabled && !conf.bankEnabled) setPaymentMethod('card');
             else if (!conf.cardEnabled && conf.bankEnabled) setPaymentMethod('bank');
           }
-        });
+        }, (err) => console.error("Config listener error:", err));
 
       } catch (err) {
         console.error("Failed to setup listeners", err);
-      } finally {
         setLoading(false);
       }
     };
@@ -350,7 +378,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
     };
-  }, [id, user]);
+  }, [id]);
 
   useEffect(() => {
     if (!user || folders.length === 0 || activeFolderId) return;
@@ -451,8 +479,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
   }, [activeVideo]);
 
-  if (loading) {
-    return <div className="p-12 text-center animate-pulse">Loading Course Data...</div>;
+  if (loading && !course) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-12 text-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-muted-foreground animate-pulse text-sm">Loading Course Content...</p>
+      </div>
+    );
   }
 
   const legacyCourseAccess = user?.accessibleCourses && user.accessibleCourses.includes(id);
@@ -653,8 +686,29 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  if (courseNotFound && !course) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+        <div className="bg-destructive/10 border border-destructive/30 p-8 rounded-2xl max-w-md w-full">
+          <h3 className="text-xl font-bold text-destructive mb-2">Course Not Found</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            We couldn&apos;t locate this course. It may have been archived or moved.
+          </p>
+          <Link href="/courses" className={buttonVariants({ variant: "default", className: "w-full" })}>
+            Return to Courses
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!course) {
-    return <div className="p-12 text-center text-red-500">Course not found.</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-12 text-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-muted-foreground animate-pulse text-sm">Loading Course Content...</p>
+      </div>
+    );
   }
 
   return (

@@ -39,10 +39,13 @@ public class MainActivity extends BridgeActivity {
 
     private void clearServiceWorkerCache() {
         try {
-            java.io.File dataDir = new java.io.File(getApplicationInfo().dataDir, "app_webview/Default/Service Worker");
-            if (dataDir.exists()) {
-                deleteRecursively(dataDir);
-                Log.d(TAG, "Service Worker cache deleted successfully.");
+            java.io.File dataDir1 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Default/Service Worker");
+            if (dataDir1.exists()) {
+                deleteRecursively(dataDir1);
+            }
+            java.io.File dataDir2 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Service Worker");
+            if (dataDir2.exists()) {
+                deleteRecursively(dataDir2);
             }
             
             // Also clear the general WebView cache for good measure (doesn't clear IndexedDB)
@@ -50,6 +53,7 @@ public class MainActivity extends BridgeActivity {
             if (webView != null) {
                 webView.clearCache(true);
             }
+            Log.d(TAG, "Service Worker and WebView cache deleted successfully.");
         } catch (Exception e) {
             Log.e(TAG, "Failed to delete Service Worker cache", e);
         }
