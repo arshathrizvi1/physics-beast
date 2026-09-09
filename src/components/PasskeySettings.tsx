@@ -14,13 +14,18 @@ export default function PasskeySettings() {
   const [isSupported, setIsSupported] = useState(true);
 
   React.useEffect(() => {
-    // Check if WebAuthn is supported natively or shimmed
     const checkSupport = async () => {
-      setTimeout(() => {
-        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-          setIsSupported(false);
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) {
+          setIsSupported(true);
+          return;
         }
-      }, 500);
+      } catch (e) {}
+
+      if (typeof window === 'undefined' || !(window.PublicKeyCredential || (window.navigator && window.navigator.credentials))) {
+        setIsSupported(false);
+      }
     };
     checkSupport();
   }, []);

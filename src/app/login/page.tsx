@@ -48,13 +48,17 @@ export default function LoginPage() {
 
   useEffect(() => {
     const checkSupport = async () => {
-      // The PasskeyShim component injects PublicKeyCredential if native
-      // Give it a tiny delay to ensure the shim has run
-      setTimeout(() => {
-        if (typeof window !== 'undefined' && window.PublicKeyCredential) {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) {
           setIsWebAuthnSupported(true);
+          return;
         }
-      }, 500);
+      } catch (e) {}
+
+      if (typeof window !== 'undefined' && !!(window.PublicKeyCredential || (window.navigator && window.navigator.credentials))) {
+        setIsWebAuthnSupported(true);
+      }
     };
     checkSupport();
   }, []);
