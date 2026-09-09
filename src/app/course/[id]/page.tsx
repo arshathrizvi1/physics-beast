@@ -4,7 +4,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2 } from "lucide-react";
+import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef } from "react";
@@ -15,6 +15,7 @@ import { storage } from '@/lib/firebase';
 import { calculateXpLevel, XP_PER_STUDY_MINUTE } from "@/lib/xp";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
@@ -46,6 +47,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);
 
+  // Doubt / Question to Teacher State
+  const [doubtText, setDoubtText] = useState("");
+  const [isDoubtSending, setIsDoubtSending] = useState(false);
+  const [doubtSuccess, setDoubtSuccess] = useState(false);
+
   // Video Player States
   const [playing, setPlaying] = useState(false);
   const [played, setPlayed] = useState(0);
@@ -62,6 +68,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
   const readyFiredRef = useRef<Set<string>>(new Set());
+  const [bunnyEmbedUrl, setBunnyEmbedUrl] = useState<string>('');
+
+  // Fetch signed embed URL for Bunny videos (supports Token Authentication if enabled)
+  useEffect(() => {
+    if (activeVideo?.platform === 'bunny' && activeVideo?.url) {
+      const match = activeVideo.url.match(/embed\/(\d+)\/([a-zA-Z0-9-]+)/);
+      const vid = match ? match[2] : activeVideo.url;
+      const lib = match ? match[1] : '748058';
+
+      fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.url) setBunnyEmbedUrl(data.url);
+          else setBunnyEmbedUrl(activeVideo.url);
+        })
+        .catch(() => setBunnyEmbedUrl(activeVideo.url));
+    } else {
+      setBunnyEmbedUrl('');
+    }
+  }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform]);
 
   // Quality Control for HLS
   useEffect(() => {
@@ -448,6 +474,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           folderId: checkoutFolder.id,
           folderName: checkoutFolder.name,
           courseId: id,
+          courseName: course.name || "",
+          teacherId: course.teacherId || null,
+          teacherName: course.teacherName || null,
           amount: checkoutFolder.price || 0,
           method: paymentMethod,
           receiptUrl: "",         // kept for schema compatibility
@@ -502,6 +531,64 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   };
 
+  const handleSendCourseDoubt = async () => {
+    if (!doubtText.trim() || !user || !course) return;
+    setIsDoubtSending(true);
+    try {
+      const studentDisplayName = user.name || (user.studentId ? `Student (${user.studentId})` : (user.email?.split('@')[0] || "Student"));
+      
+      // Save to examMessages collection with course and teacher attribution
+      await addDoc(collection(db, 'examMessages'), {
+        type: 'video_doubt',
+        courseId: id,
+        courseName: course.name,
+        videoId: activeVideo?.id || null,
+        videoTitle: activeVideo?.title || null,
+        teacherId: course.teacherId || null,
+        teacherName: course.teacherName || null,
+        userId: user.uid,
+        studentName: studentDisplayName,
+        studentEmail: user.email || "",
+        message: doubtText.trim(),
+        timestamp: Date.now(),
+        status: 'unread'
+      });
+
+      // 1. Notify Assigned Teacher directly if available (and only this teacher)
+      if (course.teacherId) {
+        await addDoc(collection(db, 'notifications'), {
+          target: course.teacherId, // Delivered ONLY to this teacher
+          title: `New Student Doubt 🤔 - ${course.name}`,
+          message: `${studentDisplayName} asked: "${doubtText.slice(0, 70)}${doubtText.length > 70 ? '...' : ''}" in ${activeVideo?.title || course.name}.`,
+          link: "/admin#messages",
+          timestamp: Date.now(),
+          type: "academic",
+          readBy: []
+        });
+      }
+
+      // 2. Notify Admin so admin has oversight across all courses
+      await addDoc(collection(db, 'notifications'), {
+        target: "admin",
+        title: `Student Doubt [${course.teacherName || "Unassigned"}] - ${course.name}`,
+        message: `${studentDisplayName} asked: "${doubtText.slice(0, 70)}${doubtText.length > 70 ? '...' : ''}" in ${course.name}.`,
+        link: "/admin#messages",
+        timestamp: Date.now(),
+        type: "academic",
+        readBy: []
+      });
+
+      setDoubtSuccess(true);
+      setDoubtText("");
+      setTimeout(() => setDoubtSuccess(false), 4000);
+    } catch (err) {
+      console.error("Failed to submit doubt:", err);
+      alert("Failed to send doubt. Please try again.");
+    } finally {
+      setIsDoubtSending(false);
+    }
+  };
+
   if (!course) {
     return <div className="p-12 text-center text-red-500">Course not found.</div>;
   }
@@ -543,7 +630,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 >
                   {activeVideo.platform === 'bunny' && (
                     <iframe 
-                      src={activeVideo.url} 
+                      src={bunnyEmbedUrl || activeVideo.url} 
                       className="w-full h-full border-0 relative z-[50]"
                       allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
                       allowFullScreen={true}
@@ -923,6 +1010,55 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             Protected by Brilliant Academy DRM
           </div>
         </div>
+
+        {/* ASK A DOUBT TO TEACHER SECTION */}
+        {user && user.role === 'student' && (
+          <Card className="border-secondary/40 bg-secondary/5 mt-3 shadow-sm">
+            <CardHeader className="py-3 px-4 border-b border-secondary/20 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-primary" />
+                <span className="font-bold text-sm sm:text-base">
+                  Ask a Doubt to {course?.teacherName || "Teacher"}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                Direct doubt assistance for this course
+              </span>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {doubtSuccess ? (
+                <div className="bg-green-500/10 border border-green-500/30 text-green-500 p-3 rounded-lg flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  Your doubt has been submitted directly to {course?.teacherName || "your teacher"}!
+                </div>
+              ) : (
+                <>
+                  <Textarea 
+                    placeholder={`Type your question or doubt about ${activeVideo ? `"${activeVideo.title}"` : course.name}...`}
+                    value={doubtText}
+                    onChange={(e) => setDoubtText(e.target.value)}
+                    rows={2}
+                    className="bg-background text-sm resize-none border-secondary/40"
+                  />
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {activeVideo ? `Referencing: ${activeVideo.title}` : `Course: ${course.name}`}
+                    </p>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSendCourseDoubt}
+                      disabled={isDoubtSending || !doubtText.trim()}
+                      className="bg-primary text-black font-bold hover:bg-primary/90 flex items-center gap-1.5 self-end sm:self-auto"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {isDoubtSending ? "Sending..." : "Send Doubt"}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Course Sidebar */}

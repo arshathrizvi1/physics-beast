@@ -187,12 +187,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     const isAdmin = user.role === "admin";
-    const targetValue = isAdmin ? "admin" : "all_students";
+    const isTeacher = user.role === "teacher";
+    
+    // Teachers listen only to their user.uid and 'teacher' (NOT 'admin' so they do not get student logins)
+    // Admins listen to 'admin' and user.uid
+    // Students listen to 'all_students' and user.uid
+    const targetValues = isAdmin 
+      ? ["admin", user.uid] 
+      : isTeacher 
+        ? ["teacher", user.uid] 
+        : ["all_students", user.uid];
     
     // Query by target without orderBy to avoid requiring a composite index in Firestore Console
     const q = query(
       collection(db, "notifications"),
-      where("target", "in", [targetValue, user.uid]),
+      where("target", "in", targetValues),
       limit(50)
     );
 
@@ -204,6 +213,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         const data = docSnap.data() as Omit<AppNotification, "id">;
         const notif = { id: docSnap.id, ...data };
         
+        // Teachers do not need student login or registration notifications
+        const isStudentLoginOrSignup = notif.type === 'student_login' || 
+          notif.type === 'student_signup' || 
+          notif.title?.toLowerCase().includes('device login') || 
+          notif.title?.toLowerCase().includes('registration') ||
+          notif.title?.toLowerCase().includes('signup') ||
+          notif.message?.toLowerCase().includes('registered as a student') ||
+          notif.message?.toLowerCase().includes('permission allow') ||
+          notif.message?.toLowerCase().includes('new device');
+
+        if (isTeacher && isStudentLoginOrSignup) {
+          return;
+        }
+
         // Ensure readBy exists
         if (!notif.readBy) notif.readBy = [];
 

@@ -146,9 +146,22 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
       if (doubtImage) {
         imgUrl = await uploadToS3(doubtImage, "exam-doubts");
       }
+
+      let examTeacherId = exam.teacherId || null;
+      if (!examTeacherId && exam.courseId) {
+        try {
+          const cSnap = await getDoc(doc(db, 'courses', exam.courseId));
+          if (cSnap.exists()) {
+            examTeacherId = cSnap.data().teacherId || null;
+          }
+        } catch (e) {}
+      }
+
       await addDoc(collection(db, 'examMessages'), {
         examId: id,
         examTitle: exam.title,
+        courseId: exam.courseId || null,
+        teacherId: examTeacherId,
         userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         type: 'post_exam_doubt',
@@ -158,6 +171,20 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         status: 'unread'
       });
       
+      // Notify Assigned Teacher directly
+      if (examTeacherId) {
+        await addDoc(collection(db, 'notifications'), {
+          target: examTeacherId,
+          title: `New Exam Doubt 🤔 - ${exam.title}`,
+          message: `${user.name || user.email?.split('@')[0] || "A student"} submitted a doubt for "${exam.title}".`,
+          link: "/admin#messages",
+          timestamp: Date.now(),
+          type: "academic",
+          readBy: []
+        });
+      }
+
+      // Notify Admin
       await addDoc(collection(db, 'notifications'), {
         target: "admin",
         title: "New Exam Doubt 🤔",
@@ -168,7 +195,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         readBy: []
       });
 
-      alert("Your doubt has been submitted to the admin.");
+      alert("Your doubt has been submitted to your teacher.");
       setDoubtText("");
       setDoubtImage(null);
     } catch (err) {

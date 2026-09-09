@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -83,6 +83,7 @@ export default function AdminDashboard() {
 
   const [selectedStudentForAccess, setSelectedStudentForAccess] = useState<any>(null);
   const [studentFolderAccess, setStudentFolderAccess] = useState<Record<string, number>>({});
+  const [folderPaidAmounts, setFolderPaidAmounts] = useState<Record<string, string>>({});
   const [payments, setPayments] = useState<any[]>([]);
   const [allPayments, setAllPayments] = useState<any[]>([]);
   const [viewingReceipt, setViewingReceipt] = useState<{
@@ -566,6 +567,52 @@ export default function AdminDashboard() {
     } catch (e) {
       console.error(e);
       alert("Failed to update access");
+    }
+  };
+
+  const handleGrantAccessWithPayment = async (folder: any, course: any, isExtend: boolean) => {
+    if (!selectedStudentForAccess) return;
+    
+    const currentExp = studentFolderAccess[folder.id] || Date.now();
+    const newExp = isExtend ? currentExp + 30 * 24 * 60 * 60 * 1000 : Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const updatedAccess = { ...studentFolderAccess, [folder.id]: newExp };
+    setStudentFolderAccess(updatedAccess);
+
+    const rawAmount = folderPaidAmounts[folder.id] !== undefined ? folderPaidAmounts[folder.id] : (folder.price || 0);
+    const amountNum = parseFloat(String(rawAmount)) || 0;
+
+    try {
+      await updateDoc(doc(db, 'users', selectedStudentForAccess.id), {
+        folderAccess: updatedAccess
+      });
+
+      if (amountNum > 0) {
+        await addDoc(collection(db, 'payments'), {
+          studentId: selectedStudentForAccess.id,
+          studentName: selectedStudentForAccess.name || "Student",
+          studentEmail: selectedStudentForAccess.email || "",
+          folderId: folder.id,
+          folderName: folder.name,
+          courseId: course.id,
+          courseName: course.name,
+          teacherId: course.teacherId || null,
+          teacherName: course.teacherName || null,
+          amount: amountNum,
+          method: 'manual',
+          status: 'approved',
+          grantedBy: user?.name || user?.email || "Admin",
+          grantedByRole: user?.role || "admin",
+          receiptUrl: "",
+          createdAt: Date.now()
+        });
+
+        alert(`Access granted for 30 days! Payment of Rs. ${amountNum} has been added to Finance / Income records.`);
+      } else {
+        alert("Access granted for 30 days (Rs. 0 / Free).");
+      }
+    } catch (err) {
+      console.error("Failed to grant access with payment", err);
+      alert("Failed to update access or record payment.");
     }
   };
 
@@ -1174,14 +1221,14 @@ export default function AdminDashboard() {
     try {
       let finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
       let effectivePlatform = videoPlatform;
+      let transcodeJobId: string | null = null;
+      let transcodeStatus: string = 'ready';
       
       if (uploadItemType === "resource" && resourceFile) {
         finalUrl = await uploadToS3(resourceFile, "course-resources");
       } else if (uploadItemType === "video" && videoPlatform === "s3" && resourceFile) {
         // Step 1: Upload original raw MP4 to S3
         const originalS3Url = await uploadToS3(resourceFile, "course-videos");
-        var transcodeJobId: string | null = null;
-        var transcodeStatus: string = 'ready';
         
         // Step 2: Trigger AWS Elemental MediaConvert to generate 1080p, 720p, 480p, 144p HLS!
         try {
@@ -1550,6 +1597,8 @@ export default function AdminDashboard() {
       duration: `${examTime || 15} min`,
       durationSeconds: parseInt(examTime || "15") * 60,
       course: examCategory + " Mastery",
+      teacherId: user?.role === 'teacher' ? user.uid : (courses.find(c => c.id === examCourseId)?.teacherId || null),
+      teacherName: user?.role === 'teacher' ? (user.name || user.email?.split('@')[0]) : (courses.find(c => c.id === examCourseId)?.teacherName || null),
       updatedAt: Date.now()
     };
 
@@ -1714,11 +1763,14 @@ export default function AdminDashboard() {
       if (video) msgCourseId = video.courseId;
     }
 
-    // 2. Teacher specific course filtering
-    if (isTeacher && msgCourseId) {
-      const course = courses.find(c => c.id === msgCourseId);
-      if (course && course.teacherId !== user.uid) {
-        return false;
+    // 2. Teacher specific course & doubt filtering
+    if (isTeacher) {
+      const isAssignedDirectly = msg.teacherId === user.uid;
+      const course = msgCourseId ? courses.find(c => c.id === msgCourseId) : null;
+      const isAssignedViaCourse = course && course.teacherId === user.uid;
+
+      if (!isAssignedDirectly && !isAssignedViaCourse) {
+        return false; // Never show other teachers' student doubts or unassigned messages
       }
     }
 
@@ -1777,6 +1829,11 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground mt-1">Brilliant Academy Administration Console</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/admin/finance">
+            <Button variant="outline" className="border-green-500/50 text-green-500 hover:bg-green-500/10 hover:text-green-600 gap-2 font-bold text-xs h-9">
+              <TrendingUp className="w-4 h-4" /> {user?.role === 'teacher' ? "My Revenue" : "Finance & Revenue"}
+            </Button>
+          </Link>
           <Link href="/admin/2fa?change=true">
             <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 gap-2 font-bold text-xs h-9">
               <ShieldCheck className="w-4 h-4" /> Change 2FA
@@ -1820,6 +1877,11 @@ export default function AdminDashboard() {
             <TabsTrigger value="site" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">🌐 Site Settings</TabsTrigger>
           )}
           <TabsTrigger value="myprofile" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">👤 My Profile</TabsTrigger>
+          <Link href="/admin/finance" className="inline-flex items-center ml-auto">
+            <Button variant="ghost" size="sm" className="font-bold text-green-500 hover:text-green-400 hover:bg-green-500/10 gap-1.5 h-7 text-xs">
+              <TrendingUp className="w-3.5 h-3.5" /> {user?.role === 'teacher' ? "My Revenue" : "Revenue & Statements"}
+            </Button>
+          </Link>
         </TabsList>
         
         {/* STUDENTS TAB */}
@@ -2000,11 +2062,11 @@ export default function AdminDashboard() {
                              const daysLeft = hasAccess ? Math.ceil((expiration - Date.now()) / (1000 * 60 * 60 * 24)) : 0;
                              
                              return (
-                               <div key={folder.id} className="flex flex-col gap-3 p-3 border rounded-md bg-background shadow-sm">
+                               <div key={folder.id} className="flex flex-col gap-3 p-3.5 border border-border/50 rounded-lg bg-background shadow-sm hover:border-primary/40 transition-colors">
                                  <div className="flex justify-between items-center">
                                    <div>
-                                     <p className="font-bold">{folder.name}</p>
-                                     {folder.price ? <p className="text-xs text-green-600 font-bold">Rs. {folder.price}</p> : null}
+                                     <p className="font-bold text-sm">{folder.name}</p>
+                                     {folder.price ? <p className="text-xs text-green-600 font-bold">Price: Rs. {folder.price}</p> : <p className="text-xs text-muted-foreground">Free</p>}
                                    </div>
                                    {hasAccess ? (
                                       <span className="text-xs bg-green-500/20 text-green-600 px-2 py-1 rounded font-bold">{daysLeft} days left</span>
@@ -2012,14 +2074,31 @@ export default function AdminDashboard() {
                                       <span className="text-xs bg-red-500/20 text-red-600 px-2 py-1 rounded font-bold">Locked</span>
                                    )}
                                  </div>
+
+                                 {/* Student Paid Amount Input */}
+                                 <div className="bg-secondary/10 p-2 rounded border border-secondary/20 flex items-center justify-between gap-2">
+                                   <label className="text-xs text-muted-foreground whitespace-nowrap font-medium">Student Paid Amount:</label>
+                                   <div className="relative w-32">
+                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">Rs.</span>
+                                     <Input 
+                                       type="number"
+                                       min="0"
+                                       placeholder={folder.price ? String(folder.price) : "0"}
+                                       value={folderPaidAmounts[folder.id] !== undefined ? folderPaidAmounts[folder.id] : (folder.price ? String(folder.price) : "0")}
+                                       onChange={(e) => setFolderPaidAmounts(prev => ({ ...prev, [folder.id]: e.target.value }))}
+                                       className="h-7 text-xs pl-7 py-0 bg-background border-border/70 text-foreground font-bold"
+                                     />
+                                   </div>
+                                 </div>
+
                                  <div className="flex gap-2">
                                    {hasAccess ? (
                                      <>
-                                       <Button size="sm" variant="outline" className="flex-1" onClick={() => setStudentFolderAccess(prev => { const n = {...prev}; delete n[folder.id]; return n; })}>Revoke</Button>
-                                       <Button size="sm" className="flex-1" onClick={() => setStudentFolderAccess(prev => ({ ...prev, [folder.id]: (prev[folder.id] || Date.now()) + 30 * 24 * 60 * 60 * 1000 }))}>+30 Days</Button>
+                                       <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setStudentFolderAccess(prev => { const n = {...prev}; delete n[folder.id]; return n; })}>Revoke</Button>
+                                       <Button size="sm" className="flex-1 text-xs bg-primary text-black font-bold hover:bg-primary/90" onClick={() => handleGrantAccessWithPayment(folder, course, true)}>+30 Days</Button>
                                      </>
                                    ) : (
-                                     <Button size="sm" className="w-full" onClick={() => setStudentFolderAccess(prev => ({ ...prev, [folder.id]: Date.now() + 30 * 24 * 60 * 60 * 1000 }))}>Grant (30 Days)</Button>
+                                     <Button size="sm" className="w-full text-xs bg-primary text-black font-bold hover:bg-primary/90" onClick={() => handleGrantAccessWithPayment(folder, course, false)}>Grant (30 Days)</Button>
                                    )}
                                  </div>
                                </div>
