@@ -88,7 +88,8 @@ export default function AdminLiveStudio() {
     setIsSubmitting(true);
     try {
       const streamKey = platform === "rtmp" ? `stream_${Date.now()}_${Math.random().toString(36).substring(7)}` : null;
-      const finalLink = platform === "rtmp" ? `/live-hls/${streamKey}` : link;
+      // In production, you would replace localhost with your actual domain or IP
+      const finalLink = platform === "rtmp" ? `http://localhost:8000/live/${streamKey}/index.m3u8` : link;
 
       await addDoc(collection(db, 'live_classes'), {
         title,

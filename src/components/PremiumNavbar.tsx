@@ -218,15 +218,12 @@ export default function PremiumNavbar() {
                 type="button"
                 onClick={() => setIsSearchModalOpen(true)}
                 className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-card border border-border hover:border-[#d4af37]/50 hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-all group shrink-0"
-                title="Global Search (Ctrl+K / ⌘K)"
+                title="Global Search"
               >
                 <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
                 <span className="hidden sm:inline text-xs font-medium text-zinc-400 group-hover:text-zinc-200">
                   Search...
                 </span>
-                <kbd className="hidden lg:inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-500 group-hover:text-zinc-300">
-                  <span className="text-[9px]">⌘</span>K
-                </kbd>
               </button>
 
               {/* User or Login */}

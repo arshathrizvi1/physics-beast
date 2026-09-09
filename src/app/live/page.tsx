@@ -271,24 +271,24 @@ export default function StudentLivePortal() {
                 </div>
               </div>
 
-              {/* YouTube Custom Player Section */}
-              {cls.platform === 'youtube' && cls.status === 'live' && (
+              {/* Custom Player Section for YouTube & Native RTMP */}
+              {(cls.platform === 'youtube' || cls.platform === 'rtmp') && cls.status === 'live' && (
                 <div 
                   ref={playerContainerRef} 
                   className="aspect-video w-full relative bg-black group/player overflow-hidden"
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {getYouTubeId(cls.link) ? (
+                  {(cls.platform === 'rtmp' || getYouTubeId(cls.link)) ? (
                     <>
-                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying YouTube iframe */}
+                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying iframe/video */}
                       <div className="absolute inset-0 pointer-events-none w-full h-full scale-[1.05]">
                         <ReactPlayer
                           ref={playerRef}
                           url={cls.link}
                           width="100%"
                           height="100%"
-                          playing={playing}
+                          playing={cls.platform === 'rtmp' ? true : playing} // RTMP is always forced playing
                           volume={volume}
                           muted={muted}
                           playsinline
@@ -301,16 +301,29 @@ export default function StudentLivePortal() {
                                 rel: 0, 
                                 disablekb: 1 
                               }
+                            },
+                            file: {
+                              attributes: {
+                                disablePictureInPicture: true,
+                                controlsList: "nodownload noplaybackrate",
+                                style: { objectFit: 'cover' }
+                              },
+                              hlsOptions: {
+                                liveSyncDurationCount: 3,
+                                liveMaxLatencyDurationCount: 10,
+                                liveDurationIntersectionFactor: 0.3,
+                              }
                             }
                           }}
                         />
                       </div>
                       
-                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
+                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek (Disabled for RTMP) */}
                       <div className="absolute inset-0 z-10 cursor-pointer flex">
                         <div 
                           className="w-1/2 h-full"
                           onClick={(e) => {
+                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
                             if (clickTimeoutRef.current) {
                               clearTimeout(clickTimeoutRef.current);
                               clickTimeoutRef.current = null;
@@ -330,13 +343,13 @@ export default function StudentLivePortal() {
                         <div 
                           className="w-1/2 h-full"
                           onClick={(e) => {
+                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
                             if (clickTimeoutRef.current) {
                               clearTimeout(clickTimeoutRef.current);
                               clickTimeoutRef.current = null;
                               // Double click Right: Seek +10s
                               if (playerRef.current) {
                                 const ct = playerRef.current.getCurrentTime();
-                                // We don't have duration in Live easily, so just seek relative
                                 playerRef.current.seekTo(ct + 10, 'seconds');
                               }
                             } else {
@@ -368,9 +381,11 @@ export default function StudentLivePortal() {
                       <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                         <div className="flex items-center justify-between text-foreground mt-1">
                           <div className="flex items-center gap-5">
-                            <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
-                              {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                            </button>
+                            {cls.platform !== 'rtmp' && (
+                              <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
+                                {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                              </button>
+                            )}
                             
                             <div className="flex items-center gap-2 group/vol">
                               <button onClick={() => setMuted(!muted)} className="hover:text-primary transition-colors focus:outline-none">
