@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
@@ -9,10 +9,13 @@ export function PushNotificationSetup() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Only run on Capacitor (Android/iOS) native devices
-    const isCapacitor = typeof window !== "undefined" && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor);
+    if (typeof window === "undefined" || !user?.uid) return;
+
+    // Only run on actual Capacitor native Android/iOS app runtime
+    const capacitorObj = (window as any).Capacitor;
+    const isNativePlatform = !!(capacitorObj && (typeof capacitorObj.isNativePlatform === 'function' ? capacitorObj.isNativePlatform() : capacitorObj.getPlatform() !== 'web'));
     
-    if (!isCapacitor || !user?.uid) return;
+    if (!isNativePlatform) return;
 
     // Dynamically import to avoid breaking the Next.js SSR build
     import("@capacitor/push-notifications").then(({ PushNotifications }) => {
