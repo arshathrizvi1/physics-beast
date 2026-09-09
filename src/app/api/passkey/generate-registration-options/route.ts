@@ -6,6 +6,27 @@ import { rpID, rpName } from '@/lib/passkey-config';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function GET() {
+  try {
+    const hasProjectId = !!process.env.FIREBASE_PROJECT_ID;
+    const hasEmail = !!process.env.FIREBASE_CLIENT_EMAIL;
+    const hasKey = !!process.env.FIREBASE_PRIVATE_KEY;
+    const keyLen = process.env.FIREBASE_PRIVATE_KEY?.length || 0;
+    return NextResponse.json({
+      status: 'ok',
+      hasProjectId,
+      hasEmail,
+      hasKey,
+      keyLen,
+      rpID,
+      rpName,
+      nodeVersion: process.version,
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { uid, email, displayName } = await req.json();
