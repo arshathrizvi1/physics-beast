@@ -1,14 +1,7 @@
 package com.physicsbeast.app;
 
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -19,43 +12,40 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "MainActivity";
-    private static final int NOTIFICATION_PERMISSION_CODE = 1001;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BackgroundPermissionPlugin.class);
         super.onCreate(savedInstanceState);
 
-        // Strictly prevent screenshots and screen recordings across all Android versions
+        // Prevent screenshots and screen recordings
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         );
-        
-        clearServiceWorkerCache();
-        
+
+        // Only clean up stale service worker files — do NOT clearCache
+        cleanServiceWorkerFiles();
+
         hideSystemUI();
     }
 
-    private void clearServiceWorkerCache() {
+    /**
+     * Removes only the on-disk Service Worker storage directories.
+     * Does NOT call clearCache — that was causing the "page is loading" error
+     * by forcing a full re-download of the entire app on every cold start.
+     */
+    private void cleanServiceWorkerFiles() {
         try {
-            java.io.File dataDir1 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Default/Service Worker");
-            if (dataDir1.exists()) {
-                deleteRecursively(dataDir1);
-            }
-            java.io.File dataDir2 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Service Worker");
-            if (dataDir2.exists()) {
-                deleteRecursively(dataDir2);
-            }
-            
-            // Also clear the general WebView cache for good measure (doesn't clear IndexedDB)
-            android.webkit.WebView webView = this.bridge.getWebView();
-            if (webView != null) {
-                webView.clearCache(true);
-            }
-            Log.d(TAG, "Service Worker and WebView cache deleted successfully.");
+            java.io.File dir1 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Default/Service Worker");
+            if (dir1.exists()) deleteRecursively(dir1);
+
+            java.io.File dir2 = new java.io.File(getApplicationInfo().dataDir, "app_webview/Service Worker");
+            if (dir2.exists()) deleteRecursively(dir2);
+
+            Log.d(TAG, "Service Worker directories cleaned.");
         } catch (Exception e) {
-            Log.e(TAG, "Failed to delete Service Worker cache", e);
+            Log.e(TAG, "Failed to clean Service Worker directories", e);
         }
     }
 
@@ -79,24 +69,10 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_CODE);
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-    }
-
     private void hideSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
             WindowInsetsControllerCompat controller = new WindowInsetsControllerCompat(getWindow(), getWindow().getDecorView());
-            // Only hide status bar, keep navigation bar
             controller.hide(WindowInsetsCompat.Type.statusBars());
             controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         } else {

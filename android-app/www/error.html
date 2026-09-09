@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Connecting...</title>
+    <title>Reconnecting...</title>
     <style>
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             padding: 0;
@@ -17,29 +18,28 @@
             justify-content: center;
             height: 100vh;
             text-align: center;
+            overflow: hidden;
         }
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(212, 175, 55, 0.3);
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(212, 175, 55, 0.2);
             border-radius: 50%;
             border-top-color: #d4af37;
-            animation: spin 1s ease-in-out infinite;
-            margin-bottom: 20px;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        h2 { margin: 0 0 10px 0; font-size: 20px; font-weight: 600; }
-        p { margin: 0; color: #a1a1aa; font-size: 14px; max-width: 80%; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        h2 { margin: 0 0 8px 0; font-size: 18px; font-weight: 600; }
+        p { margin: 0; color: #71717a; font-size: 13px; max-width: 80%; }
         .btn {
-            margin-top: 30px;
-            padding: 12px 24px;
-            background-color: #d4af37;
+            margin-top: 20px;
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #d4af37 0%, #b5952f 100%);
             color: #000;
             border: none;
             border-radius: 24px;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 14px;
             cursor: pointer;
             outline: none;
@@ -47,25 +47,44 @@
     </style>
 </head>
 <body>
-    <div class="spinner"></div>
+    <div class="spinner" id="loader"></div>
     <h2 id="status">Reconnecting...</h2>
     <p>Please check your internet connection.</p>
     <button class="btn" onclick="retry()">Retry Now</button>
 
     <script>
+        var targetUrl = "https://brilliantacademy.vercel.app";
+        var attempts = 0;
+
         function retry() {
-            document.getElementById('status').innerText = 'Loading...';
-            // Wait a brief moment then redirect back to the live app
-            setTimeout(() => {
-                window.location.href = "https://brilliantacademy.vercel.app";
-            }, 500);
+            attempts++;
+            document.getElementById('status').innerText = 'Reconnecting...';
+            document.getElementById('loader').style.display = 'block';
+
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
+
+            fetch(targetUrl, { method: 'HEAD', mode: 'no-cors', signal: controller.signal })
+                .then(function() {
+                    clearTimeout(timeoutId);
+                    window.location.replace(targetUrl);
+                })
+                .catch(function() {
+                    clearTimeout(timeoutId);
+                    document.getElementById('status').innerText = 'Still offline...';
+                    // Retry again in 5 seconds
+                    if (attempts < 10) {
+                        setTimeout(retry, 5000);
+                    } else {
+                        document.getElementById('status').innerText = 'Connection Failed';
+                        document.getElementById('loader').style.display = 'none';
+                    }
+                });
         }
 
-        // Automatically retry after 3 seconds
-        setTimeout(retry, 3000);
-        
-        // Listen for when device comes back online to retry immediately
-        window.addEventListener('online', retry);
+        // Start auto-retry after 4 seconds (give the network time to settle)
+        setTimeout(retry, 4000);
+        window.addEventListener('online', function() { attempts = 0; retry(); });
     </script>
 </body>
 </html>

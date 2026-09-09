@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic';
 import { useRef } from 'react';
 
 const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
+const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
 
 export default function StudentLivePortal() {
   const { user, loading } = useAuth();
@@ -185,6 +186,21 @@ export default function StudentLivePortal() {
     };
   }, [user, liveClasses]);
 
+  // Utility to extract Zoom Meeting ID and Password from link
+  const getZoomDetails = (url: string) => {
+    if (!url) return null;
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const meetingIdMatch = pathname.match(/\/j\/(\d+)/);
+      const meetingId = meetingIdMatch ? meetingIdMatch[1] : null;
+      const pwd = urlObj.searchParams.get("pwd") || "";
+      return meetingId ? { meetingId, pwd } : null;
+    } catch {
+      return null;
+    }
+  };
+
   // Utility to extract YouTube video ID from various link formats
   const getYouTubeId = (url: string) => {
     if (!url) return null;
@@ -258,7 +274,7 @@ export default function StudentLivePortal() {
                   </div>
                   
                   {/* Action Buttons for non-youtube links */}
-                  {cls.status === 'live' && cls.platform !== 'youtube' && (
+                  {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && (
                     cls.allowDirectJoin !== false ? (
                       <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
                         <Button size="lg" className="bg-red-600 hover:bg-red-700 text-foreground font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">
@@ -284,6 +300,39 @@ export default function StudentLivePortal() {
                   )}
                 </div>
               </div>
+
+              {/* Zoom Embedded Player Section */}
+              {cls.platform === 'zoom' && cls.status === 'live' && (
+                <div className="w-full relative border-t border-border/30">
+                  {cls.allowDirectJoin !== false ? (
+                    getZoomDetails(cls.link) ? (
+                      <ZoomPlayer 
+                        meetingNumber={getZoomDetails(cls.link)!.meetingId} 
+                        password={getZoomDetails(cls.link)!.pwd}
+                        userName={user.displayName || user.email || "Student"}
+                        userEmail={user.email}
+                        role={0} 
+                      />
+                    ) : (
+                      <div className="p-8 text-center bg-zinc-900 min-h-[500px] flex flex-col justify-center items-center">
+                        <p className="text-red-400 mb-4">Invalid Zoom Link format. Could not extract Meeting ID.</p>
+                        <a href={cls.link} target="_blank" rel="noreferrer">
+                          <Button variant="outline"><ExternalLink className="w-4 h-4 mr-2" /> Open in Zoom App</Button>
+                        </a>
+                      </div>
+                    )
+                  ) : (
+                      <div className="p-12 bg-zinc-900 min-h-[500px] flex flex-col items-center justify-center text-center">
+                        <div className="text-xl font-bold text-amber-500 flex items-center justify-center gap-2 mb-2">
+                          <span>🔒</span> Zoom Class Join Disabled
+                        </div>
+                        <p className="text-muted-foreground max-w-md">
+                          The instructor has disabled joining this class directly from the website. 
+                        </p>
+                      </div>
+                  )}
+                </div>
+              )}
 
               {/* Custom Player Section for YouTube & Native RTMP */}
               {(cls.platform === 'youtube' || cls.platform === 'rtmp') && cls.status === 'live' && (

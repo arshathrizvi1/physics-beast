@@ -15,7 +15,11 @@
       "accounts.google.com",
       "*.google.com",
       "*.googleapis.com",
-      "*.amazonaws.com"
+      "*.amazonaws.com",
+      "*.b-cdn.net",
+      "*.bunnycdn.com",
+      "*.bunny.net",
+      "vz-1a9a023a-0e6.b-cdn.net"
     ]
   },
   "plugins": {
