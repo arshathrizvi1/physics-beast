@@ -163,62 +163,58 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (!user) return; // wait for auth
 
-    const fetchData = async () => {
+    let unsubCourse: any;
+    let unsubFolders: any;
+    let unsubVideos: any;
+    let unsubLive: any;
+    let unsubConfig: any;
+
+    const setupListeners = () => {
       try {
-        // Fetch course details
-        const courseSnap = await getDoc(doc(db, "courses", id));
-        if (courseSnap.exists()) {
-          setCourse({ id: courseSnap.id, ...courseSnap.data() });
-        }
-
-        // Fetch folders for this course
-        const qFolders = query(collection(db, "folders"), where("courseId", "==", id));
-        const foldersSnap = await getDocs(qFolders);
-        const foldersData = foldersSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
-        setFolders(foldersData);
-
-        // Fetch videos for this course
-        const qVideos = query(collection(db, "videos"), where("courseId", "==", id));
-        const videosSnap = await getDocs(qVideos);
-        const videosData = videosSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
-        setVideos(videosData);
-
-        // Fetch past live classes for this course
-        const qLive = query(collection(db, "live_classes"), where("courseId", "==", id), where("status", "==", "ended"));
-        const liveSnap = await getDocs(qLive);
-        const pastLiveClassesData = liveSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.scheduledFor - a.scheduledFor);
-        setPastLiveClasses(pastLiveClassesData);
-
-        // Fetch payment config
-        const configSnap = await getDoc(doc(db, "siteConfig", "payments"));
-        if (configSnap.exists()) {
-          const conf = configSnap.data();
-          setPaymentConfig(conf);
-          if (conf.cardEnabled && !conf.bankEnabled) setPaymentMethod('card');
-          else if (!conf.cardEnabled && conf.bankEnabled) setPaymentMethod('bank');
-        }
-
-        // Auto-select first folder and video if available
-        const accessibleFolders = foldersData.filter((f: any) => {
-          const exp = user.folderAccess?.[f.id];
-          return user.role === 'admin' || user.role === 'teacher' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
+        setLoading(true);
+        // Course listener
+        unsubCourse = onSnapshot(doc(db, "courses", id), (docSnap) => {
+          if (docSnap.exists()) setCourse({ id: docSnap.id, ...docSnap.data() });
         });
 
-        if (accessibleFolders.length > 0) {
-          const firstFolder = accessibleFolders[0];
-          setActiveFolderId((prev: string | null) => prev || firstFolder.id);
-          const firstFolderVideos = videosData.filter((v: any) => v.folderId === firstFolder.id);
-          if (firstFolderVideos.length > 0) {
-            setActiveVideo((prev: any) => prev || firstFolderVideos[0]);
+        // Folders listener
+        const qFolders = query(collection(db, "folders"), where("courseId", "==", id));
+        unsubFolders = onSnapshot(qFolders, (snap) => {
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
+          setFolders(data);
+        });
+
+        // Videos listener
+        const qVideos = query(collection(db, "videos"), where("courseId", "==", id));
+        unsubVideos = onSnapshot(qVideos, (snap) => {
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt);
+          setVideos(data);
+        });
+
+        // Past live classes listener
+        const qLive = query(collection(db, "live_classes"), where("courseId", "==", id), where("status", "==", "ended"));
+        unsubLive = onSnapshot(qLive, (snap) => {
+          const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.scheduledFor - a.scheduledFor);
+          setPastLiveClasses(data);
+        });
+
+        // Payment config listener
+        unsubConfig = onSnapshot(doc(db, "siteConfig", "payments"), (docSnap) => {
+          if (docSnap.exists()) {
+            const conf = docSnap.data();
+            setPaymentConfig(conf);
+            if (conf.cardEnabled && !conf.bankEnabled) setPaymentMethod('card');
+            else if (!conf.cardEnabled && conf.bankEnabled) setPaymentMethod('bank');
           }
-        }
+        });
+
       } catch (err) {
-        console.error("Failed to load course data", err);
+        console.error("Failed to setup listeners", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    setupListeners();
 
     // Anti-piracy shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -255,11 +251,35 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
+      if (unsubCourse) unsubCourse();
+      if (unsubFolders) unsubFolders();
+      if (unsubVideos) unsubVideos();
+      if (unsubLive) unsubLive();
+      if (unsubConfig) unsubConfig();
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
     };
   }, [id, user]);
+
+  useEffect(() => {
+    if (!user || folders.length === 0 || activeFolderId) return;
+    const accessibleFolders = folders.filter((f: any) => {
+      const exp = user.folderAccess?.[f.id];
+      return user.role === 'admin' || user.role === 'teacher' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
+    });
+
+    if (accessibleFolders.length > 0) {
+      const firstFolder = accessibleFolders[0];
+      setActiveFolderId(firstFolder.id);
+      if (videos.length > 0) {
+        const firstFolderVideos = videos.filter((v: any) => v.folderId === firstFolder.id);
+        if (firstFolderVideos.length > 0) {
+          setActiveVideo(firstFolderVideos[0]);
+        }
+      }
+    }
+  }, [folders, videos, user, activeFolderId, id]);
 
   const playingRef = useRef(playing);
   useEffect(() => { playingRef.current = playing; }, [playing]);
