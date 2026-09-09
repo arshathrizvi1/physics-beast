@@ -5223,7 +5223,13 @@ export default function AdminDashboard() {
                       </tr>
                     `).join('');
 
-                    const totalEligible = allStudents.filter(s => selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId).length;
+                    const totalEligible = allStudents.filter(s => {
+                      const matchesBatch = selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId;
+                      const matchesFolder = selectedExamDetails.folderId && selectedExamDetails.folderId !== 'none'
+                        ? s.folderAccess && s.folderAccess[selectedExamDetails.folderId] && s.folderAccess[selectedExamDetails.folderId] > Date.now()
+                        : true;
+                      return matchesBatch && matchesFolder;
+                    }).length;
                     const completedCount = examDetailedResults.length;
                     const notDoneCount = Math.max(0, totalEligible - completedCount);
 
@@ -5299,7 +5305,13 @@ export default function AdminDashboard() {
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {/* Participation Metric Counters */}
               {(() => {
-                const totalTargetStudents = allStudents.filter(s => selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId).length;
+                const totalTargetStudents = allStudents.filter(s => {
+                  const matchesBatch = selectedExamDetails.batchId === 'all' || s.graduationYear === selectedExamDetails.batchId;
+                  const matchesFolder = selectedExamDetails.folderId && selectedExamDetails.folderId !== 'none'
+                    ? s.folderAccess && s.folderAccess[selectedExamDetails.folderId] && s.folderAccess[selectedExamDetails.folderId] > Date.now()
+                    : true;
+                  return matchesBatch && matchesFolder;
+                }).length;
                 const completedCount = examDetailedResults.length;
                 const notAttemptedCount = Math.max(0, totalTargetStudents - completedCount);
 
