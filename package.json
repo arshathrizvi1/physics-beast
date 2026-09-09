@@ -9,8 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "rtmp": "node rtmp-server.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1128.0",

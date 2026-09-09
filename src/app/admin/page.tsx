@@ -1242,17 +1242,34 @@ export default function AdminDashboard() {
             finalUrl = convertData.finalHlsUrl; // Use the HLS link instead of the MP4 link!
             transcodeJobId = convertData.jobId || null;
             transcodeStatus = 'processing';
-            console.log("MediaConvert triggered successfully. Using HLS URL:", finalUrl, "JobId:", transcodeJobId);
-          } else {
-            console.warn("MediaConvert trigger failed:", convertData.error);
-            finalUrl = originalS3Url; // Fallback to original MP4 if not configured
-            if (convertData.error && convertData.error.includes("Missing endpoint or role ARN")) {
-              alert("Video uploaded, but MediaConvert is not configured. Please complete the AWS setup for quality options to work.");
+      } else if (uploadItemType === "video" && videoPlatform === "s3") {
+        effectivePlatform = "s3";
+        if (s3UploadMode === "file" && resourceFile) {
+          setIsUploading(true);
+          const timestamp = Date.now();
+          const cleanFileName = resourceFile.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+          const s3Key = `course-videos/${timestamp}_${cleanFileName}`;
+
+          const { presignedUrl, fileUrl: uploadedS3Url } = await getS3UploadUrl(s3Key, resourceFile.type);
+          await uploadFileToS3(presignedUrl, resourceFile);
+          finalUrl = uploadedS3Url;
+
+          try {
+            const trRes = await fetch("/api/transcode", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ s3Key, outputFolder: `hls/${timestamp}` })
+            });
+            const trData = await trRes.json();
+            if (trRes.ok && trData.jobId) {
+              transcodeJobId = trData.jobId;
+              transcodeStatus = "processing";
             }
+          } catch (trErr) {
+            console.error("Transcode start error:", trErr);
           }
-        } catch (e) {
-          console.error("Failed to trigger conversion", e);
-          finalUrl = originalS3Url;
+        } else if (s3UploadMode === "url" && videoUrl) {
+          finalUrl = videoUrl;
         }
       } else if (uploadItemType === "video" && videoPlatform === "bunny") {
         effectivePlatform = "bunny";
@@ -1264,6 +1281,7 @@ export default function AdminDashboard() {
            });
            const fetchData = await fetchRes.json();
            if (!fetchRes.ok) throw new Error(fetchData.error);
+           bunnyVideoId = fetchData.videoId;
            finalUrl = `https://iframe.mediadelivery.net/embed/${fetchData.libraryId}/${fetchData.videoId}?autoplay=true`;
         } else if (bunnyUploadMode === "file" && resourceFile) {
            const createRes = await fetch("/api/bunny/create", {
@@ -1273,6 +1291,7 @@ export default function AdminDashboard() {
            });
            const createData = await createRes.json();
            if (!createRes.ok) throw new Error(createData.error);
+           bunnyVideoId = createData.videoId;
            
            await new Promise<void>((resolve, reject) => {
              const { Upload } = require("tus-js-client");
@@ -1290,9 +1309,7 @@ export default function AdminDashboard() {
                  title: videoTitle,
                },
                onError: (error: Error) => reject(error),
-               onProgress: (bytesUploaded: number, bytesTotal: number) => {
-                 // Could log progress if needed
-               },
+               onProgress: (bytesUploaded: number, bytesTotal: number) => {},
                onSuccess: () => resolve()
              });
              upload.start();
@@ -1313,18 +1330,66 @@ export default function AdminDashboard() {
       }
 
       const ref = doc(collection(db, 'videos')); // we keep it in 'videos' collection for simplicity, just add type
-      await setDoc(ref, {
+      const videoDocData = {
         title: videoTitle,
         url: finalUrl,
         type: uploadItemType,
         platform: uploadItemType === 'video' ? effectivePlatform : null,
+        videoId: bunnyVideoId || null,
+        processingStatus: bunnyVideoId ? 'processing' : 'ready',
         batchId: videoBatchId,
         courseId: videoCourseId,
         folderId: videoFolderId,
         transcodeJobId: transcodeJobId || null,
         transcodeStatus: transcodeStatus || 'ready',
         createdAt: Date.now()
-      });
+      };
+      await setDoc(ref, videoDocData);
+
+      // If Bunny upload, start background polling to notify admin when encoding finishes
+      if (bunnyVideoId) {
+        const targetVidId = bunnyVideoId;
+        const currentTitle = videoTitle;
+        const targetCourseId = videoCourseId;
+        const pollInterval = setInterval(async () => {
+          try {
+            const stRes = await fetch(`/api/bunny/status?videoId=${targetVidId}`);
+            if (stRes.ok) {
+              const stData = await stRes.json();
+              if (stData.isReady || stData.status === 3) {
+                clearInterval(pollInterval);
+                await updateDoc(ref, { processingStatus: 'ready' });
+                // Trigger notification for admins
+                await addDoc(collection(db, "notifications"), {
+                  title: "🎬 Bunny Video Processing Finished!",
+                  message: `Your video "${currentTitle}" has finished encoding on BunnyCDN and is ready to stream.`,
+                  type: "admin_alert",
+                  target: "admin",
+                  link: targetCourseId ? `/course/${targetCourseId}` : "/admin",
+                  timestamp: Date.now(),
+                  createdAt: Date.now(),
+                  readBy: []
+                });
+              } else if (stData.status === 4 || stData.status === 5) {
+                clearInterval(pollInterval);
+                await updateDoc(ref, { processingStatus: 'error' });
+                await addDoc(collection(db, "notifications"), {
+                  title: "⚠️ Bunny Video Processing Failed",
+                  message: `Processing for video "${currentTitle}" failed on BunnyCDN.`,
+                  type: "admin_alert",
+                  target: "admin",
+                  link: "/admin",
+                  timestamp: Date.now(),
+                  createdAt: Date.now(),
+                  readBy: []
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Polling error for Bunny status:", e);
+          }
+        }, 8000);
+      }
       setIsUploading(false);
       setUploadSuccess(true);
       alert("✅ Done! File uploaded and saved successfully.");

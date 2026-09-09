@@ -57,7 +57,7 @@ export default function StudentLivePortal() {
   }, []);
 
   useEffect(() => {
-    if (!user || user.role !== 'student') return;
+    if (!user) return;
     
     const fetchData = async () => {
       let folderCourseMap = new Map<string, string>();
@@ -101,6 +101,9 @@ export default function StudentLivePortal() {
           let classes = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
           
           classes = classes.filter(cls => {
+            if (cls.status === 'draft') return false; // Never show drafts
+            if (user.role === 'admin' || user.role === 'teacher') return true;
+
             // Batch filtering
             if (cls.batchId && cls.batchId !== "all") {
               if (user.graduationYear !== cls.batchId) return false;

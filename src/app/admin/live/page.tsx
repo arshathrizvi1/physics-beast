@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ export default function AdminLiveStudio() {
   const [editTitle, setEditTitle] = useState("");
   const [editLink, setEditLink] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editTargetFolderId, setEditTargetFolderId] = useState("none");
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
@@ -81,35 +82,76 @@ export default function AdminLiveStudio() {
     };
   }, [user]);
 
+  // Check for draftId in URL
+  useEffect(() => {
+    const handleDrafts = () => {
+      if (typeof window === 'undefined' || !liveClasses.length) return;
+      
+      const searchParams = new URLSearchParams(window.location.search);
+      const draftId = searchParams.get('draftId');
+      
+      if (draftId) {
+        const draft = liveClasses.find(c => c.id === draftId && c.status === 'draft');
+        if (draft) {
+          setEditingClass(draft);
+          setTitle(draft.title || "");
+          setDescription(draft.description || "");
+          setPlatform(draft.platform || "zoom");
+          setLink(draft.link || "");
+          
+          if (draft.scheduledFor) {
+            const date = new Date(draft.scheduledFor);
+            // Format for datetime-local input: YYYY-MM-DDThh:mm
+            const formatted = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+            setScheduledFor(formatted);
+          }
+        }
+      }
+    };
+    handleDrafts();
+  }, [liveClasses]);
+
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || (!link && platform !== "rtmp") || !scheduledFor) return;
+    if (!title || !link || !scheduledFor) return;
     
     setIsSubmitting(true);
     try {
-      const streamKey = platform === "rtmp" ? `stream_${Date.now()}_${Math.random().toString(36).substring(7)}` : null;
-      // In production, you would replace localhost with your actual domain or IP
-      const finalLink = platform === "rtmp" ? `http://localhost:8000/live/${streamKey}/index.m3u8` : link;
-
-      await addDoc(collection(db, 'live_classes'), {
-        title,
-        description,
-        platform,
-        link: finalLink,
-        streamKey, // store streamKey for UI display and backend API reference
-        scheduledFor: new Date(scheduledFor).getTime(),
-        courseId: courseId === "all" ? null : courseId,
-        batchId: batchId === "all" ? null : batchId,
-        targetFolderId: targetFolderId === "none" ? null : targetFolderId,
-        status: 'scheduled',
-        createdAt: serverTimestamp()
-      });
+      if (editingClass?.status === 'draft') {
+        // We are publishing a draft!
+        await updateDoc(doc(db, 'live_classes', editingClass.id), {
+          title,
+          description,
+          platform,
+          link,
+          scheduledFor: new Date(scheduledFor).getTime(),
+          courseId: courseId === "all" ? null : courseId,
+          batchId: batchId === "all" ? null : batchId,
+          targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+          status: 'scheduled',
+        });
+        setEditingClass(null);
+      } else {
+        await addDoc(collection(db, 'live_classes'), {
+          title,
+          description,
+          platform,
+          link,
+          scheduledFor: new Date(scheduledFor).getTime(),
+          courseId: courseId === "all" ? null : courseId,
+          batchId: batchId === "all" ? null : batchId,
+          targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+          status: 'scheduled',
+          createdAt: serverTimestamp()
+        });
+      }
       
       setTitle("");
       setDescription("");
-      if (platform !== "rtmp") setLink("");
+      setLink("");
       setScheduledFor("");
       setTargetFolderId("none");
+      router.push('/admin/live'); // clear draftId from URL if present
     } catch (error) {
       alert("Failed to create class. Quota exceeded?");
     } finally {
@@ -126,7 +168,8 @@ export default function AdminLiveStudio() {
       await updateDoc(doc(db, 'live_classes', editingClass.id), {
         title: editTitle,
         description: editDescription,
-        link: editLink
+        link: editLink,
+        targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId
       });
       setEditingClass(null);
     } catch (err) {
@@ -139,6 +182,49 @@ export default function AdminLiveStudio() {
   const updateStatus = async (id: string, newStatus: string) => {
     try {
       await updateDoc(doc(db, 'live_classes', id), { status: newStatus });
+
+      if (newStatus === 'live') {
+        const cls = liveClasses.find(c => c.id === id);
+        if (cls) {
+          await addDoc(collection(db, 'notifications'), {
+            title: "🔴 LIVE Class Started!",
+            message: `"${cls.title}" is now LIVE! Click here to join the broadcast.`,
+            type: "live_class",
+            target: "all_students",
+            link: "/live",
+            timestamp: Date.now(),
+            createdAt: Date.now(),
+            readBy: []
+          });
+        }
+      }
+
+      if (newStatus === 'ended') {
+        const cls = liveClasses.find(c => c.id === id);
+        if (cls && cls.targetFolderId) {
+          const videoRef = doc(collection(db, 'videos'));
+          await setDoc(videoRef, {
+            id: videoRef.id,
+            title: `${cls.title} (Recorded Live)`,
+            description: cls.description || '',
+            link: cls.link,
+            courseId: cls.courseId || null,
+            folderId: cls.targetFolderId,
+            type: 'video',
+            createdAt: Date.now(),
+            views: 0
+          });
+
+          const folderRef = doc(db, 'folders', cls.targetFolderId);
+          const folderSnap = await getDoc(folderRef);
+          if (folderSnap.exists()) {
+            const items = folderSnap.data().items || [];
+            await updateDoc(folderRef, {
+              items: [...items, { id: videoRef.id, type: 'video' }]
+            });
+          }
+        }
+      }
     } catch (e) {
       alert("Failed to update. Quota exceeded?");
     }
@@ -175,7 +261,10 @@ export default function AdminLiveStudio() {
         <Card className="lg:col-span-1 border-primary/20 shadow-md h-fit">
           <form onSubmit={handleCreateClass}>
             <CardHeader className="bg-secondary/5 border-b border-border/50">
-              <CardTitle>Schedule Broadcast</CardTitle>
+              <CardTitle>{editingClass?.status === 'draft' ? "Publish Zoom Draft" : "Schedule Broadcast"}</CardTitle>
+              {editingClass?.status === 'draft' && (
+                <CardDescription>Assign this Zoom meeting to a course and folder, then publish it.</CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
               <div className="space-y-2">
@@ -208,48 +297,84 @@ export default function AdminLiveStudio() {
                 
                 <div className="space-y-2">
                   <Label>Platform</Label>
-                  <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)}>
+                  <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)} disabled={editingClass?.status === 'draft'}>
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rtmp">Native RTMP (OBS/Zoom)</SelectItem>
-                    <SelectItem value="youtube">YouTube Live (Embeds Native)</SelectItem>
-                    <SelectItem value="zoom">Zoom Link</SelectItem>
+                    <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
+                    <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
                     <SelectItem value="meet">Google Meet</SelectItem>
-                    <SelectItem value="other">Other Link</SelectItem>
+                    <SelectItem value="custom">Custom HLS / External Link</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {platform === "rtmp" && (
-                <div className="space-y-2">
-                  <Label>Save VOD to Folder (After live ends)</Label>
-                  <Select value={targetFolderId} onValueChange={(val: any) => setTargetFolderId(val)}>
-                    <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Don't save automatically</SelectItem>
-                      {folders.filter(f => courseId === "all" || f.courseId === courseId).map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {platform === "youtube" && (
+                <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl text-xs space-y-2">
+                  <div className="font-bold text-primary flex items-center gap-1.5 text-sm">
+                    <span>🚀</span> OBS Streaming (Internet Worldwide)
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Uses YouTube RTMPS as the backend. Vercel cannot host RTMP. Students get high-speed adaptive quality (1080p, 720p).
+                  </p>
+                  <div className="bg-background/80 p-2.5 rounded-lg border border-border/50 space-y-1.5">
+                    <div><strong>🎥 From OBS:</strong> Settings &rarr; Stream &rarr; Select <em>YouTube - RTMPS</em> &rarr; Paste your YouTube stream key &rarr; Click <em>Start Streaming</em>.</div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    👉 Then paste your YouTube unlisted video link in the <strong>Live Link</strong> box below.
+                  </div>
                 </div>
               )}
+              
+              {platform === "zoom" && (
+                <div className="p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs space-y-2">
+                  <div className="font-bold text-blue-500 flex items-center gap-1.5 text-sm">
+                    <span>📹</span> Zoom Webhook Integration
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    When you start a meeting in your Zoom account, the link is <strong>automatically drafted</strong> here via webhook.
+                    <br />You just need to click the notification, select a folder, and hit Publish!
+                  </p>
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label>Live Link *</Label>
+                <Input value={link} onChange={e => setLink(e.target.value)} required disabled={editingClass?.status === 'draft'} />
+              </div>
 
-              {platform !== "rtmp" && (
-                <div className="space-y-2">
-                  <Label>Live Link *</Label>
-                  <Input value={link} onChange={e => setLink(e.target.value)} required type="url" />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label className="flex items-center justify-between">
+                  <span>Save Recorded Video to Folder</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">Auto-saves when ended</span>
+                </Label>
+                <Select value={targetFolderId} onValueChange={(val: any) => setTargetFolderId(val)}>
+                  <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Don't save automatically</SelectItem>
+                    {folders.filter(f => courseId === "all" || f.courseId === courseId).map(f => {
+                      const c = courses.find(c => c.id === f.courseId);
+                      return (
+                        <SelectItem key={f.id} value={f.id}>
+                          📁 {f.name} {c ? `(${c.name})` : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Date & Time *</Label>
                 <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
               </div>
             </CardContent>
-            <CardFooter className="bg-secondary/5 border-t border-border/50 py-4">
+            <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Scheduling..." : "Schedule Class"}
+                {isSubmitting ? "Processing..." : editingClass?.status === 'draft' ? "Publish Zoom Meeting" : "Schedule Class"}
               </Button>
+              {editingClass?.status === 'draft' && (
+                <Button type="button" variant="outline" onClick={() => { setEditingClass(null); router.push('/admin/live'); }}>Cancel</Button>
+              )}
             </CardFooter>
           </form>
         </Card>
@@ -294,6 +419,13 @@ export default function AdminLiveStudio() {
                   </div>
                   
                   <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+                    {cls.status === 'draft' && (
+                      <Link href={`/admin/live?draftId=${cls.id}`}>
+                        <Button size="sm" variant="default" className="w-full bg-blue-600 hover:bg-blue-700">
+                          Configure & Publish
+                        </Button>
+                      </Link>
+                    )}
                     {cls.status === 'scheduled' && (
                       <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-foreground w-full">
                         <PlayCircle className="w-4 h-4 mr-2" /> GO LIVE
@@ -311,11 +443,16 @@ export default function AdminLiveStudio() {
                     )}
                     
                     {cls.platform === 'rtmp' && (cls.status === 'live' || cls.status === 'scheduled') && (
-                      <div className="bg-zinc-900 p-2 rounded text-xs text-muted-foreground w-full mt-2">
-                        <div><strong className="text-foreground">RTMP URL:</strong> rtmp://YOUR_SERVER_IP:1935/live</div>
-                        <div className="flex items-center justify-between gap-2 mt-1">
+                      <div className="bg-zinc-900 p-3 rounded-lg border border-primary/20 text-xs text-muted-foreground w-full mt-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate"><strong className="text-foreground">RTMP URL:</strong> {process.env.NEXT_PUBLIC_RTMP_SERVER_URL || "rtmp://localhost:1935/live"}</span>
+                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => navigator.clipboard.writeText(process.env.NEXT_PUBLIC_RTMP_SERVER_URL || "rtmp://localhost:1935/live")}>
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
                           <span className="truncate"><strong className="text-foreground">Stream Key:</strong> {cls.streamKey}</span>
-                          <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
+                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
                             <ExternalLink className="w-3 h-3" />
                           </Button>
                         </div>
@@ -333,6 +470,7 @@ export default function AdminLiveStudio() {
                         setEditTitle(cls.title);
                         setEditDescription(cls.description || "");
                         setEditLink(cls.link);
+                        setEditTargetFolderId(cls.targetFolderId || "none");
                       }} className="text-blue-500 border-blue-500/20 hover:bg-blue-500/10 px-2 h-8">
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
@@ -374,6 +512,23 @@ export default function AdminLiveStudio() {
                 <div className="space-y-2">
                   <Label>Video/Stream Link</Label>
                   <Input value={editLink} onChange={e => setEditLink(e.target.value)} required type="url" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Save Recorded Video to Folder</Label>
+                  <Select value={editTargetFolderId} onValueChange={(val: any) => setEditTargetFolderId(val)}>
+                    <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Don't save automatically</SelectItem>
+                      {folders.map(f => {
+                        const c = courses.find(c => c.id === f.courseId);
+                        return (
+                          <SelectItem key={f.id} value={f.id}>
+                            📁 {f.name} {c ? `(${c.name})` : ''}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
