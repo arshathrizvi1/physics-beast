@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { formatPdfViewerUrl, uploadToCloudinary } from "@/lib/cloudinary";
+import { formatPdfViewerUrl } from "@/lib/cloudinary";
+import { uploadToS3 } from "@/lib/s3Storage";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
 import { calculateExamXp } from "@/lib/xp";
 
@@ -132,7 +133,7 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
     try {
       let imgUrl = "";
       if (doubtImage) {
-        imgUrl = await uploadToCloudinary(doubtImage);
+        imgUrl = await uploadToS3(doubtImage, "exam-doubts");
       }
       await addDoc(collection(db, 'examMessages'), {
         examId: id,

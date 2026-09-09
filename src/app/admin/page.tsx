@@ -191,6 +191,9 @@ export default function AdminDashboard() {
           pending.push({ id: doc.id, ...data });
         } else if (data.isApproved) {
           activeCount++;
+          if (data.hasPendingDetailsChange) {
+            pending.push({ id: doc.id, ...data });
+          }
         }
       });
       
@@ -2425,21 +2428,29 @@ export default function AdminDashboard() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-bold text-lg">{req.name}</p>
-                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.pendingReason === 'New Device Login' ? 'bg-orange-500/20 text-orange-600' : req.pendingReason === 'Access Suspended' ? 'bg-red-500/20 text-red-600' : 'bg-blue-500/20 text-blue-600'}`}>
-                                {req.pendingReason || 'ID Verification'}
+                              <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.hasPendingDetailsChange ? 'bg-orange-500/20 text-orange-600' : req.pendingReason === 'New Device Login' ? 'bg-orange-500/20 text-orange-600' : req.pendingReason === 'Access Suspended' ? 'bg-red-500/20 text-red-600' : 'bg-blue-500/20 text-blue-600'}`}>
+                                {req.hasPendingDetailsChange ? 'Profile Update Request' : req.pendingReason || 'ID Verification'}
                               </span>
                             </div>
                             <p className="text-sm text-muted-foreground">{req.email} --- Batch {req.graduationYear}</p>
                             <p className="text-sm text-muted-foreground">Phone: {req.phone} | Parent: {req.parentPhone}</p>
                             <p className="text-sm text-muted-foreground font-mono mt-1">NIC: {req.nicNumber}</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="secondary" onClick={() => setSelectedStudentInfo(req)}>
-                              <Eye className="w-4 h-4 mr-1" /> View Details
-                            </Button>
-                            <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-foreground" onClick={() => handleRejectStudent(req.id)}>Reject</Button>
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-foreground" onClick={() => handleApproveStudent(req.id)}>Approve</Button>
-                          </div>
+                          {req.hasPendingDetailsChange ? (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="secondary" onClick={() => setSelectedStudentInfo(req)}>
+                                <Eye className="w-4 h-4 mr-1" /> View Request
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="secondary" onClick={() => setSelectedStudentInfo(req)}>
+                                <Eye className="w-4 h-4 mr-1" /> View Details
+                              </Button>
+                              <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-foreground" onClick={() => handleRejectStudent(req.id)}>Reject</Button>
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700 text-foreground" onClick={() => handleApproveStudent(req.id)}>Approve</Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))
@@ -3315,7 +3326,7 @@ export default function AdminDashboard() {
                     )}
                     {examPdfUploading && (
                       <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center backdrop-blur-sm z-10 text-center px-4">
-                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF to Cloudinary... Please wait</span>
+                        <span className="animate-pulse font-bold text-primary mb-2">Uploading PDF to Amazon S3... Please wait</span>
                         <span className="text-xs text-muted-foreground animate-pulse">This usually takes just a few seconds. Do not close this page.</span>
                       </div>
                     )}
