@@ -29,21 +29,17 @@ export async function POST(req: Request) {
 
     const expectedOrigins = [
       ...origin,
-      // The exact lowercased sha256 fingerprint WITHOUT colons
+      // The base64url encoded sha256 fingerprint (what Android actually sends!)
+      'android:apk-key-hash:7viLPxh4pyDq9NQNu0OnVxepwqqGvBsWp6n6adCA0_I',
+      // The exact lowercased sha256 fingerprint WITHOUT colons (fallback)
       'android:apk-key-hash:eef88b3f1878a720eaf4d40dbb43a75717a9c2aa86bc1b16a7a9fa69d080d3f2',
-      // In case the hash is uppercase or different format, we can also add a function or multiple variants,
-      // but simplewebauthn/server 14 supports passing a function! Wait, let's just use string array to be safe.
       'android:apk-key-hash:EEF88B3F1878A720EAF4D40DBB43A75717A9C2AA86BC1B16A7A9FA69D080D3F2'
     ];
 
     const verification = await verifyRegistrationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: (incomingOrigin) => {
-        if (origin.includes(incomingOrigin)) return true;
-        if (incomingOrigin.startsWith('android:apk-key-hash:')) return true;
-        return false;
-      },
+      expectedOrigin: expectedOrigins,
       expectedRPID: rpID,
     });
 

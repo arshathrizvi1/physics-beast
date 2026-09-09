@@ -42,14 +42,19 @@ export async function POST(req: Request) {
     const credentialData = credentialDoc.data()!;
     const credentialPublicKey = new Uint8Array(Buffer.from(credentialData.credentialPublicKey, 'base64'));
 
+    const expectedOrigins = [
+      ...origin,
+      // The base64url encoded sha256 fingerprint (what Android actually sends!)
+      'android:apk-key-hash:7viLPxh4pyDq9NQNu0OnVxepwqqGvBsWp6n6adCA0_I',
+      // The exact lowercased sha256 fingerprint WITHOUT colons (fallback)
+      'android:apk-key-hash:eef88b3f1878a720eaf4d40dbb43a75717a9c2aa86bc1b16a7a9fa69d080d3f2',
+      'android:apk-key-hash:EEF88B3F1878A720EAF4D40DBB43A75717A9C2AA86BC1B16A7A9FA69D080D3F2'
+    ];
+
     const verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge,
-      expectedOrigin: (incomingOrigin) => {
-        if (origin.includes(incomingOrigin)) return true;
-        if (incomingOrigin.startsWith('android:apk-key-hash:')) return true;
-        return false;
-      },
+      expectedOrigin: expectedOrigins,
       expectedRPID: rpID,
       credential: {
         id: credentialIDStr,
