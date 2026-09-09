@@ -27,8 +27,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       sessionStorage.getItem("admin_2fa_passed") === "true" || 
                       localStorage.getItem("admin_2fa_passed") === "true";
     
-    // Teachers do NOT require 2FA by default unless they have explicitly configured a totpSecret
-    const isTeacherWithout2FA = user.role === "teacher" && !user.totpSecret;
+    // Admins/Teachers do NOT require 2FA by default unless they have explicitly configured a totpSecret
+    const has2FASetup = !!user.totpSecret;
 
     // If on Capacitor, auto-set 2FA passed in storage for consistency
     if (isCapacitor && typeof window !== "undefined") {
@@ -36,8 +36,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       localStorage.setItem("admin_2fa_passed", "true");
     }
 
-    // If they haven't passed 2FA and 2FA is required for their role/account, kick them to 2FA page
-    if (!passed2FA && !isTeacherWithout2FA && pathname !== "/admin/2fa") {
+    // If they haven't passed 2FA and 2FA is set up on their account, kick them to 2FA page
+    if (has2FASetup && !passed2FA && pathname !== "/admin/2fa") {
       router.replace("/admin/2fa");
     } else {
       setIsVerified(true);
