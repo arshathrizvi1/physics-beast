@@ -69,6 +69,7 @@ export function PdfViewer({
 
     let pinchStartDist: number | null = null;
     let pinchStartZoom = 1.0;
+    let rafId: number | null = null;
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
@@ -87,19 +88,27 @@ export function PdfViewer({
         const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
         
         const scaleFactor = dist / pinchStartDist;
-        const dampening = 0.3; // Dampen the sensitivity to make it smooth and small
+        // Normal fast responsiveness (0.85 natural tracking without being over-sensitive)
+        const dampening = 0.85;
         const dampenedScale = 1 + (scaleFactor - 1) * dampening;
         
         let newZoom = pinchStartZoom * dampenedScale;
         newZoom = Math.max(0.5, Math.min(newZoom, 4.0));
         
-        setZoomLevel(newZoom);
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          setZoomLevel(Math.round(newZoom * 100) / 100);
+        });
       }
     };
 
     const onTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         pinchStartDist = null;
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       }
     };
 
@@ -113,6 +122,7 @@ export function PdfViewer({
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, []);
 
@@ -265,7 +275,7 @@ export function PdfViewer({
                   scale={zoomLevel}
                   renderTextLayer={true}
                   renderAnnotationLayer={true}
-                  className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white transition-transform duration-200"
+                  className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white"
                   width={containerWidth ? Math.min(containerWidth - 32, 1200) : undefined}
                 />
               </div>
