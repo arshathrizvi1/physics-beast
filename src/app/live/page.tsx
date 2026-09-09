@@ -259,11 +259,22 @@ export default function StudentLivePortal() {
                   
                   {/* Action Buttons for non-youtube links */}
                   {cls.status === 'live' && cls.platform !== 'youtube' && (
-                    <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
-                      <Button size="lg" className="bg-red-600 hover:bg-red-700 text-foreground font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse">
-                        <PlayCircle className="w-6 h-6 mr-2" /> JOIN {cls.platform.toUpperCase()} MEETING
-                      </Button>
-                    </a>
+                    cls.allowDirectJoin !== false ? (
+                      <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
+                        <Button size="lg" className="bg-red-600 hover:bg-red-700 text-foreground font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">
+                          <PlayCircle className="w-6 h-6 mr-2" /> JOIN {cls.platform.toUpperCase()} MEETING
+                        </Button>
+                      </a>
+                    ) : (
+                      <div className="shrink-0 p-3.5 bg-secondary/30 rounded-xl border border-border/50 text-center max-w-xs shadow-inner">
+                        <div className="text-xs font-bold text-amber-500 flex items-center justify-center gap-1 mb-1">
+                          <span>🔒</span> Direct Join Disabled
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-snug">
+                          Direct 1-click entry has been disabled by the instructor for this session.
+                        </p>
+                      </div>
+                    )
                   )}
                   {cls.status === 'scheduled' && (
                      <div className="shrink-0 p-4 bg-background rounded-xl border border-border shadow-inner text-center">

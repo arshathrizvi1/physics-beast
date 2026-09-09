@@ -59,6 +59,7 @@ export async function POST(request: Request) {
           courseId: null,
           batchId: null,
           targetFolderId: null,
+          allowDirectJoin: true,
           createdAt: adminDb.FieldValue.serverTimestamp()
         });
 

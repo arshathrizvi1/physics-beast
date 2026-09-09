@@ -33,6 +33,7 @@ export default function AdminLiveStudio() {
   const [batches, setBatches] = useState<any[]>([]);
   const [targetFolderId, setTargetFolderId] = useState("none");
   const [folders, setFolders] = useState<any[]>([]);
+  const [allowDirectJoin, setAllowDirectJoin] = useState(true);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ export default function AdminLiveStudio() {
   const [editLink, setEditLink] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editTargetFolderId, setEditTargetFolderId] = useState("none");
+  const [editAllowDirectJoin, setEditAllowDirectJoin] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
@@ -98,6 +100,7 @@ export default function AdminLiveStudio() {
           setDescription(draft.description || "");
           setPlatform(draft.platform || "zoom");
           setLink(draft.link || "");
+          setAllowDirectJoin(draft.allowDirectJoin !== false);
           
           if (draft.scheduledFor) {
             const date = new Date(draft.scheduledFor);
@@ -128,6 +131,7 @@ export default function AdminLiveStudio() {
           courseId: courseId === "all" ? null : courseId,
           batchId: batchId === "all" ? null : batchId,
           targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+          allowDirectJoin: allowDirectJoin,
           status: 'scheduled',
         });
         setEditingClass(null);
@@ -141,6 +145,7 @@ export default function AdminLiveStudio() {
           courseId: courseId === "all" ? null : courseId,
           batchId: batchId === "all" ? null : batchId,
           targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+          allowDirectJoin: allowDirectJoin,
           status: 'scheduled',
           createdAt: serverTimestamp()
         });
@@ -151,6 +156,7 @@ export default function AdminLiveStudio() {
       setLink("");
       setScheduledFor("");
       setTargetFolderId("none");
+      setAllowDirectJoin(true);
       router.push('/admin/live'); // clear draftId from URL if present
     } catch (error) {
       alert("Failed to create class. Quota exceeded?");
@@ -169,7 +175,8 @@ export default function AdminLiveStudio() {
         title: editTitle,
         description: editDescription,
         link: editLink,
-        targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId
+        targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId,
+        allowDirectJoin: editAllowDirectJoin
       });
       setEditingClass(null);
     } catch (err) {
@@ -367,6 +374,34 @@ export default function AdminLiveStudio() {
                 <Label>Date & Time *</Label>
                 <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
               </div>
+
+              {platform === "zoom" && (
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
+                  <div className="space-y-0.5 pr-3">
+                    <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
+                      <span>📹</span> Direct Zoom Join (Option 1)
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {allowDirectJoin 
+                        ? "Enabled: Students see the 'JOIN ZOOM MEETING' 1-click button." 
+                        : "Disabled: 1-Click button hidden. Students cannot enter your Zoom room directly."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={allowDirectJoin ? "default" : "outline"}
+                    className={`h-8 px-3 text-xs font-bold shrink-0 transition-all ${
+                      allowDirectJoin 
+                        ? "bg-green-600 hover:bg-green-700 text-white shadow-sm" 
+                        : "border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+                    }`}
+                    onClick={() => setAllowDirectJoin(!allowDirectJoin)}
+                  >
+                    {allowDirectJoin ? "✓ Enabled" : "✕ Disabled"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
             <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
               <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -459,6 +494,26 @@ export default function AdminLiveStudio() {
                       </div>
                     )}
 
+                    {cls.platform === 'zoom' && (
+                      <div className="w-full mt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className={`w-full h-8 text-xs font-bold transition-all ${
+                            cls.allowDirectJoin !== false 
+                              ? 'text-green-500 border-green-500/30 hover:bg-green-500/10' 
+                              : 'text-zinc-400 border-zinc-700 hover:bg-zinc-800'
+                          }`}
+                          onClick={async () => {
+                            const newVal = cls.allowDirectJoin === false ? true : false;
+                            await updateDoc(doc(db, 'live_classes', cls.id), { allowDirectJoin: newVal });
+                          }}
+                        >
+                          {cls.allowDirectJoin !== false ? "✓ Direct Zoom Join: Enabled" : "✕ Direct Zoom Join: Disabled"}
+                        </Button>
+                      </div>
+                    )}
+
                     <div className="flex gap-2 w-full mt-2">
                       {cls.platform !== 'rtmp' && (
                         <a href={cls.link} target="_blank" rel="noreferrer" className="flex-1">
@@ -471,6 +526,7 @@ export default function AdminLiveStudio() {
                         setEditDescription(cls.description || "");
                         setEditLink(cls.link);
                         setEditTargetFolderId(cls.targetFolderId || "none");
+                        setEditAllowDirectJoin(cls.allowDirectJoin !== false);
                       }} className="text-blue-500 border-blue-500/20 hover:bg-blue-500/10 px-2 h-8">
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
@@ -492,7 +548,7 @@ export default function AdminLiveStudio() {
       </div>
       
       {/* Edit Modal */}
-      {editingClass && (
+      {editingClass && editingClass.status !== 'draft' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <Card className="w-full max-w-md shadow-2xl border-primary/20">
             <form onSubmit={handleUpdateClass}>
@@ -530,6 +586,34 @@ export default function AdminLiveStudio() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {editingClass.platform === 'zoom' && (
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
+                    <div className="space-y-0.5 pr-3">
+                      <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
+                        <span>📹</span> Direct Zoom Join (Option 1)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground leading-tight">
+                        {editAllowDirectJoin 
+                          ? "Students see the 'JOIN ZOOM MEETING' 1-click button." 
+                          : "1-Click button hidden. Students cannot enter your Zoom room directly."}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={editAllowDirectJoin ? "default" : "outline"}
+                      className={`h-8 px-3 text-xs font-bold shrink-0 transition-all ${
+                        editAllowDirectJoin 
+                          ? "bg-green-600 hover:bg-green-700 text-white shadow-sm" 
+                          : "border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+                      }`}
+                      onClick={() => setEditAllowDirectJoin(!editAllowDirectJoin)}
+                    >
+                      {editAllowDirectJoin ? "✓ Enabled" : "✕ Disabled"}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setEditingClass(null)}>Cancel</Button>
