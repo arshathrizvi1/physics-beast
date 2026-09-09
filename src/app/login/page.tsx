@@ -94,7 +94,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'teacher') {
-      router.push('/admin');
+      router.replace('/admin');
+      return;
     }
 
     // Fetch real exam history for student
