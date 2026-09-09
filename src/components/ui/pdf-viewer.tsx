@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { RefreshCw, AlertCircle, ShieldCheck, Maximize, Minimize, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Document, Page, pdfjs } from "react-pdf";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 // We import the styles required by react-pdf
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -23,13 +22,13 @@ interface PdfViewerProps {
 
 export function PdfViewer({ 
   url, 
-  title = "PDF Document", 
+  title = "Document", 
   className = "", 
-  height = "650px",
+  height = "600px",
   allowDownload = false 
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>();
-  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -69,15 +68,7 @@ export function PdfViewer({
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-    setPageNumber(1);
   };
-
-  const changePage = (offset: number) => {
-    setPageNumber((prevPageNumber) => prevPageNumber + offset);
-  };
-
-  const previousPage = () => changePage(-1);
-  const nextPage = () => changePage(1);
 
   if (!url) {
     return (
@@ -109,153 +100,118 @@ export function PdfViewer({
       } ${className}`}
       style={!isFullscreen ? { height } : undefined}
     >
-      <TransformWrapper
-        initialScale={1}
-        minScale={0.1}
-        maxScale={8}
-        centerOnInit={true}
-        wheel={{ step: 0.1, activationKeys: ["Control", "Meta"] }}
-        pinch={{ step: 5 }}
-        panning={{ velocityDisabled: false, wheelPanning: true }}
-        doubleClick={{ step: 1 }}
-        alignmentAnimation={{ animationTime: 200, animationType: "easeOut" }}
-        limitToBounds={true}
-      >
-        {({ zoomIn, zoomOut, resetTransform, state }) => (
-          <div className="flex flex-col h-full w-full">
-            {/* Viewer Action Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-secondary/20 border-b border-border text-xs text-muted-foreground shrink-0">
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => zoomOut()}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="w-3.5 h-3.5" />
-                </Button>
-                <span className="min-w-[40px] text-center font-medium">
-                  {Math.round(state.scale * 100)}%
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => zoomIn()}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </Button>
-                <div className="w-px h-4 bg-border mx-1" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => resetTransform()}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hidden sm:flex"
-                  title="Reset Zoom"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Reset</span>
-                </Button>
-              </div>
-
-              {/* Pagination controls */}
-              {numPages && (
-                <div className="flex items-center gap-2 bg-background/80 rounded-md p-0.5 border border-border">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={pageNumber <= 1}
-                    onClick={previousPage}
-                    className="h-6 w-6"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="px-2 font-medium">
-                    Page {pageNumber} of {numPages}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={pageNumber >= numPages}
-                    onClick={nextPage}
-                    className="h-6 w-6"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                {!allowDownload && (
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground opacity-80 px-2 border-r border-border mr-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-                    <span className="hidden sm:inline">Protected View</span>
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={toggleFullscreen}
-                  className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                  title="Toggle Fullscreen"
-                >
-                  {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{isFullscreen ? "Exit Full Screen" : "Full Screen"}</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Embedded PDF container */}
-            <div 
-              ref={documentContainerRef}
-              className="relative w-full flex-1 overflow-hidden bg-black/5 flex justify-center py-4"
+      <div className="flex flex-col h-full w-full">
+        {/* Viewer Action Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-secondary/20 border-b border-border text-xs text-muted-foreground shrink-0 z-10 shadow-sm">
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              title="Zoom Out"
             >
-              <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
-                <Document
-                  file={trimmed}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  loading={
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground">
-                      <RefreshCw className="w-8 h-8 mb-4 animate-spin text-primary" />
-                      <p>Loading document...</p>
-                    </div>
-                  }
-                  error={
-                    <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-destructive p-6 text-center">
-                      <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
-                      <p className="font-medium">Failed to load PDF file.</p>
-                      <p className="text-sm mt-2 opacity-80">
-                        The file might be corrupted, or your server is blocking cross-origin requests (CORS).
-                      </p>
-                      <p className="text-xs mt-4 max-w-sm text-center font-mono bg-destructive/10 p-2 rounded">
-                        If using Amazon S3, ensure your bucket&apos;s CORS configuration allows GET requests from this domain.
-                      </p>
-                    </div>
-                  }
-                  className="flex flex-col items-center"
-                >
-                  <Page 
-                    pageNumber={pageNumber} 
-                    scale={1.5}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-xl bg-white"
-                    width={containerWidth ? Math.min(containerWidth - 32, 1000) : undefined}
-                  />
-                </Document>
-              </TransformComponent>
-            </div>
+              <ZoomOut className="w-3.5 h-3.5" />
+            </Button>
+            <span className="min-w-[40px] text-center font-medium">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setZoomLevel(prev => Math.min(4.0, prev + 0.25))}
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setZoomLevel(1.5)}
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hidden sm:flex"
+              title="Reset Zoom"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Reset</span>
+            </Button>
           </div>
-        )}
-      </TransformWrapper>
+
+          {/* Page count indicator */}
+          {numPages && (
+            <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-1 border border-border font-medium">
+              {numPages} {numPages === 1 ? 'Page' : 'Pages'}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {!allowDownload && (
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground opacity-80 px-2 border-r border-border mr-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+                <span className="hidden sm:inline">Protected View</span>
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={toggleFullscreen}
+              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+              title="Toggle Fullscreen"
+            >
+              {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{isFullscreen ? "Exit Full Screen" : "Full Screen"}</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Embedded PDF container (Continuous Scroll) */}
+        <div 
+          ref={documentContainerRef}
+          className="relative w-full flex-1 overflow-y-auto overflow-x-auto bg-[#323639] custom-scrollbar flex flex-col items-center py-6 gap-6"
+        >
+          <Document
+            file={trimmed}
+            onLoadSuccess={onDocumentLoadSuccess}
+            loading={
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-zinc-300">
+                <RefreshCw className="w-8 h-8 mb-4 animate-spin text-[#d4af37]" />
+                <p>Loading document...</p>
+              </div>
+            }
+            error={
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-400 p-6 text-center">
+                <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
+                <p className="font-medium">Failed to load PDF file.</p>
+                <p className="text-sm mt-2 opacity-80 text-zinc-400">
+                  The file might be corrupted, or your server is blocking cross-origin requests (CORS).
+                </p>
+                <p className="text-xs mt-4 max-w-sm text-center font-mono bg-red-950/50 p-2 rounded text-red-300">
+                  If using Amazon S3, ensure your bucket&apos;s CORS configuration allows GET requests from this domain.
+                </p>
+              </div>
+            }
+            className="flex flex-col items-center gap-6"
+          >
+            {numPages && Array.from(new Array(numPages), (el, index) => (
+              <div key={`page_${index + 1}`} className="relative group">
+                <Page 
+                  pageNumber={index + 1} 
+                  scale={zoomLevel}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                  className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white transition-transform duration-200"
+                  width={containerWidth ? Math.min(containerWidth - 32, 1200) : undefined}
+                />
+              </div>
+            ))}
+          </Document>
+        </div>
+      </div>
       
       {allowDownload && (
         <div className="bg-background border-t border-border p-4 flex justify-between items-center z-10 shrink-0">
