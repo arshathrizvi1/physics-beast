@@ -14,6 +14,7 @@ export interface AppNotification {
   link?: string;
   timestamp: number;
   type?: "technical" | "exam" | "course" | "contact_us" | "general" | "student_login" | "student_signup" | "payment";
+  readBy?: string[];
 }
 
 interface NotificationContextType {
@@ -309,7 +310,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         readBy: arrayUnion(user.uid)
       });
       // Optimistic update
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, readBy: [...n.readBy, user.uid] } : n));
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, readBy: [...(n.readBy || []), user.uid] } : n));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }

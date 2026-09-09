@@ -32,19 +32,19 @@ export async function POST(req: Request) {
     });
 
     if (verification.verified && verification.registrationInfo) {
-      const { credentialPublicKey, credentialID, counter, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+      const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
 
       // Save the new passkey credential in Firestore
-      const credentialStr = Buffer.from(credentialPublicKey).toString('base64');
-      const credentialIDStr = response.id;
+      const credentialStr = Buffer.from(credential.publicKey).toString('base64');
+      const credentialIDStr = credential.id;
 
       await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).set({
         credentialID: credentialIDStr,
         credentialPublicKey: credentialStr,
-        counter,
+        counter: credential.counter,
         credentialDeviceType,
         credentialBackedUp,
-        transports: response.response.transports || [],
+        transports: credential.transports || response.response.transports || [],
         createdAt: new Date().toISOString(),
       });
 
