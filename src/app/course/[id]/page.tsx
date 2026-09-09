@@ -72,7 +72,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         const hls = playerRef.current.getInternalPlayer('hls');
         if (hls && hls.levels && hls.levels.length > 0) {
           if (quality === 'Auto') {
-            hls.currentLevel = -1;
+            hls.nextLevel = -1;
           } else {
             const height = parseInt(quality);
             // Try exact match first
@@ -93,7 +93,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             }
 
             if (levelIndex !== -1) {
-              hls.currentLevel = levelIndex;
+              // Use nextLevel to prevent video freeze and buffer flushing
+              hls.nextLevel = levelIndex;
             }
           }
           return true; // Applied successfully
@@ -560,7 +561,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         const hls = playerRef.current?.getInternalPlayer('hls');
                         if (hls && hls.levels && hls.levels.length > 0) {
                           if (quality === 'Auto') {
-                            hls.currentLevel = -1;
+                            hls.nextLevel = -1;
                           } else {
                             const height = parseInt(quality);
                             let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
@@ -577,7 +578,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                });
                             }
                             if (levelIndex !== -1) {
-                              hls.currentLevel = levelIndex;
+                              hls.nextLevel = levelIndex;
                             }
                           }
                         }
@@ -606,6 +607,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             controlsList: "nodownload",
                             onContextMenu: (e: any) => e.preventDefault(),
                             disablePictureInPicture: true
+                          },
+                          hlsOptions: {
+                            enableWorker: true,
+                            maxBufferLength: 30,
+                            maxMaxBufferLength: 60,
+                            backBufferLength: 30
                           }
                         }
                       }}
