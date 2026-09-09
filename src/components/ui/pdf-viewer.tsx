@@ -111,10 +111,15 @@ export function PdfViewer({
     >
       <TransformWrapper
         initialScale={1}
-        minScale={0.5}
-        maxScale={4}
+        minScale={0.1}
+        maxScale={8}
         centerOnInit={true}
-        wheel={{ step: 0.1 }}
+        wheel={{ step: 0.1, activationKeys: ["Control", "Meta"] }}
+        pinch={{ step: 5 }}
+        panning={{ velocityDisabled: false, wheelPanning: true }}
+        doubleClick={{ step: 1 }}
+        alignmentAnimation={{ animationTime: 200, animationType: "easeOut" }}
+        limitToBounds={true}
       >
         {({ zoomIn, zoomOut, resetTransform, state }) => (
           <div className="flex flex-col h-full w-full">
