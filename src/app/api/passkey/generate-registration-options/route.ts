@@ -1,29 +1,43 @@
 import { NextResponse } from 'next/server';
-import { generateRegistrationOptions } from '@simplewebauthn/server';
-import { adminDb } from '@/lib/firebase-admin';
-import { rpID, rpName } from '@/lib/passkey-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const diagnostics: any = {
+    step: 'start',
+    nodeVersion: process.version,
+    env: {
+      hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      keyLen: process.env.FIREBASE_PRIVATE_KEY?.length || 0,
+    }
+  };
+
   try {
-    const hasProjectId = !!process.env.FIREBASE_PROJECT_ID;
-    const hasEmail = !!process.env.FIREBASE_CLIENT_EMAIL;
-    const hasKey = !!process.env.FIREBASE_PRIVATE_KEY;
-    const keyLen = process.env.FIREBASE_PRIVATE_KEY?.length || 0;
+    diagnostics.step = 'importing-simplewebauthn';
+    const webauthn = await import('@simplewebauthn/server');
+    diagnostics.webauthnLoaded = typeof webauthn.generateRegistrationOptions === 'function';
+
+    diagnostics.step = 'importing-firebase-admin';
+    const fbAdmin = await import('@/lib/firebase-admin');
+    diagnostics.fbAdminLoaded = !!fbAdmin.adminDb;
+
+    diagnostics.step = 'importing-passkey-config';
+    const config = await import('@/lib/passkey-config');
+    diagnostics.rpID = config.rpID;
+    diagnostics.rpName = config.rpName;
+
+    return NextResponse.json({ ok: true, diagnostics });
+  } catch (err: any) {
     return NextResponse.json({
-      status: 'ok',
-      hasProjectId,
-      hasEmail,
-      hasKey,
-      keyLen,
-      rpID,
-      rpName,
-      nodeVersion: process.version,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+      ok: false,
+      failedAt: diagnostics.step,
+      error: err?.message || String(err),
+      stack: err?.stack,
+      diagnostics
+    }, { status: 500 });
   }
 }
 
@@ -34,6 +48,10 @@ export async function POST(req: Request) {
     if (!uid || !email) {
       return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
     }
+
+    const { generateRegistrationOptions } = await import('@simplewebauthn/server');
+    const { adminDb } = await import('@/lib/firebase-admin');
+    const { rpID, rpName } = await import('@/lib/passkey-config');
 
     // Retrieve any existing authenticators for this user to exclude them
     const passkeysSnapshot = await adminDb.collection(`users/${uid}/passkeys`).get();
@@ -69,6 +87,6 @@ export async function POST(req: Request) {
     return NextResponse.json(options);
   } catch (error: any) {
     console.error('Error generating registration options:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
   }
 }
