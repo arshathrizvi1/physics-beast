@@ -12,9 +12,18 @@ import {
   deleteDoc as fsDeleteDoc,
 } from 'firebase/firestore';
 
-const projectId = process.env.FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+function cleanPrivateKey(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  let cleaned = key.trim();
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    cleaned = cleaned.slice(1, -1);
+  }
+  return cleaned.replace(/\\n/g, '\n');
+}
+
+const projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^["']|["']$/g, '');
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^["']|["']$/g, '');
+const privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
 if (!getApps().length) {
   if (projectId && clientEmail && privateKey) {
@@ -89,8 +98,13 @@ const clientDbFallback = {
 
 export const adminAuth = new Proxy({} as ReturnType<typeof getAuth>, {
   get(target, prop) {
+    if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') {
+      return undefined;
+    }
     if (getApps().length) {
-      return (getAuth() as any)[prop];
+      const auth = getAuth();
+      const val = (auth as any)[prop];
+      return typeof val === 'function' ? val.bind(auth) : val;
     }
     if (prop === 'createCustomToken') {
       return async (uid: string) => {
@@ -99,17 +113,23 @@ export const adminAuth = new Proxy({} as ReturnType<typeof getAuth>, {
         );
       };
     }
-    return (getAuth() as any)[prop];
+    return undefined;
   },
 });
 
 export const adminDb = new Proxy({} as ReturnType<typeof getFirestore>, {
   get(target, prop) {
+    if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') {
+      return undefined;
+    }
     if (getApps().length) {
-      return (getFirestore() as any)[prop];
+      const fs = getFirestore();
+      const val = (fs as any)[prop];
+      return typeof val === 'function' ? val.bind(fs) : val;
     }
     if (prop in clientDbFallback) {
-      return (clientDbFallback as any)[prop];
+      const fallbackVal = (clientDbFallback as any)[prop];
+      return typeof fallbackVal === 'function' ? fallbackVal.bind(clientDbFallback) : fallbackVal;
     }
     return (clientDbFallback as any)[prop];
   },
