@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { formatSeconds, calculateXpLevel } from "@/lib/xp";
 import ReportIssueModal from "@/components/ReportIssueModal";
+import PasskeySettings from "@/components/PasskeySettings";
 
 export default function LoginPage() {
   const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup } = useAuth();
@@ -37,8 +38,6 @@ export default function LoginPage() {
   const [streams, setStreams] = useState<any[]>([]);
   
   const [isUploadingPfp, setIsUploadingPfp] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editNameValue, setEditNameValue] = useState("");
   const [error, setError] = useState("");
   const [resetSuccessEmail, setResetSuccessEmail] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
@@ -319,15 +318,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleSaveName = async () => {
-    if (editNameValue.trim() && editNameValue !== user?.name) {
-      const success = await updateProfileName(editNameValue.trim());
-      if (!success) {
-        alert("Failed to update name.");
-      }
-    }
-    setIsEditingName(false);
-  };
+
 
   const handlePfpUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -396,8 +387,8 @@ export default function LoginPage() {
     return (
       <div className="max-w-5xl mx-auto space-y-8 px-4 md:px-6 pt-6">
         {/* Profile Header */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-secondary/10 p-4 sm:p-6 rounded-2xl border border-secondary/30 text-center md:text-left">
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-6 bg-secondary/10 p-4 sm:p-6 rounded-2xl border border-secondary/30">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 w-full md:w-auto">
             <label className="relative group cursor-pointer shrink-0">
               {user.photoUrl ? (
                 <img src={user.photoUrl} alt="Profile" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-primary/50 object-cover" />
@@ -411,53 +402,37 @@ export default function LoginPage() {
               </div>
               <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
             </label>
-              <div className="flex flex-col items-center sm:items-start max-w-full overflow-hidden">
-                <div className="flex items-center gap-2 sm:gap-4 mb-2 max-w-full">
-                  {isEditingName ? (
-                    <div className="flex flex-col sm:flex-row items-center gap-2">
-                      <Input 
-                        value={editNameValue} 
-                        onChange={(e) => setEditNameValue(e.target.value)}
-                        className="text-lg sm:text-xl h-10 w-full max-w-[200px] sm:w-64 bg-background border-primary/50"
-                        autoFocus
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveName} disabled={isSubmitting}>Save</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)}>Cancel</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group/name max-w-full">
-                      <h1 className="text-2xl sm:text-3xl font-bold truncate">{user.name || user.email.split('@')[0]}</h1>
-                      <button 
-                        onClick={() => { 
-                          const lastChange = user.lastNameChangeDate || 0;
-                          const daysSince = (Date.now() - lastChange) / (1000 * 60 * 60 * 24);
-                          if (daysSince < 30) {
-                            alert(`Name change locked. You recently changed your name. You can change it again in ${Math.ceil(30 - daysSince)} days.`);
-                            return;
-                          }
-                          setEditNameValue(user.name || user.email.split('@')[0]); 
-                          setIsEditingName(true); 
-                        }}
-                        className="opacity-100 sm:opacity-0 group-hover/name:opacity-100 transition-opacity p-2 hover:bg-secondary/20 rounded-full text-muted-foreground hover:text-primary shrink-0"
-                        title="Edit Display Name"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+            <div className="flex flex-col items-center sm:items-start max-w-full overflow-hidden">
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold truncate">{user.name || user.email.split('@')[0]}</h1>
+                <button 
+                  onClick={() => router.push('/profile')}
+                  className="p-2 hover:bg-secondary/20 rounded-full text-muted-foreground hover:text-primary shrink-0 transition-colors"
+                  title="Edit Profile"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-1 text-center sm:text-left w-full">
                 {user.studentId && (
-                  <p className="text-primary font-mono bg-primary/10 inline-block px-2 py-0.5 rounded text-xs sm:text-sm mb-2">{user.studentId}</p>
+                  <p className="text-primary font-mono bg-primary/10 inline-block px-2 py-0.5 rounded text-xs sm:text-sm">{user.studentId}</p>
                 )}
                 <p className="text-xs sm:text-sm text-muted-foreground">Brilliant Academy Student {user.graduationYear ? `(Batch ${user.graduationYear})` : ''}</p>
-              <div className="flex items-center gap-2 mt-2 text-xs sm:text-sm font-medium">
+                {user.school && <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.school}</p>}
+                {user.phone && <p className="text-xs sm:text-sm text-muted-foreground">{user.phone}</p>}
+                {user.address && <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.address}</p>}
+              </div>
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-3 text-xs sm:text-sm font-medium">
                 <Award className="w-4 h-4 text-primary" /> Level {stats.xpLevel}
+              </div>
+              <div className="mt-3">
+                <Button variant="outline" size="sm" onClick={() => router.push('/profile')} className="text-xs gap-2">
+                  <Edit2 className="w-3 h-3" /> Edit Profile Details
+                </Button>
               </div>
             </div>
           </div>
-          <div className="w-full md:w-64 space-y-2">
+          <div className="w-full md:w-64 space-y-2 mt-4 md:mt-0">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">XP to Level {stats.xpLevel + 1}</span>
               <span className="font-bold">{stats.totalXp} / {stats.xpLevel * 500}</span>
@@ -657,7 +632,8 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
+          <PasskeySettings />
+          <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
       </div>
     );
   }

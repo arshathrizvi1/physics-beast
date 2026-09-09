@@ -60,18 +60,30 @@ export default function StudentProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    
+    // Check if 14 days have passed
+    const lastChange = user.lastNameChangeDate || 0;
+    const daysSince = (Date.now() - lastChange) / (1000 * 60 * 60 * 24);
+    if (daysSince < 14) {
+      alert(`Details change locked. You recently requested a change. You can change your details again in ${Math.ceil(14 - daysSince)} days.`);
+      return;
+    }
+
     setProfileSaving(true);
     setProfileSuccess(false);
     try {
       await updateDoc(doc(db, "users", user.uid), {
-        name: profileName,
-        phone: profilePhone,
-        school: profileSchool,
-        address: profileAddress
+        pendingDetailsChange: {
+          name: profileName,
+          phone: profilePhone,
+          school: profileSchool,
+          address: profileAddress,
+          requestedAt: Date.now()
+        },
+        hasPendingDetailsChange: true,
+        lastNameChangeDate: Date.now()
       });
-      if (profileName !== user.name && updateProfileName) {
-        await updateProfileName(profileName);
-      }
+      alert("Your changes have been submitted for Admin approval. You will be notified once they are approved.");
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err) {
@@ -181,19 +193,24 @@ export default function StudentProfilePage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="border-t border-border/50 bg-secondary/5 py-4 justify-end gap-3">
-            {profileSuccess && (
-              <span className="flex items-center gap-1.5 text-green-500 text-sm font-bold">
-                <CheckCircle2 className="w-4 h-4" /> Profile saved!
-              </span>
-            )}
-            <Button
-              onClick={handleSaveProfile}
-              disabled={profileSaving}
-              className="gap-2 min-w-[140px]"
-            >
-              {profileSaving ? "Saving..." : <><Save className="w-4 h-4" /> Save Profile</>}
-            </Button>
+          <CardFooter className="border-t border-border/50 bg-secondary/5 py-4 flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-muted-foreground">
+              Note: Changes require Admin approval and can only be requested once every 14 days.
+            </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+              {profileSuccess && (
+                <span className="flex items-center gap-1.5 text-green-500 text-sm font-bold">
+                  <CheckCircle2 className="w-4 h-4" /> Submitted!
+                </span>
+              )}
+              <Button
+                onClick={handleSaveProfile}
+                disabled={profileSaving}
+                className="gap-2 min-w-[140px]"
+              >
+                {profileSaving ? "Saving..." : <><Save className="w-4 h-4" /> Save Profile</>}
+              </Button>
+            </div>
           </CardFooter>
         </Card>
 

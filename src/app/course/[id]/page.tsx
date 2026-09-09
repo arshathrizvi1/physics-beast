@@ -396,6 +396,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           status: paymentMethod === 'card' ? 'approved' : 'pending',
           createdAt: Date.now()
         });
+
+        // Notify Admin of payment / pending payment receipt
+        const studentLabel = user.name ? `${user.name}${user.studentId ? ` (${user.studentId})` : ''}` : (user.studentId || user.email || 'A student');
+        const paymentTypeLabel = paymentMethod === 'bank' ? 'Bank Transfer' : paymentMethod.toUpperCase();
+        
+        addDoc(collection(db, "notifications"), {
+          target: "admin",
+          title: paymentMethod === 'bank' ? "New Pending Payment Receipt 💳" : "Payment Received (Card) 💳",
+          message: `${studentLabel} submitted a ${paymentTypeLabel} payment of Rs. ${checkoutFolder.price || 0} for "${checkoutFolder.name}". Pending payment verification.`,
+          link: "/admin#payments",
+          timestamp: Date.now(),
+          type: "payment",
+          readBy: []
+        }).catch(err => console.error("Failed to notify admin of payment:", err));
       } catch (writeError: any) {
         if (writeError.code === 'permission-denied') {
           alert("❌ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");

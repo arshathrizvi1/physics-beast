@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Bell, Check, Trash2, BellOff, BellRing, ChevronRight, Smartphone, UserCheck } from "lucide-react";
+import { Bell, Check, Trash2, BellOff, BellRing, ChevronRight, Smartphone, UserCheck, CreditCard } from "lucide-react";
 import { useNotifications } from "@/components/providers/NotificationProvider";
 import { useAuth } from "@/lib/AuthContext";
 import Link from "next/link";
@@ -197,10 +197,19 @@ function NotificationItem({
     notif.message?.toLowerCase().includes('permission allow') ||
     notif.message?.toLowerCase().includes('pending approval');
 
-  // Direct approval notifications straight to Admin Live Dashboard -> Pending Student Approvals
+  const isPayment = notif.type === 'payment' ||
+    notif.title?.toLowerCase().includes('payment') ||
+    notif.title?.toLowerCase().includes('receipt') ||
+    notif.message?.toLowerCase().includes('pending payment') ||
+    notif.message?.toLowerCase().includes('pending receipt') ||
+    notif.message?.toLowerCase().includes('paid');
+
+  // Direct approval notifications straight to Admin Live Dashboard -> Pending Student Approvals or Payments
   let targetLink = notif.link;
   if (isDeviceLogin || isStudentSignup) {
     targetLink = '/admin#pending-approvals';
+  } else if (isPayment) {
+    targetLink = '/admin#payments';
   }
 
   const handleClick = (e: React.MouseEvent) => {
@@ -221,10 +230,31 @@ function NotificationItem({
           }, 2500);
         }
       }
+    } else if (targetLink && targetLink.includes('#payments')) {
+      if (pathname === '/admin') {
+        e.preventDefault();
+        window.location.hash = 'payments';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+        const el = document.getElementById('admin-payments-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.classList.add('ring-2', 'ring-primary', 'transition-all', 'duration-500');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary');
+          }, 2500);
+        }
+      }
     }
   };
 
   const getIcon = () => {
+    if (isPayment) {
+      return (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-emerald-400 bg-emerald-400/10">
+          <CreditCard className="w-4 h-4" />
+        </div>
+      );
+    }
     if (isDeviceLogin) {
       return (
         <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 border border-white/5 text-orange-400 bg-orange-400/10">

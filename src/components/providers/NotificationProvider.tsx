@@ -13,8 +13,7 @@ export interface AppNotification {
   message: string;
   link?: string;
   timestamp: number;
-  readBy: string[]; // array of userIds who have read it
-  type?: "technical" | "exam" | "course" | "contact_us" | "general";
+  type?: "technical" | "exam" | "course" | "contact_us" | "general" | "student_login" | "student_signup" | "payment";
 }
 
 interface NotificationContextType {
@@ -244,8 +243,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               n.message?.toLowerCase().includes('permission allow') ||
               n.message?.toLowerCase().includes('pending approval');
 
+            const isPayment = n.type === 'payment' || 
+              n.title?.toLowerCase().includes('payment') || 
+              n.title?.toLowerCase().includes('receipt') ||
+              n.message?.toLowerCase().includes('pending payment') ||
+              n.message?.toLowerCase().includes('pending receipt');
+
             if (isDeviceLogin || isStudentSignup) {
               targetLink = '/admin#pending-approvals';
+            } else if (isPayment) {
+              targetLink = '/admin#payments';
             }
 
             // Check if running in Capacitor Native App

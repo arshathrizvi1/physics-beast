@@ -11,7 +11,7 @@ import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, onSnapshot, setDoc, writeBatch, orderBy, limit, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { uploadToS3 } from "@/lib/s3Storage";
@@ -40,6 +40,18 @@ export default function AdminDashboard() {
             const el = document.getElementById('pending-approvals');
             if (el) {
               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('ring-2', 'ring-primary', 'transition-all', 'duration-500');
+              setTimeout(() => {
+                el.classList.remove('ring-2', 'ring-primary');
+              }, 2500);
+            }
+          }, 200);
+        } else if (hash === 'payments') {
+          setActiveTab('payments');
+          setTimeout(() => {
+            const el = document.getElementById('admin-payments-section');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               el.classList.add('ring-2', 'ring-primary', 'transition-all', 'duration-500');
               setTimeout(() => {
                 el.classList.remove('ring-2', 'ring-primary');
@@ -267,6 +279,17 @@ export default function AdminDashboard() {
         batch.update(userRef, { folderAccess });
         batch.update(doc(db, 'payments', paymentId), { status: 'approved' });
         await batch.commit();
+
+        // Notify student of payment approval
+        addDoc(collection(db, "notifications"), {
+          target: studentId,
+          title: "Payment Approved! 🎉",
+          message: "Your payment receipt was verified and approved! 30 days of folder access has been granted.",
+          link: "/courses",
+          timestamp: Date.now(),
+          type: "payment",
+          readBy: []
+        }).catch(console.error);
       }
     } catch (e) {
       console.error("Failed to approve payment", e);
@@ -277,7 +300,23 @@ export default function AdminDashboard() {
   const handleRejectPayment = async (paymentId: string) => {
     if (confirm("Are you sure you want to reject this payment receipt?")) {
       try {
+        const paymentSnap = await getDoc(doc(db, 'payments', paymentId));
         await updateDoc(doc(db, 'payments', paymentId), { status: 'rejected' });
+        
+        if (paymentSnap.exists()) {
+          const payData = paymentSnap.data();
+          if (payData.studentId) {
+            addDoc(collection(db, "notifications"), {
+              target: payData.studentId,
+              title: "Payment Receipt Rejected ❌",
+              message: `Your payment receipt for "${payData.folderName || 'Course Folder'}" could not be verified. Please check the receipt and try submitting again.`,
+              link: "/courses",
+              timestamp: Date.now(),
+              type: "payment",
+              readBy: []
+            }).catch(console.error);
+          }
+        }
       } catch (e) {
         console.error("Failed to reject payment", e);
         alert("Failed to reject payment.");
@@ -317,6 +356,36 @@ export default function AdminDashboard() {
       setPendingStudents(prev => prev.filter(s => s.id !== studentId));
     } catch (err) {
       console.log("Failed to approve student", err);
+    }
+  };
+
+  const handleApproveDetailsChange = async (studentId: string, newDetails: any) => {
+    try {
+      await updateDoc(doc(db, 'users', studentId), {
+        name: newDetails.name,
+        phone: newDetails.phone,
+        school: newDetails.school,
+        address: newDetails.address,
+        hasPendingDetailsChange: false,
+        pendingDetailsChange: null
+      });
+      alert("Student details updated successfully.");
+    } catch (err) {
+      console.log("Failed to approve details change", err);
+      alert("Failed to approve changes.");
+    }
+  };
+
+  const handleRejectDetailsChange = async (studentId: string) => {
+    try {
+      if(!confirm('Reject these changes?')) return;
+      await updateDoc(doc(db, 'users', studentId), {
+        hasPendingDetailsChange: false,
+        pendingDetailsChange: null
+      });
+      alert("Detail changes rejected.");
+    } catch (err) {
+      console.log("Failed to reject details change", err);
     }
   };
 
@@ -1596,7 +1665,9 @@ export default function AdminDashboard() {
         <TabsList className="flex overflow-x-auto w-full justify-start h-auto p-1 bg-secondary/20 rounded-lg whitespace-nowrap scrollbar-hide">
           <TabsTrigger value="dashboard" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Live Dashboard</TabsTrigger>
           <TabsTrigger value="students" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Students</TabsTrigger>
-          <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Payments</TabsTrigger>
+          <TabsTrigger value="payments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold flex items-center gap-1.5">
+            Payments {payments.length > 0 && <span className="bg-yellow-500/20 text-yellow-500 text-xs px-1.5 py-0.5 rounded-full font-bold">{payments.length}</span>}
+          </TabsTrigger>
           <TabsTrigger value="courses" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Courses</TabsTrigger>
           <TabsTrigger value="content" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Video Uploads</TabsTrigger>
           <TabsTrigger value="exams" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-bold">Exam Engine</TabsTrigger>
@@ -1681,6 +1752,9 @@ export default function AdminDashboard() {
                         <td className="p-3 whitespace-nowrap">{student.phone || 'N/A'}</td>
                         <td className="p-3 whitespace-nowrap">{student.parentPhone || 'N/A'}</td>
                         <td className="p-3 whitespace-nowrap">
+                          {student.hasPendingDetailsChange && (
+                            <span className="bg-orange-500/20 text-orange-500 px-2 py-1 rounded text-xs font-bold mr-2">Pending Edit</span>
+                          )}
                           {student.isApproved ? (
                             <span className="bg-green-500/20 text-green-600 px-2 py-1 rounded text-xs font-bold">Active</span>
                           ) : student.pendingReason === 'Access Suspended' ? (
@@ -1825,8 +1899,8 @@ export default function AdminDashboard() {
         </TabsContent>
 
         {/* PAYMENTS TAB */}
-        <TabsContent value="payments" className="space-y-6">
-          <Card className="border-secondary/50 shadow-md">
+        <TabsContent value="payments" id="admin-payments-section" className="space-y-6 scroll-mt-24 transition-all duration-300">
+          <Card className="border-secondary/50 shadow-md scroll-mt-24 transition-all duration-300">
             <CardHeader className="bg-primary/5 border-b border-primary/20">
               <CardTitle className="text-xl text-primary flex items-center gap-2">
                 <CreditCard className="w-5 h-5" /> Pending Payment Receipts
@@ -4227,6 +4301,72 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </div>
+
+              {selectedStudentInfo.hasPendingDetailsChange && selectedStudentInfo.pendingDetailsChange && (
+                <div className="border-t pt-4 border-orange-500/30">
+                  <h3 className="font-bold text-lg mb-2 text-orange-500 flex items-center gap-2">
+                    <Clock className="w-5 h-5" /> Pending Profile Edit
+                  </h3>
+                  <div className="bg-orange-500/10 p-4 rounded-lg border border-orange-500/20 mb-6">
+                    <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+                      <div>
+                        <p className="font-bold text-muted-foreground">Original Name</p>
+                        <p>{selectedStudentInfo.name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-orange-600">New Name</p>
+                        <p>{selectedStudentInfo.pendingDetailsChange.name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-muted-foreground">Original Phone</p>
+                        <p>{selectedStudentInfo.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-orange-600">New Phone</p>
+                        <p>{selectedStudentInfo.pendingDetailsChange.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-muted-foreground">Original Address</p>
+                        <p>{selectedStudentInfo.address || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-orange-600">New Address</p>
+                        <p>{selectedStudentInfo.pendingDetailsChange.address || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-muted-foreground">Original School</p>
+                        <p>{selectedStudentInfo.school || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-bold text-orange-600">New School</p>
+                        <p>{selectedStudentInfo.pendingDetailsChange.school || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700 text-foreground"
+                        onClick={() => {
+                          handleApproveDetailsChange(selectedStudentInfo.id, selectedStudentInfo.pendingDetailsChange);
+                          setSelectedStudentInfo({...selectedStudentInfo, ...selectedStudentInfo.pendingDetailsChange, hasPendingDetailsChange: false});
+                        }}
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve Edits
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => {
+                          handleRejectDetailsChange(selectedStudentInfo.id);
+                          setSelectedStudentInfo({...selectedStudentInfo, hasPendingDetailsChange: false});
+                        }}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Reject Edits
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <h3 className="font-bold text-lg mb-2 text-primary">Student Analytics</h3>
