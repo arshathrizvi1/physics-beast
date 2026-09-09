@@ -153,10 +153,17 @@ export default function LoginPage() {
     setError("");
     try {
       const resp = await fetch('/api/passkey/generate-auth-options', { method: 'POST' });
-      const { options, challengeId } = await resp.json();
+      let data;
+      try {
+        data = await resp.json();
+      } catch (e) {
+        throw new Error(`Server returned status ${resp.status}`);
+      }
+      if (!resp.ok || !data?.options) {
+        throw new Error(data?.error || "Could not generate passkey options");
+      }
 
-      if (!options) throw new Error("Could not generate passkey options");
-
+      const { options, challengeId } = data;
       const authResp = await startAuthentication(options);
 
       const verificationResp = await fetch('/api/passkey/verify-auth', {
@@ -165,16 +172,20 @@ export default function LoginPage() {
         body: JSON.stringify({ response: authResp, challengeId }),
       });
 
-      const verificationResult = await verificationResp.json();
-      if (verificationResult.verified && verificationResult.customToken) {
+      let verificationResult;
+      try {
+        verificationResult = await verificationResp.json();
+      } catch (e) {
+        throw new Error(`Verification service returned status ${verificationResp.status}`);
+      }
+
+      if (verificationResp.ok && verificationResult.verified && verificationResult.customToken) {
         const success = await loginWithCustomToken(verificationResult.customToken);
-        if (success) {
-          router.push('/dashboard');
-        } else {
+        if (!success) {
           throw new Error("Failed to authenticate with passkey token.");
         }
       } else {
-        throw new Error(verificationResult.error || "Passkey verification failed.");
+        throw new Error(verificationResult?.error || "Passkey verification failed.");
       }
     } catch (err: any) {
       console.error(err);

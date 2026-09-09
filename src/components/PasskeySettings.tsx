@@ -26,8 +26,14 @@ export default function PasskeySettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: user.uid, email: user.email, displayName: user.name }),
       });
-      const options = await resp.json();
-      if (options.error) throw new Error(options.error);
+      
+      let options;
+      try {
+        options = await resp.json();
+      } catch (e) {
+        throw new Error(`Failed to contact passkey service (Server returned status ${resp.status})`);
+      }
+      if (!resp.ok || options.error) throw new Error(options?.error || `Server error (${resp.status})`);
 
       // 2. Prompt user to create passkey
       const attResp = await startRegistration(options);
@@ -38,12 +44,18 @@ export default function PasskeySettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uid: user.uid, response: attResp }),
       });
-      const verifyResult = await verifyResp.json();
 
-      if (verifyResult.verified) {
+      let verifyResult;
+      try {
+        verifyResult = await verifyResp.json();
+      } catch (e) {
+        throw new Error(`Verification service returned status ${verifyResp.status}`);
+      }
+
+      if (verifyResp.ok && verifyResult.verified) {
         setMessage("Passkey registered successfully! You can now log in using your fingerprint or Face ID.");
       } else {
-        throw new Error(verifyResult.error || "Verification failed");
+        throw new Error(verifyResult?.error || "Verification failed");
       }
     } catch (err: any) {
       console.error(err);

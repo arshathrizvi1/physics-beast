@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
       // Save the new passkey credential in Firestore
       const credentialStr = Buffer.from(credentialPublicKey).toString('base64');
-      const credentialIDStr = Buffer.from(credentialID).toString('base64');
+      const credentialIDStr = response.id;
 
       await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).set({
         credentialID: credentialIDStr,
