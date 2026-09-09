@@ -1123,7 +1123,32 @@ export default function AdminDashboard() {
       if (uploadItemType === "resource" && resourceFile) {
         finalUrl = await uploadToS3(resourceFile, "course-resources");
       } else if (uploadItemType === "video" && videoPlatform === "s3" && resourceFile) {
-        finalUrl = await uploadToS3(resourceFile, "course-videos");
+        // Step 1: Upload original raw MP4 to S3
+        const originalS3Url = await uploadToS3(resourceFile, "course-videos");
+        
+        // Step 2: Trigger AWS Elemental MediaConvert to generate 1080p, 720p, 480p, 144p HLS!
+        try {
+          const convertRes = await fetch("/api/s3/convert", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ s3Url: originalS3Url, filename: resourceFile.name })
+          });
+          const convertData = await convertRes.json();
+          if (convertRes.ok && convertData.finalHlsUrl) {
+            finalUrl = convertData.finalHlsUrl; // Use the HLS link instead of the MP4 link!
+            console.log("MediaConvert triggered successfully. Using HLS URL:", finalUrl);
+          } else {
+            console.warn("MediaConvert trigger failed:", convertData.error);
+            finalUrl = originalS3Url; // Fallback to original MP4 if not configured
+            if (convertData.error.includes("Missing endpoint or role ARN")) {
+              alert("Video uploaded, but MediaConvert is not configured. Please complete the AWS setup for quality options to work.");
+            }
+          }
+        } catch (e) {
+          console.error("Failed to trigger conversion", e);
+          finalUrl = originalS3Url;
+        }
+      } else if (uploadItemType === "video" && videoPlatform !== "s3") {
         effectivePlatform = "direct";
       }
       

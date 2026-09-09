@@ -65,20 +65,58 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   // Quality Control for HLS
   useEffect(() => {
-    if (activeVideo?.url?.includes('.m3u8') && playerRef.current) {
-      const hls = playerRef.current.getInternalPlayer('hls');
-      if (hls && hls.levels) {
-        if (quality === 'Auto') {
-          hls.currentLevel = -1;
-        } else {
-          const height = parseInt(quality);
-          const levelIndex = hls.levels.findIndex((l: any) => l.height === height);
-          if (levelIndex !== -1) {
-            hls.currentLevel = levelIndex;
+    let interval: NodeJS.Timeout;
+    
+    const applyQuality = () => {
+      if (activeVideo && playerRef.current) {
+        const hls = playerRef.current.getInternalPlayer('hls');
+        if (hls && hls.levels && hls.levels.length > 0) {
+          if (quality === 'Auto') {
+            hls.currentLevel = -1;
+          } else {
+            const height = parseInt(quality);
+            // Try exact match first
+            let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+            
+            // If no exact match, find closest height
+            if (levelIndex === -1) {
+               let minDiff = Infinity;
+               hls.levels.forEach((l: any, idx: number) => {
+                 if (l.height) {
+                   const diff = Math.abs(l.height - height);
+                   if (diff < minDiff) {
+                     minDiff = diff;
+                     levelIndex = idx;
+                   }
+                 }
+               });
+            }
+
+            if (levelIndex !== -1) {
+              hls.currentLevel = levelIndex;
+            }
           }
+          return true; // Applied successfully
         }
       }
+      return false;
+    };
+
+    // Try applying immediately
+    if (!applyQuality()) {
+      // If levels aren't loaded yet, poll for a few seconds
+      let attempts = 0;
+      interval = setInterval(() => {
+        attempts++;
+        if (applyQuality() || attempts > 20) { // Give up after 10 seconds
+          clearInterval(interval);
+        }
+      }, 500);
     }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [quality, activeVideo]);
 
 
@@ -509,6 +547,32 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             internal.unloadModule("cc");
                           } catch (e) {}
                         }
+
+                        // Apply quality on ready
+                        const hls = playerRef.current?.getInternalPlayer('hls');
+                        if (hls && hls.levels && hls.levels.length > 0) {
+                          if (quality === 'Auto') {
+                            hls.currentLevel = -1;
+                          } else {
+                            const height = parseInt(quality);
+                            let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+                            if (levelIndex === -1) {
+                               let minDiff = Infinity;
+                               hls.levels.forEach((l: any, idx: number) => {
+                                 if (l.height) {
+                                   const diff = Math.abs(l.height - height);
+                                   if (diff < minDiff) {
+                                     minDiff = diff;
+                                     levelIndex = idx;
+                                   }
+                                 }
+                               });
+                            }
+                            if (levelIndex !== -1) {
+                              hls.currentLevel = levelIndex;
+                            }
+                          }
+                        }
                       }}
                       config={{
                         dailymotion: {
@@ -655,8 +719,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        {/* Quality Control (Only for HLS) */}
-                        {activeVideo?.url?.includes('.m3u8') && (
+                        {/* Quality Control */}
+                        {activeVideo && activeVideo.type !== 'resource' && (
                           <div className="relative flex items-center">
                             <button 
                               className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
@@ -675,7 +739,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                     <span className="text-xs text-foreground/50 font-medium py-2">Quality</span>
                                     <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {['Auto', '1080p', '720p', '480p'].map(q => (
+                                  {['Auto', '1080p', '720p', '480p', '360p', '144p'].map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
