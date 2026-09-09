@@ -8,7 +8,7 @@ import { X, ShieldAlert, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToS3 } from "@/lib/s3Storage";
 import toast from "react-hot-toast";
 
 interface ReportIssueModalProps {
@@ -55,8 +55,8 @@ export default function ReportIssueModal({ isOpen, onClose }: ReportIssueModalPr
     try {
       let imageUrl = "";
       if (selectedFile) {
-        toast("Uploading screenshot...", { icon: "⏳" });
-        imageUrl = await uploadToCloudinary(selectedFile);
+        toast("Uploading screenshot to Amazon S3...", { icon: "⏳" });
+        imageUrl = await uploadToS3(selectedFile, "support-issues");
       }
 
       await addDoc(collection(db, "examMessages"), {
