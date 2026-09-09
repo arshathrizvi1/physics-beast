@@ -26,6 +26,13 @@
     },
     "PrivacyScreen": {
       "enable": true
+    },
+    "CapacitorPasskey": {
+      "origin": "https://brilliantacademy.vercel.app",
+      "autoShim": true,
+      "domains": [
+        "brilliantacademy.vercel.app"
+      ]
     }
   }
 }

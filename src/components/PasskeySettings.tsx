@@ -14,21 +14,13 @@ export default function PasskeySettings() {
   const [isSupported, setIsSupported] = useState(true);
 
   React.useEffect(() => {
-    // Check if WebAuthn is supported and not running in a native Capacitor mobile app environment where it might be restricted
+    // Check if WebAuthn is supported natively or shimmed
     const checkSupport = async () => {
-      if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-        setIsSupported(false);
-        return;
-      }
-      
-      try {
-        const { Capacitor } = await import('@capacitor/core');
-        if (Capacitor.isNativePlatform()) {
+      setTimeout(() => {
+        if (typeof window === 'undefined' || !window.PublicKeyCredential) {
           setIsSupported(false);
         }
-      } catch (e) {
-        // Capacitor not found or not in use, rely on PublicKeyCredential check above
-      }
+      }, 500);
     };
     checkSupport();
   }, []);

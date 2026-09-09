@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc, onSnapshot } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2, MessageSquare } from "lucide-react";
@@ -42,9 +42,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (!user) return;
 
-    const fetchResults = async () => {
-      try {
-        const examDoc = await getDoc(doc(db, 'exams', id));
+    let unsubExam: () => void;
+    let unsubResults: () => void;
+
+    try {
+      unsubExam = onSnapshot(doc(db, 'exams', id), (examDoc) => {
         if (!examDoc.exists()) {
           setErrorMsg("Exam not found.");
           setLoading(false);
@@ -54,11 +56,13 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
         const examData = examDoc.data();
         setExam(examData);
         
-        setIsExamActive(examData.endTime ? Date.now() < examData.endTime : false);
+        // If grades and ranks have been published, the exam is officially no longer in progress
+        const examActive = examData.gradesPublished ? false : (examData.endTime ? Date.now() < examData.endTime : false);
+        setIsExamActive(examActive);
+      });
 
-        // Fetch all results for leaderboard and analytics
-        const qAll = query(collection(db, 'examResults'), where('examId', '==', id));
-        const snapAll = await getDocs(qAll);
+      const qAll = query(collection(db, 'examResults'), where('examId', '==', id));
+      unsubResults = onSnapshot(qAll, (snapAll) => {
         const results: any[] = [];
         let myRes = null;
         
@@ -70,24 +74,31 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           }
         });
 
-        // Sort by rawScore descending, then timeTakenSeconds ascending
+        // Sort by score or rawScore descending, then timeTakenSeconds ascending
         results.sort((a, b) => {
-          if (b.rawScore !== a.rawScore) return b.rawScore - a.rawScore;
-          return a.timeTakenSeconds - b.timeTakenSeconds;
+          const scoreA = Number(a.score ?? a.rawScore ?? 0);
+          const scoreB = Number(b.score ?? b.rawScore ?? 0);
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          const timeA = Number(a.timeTakenSeconds ?? a.timeSeconds ?? 999999);
+          const timeB = Number(b.timeTakenSeconds ?? b.timeSeconds ?? 999999);
+          return timeA - timeB;
         });
 
         setAllResults(results);
         setMyResult(myRes);
         setLoading(false);
+      });
 
-      } catch (e) {
-        console.error(e);
-        setErrorMsg("Failed to load results.");
-        setLoading(false);
-      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg("Failed to load results.");
+      setLoading(false);
+    }
+
+    return () => {
+      if (unsubExam) unsubExam();
+      if (unsubResults) unsubResults();
     };
-
-    fetchResults();
   }, [id, user]);
 
   const handleSendExitMessage = async () => {

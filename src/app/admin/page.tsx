@@ -1361,10 +1361,17 @@ export default function AdminDashboard() {
   const handlePublishGrades = async () => {
     if (!selectedExamDetails) return;
     try {
+      const now = Date.now();
+      const updatedEndTime = Math.min(selectedExamDetails.endTime || now, now);
       await updateDoc(doc(db, 'exams', selectedExamDetails.id), {
-        gradesPublished: true
+        gradesPublished: true,
+        endTime: updatedEndTime
       });
-      setSelectedExamDetails({...selectedExamDetails, gradesPublished: true});
+      setSelectedExamDetails((prev: any) => prev ? {
+        ...prev,
+        gradesPublished: true,
+        endTime: updatedEndTime
+      } : null);
       alert("Grades and ranks have been published to students!");
     } catch (e) {
       console.error(e);
@@ -5098,14 +5105,14 @@ export default function AdminDashboard() {
                   }
                   return null;
                 })()}
-                {!selectedExamDetails.gradesPublished && selectedExamDetails.examType === 'essay' && (
+                {!selectedExamDetails.gradesPublished && (
                   <Button 
                     size="sm" 
                     variant="default"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     onClick={handlePublishGrades}
                   >
-                    Publish Grades
+                    Publish Grades &amp; Ranks
                   </Button>
                 )}
                 <Button 
