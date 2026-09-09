@@ -618,38 +618,40 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        {/* Quality Control */}
-                        <div className="relative flex items-center">
-                          <button 
-                            className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowQualityMenu(!showQualityMenu);
-                              setShowSpeedMenu(false);
-                            }}
-                          >
-                            {quality} <Settings className="w-4 h-4 ml-1" />
-                          </button>
-                          {showQualityMenu && (
-                            <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                              <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
-                                <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
-                                  <span className="text-xs text-foreground/50 font-medium py-2">Quality</span>
-                                  <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
+                        {/* Quality Control (Only for HLS) */}
+                        {activeVideo?.url?.includes('.m3u8') && (
+                          <div className="relative flex items-center">
+                            <button 
+                              className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowQualityMenu(!showQualityMenu);
+                                setShowSpeedMenu(false);
+                              }}
+                            >
+                              {quality} <Settings className="w-4 h-4 ml-1" />
+                            </button>
+                            {showQualityMenu && (
+                              <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
+                                <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
+                                  <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
+                                    <span className="text-xs text-foreground/50 font-medium py-2">Quality</span>
+                                    <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
+                                  </div>
+                                  {['Auto', '1080p', '720p', '480p'].map(q => (
+                                    <button 
+                                      key={q} 
+                                      onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
+                                      className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
+                                    >
+                                      {q}
+                                    </button>
+                                  ))}
                                 </div>
-                                {['Auto', '1080p', '720p', '480p'].map(q => (
-                                  <button 
-                                    key={q} 
-                                    onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
-                                    className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
-                                  >
-                                    {q}
-                                  </button>
-                                ))}
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Speed Control */}
                         <div className="relative flex items-center">

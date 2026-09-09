@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "326758596614-fts2e7ggn6p2ut87o9g7gjgohbglomcr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.physicsbeast.app",
+            "certificate_hash": "4922badc5d265f3aa30062f2553047c362316b36"
+          }
+        },
+        {
           "client_id": "326758596614-a790gkghl9irjp3cp5d25a4r7f2ptf6q.apps.googleusercontent.com",
           "client_type": 3
         }

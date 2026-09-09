@@ -15,6 +15,7 @@ import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc, o
 import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { uploadToS3 } from "@/lib/s3Storage";
+import PasskeySettings from "@/components/PasskeySettings";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -3810,6 +3811,10 @@ export default function AdminDashboard() {
               </Button>
             </CardFooter>
           </Card>
+
+          <div className="max-w-2xl mx-auto mt-6">
+            <PasskeySettings />
+          </div>
         </TabsContent>
 
       </Tabs>

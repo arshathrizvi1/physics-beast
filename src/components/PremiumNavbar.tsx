@@ -233,7 +233,7 @@ export default function PremiumNavbar() {
               {user ? (
                 <div className="flex items-center gap-2">
                   <NotificationBell />
-                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/"}>
+                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/profile"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
@@ -346,7 +346,11 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.45, duration: 0.4 }}
                     className="mt-6 flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-3">
+                    <Link 
+                      href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/profile"} 
+                      className="flex items-center gap-3"
+                      onClick={() => setMobileOpen(false)}
+                    >
                       <div className="w-10 h-10 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-secondary flex items-center justify-center">
                         {user.photoUrl ? <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" /> : <span className="text-[#d4af37] font-bold">{(user.name || "U").charAt(0)}</span>}
                       </div>
@@ -354,7 +358,7 @@ export default function PremiumNavbar() {
                         <p className="text-foreground font-semibold text-sm">{user.name || user.email?.split("@")[0]}</p>
                         <p className="text-zinc-500 text-xs capitalize">{user.role}</p>
                       </div>
-                    </div>
+                    </Link>
                     <button onClick={logout} className="flex items-center gap-2 text-muted-foreground hover:text-red-400 transition-colors text-sm font-semibold">
                       <LogOut className="w-4 h-4" /> Logout
                     </button>

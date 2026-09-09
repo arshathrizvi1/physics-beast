@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, CheckCircle2, XCircle, Edit2, Check, FileText, Sparkles, Zap, Timer, ShieldAlert } from "lucide-react";
+import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, CheckCircle2, XCircle, Edit2, Check, FileText, Sparkles, Zap, Timer, ShieldAlert, Eye, EyeOff, Loader2, Fingerprint } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
@@ -147,6 +148,42 @@ export default function LoginPage() {
       </div>
     );
   }
+
+  const handlePasskeyLogin = async () => {
+    setIsSubmitting(true);
+    setError("");
+    try {
+      const resp = await fetch('/api/passkey/generate-auth-options', { method: 'POST' });
+      const { options, challengeId } = await resp.json();
+
+      if (!options) throw new Error("Could not generate passkey options");
+
+      const authResp = await startAuthentication(options);
+
+      const verificationResp = await fetch('/api/passkey/verify-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: authResp, challengeId }),
+      });
+
+      const verificationResult = await verificationResp.json();
+      if (verificationResult.verified && verificationResult.customToken) {
+        const success = await loginWithCustomToken(verificationResult.customToken);
+        if (success) {
+          router.push('/dashboard');
+        } else {
+          throw new Error("Failed to authenticate with passkey token.");
+        }
+      } else {
+        throw new Error(verificationResult.error || "Passkey verification failed.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Passkey login failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
@@ -678,6 +715,19 @@ export default function LoginPage() {
                   </svg>
                   {isLogin ? "Sign in with Google" : "Sign up with Google"}
                 </Button>
+
+                {isLogin && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2 mb-4 bg-background/50 hover:bg-background border-primary/20 text-primary transition-all duration-300"
+                    onClick={handlePasskeyLogin}
+                    disabled={isSubmitting}
+                  >
+                    <Fingerprint className="w-5 h-5" />
+                    Sign in with Passkey / Biometrics
+                  </Button>
+                )}
 
                 <div className="relative py-2">
                   <div className="absolute inset-0 flex items-center">

@@ -91,6 +91,7 @@ interface AuthContextType {
   completeGoogleSignup: (profileData: any, nicFile: File | null, password?: string) => Promise<boolean>;
   signupTeacher: (email: string, password: string, profileData: { name: string; subject: string }) => Promise<boolean>;
   completeGoogleTeacherSignup: (profileData: { name: string; subject: string }, password?: string) => Promise<boolean>;
+  loginWithCustomToken: (token: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -106,11 +107,23 @@ const AuthContext = createContext<AuthContextType>({
   completeGoogleSignup: async () => false,
   signupTeacher: async () => false,
   completeGoogleTeacherSignup: async () => false,
+  loginWithCustomToken: async () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loginWithCustomToken = async (token: string) => {
+    try {
+      const { signInWithCustomToken } = await import('firebase/auth');
+      await signInWithCustomToken(auth, token);
+      return true;
+    } catch (error) {
+      console.error("Passkey login error", error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     // SAFETY TIMEOUT: If Firebase Auth hangs or is slow, force unblock after 2 seconds
@@ -1187,7 +1200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup, loginWithCustomToken }}>
       {children}
     </AuthContext.Provider>
   );
