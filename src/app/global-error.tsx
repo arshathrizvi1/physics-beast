@@ -31,6 +31,12 @@ export default function GlobalError({
           <p style={{ color: '#aaa', marginBottom: '20px', maxWidth: '400px' }}>
             We encountered a critical error. Please refresh the app to continue.
           </p>
+          <div style={{ backgroundColor: '#222', color: '#ff6b6b', padding: '15px', borderRadius: '8px', marginBottom: '20px', fontSize: '12px', textAlign: 'left', width: '100%', maxWidth: '400px', overflow: 'auto' }}>
+            <strong>Error details:</strong><br />
+            {error?.name}: {error?.message}<br />
+            <br />
+            {error?.digest && <span>Digest: {error.digest}</span>}
+          </div>
           <button 
             onClick={() => window.location.reload()}
             style={{ padding: '12px 24px', backgroundColor: '#d4af37', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
