@@ -231,7 +231,7 @@ export default function StudentLivePortal() {
     
     // Android 3-finger gesture screenshot & multi-touch detection
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches && e.touches.length >= 2) {
+      if (e.touches && e.touches.length >= 3) {
         showBlackout();
         setTimeout(hideBlackout, 2500);
       }
@@ -246,14 +246,28 @@ export default function StudentLivePortal() {
       }
     };
 
+    const handleWindowBlur = () => {
+      showBlackout();
+    };
+
+    const handleWindowFocus = () => {
+      hideBlackout();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchStart, { passive: true });
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchStart);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
       if (document.body.contains(blackoutDiv)) {
         document.body.removeChild(blackoutDiv);
       }
