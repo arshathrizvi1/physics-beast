@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -276,6 +276,19 @@ export default function AdminLiveStudio() {
     } catch (e) { }
   };
 
+  const handleDeleteAll = async () => {
+    if (!confirm("WARNING: Are you absolutely sure you want to DELETE ALL live sessions? This cannot be undone.")) return;
+    try {
+      const batch = writeBatch(db);
+      liveClasses.forEach(cls => {
+        batch.delete(doc(db, 'live_classes', cls.id));
+      });
+      await batch.commit();
+    } catch (e) {
+      alert("Failed to delete all. " + e);
+    }
+  };
+
   if (loading || !user || (user.role !== "admin" && user.role !== "teacher")) {
     return <div className="flex h-[50vh] items-center justify-center"><p className="animate-pulse text-primary font-bold">Loading...</p></div>;
   }
@@ -514,9 +527,16 @@ export default function AdminLiveStudio() {
 
         {/* Classes List */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-xl font-bold flex items-center gap-2 border-b pb-2">
-            <Calendar className="w-5 h-5" /> Managed Sessions
-          </h2>
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Calendar className="w-5 h-5" /> Managed Sessions
+            </h2>
+            {liveClasses.length > 0 && (
+              <Button size="sm" variant="destructive" onClick={handleDeleteAll} className="h-8 text-xs font-bold bg-red-600 hover:bg-red-700">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
+              </Button>
+            )}
+          </div>
           
           {liveClasses.length === 0 ? (
             <div className="p-12 border-2 border-dashed border-secondary rounded-xl text-center text-muted-foreground">
@@ -591,13 +611,21 @@ export default function AdminLiveStudio() {
                             let videoId = null;
                             const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
 
-                            // If the platform is RTMP, the live link (HLS) expires. So we MUST ask for the recorded Bunny ID.
-                            // If it's YouTube, Zoom, Meet, or Custom, the live link IS the recording link.
+                            // If the platform is RTMP, check if auto-upload already happened
                             if (cls.platform === 'rtmp' || !cls.link) {
-                              const manualInput = prompt("Enter the recorded Bunny Video ID, full Bunny iframe URL, or Direct Video URL:", "");
-                              if (!manualInput) return;
-                              videoInput = manualInput;
-                              inputTrimmed = videoInput.trim();
+                              if (cls.vodVideoId) {
+                                // Auto-upload already completed! Use it directly.
+                                inputTrimmed = cls.vodVideoId;
+                              } else if (cls.platform === 'rtmp') {
+                                // RTMP stream ended but recording hasn't been uploaded yet
+                                alert("The RTMP recording is still being processed by your AWS server. Please wait 2-5 minutes and try again.\n\nIf it's been more than 10 minutes, check your AWS server logs.");
+                                return;
+                              } else {
+                                const manualInput = prompt("Enter the recorded Bunny Video ID, full Bunny iframe URL, or Direct Video URL:", "");
+                                if (!manualInput) return;
+                                videoInput = manualInput;
+                                inputTrimmed = videoInput.trim();
+                              }
                             } else {
                               // Confirm auto-push
                               if (!confirm(`Add this ${cls.platform.toUpperCase()} recording directly to the folder?\n\nLink: ${cls.link}`)) return;
