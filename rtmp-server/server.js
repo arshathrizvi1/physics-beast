@@ -374,9 +374,9 @@ app.post('/generate-key', (req, res) => {
   });
 });
 
-// Download from YouTube and push to Bunny
+// Download from YouTube/Zoom and push to Bunny
 app.post('/api/convert-youtube', (req, res) => {
-  const { secret, url, streamKey } = req.body;
+  const { secret, url, streamKey, password } = req.body;
   
   if (secret !== CALLBACK_SECRET) {
     return res.status(403).json({ error: 'Invalid secret' });
@@ -385,34 +385,42 @@ app.post('/api/convert-youtube', (req, res) => {
     return res.status(400).json({ error: 'Missing url or streamKey' });
   }
 
-  console.log(`[YouTube] Received download request for ${streamKey}: ${url}`);
+  console.log(`[Downloader] Received download request for ${streamKey}: ${url}`);
   
   // Respond immediately so Vercel doesn't time out
-  res.json({ success: true, message: 'YouTube download started in background' });
+  res.json({ success: true, message: 'Download started in background' });
 
   // Run yt-dlp in background
   const { spawn } = require('child_process');
-  const outputPath = path.join(recordingsDir, `${streamKey}_youtube.mp4`);
+  const outputPath = path.join(recordingsDir, `${streamKey}_download.mp4`);
   
-  // Download best mp4 format (usually 1080p video + audio, or 720p)
-  const ytdlp = spawn('yt-dlp', [
+  // Base yt-dlp args
+  const args = [
     '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-    '-o', outputPath,
-    url
-  ]);
+    '-o', outputPath
+  ];
+  
+  // Add password if provided (for Zoom, Vimeo, etc)
+  if (password) {
+    args.push('--video-password', password);
+  }
+  
+  args.push(url);
+
+  const ytdlp = spawn('yt-dlp', args);
 
   ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
   ytdlp.stderr.on('data', (data) => console.error(`[yt-dlp] ${data.toString().trim()}`));
 
   ytdlp.on('close', (code) => {
     if (code === 0) {
-      console.log(`[YouTube] ✅ Download complete for ${streamKey}`);
+      console.log(`[Downloader] ✅ Download complete for ${streamKey}`);
       // Trigger the existing post-stream pipeline to upload to Bunny and notify website
       handleStreamEnded(streamKey).catch(err => 
-        console.error('[YouTube] Error in post-stream pipeline:', err.message)
+        console.error('[Downloader] Error in post-stream pipeline:', err.message)
       );
     } else {
-      console.error(`[YouTube] ❌ yt-dlp process exited with code ${code}`);
+      console.error(`[Downloader] ❌ yt-dlp process exited with code ${code}`);
       notifyWebsite('stream_ended', { streamKey, hasRecording: false }).catch(() => {});
     }
   });

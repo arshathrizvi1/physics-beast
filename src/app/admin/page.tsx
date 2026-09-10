@@ -2740,7 +2740,6 @@ export default function AdminDashboard() {
                         <option value="youtube">YouTube</option>
                         <option value="vimeo">Vimeo</option>
                         <option value="dailymotion">Dailymotion</option>
-                        <option value="direct">Direct External Link (Google Drive, URL, etc.)</option>
                       </select>
                     </div>
 
@@ -2816,16 +2815,11 @@ export default function AdminDashboard() {
                       <div className="space-y-2">
                         <Label>Video URL</Label>
                         <div className="flex gap-2">
-                          <Input key="video-url-text-input" placeholder={videoPlatform === 'direct' ? "https://drive.google.com/uc?export=download&id=..." : "https://youtube.com/watch?v=..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
+                          <Input key="video-url-text-input" placeholder="https://youtube.com/watch?v=..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
                           <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
                             {isUploading ? "Linking..." : "Link Video"}
                           </Button>
                         </div>
-                        {videoPlatform === 'direct' && (
-                          <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                            <strong>Note for Google Drive:</strong> To play directly inside the custom player with quality controls, you must use a direct download link. Format: <code>https://drive.google.com/uc?export=download&id=FILE_ID</code> instead of the standard sharing link. Standard sharing links will not work in the custom player.
-                          </p>
-                        )}
                       </div>
                     )}
                   </div>

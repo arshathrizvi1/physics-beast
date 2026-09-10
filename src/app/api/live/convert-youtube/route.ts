@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { url, streamKey } = await request.json();
+    const { url, streamKey, password } = await request.json();
 
     if (!url || !streamKey) {
       return NextResponse.json({ error: 'Missing url or streamKey' }, { status: 400 });
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const serverPort = process.env.RTMP_HTTP_PORT || '8000';
     const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
 
-    const awsUrl = `http://${serverHost}:${serverPort}/api/convert-youtube`;
+    const awsUrl = 'http://' + serverHost + ':' + serverPort + '/api/convert-youtube';
 
     const res = await fetch(awsUrl, {
       method: 'POST',
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         url,
         streamKey,
+        password,
         secret: callbackSecret
       })
     });
