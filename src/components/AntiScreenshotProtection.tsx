@@ -18,20 +18,24 @@ export function AntiScreenshotProtection() {
       blackoutDiv.style.zIndex = "2147483647"; // Max 32-bit int z-index
       blackoutDiv.style.color = "white";
       blackoutDiv.style.display = "flex";
+      blackoutDiv.style.flexDirection = "column";
       blackoutDiv.style.alignItems = "center";
       blackoutDiv.style.justifyContent = "center";
-      blackoutDiv.style.fontSize = "24px";
-      blackoutDiv.style.fontWeight = "bold";
       blackoutDiv.style.opacity = "0";
       blackoutDiv.style.pointerEvents = "none";
       blackoutDiv.style.transition = "opacity 0.05s linear";
       blackoutDiv.innerHTML = `
-        <div style="text-align:center; padding: 20px;">
-          <span style="font-size:64px; display:block; margin-bottom:15px;">🛡️</span>
-          <span style="color:#ef4444; font-size: 22px;">Content Protected</span><br/>
-          <span style="font-size:14px; font-weight:normal; color:#a1a1aa; margin-top:10px; display:block;">
-            Screenshots, screen recording, and app-switching are disabled due to security policy.
-          </span>
+        <div style="text-align:center; padding: 24px; max-width: 340px; background-color: #121212; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.8);">
+          <div style="width: 56px; height: 56px; background-color: rgba(239, 68, 68, 0.1); border-radius: 9999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+            <span style="font-size: 28px;">🛡️</span>
+          </div>
+          <h3 style="color: #ffffff; font-size: 18px; font-weight: 700; margin: 0 0 8px 0;">Can't take screenshots of this page</h3>
+          <p style="font-size: 13px; color: #a1a1aa; line-height: 1.5; margin: 0;">
+            Taking screenshots or screen recording is disabled by security policy.
+          </p>
+          <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: #d4af37; font-weight: 500;">
+            Brilliant Academy LMS Security
+          </div>
         </div>
       `;
       document.body.appendChild(blackoutDiv);
