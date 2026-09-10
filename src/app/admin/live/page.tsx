@@ -235,37 +235,77 @@ export default function AdminLiveStudio() {
 
       if (newStatus === 'ended') {
         const cls = liveClasses.find(c => c.id === id);
-        if (cls && cls.targetFolderId) {
-          const folderRef = doc(db, 'folders', cls.targetFolderId);
-          const folderSnap = await getDoc(folderRef);
+        if (cls && cls.targetFolderId && cls.targetFolderId !== 'none') {
+          const inputTrimmed = cls.link ? cls.link.trim() : "";
+          const isYoutubeOrZoom = inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be') || inputTrimmed.includes('zoom.us/rec');
           
-          let actualCourseId = cls.courseId || null;
-          if (folderSnap.exists()) {
-            actualCourseId = folderSnap.data().courseId || actualCourseId;
-            const items = folderSnap.data().items || [];
+          if (isYoutubeOrZoom) {
+            // Trigger automatic background download and Bunny upload
+            const isZoom = inputTrimmed.includes('zoom.us/rec');
+            let videoPassword = "";
             
-            const videoRef = doc(collection(db, 'videos'));
-            await setDoc(videoRef, {
-              id: videoRef.id,
-              title: `${cls.title} (Recorded Live)`,
-              description: cls.description || '',
-              url: cls.link,
-              platform: cls.platform,
-              courseId: actualCourseId,
-              folderId: cls.targetFolderId,
-              type: 'video',
-              createdAt: Date.now(),
-              views: 0
-            });
+            // Note: If Zoom has a password, we can't easily prompt during auto-end unless we add a prompt here.
+            // But since this happens on 'End Broadcast', we can prompt just in case it's Zoom.
+            if (isZoom) {
+               videoPassword = prompt(`(Optional) Enter the Zoom Passcode for background download:`, "") || "";
+            }
 
-            await updateDoc(folderRef, {
-              items: [...items, { id: videoRef.id, type: 'video' }]
-            });
+            const videoDocId = doc(collection(db, 'videos')).id;
+            const metadata = {
+              videoDocId,
+              videoTitle: `${cls.title} (Recorded Live)`,
+              videoDescription: cls.description || '',
+              selectedItemType: cls.courseId ? 'course' : 'folder',
+              selectedCourseId: cls.courseId || 'none',
+              selectedCourseFolderId: cls.targetFolderId,
+              selectedFolderId: cls.targetFolderId
+            };
+
+            fetch('/api/bunny/aws-download', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                url: inputTrimmed, 
+                password: videoPassword,
+                title: `${cls.title} (Recorded Live)`,
+                metadata
+              })
+            }).catch(e => console.error("Auto background download failed to start:", e));
+            
+            // We do NOT add the raw link to the folder. The webhook will handle adding it!
+          } else {
+            // Old fallback: Just add the raw link to the folder directly (e.g., if it's already a Bunny link or custom)
+            const folderRef = doc(db, 'folders', cls.targetFolderId);
+            const folderSnap = await getDoc(folderRef);
+            
+            let actualCourseId = cls.courseId || null;
+            if (folderSnap.exists()) {
+              actualCourseId = folderSnap.data().courseId || actualCourseId;
+              const items = folderSnap.data().items || [];
+              
+              const videoRef = doc(collection(db, 'videos'));
+              await setDoc(videoRef, {
+                id: videoRef.id,
+                title: `${cls.title} (Recorded Live)`,
+                description: cls.description || '',
+                url: cls.link,
+                platform: cls.platform,
+                courseId: actualCourseId,
+                folderId: cls.targetFolderId,
+                type: 'video',
+                createdAt: Date.now(),
+                views: 0
+              });
+
+              await updateDoc(folderRef, {
+                items: [...items, { id: videoRef.id, type: 'video' }]
+              });
+            }
           }
         }
       }
     } catch (e) {
-      alert("Failed to update. Quota exceeded?");
+      alert("Failed to update status. Quota exceeded?");
     }
   };
 

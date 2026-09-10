@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/firebase';
+import { addDoc, collection } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
@@ -36,6 +38,18 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json();
+
+    await addDoc(collection(db, 'notifications'), {
+      title: "Recording Download Started",
+      message: `The server is now downloading "${title}". You will be notified once it finishes uploading and is pushed to the folder.`,
+      type: "info",
+      link: "/admin/library",
+      createdAt: Date.now(),
+      isGlobal: true,
+      readBy: [],
+      clearedBy: []
+    });
+
     return NextResponse.json(data);
 
   } catch (error: any) {

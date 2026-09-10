@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc, addDoc, collection } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
@@ -40,6 +40,29 @@ export async function POST(request: Request) {
     };
 
     await setDoc(videoRef, videoData);
+
+    if (targetFolderId && targetFolderId !== 'none') {
+      const folderRef = doc(db, 'folders', targetFolderId);
+      const folderSnap = await getDoc(folderRef);
+      if (folderSnap.exists()) {
+        const items = folderSnap.data().items || [];
+        await updateDoc(folderRef, {
+          items: [...items, { id: videoRef.id, type: 'video' }]
+        });
+      }
+    }
+
+    // Send Notification to admins
+    await addDoc(collection(db, 'notifications'), {
+      title: "Live Recording Processed",
+      message: `The YouTube/Zoom recording "${metadata.videoTitle}" has been automatically downloaded, uploaded to BunnyCDN, and saved to the folder.`,
+      type: "info",
+      link: "/admin/library",
+      createdAt: Date.now(),
+      isGlobal: true, // Show to all admins
+      readBy: [],
+      clearedBy: []
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

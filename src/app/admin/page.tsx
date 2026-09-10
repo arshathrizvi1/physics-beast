@@ -1272,7 +1272,54 @@ export default function AdminDashboard() {
                selectedCourseFolderId,
                selectedFolderId
              };
+             const targetFolderId = selectedItemType === 'course' ? selectedCourseFolderId : selectedFolderId;
+             const videoRef = doc(db, 'videos', videoDocId);
              
+             // 1. Create Placeholder Document immediately!
+             await setDoc(videoRef, {
+               id: videoDocId,
+               title: videoTitle,
+               description: videoDescription || '',
+               url: '', // Empty until ready
+               videoId: '',
+               libraryId: '',
+               platform: 'bunny',
+               courseId: selectedCourseId === 'none' ? null : selectedCourseId,
+               folderId: targetFolderId,
+               type: 'video',
+               isReady: false,
+               processingStatus: 'downloading',
+               createdAt: Date.now(),
+               views: 0
+             });
+
+             // 2. Add to folder immediately
+             if (targetFolderId && targetFolderId !== 'none') {
+               const folderRef = doc(db, 'folders', targetFolderId);
+               const folderSnap = await getDoc(folderRef);
+               if (folderSnap.exists()) {
+                 const items = folderSnap.data().items || [];
+                 await updateDoc(folderRef, {
+                   items: [...items, { id: videoDocId, type: 'video' }]
+                 });
+               }
+             }
+
+             // 3. Send Notification that download started
+             const notifRef = doc(collection(db, 'notifications'));
+             await setDoc(notifRef, {
+               id: notifRef.id,
+               title: "Video Processing Started",
+               message: `Started downloading and processing "${videoTitle}" in the background on AWS.`,
+               type: "info",
+               link: "/admin",
+               createdAt: Date.now(),
+               isGlobal: true, // Show to all admins
+               readBy: [],
+               clearedBy: []
+             });
+
+             // 4. Start AWS Download
              const fetchRes = await fetch("/api/bunny/aws-download", {
                method: "POST",
                headers: { "Content-Type": "application/json" },
@@ -1280,14 +1327,16 @@ export default function AdminDashboard() {
              });
              
              if (!fetchRes.ok) {
+               // If AWS fails, clean up
+               await deleteDoc(videoRef);
                const err = await fetchRes.json();
                throw new Error(err.error || "AWS download failed");
              }
              
-             alert("✅ Background download started! Your AWS server will download and upload this video to BunnyCDN. It will appear in the folder in a few minutes.");
+             alert("✅ Background download started! It will appear as 'Downloading...' in the folder. You will be notified when it's ready to watch.");
              setIsUploading(false);
              resetForm();
-             return; // Stop here, webhook will create the Firestore document
+             return;
            } else {
              const fetchRes = await fetch("/api/bunny/fetch", {
                method: "POST",
@@ -2836,8 +2885,8 @@ export default function AdminDashboard() {
                                 {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                               </Button>
                             </div>
-                            <p className="text-xs text-destructive mt-1 bg-destructive/10 border border-destructive/20 p-2 rounded">
-                              <strong>🚨 CRITICAL ZOOM WARNING:</strong> BunnyCDN cannot process Zoom "Share" links (it downloads the webpage instead of the video, causing "Processing Failed"). You MUST download the MP4 from Zoom to your computer first, then select <strong>"Upload File"</strong> mode above instead of "Fetch URL".
+                            <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                              <strong>✨ Zoom Supported:</strong> You can paste standard Zoom cloud recording links. The server will automatically download them in the background (using your optional password) and upload them to BunnyCDN.
                             </p>
                           </div>
                         )}
