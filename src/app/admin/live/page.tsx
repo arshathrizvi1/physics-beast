@@ -579,20 +579,41 @@ export default function AdminLiveStudio() {
                           variant="outline" 
                           className="w-full text-xs font-bold border-green-500/40 text-green-400 hover:bg-green-500/10"
                           onClick={async () => {
-                            const videoInput = prompt("Enter Bunny Video ID, YouTube Link, or Direct Video URL to save to course folder:", cls.link || "");
-                            if (!videoInput) return;
-                            const folderIdToUse = cls.targetFolderId || prompt("Enter Target Folder ID:");
-                            if (!folderIdToUse || folderIdToUse === "none") {
-                              alert("Please select a target folder.");
+                            if (!cls.targetFolderId || cls.targetFolderId === "none") {
+                              alert("Please click the Settings (gear) icon below and select a 'Save Recorded Video to Folder' target first.");
                               return;
                             }
+                            
+                            const videoInput = prompt("Enter Bunny Video ID, full Bunny iframe URL, YouTube Link, or Direct Video URL to save to course folder:", "");
+                            if (!videoInput) return;
 
                             try {
-                              const isBunnyId = /^[a-f0-9-]{36}$/i.test(videoInput.trim());
+                              const inputTrimmed = videoInput.trim();
+                              let platform = 'direct';
+                              let videoUrl = inputTrimmed;
+                              let videoId = null;
                               const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
-                              const videoUrl = isBunnyId 
-                                ? `https://iframe.mediadelivery.net/embed/${libraryId}/${videoInput.trim()}?autoplay=true`
-                                : videoInput.trim();
+
+                              // Check if it's a raw Bunny GUID
+                              const isBunnyGuid = /^[a-f0-9-]{36}$/i.test(inputTrimmed);
+                              // Check if it's a Bunny embed URL
+                              const isBunnyUrl = inputTrimmed.includes('iframe.mediadelivery.net');
+                              
+                              if (isBunnyGuid) {
+                                platform = 'bunny';
+                                videoId = inputTrimmed;
+                                videoUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true`;
+                              } else if (isBunnyUrl) {
+                                platform = 'bunny';
+                                // extract videoId from URL if possible
+                                const match = inputTrimmed.match(/embed\/\d+\/([a-f0-9-]+)/i);
+                                if (match && match[1]) {
+                                  videoId = match[1];
+                                }
+                                videoUrl = inputTrimmed;
+                              } else if (inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be')) {
+                                platform = 'youtube';
+                              }
 
                               const videoRef = doc(collection(db, 'videos'));
                               const videoData = {
@@ -600,11 +621,11 @@ export default function AdminLiveStudio() {
                                 title: `${cls.title} (Recorded Live)`,
                                 description: cls.description || '',
                                 url: videoUrl,
-                                videoId: isBunnyId ? videoInput.trim() : null,
-                                libraryId: isBunnyId ? libraryId : null,
-                                platform: isBunnyId ? 'bunny' : (cls.platform || 'direct'),
+                                videoId: videoId,
+                                libraryId: platform === 'bunny' ? libraryId : null,
+                                platform: platform,
                                 courseId: cls.courseId || null,
-                                folderId: folderIdToUse,
+                                folderId: cls.targetFolderId,
                                 type: 'video',
                                 isReady: true,
                                 processingStatus: 'ready',
@@ -614,7 +635,7 @@ export default function AdminLiveStudio() {
 
                               await setDoc(videoRef, videoData);
 
-                              const folderRef = doc(db, 'folders', folderIdToUse);
+                              const folderRef = doc(db, 'folders', cls.targetFolderId);
                               const folderSnap = await getDoc(folderRef);
                               if (folderSnap.exists()) {
                                 const items = folderSnap.data().items || [];
