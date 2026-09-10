@@ -570,9 +570,67 @@ export default function AdminLiveStudio() {
                       </Button>
                     )}
                     {cls.status === 'ended' && (
-                      <Button size="sm" onClick={() => updateStatus(cls.id, 'scheduled')} variant="secondary" className="w-full">
-                        <RefreshCw className="w-3.5 h-3.5 mr-2" /> Re-schedule
-                      </Button>
+                      <div className="space-y-2 w-full">
+                        <Button size="sm" onClick={() => updateStatus(cls.id, 'scheduled')} variant="secondary" className="w-full">
+                          <RefreshCw className="w-3.5 h-3.5 mr-2" /> Re-schedule
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-xs font-bold border-green-500/40 text-green-400 hover:bg-green-500/10"
+                          onClick={async () => {
+                            const videoInput = prompt("Enter Bunny Video ID, YouTube Link, or Direct Video URL to save to course folder:", cls.link || "");
+                            if (!videoInput) return;
+                            const folderIdToUse = cls.targetFolderId || prompt("Enter Target Folder ID:");
+                            if (!folderIdToUse || folderIdToUse === "none") {
+                              alert("Please select a target folder.");
+                              return;
+                            }
+
+                            try {
+                              const isBunnyId = /^[a-f0-9-]{36}$/i.test(videoInput.trim());
+                              const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
+                              const videoUrl = isBunnyId 
+                                ? `https://iframe.mediadelivery.net/embed/${libraryId}/${videoInput.trim()}?autoplay=true`
+                                : videoInput.trim();
+
+                              const videoRef = doc(collection(db, 'videos'));
+                              const videoData = {
+                                id: videoRef.id,
+                                title: `${cls.title} (Recorded Live)`,
+                                description: cls.description || '',
+                                url: videoUrl,
+                                videoId: isBunnyId ? videoInput.trim() : null,
+                                libraryId: isBunnyId ? libraryId : null,
+                                platform: isBunnyId ? 'bunny' : (cls.platform || 'direct'),
+                                courseId: cls.courseId || null,
+                                folderId: folderIdToUse,
+                                type: 'video',
+                                isReady: true,
+                                processingStatus: 'ready',
+                                createdAt: Date.now(),
+                                views: 0
+                              };
+
+                              await setDoc(videoRef, videoData);
+
+                              const folderRef = doc(db, 'folders', folderIdToUse);
+                              const folderSnap = await getDoc(folderRef);
+                              if (folderSnap.exists()) {
+                                const items = folderSnap.data().items || [];
+                                await updateDoc(folderRef, {
+                                  items: [...items, { id: videoRef.id, type: 'video' }]
+                                });
+                              }
+                              alert(`✅ Recording video successfully saved to folder!`);
+                            } catch (e: any) {
+                              alert("Failed to save video: " + e.message);
+                            }
+                          }}
+                        >
+                          🎬 Add/Push Recording to Folder
+                        </Button>
+                      </div>
                     )}
                     
                     {cls.platform === 'rtmp' && (cls.status === 'live' || cls.status === 'scheduled') && (

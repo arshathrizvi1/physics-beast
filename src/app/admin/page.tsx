@@ -1313,8 +1313,9 @@ export default function AdminDashboard() {
         return;
       }
 
-      const ref = doc(collection(db, 'videos')); // we keep it in 'videos' collection for simplicity, just add type
+      const ref = doc(collection(db, 'videos'));
       await setDoc(ref, {
+        id: ref.id,
         title: videoTitle,
         url: finalUrl,
         type: uploadItemType,
@@ -1324,11 +1325,28 @@ export default function AdminDashboard() {
         folderId: videoFolderId,
         transcodeJobId: transcodeJobId || null,
         transcodeStatus: transcodeStatus || 'ready',
+        isReady: true,
         createdAt: Date.now()
       });
+
+      if (videoFolderId) {
+        try {
+          const folderRef = doc(db, 'folders', videoFolderId);
+          const folderSnap = await getDoc(folderRef);
+          if (folderSnap.exists()) {
+            const items = folderSnap.data().items || [];
+            await updateDoc(folderRef, {
+              items: [...items, { id: ref.id, type: uploadItemType }]
+            });
+          }
+        } catch (e) {
+          console.error("Could not update folder items", e);
+        }
+      }
+
       setIsUploading(false);
       setUploadSuccess(true);
-      alert("✅ Done! File uploaded and saved successfully.");
+      alert("✅ Done! File uploaded and saved successfully to folder.");
       setVideoTitle("");
       setVideoUrl("");
       setUploadFileBase64(null);
