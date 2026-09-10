@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const serverPort = process.env.RTMP_HTTP_PORT || '8000';
     const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
 
-    const awsUrl = \http://\:\/api/convert-youtube\;
+    const awsUrl = `http://${serverHost}:${serverPort}/api/convert-youtube`;
 
     const res = await fetch(awsUrl, {
       method: 'POST',
@@ -26,15 +26,14 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       const errText = await res.text();
-      return NextResponse.json({ error: \AWS server error: \\ }, { status: res.status });
+      return NextResponse.json({ error: `AWS server error: ${errText}` }, { status: res.status });
     }
 
     const data = await res.json();
     return NextResponse.json(data);
 
   } catch (error: any) {
-    console.error([Convert YouTube API] Error:, error);
+    console.error('[Convert YouTube API] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
