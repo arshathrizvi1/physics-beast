@@ -966,6 +966,7 @@ export default function AdminDashboard() {
   const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [zoomPassword, setZoomPassword] = useState("");
   const [videoPlatform, setVideoPlatform] = useState("youtube");
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
@@ -1261,7 +1262,7 @@ export default function AdminDashboard() {
            const fetchRes = await fetch("/api/bunny/fetch", {
              method: "POST",
              headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ url: videoUrl, title: videoTitle })
+             body: JSON.stringify({ url: videoUrl, title: videoTitle, zoomPassword })
            });
            const fetchData = await fetchRes.json();
            if (!fetchRes.ok) throw new Error(fetchData.error);

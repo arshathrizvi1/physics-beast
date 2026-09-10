@@ -365,16 +365,19 @@ export default function StudentLivePortal() {
                           playing={playing}
                           volume={volume}
                           muted={muted}
-                          controls={cls.platform === 'youtube'} // Show native controls for YouTube for best mobile compatibility
+                          controls={false} // Disable all native controls so students can't share/copy URL
                           playsinline
                           config={{
                             youtube: {
                               playerVars: { 
                                 autoplay: 1, 
-                                controls: 1, 
+                                controls: 0, 
                                 modestbranding: 1, 
                                 rel: 0, 
-                                disablekb: 0
+                                disablekb: 1,
+                                showinfo: 0,
+                                iv_load_policy: 3,
+                                fs: 0
                               }
                             },
                             file: {
@@ -395,6 +398,18 @@ export default function StudentLivePortal() {
                           }}
                         />
                       </div>
+                      
+                      {/* Transparent Overlay to BLOCK all iframe interactions (YouTube logos, right clicks, links) */}
+                      <div 
+                        className="absolute inset-0 z-[5] w-full h-full cursor-pointer"
+                        onContextMenu={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (cls.platform !== 'rtmp') setPlaying(!playing);
+                          setShowControls(true);
+                          if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
+                          clickTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+                        }}
+                      />
                       
                       {/* Unmute sound banner if muted for browser autoplay compliance */}
                       {muted && (

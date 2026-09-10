@@ -584,19 +584,30 @@ export default function AdminLiveStudio() {
                               return;
                             }
                             
-                            const videoInput = prompt("Enter Bunny Video ID, full Bunny iframe URL, YouTube Link, or Direct Video URL to save to course folder:", "");
-                            if (!videoInput) return;
+                            let videoInput = "";
+                            let inputTrimmed = "";
+                            let platform = cls.platform || 'direct';
+                            let videoUrl = cls.link;
+                            let videoId = null;
+                            const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
+
+                            // If the platform is RTMP, the live link (HLS) expires. So we MUST ask for the recorded Bunny ID.
+                            // If it's YouTube, Zoom, Meet, or Custom, the live link IS the recording link.
+                            if (cls.platform === 'rtmp' || !cls.link) {
+                              const manualInput = prompt("Enter the recorded Bunny Video ID, full Bunny iframe URL, or Direct Video URL:", "");
+                              if (!manualInput) return;
+                              videoInput = manualInput;
+                              inputTrimmed = videoInput.trim();
+                            } else {
+                              // Confirm auto-push
+                              if (!confirm(`Add this ${cls.platform.toUpperCase()} recording directly to the folder?\n\nLink: ${cls.link}`)) return;
+                              inputTrimmed = cls.link.trim();
+                            }
 
                             try {
-                              const inputTrimmed = videoInput.trim();
-                              let platform = 'direct';
-                              let videoUrl = inputTrimmed;
-                              let videoId = null;
-                              const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
-
-                              // Check if it's a raw Bunny GUID
+                              // If they typed a raw Bunny GUID
                               const isBunnyGuid = /^[a-f0-9-]{36}$/i.test(inputTrimmed);
-                              // Check if it's a Bunny embed URL
+                              // If they pasted a Bunny embed URL
                               const isBunnyUrl = inputTrimmed.includes('iframe.mediadelivery.net');
                               
                               if (isBunnyGuid) {
@@ -605,7 +616,6 @@ export default function AdminLiveStudio() {
                                 videoUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true`;
                               } else if (isBunnyUrl) {
                                 platform = 'bunny';
-                                // extract videoId from URL if possible
                                 const match = inputTrimmed.match(/embed\/\d+\/([a-f0-9-]+)/i);
                                 if (match && match[1]) {
                                   videoId = match[1];
@@ -613,6 +623,9 @@ export default function AdminLiveStudio() {
                                 videoUrl = inputTrimmed;
                               } else if (inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be')) {
                                 platform = 'youtube';
+                                videoUrl = inputTrimmed;
+                              } else {
+                                videoUrl = inputTrimmed;
                               }
 
                               const videoRef = doc(collection(db, 'videos'));
