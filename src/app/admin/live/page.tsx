@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw } from "lucide-react";
+import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw, Copy } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
@@ -578,15 +578,15 @@ export default function AdminLiveStudio() {
                     {cls.platform === 'rtmp' && (cls.status === 'live' || cls.status === 'scheduled') && (
                       <div className="bg-zinc-900 p-3 rounded-lg border border-primary/20 text-xs text-muted-foreground w-full mt-2 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate"><strong className="text-foreground">RTMP URL:</strong> {process.env.NEXT_PUBLIC_RTMP_SERVER_URL || "rtmp://localhost:1935/live"}</span>
-                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => navigator.clipboard.writeText(process.env.NEXT_PUBLIC_RTMP_SERVER_URL || "rtmp://localhost:1935/live")}>
-                            <ExternalLink className="w-3 h-3" />
+                          <span className="truncate"><strong className="text-foreground">RTMP URL:</strong> {process.env.NEXT_PUBLIC_RTMP_SERVER_URL || `rtmp://${process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || "13.60.252.104"}:1935/live`}</span>
+                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 hover:text-foreground" onClick={() => navigator.clipboard.writeText(process.env.NEXT_PUBLIC_RTMP_SERVER_URL || `rtmp://${process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || "13.60.252.104"}:1935/live`)}>
+                            <Copy className="w-3 h-3" />
                           </Button>
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate"><strong className="text-foreground">Stream Key:</strong> {cls.streamKey}</span>
-                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
-                            <ExternalLink className="w-3 h-3" />
+                          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 hover:text-foreground" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
+                            <Copy className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
