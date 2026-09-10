@@ -1256,9 +1256,9 @@ export default function AdminDashboard() {
           console.error("Failed to trigger conversion", e);
           finalUrl = originalS3Url;
         }
-      } else if (uploadItemType === "video" && videoPlatform === "bunny") {
+      } else if (uploadItemType === "video" && (videoPlatform === "bunny" || videoPlatform === "youtube")) {
         effectivePlatform = "bunny";
-        if (bunnyUploadMode === "url" && videoUrl) {
+        if ((bunnyUploadMode === "url" || videoPlatform === "youtube") && videoUrl) {
            const isZoomOrYt = videoUrl.includes('zoom.us') || videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
            
            if (isZoomOrYt) {
@@ -1333,7 +1333,12 @@ export default function AdminDashboard() {
              
              alert("✅ Background download started! It will appear as 'Downloading...' in the folder. You will be notified when it's ready to watch.");
              setIsUploading(false);
-             resetForm();
+             setUploadSuccess(true);
+            setVideoTitle("");
+            setVideoUrl("");
+            setUploadFileBase64(null);
+            setResourceFile(null);
+            setTimeout(() => setUploadSuccess(false), 6000);
              return;
            } else {
              const fetchRes = await fetch("/api/bunny/fetch", {
@@ -1380,9 +1385,9 @@ export default function AdminDashboard() {
            
            finalUrl = `https://iframe.mediadelivery.net/embed/${createData.libraryId}/${createData.videoId}?autoplay=true`;
         } else {
-           throw new Error("Please provide either a Zoom URL or select a file for Bunny upload.");
+           throw new Error("Please provide a valid YouTube or Zoom URL for automatic conversion.");
         }
-      } else if (uploadItemType === "video" && videoPlatform !== "s3") {
+      } else if (uploadItemType === "video" && videoPlatform !== "s3" && videoPlatform !== "youtube" && videoPlatform !== "bunny") {
         effectivePlatform = "direct";
       }
       
@@ -2894,7 +2899,7 @@ export default function AdminDashboard() {
                         <div className="flex gap-2">
                           <Input key="video-url-text-input" placeholder="https://youtube.com/watch?v=..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
                           <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
-                            {isUploading ? "Linking..." : "Link Video"}
+                            {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                           </Button>
                         </div>
                       </div>
