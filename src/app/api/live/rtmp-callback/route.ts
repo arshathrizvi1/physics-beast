@@ -96,7 +96,8 @@ export async function POST(request: Request) {
             type: 'video',
             createdAt: Date.now(),
             views: 0,
-            isReady: false
+            isReady: true,
+            processingStatus: 'ready'
           };
 
           await videoRef.set(videoData);

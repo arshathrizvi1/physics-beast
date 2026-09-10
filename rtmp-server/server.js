@@ -131,35 +131,48 @@ nms.on('donePublish', (id, StreamPath, args) => {
 async function handleStreamEnded(streamKey) {
   console.log(`[Pipeline] Starting post-stream pipeline for: ${streamKey}`);
   
-  // Find the recorded .mp4 file
-  const mp4Dir = path.join(recordingsDir);
-  const mp4Path = path.join(MEDIA_ROOT, 'live', streamKey);
-  
-  // Node-Media-Server saves recordings in media/live/STREAM_KEY/
-  // The .mp4 file is inside that folder
   let mp4File = null;
   
   // Search for .mp4 files in possible locations
   const searchDirs = [
     path.join(MEDIA_ROOT, 'live', streamKey),
     path.join(MEDIA_ROOT, streamKey),
-    recordingsDir
+    path.join(MEDIA_ROOT, 'live'),
+    recordingsDir,
+    MEDIA_ROOT
   ];
+
+  const foundFiles = [];
   
   for (const dir of searchDirs) {
     if (fs.existsSync(dir)) {
-      const files = fs.readdirSync(dir).filter(f => f.endsWith('.mp4'));
-      if (files.length > 0) {
-        // Get the most recent .mp4 file
-        files.sort((a, b) => {
-          const statA = fs.statSync(path.join(dir, a));
-          const statB = fs.statSync(path.join(dir, b));
-          return statB.mtimeMs - statA.mtimeMs;
-        });
-        mp4File = path.join(dir, files[0]);
-        break;
-      }
+      try {
+        const stat = fs.statSync(dir);
+        if (stat.isFile() && (dir.endsWith('.mp4') || dir.endsWith('.flv'))) {
+          foundFiles.push(dir);
+        } else if (stat.isDirectory()) {
+          const files = fs.readdirSync(dir);
+          for (const f of files) {
+            const fullPath = path.join(dir, f);
+            try {
+              const fileStat = fs.statSync(fullPath);
+              if (fileStat.isFile() && (f.endsWith('.mp4') || f.endsWith('.flv')) && fileStat.size > 1000) {
+                // If it matches streamKey or was modified recently (last 15 mins)
+                if (f.includes(streamKey) || (Date.now() - fileStat.mtimeMs < 15 * 60 * 1000)) {
+                  foundFiles.push(fullPath);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
     }
+  }
+
+  if (foundFiles.length > 0) {
+    // Sort by most recently modified
+    foundFiles.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    mp4File = foundFiles[0];
   }
   
   if (!mp4File || !fs.existsSync(mp4File)) {
@@ -228,27 +241,48 @@ async function uploadToBunny(filePath, streamKey) {
   
   console.log(`[Bunny] Created video: ${videoId}. Starting upload...`);
   
-  // 2. Upload the .mp4 file
-  const fileStream = fs.createReadStream(filePath);
+  // 2. Upload the file (support Stream with fallback to Buffer)
   const stats = fs.statSync(filePath);
   
+  try {
+    const fileStream = fs.createReadStream(filePath);
+    const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+      method: 'PUT',
+      headers: {
+        'AccessKey': BUNNY_API_KEY,
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': stats.size.toString()
+      },
+      body: fileStream,
+      duplex: 'half'
+    });
+    
+    if (uploadRes.ok) {
+      console.log(`[Bunny] ✅ Upload complete for video: ${videoId}`);
+      return videoId;
+    }
+  } catch (streamErr) {
+    console.warn(`[Bunny] Stream upload error, retrying with buffer fallback:`, streamErr.message);
+  }
+
+  // Buffer Fallback
+  const fileBuffer = fs.readFileSync(filePath);
   const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
     method: 'PUT',
     headers: {
       'AccessKey': BUNNY_API_KEY,
       'Content-Type': 'application/octet-stream',
-      'Content-Length': stats.size.toString()
+      'Content-Length': fileBuffer.length.toString()
     },
-    body: fileStream,
-    duplex: 'half'
+    body: fileBuffer
   });
-  
+
   if (!uploadRes.ok) {
     const errText = await uploadRes.text();
     throw new Error(`Bunny upload failed: ${errText}`);
   }
-  
-  console.log(`[Bunny] ✅ Upload complete for video: ${videoId}`);
+
+  console.log(`[Bunny] ✅ Upload complete (via buffer) for video: ${videoId}`);
   return videoId;
 }
 

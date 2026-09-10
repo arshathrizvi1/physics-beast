@@ -99,7 +99,9 @@ export async function POST(request: Request) {
       libraryId: libraryId,
       type: 'video',
       createdAt: Date.now(),
-      views: 0
+      views: 0,
+      isReady: true,
+      processingStatus: 'ready'
     };
 
     await newVideoRef.set(newVideo);
