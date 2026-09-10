@@ -139,7 +139,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cachedProfile = safeStorage.local.getItem('cachedUserProfile');
       if (cachedProfile) {
         try {
-          setUser(JSON.parse(cachedProfile));
+          const parsed = JSON.parse(cachedProfile);
+          if (parsed && parsed.uid) {
+            setUser(parsed);
+          } else {
+            // Critical fix: If cached profile is missing uid, drop it immediately
+            safeStorage.local.removeItem('cachedUserProfile');
+          }
           setLoading(false);
         } catch (e) {
           console.error("Failed to parse cached profile");
@@ -220,6 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             let finalProfile = {
               ...data,
+              uid: firebaseUser.uid, // ALWAYS FORCE UID to prevent undefined crashes
               totalXp: initialXp,
               xpLevel: initialLevel,
               totalStudyTimeMins: data.totalStudyTimeMins ?? 0,
@@ -302,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const freshLevel = fresh.xpLevel ?? calculateXpLevel(freshXp);
                 const updated = {
                   ...prev,
+                  uid: firebaseUser.uid, // ALWAYS FORCE UID to prevent undefined crashes
                   role: fresh.role || prev.role,
                   name: fresh.name || prev.name,
                   folderAccess: fresh.folderAccess ?? prev.folderAccess,
