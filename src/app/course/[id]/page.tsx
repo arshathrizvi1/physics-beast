@@ -4,7 +4,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
+import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback } from "react";
@@ -81,6 +81,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
   const readyFiredRef = useRef<Set<string>>(new Set());
+  const syllabusScrollRef = useRef<HTMLDivElement>(null);
   const [bunnyEmbedUrl, setBunnyEmbedUrl] = useState<string>('');
 
   // Fetch signed embed URL for Bunny videos (supports Token Authentication if enabled)
@@ -334,14 +335,53 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
     setupListeners();
 
-    // Anti-piracy shortcuts
+    // Anti-piracy shortcuts and Blackout Overlay
+    const blackoutDiv = document.createElement('div');
+    blackoutDiv.id = 'anti-screenshot-blackout';
+    blackoutDiv.style.position = 'fixed';
+    blackoutDiv.style.top = '0';
+    blackoutDiv.style.left = '0';
+    blackoutDiv.style.width = '100vw';
+    blackoutDiv.style.height = '100vh';
+    blackoutDiv.style.backgroundColor = 'black';
+    blackoutDiv.style.zIndex = '99999999';
+    blackoutDiv.style.color = 'white';
+    blackoutDiv.style.display = 'flex';
+    blackoutDiv.style.alignItems = 'center';
+    blackoutDiv.style.justifyContent = 'center';
+    blackoutDiv.style.fontSize = '24px';
+    blackoutDiv.style.fontWeight = 'bold';
+    blackoutDiv.style.opacity = '0';
+    blackoutDiv.style.pointerEvents = 'none';
+    blackoutDiv.style.transition = 'opacity 0.1s ease';
+    blackoutDiv.innerText = 'Content Protected';
+    document.body.appendChild(blackoutDiv);
+
+    const showBlackout = () => {
+      blackoutDiv.style.opacity = '1';
+      blackoutDiv.style.pointerEvents = 'all';
+    };
+    
+    const hideBlackout = () => {
+      blackoutDiv.style.opacity = '0';
+      blackoutDiv.style.pointerEvents = 'none';
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && e.key === '3')) {
+      // Prevent PrintScreen, Ctrl+P, Mac Cmd+Shift+3/4/5
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'))) {
         e.preventDefault();
-        alert("Screenshots are disabled for this copyrighted content.");
+        showBlackout();
+        try { navigator.clipboard.writeText("Content Protected"); } catch(err) {}
+        setTimeout(hideBlackout, 3000);
       }
     };
+    
     window.addEventListener('keydown', handleKeyDown);
+    
+    // Blackout when window loses focus (Deters Snipping Tool and some screen recorders)
+    window.addEventListener('blur', showBlackout);
+    window.addEventListener('focus', hideBlackout);
 
     // Anti-IDM / Downloader Extension DOM removal
     const observer = new MutationObserver((mutations) => {
@@ -375,8 +415,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (unsubLive) unsubLive();
       if (unsubConfig) unsubConfig();
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', showBlackout);
+      window.removeEventListener('focus', hideBlackout);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
+      if (document.body.contains(blackoutDiv)) {
+        document.body.removeChild(blackoutDiv);
+      }
     };
   }, [id]);
 
@@ -1197,7 +1242,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 <div>
                   <div className="flex items-center justify-between">
                     <CardTitle>Course Syllabus</CardTitle>
-                    <span className="text-xs font-bold text-primary">{courseProgress}%</span>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        type="button"
+                        onClick={() => syllabusScrollRef.current?.scrollBy({ top: -180, behavior: 'smooth' })}
+                        className="p-1 rounded bg-secondary/15 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all active:scale-95 cursor-pointer border border-secondary/20"
+                        title="Scroll syllabus up"
+                        aria-label="Scroll syllabus up"
+                      >
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => syllabusScrollRef.current?.scrollBy({ top: 180, behavior: 'smooth' })}
+                        className="p-1 rounded bg-secondary/15 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all active:scale-95 cursor-pointer border border-secondary/20"
+                        title="Scroll syllabus down"
+                        aria-label="Scroll syllabus down"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-bold text-primary ml-1">{courseProgress}%</span>
+                    </div>
                   </div>
                   {/* Main Course Progress Bar (matches student screenshot) */}
                   <div className="flex items-center gap-3 mt-2">
@@ -1214,8 +1279,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             })()}
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[500px]">
-              <div className="flex flex-col p-2 gap-2">
+            <div 
+              ref={syllabusScrollRef}
+              data-lenis-prevent="true"
+              className="h-[520px] overflow-y-auto overflow-x-hidden p-2 flex flex-col gap-2 custom-scrollbar overscroll-contain select-none"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(212, 175, 55, 0.75) rgba(255, 255, 255, 0.05)',
+              }}
+            >
                 {folders.length === 0 ? (
                   <p className="p-4 text-muted-foreground text-sm text-center">No folders available for this course yet.</p>
                 ) : (
@@ -1444,7 +1516,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </div>
                 )}
               </div>
-            </ScrollArea>
           </CardContent>
         </Card>
 

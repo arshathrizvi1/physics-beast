@@ -186,6 +186,63 @@ export default function StudentLivePortal() {
     };
   }, [user, liveClasses]);
 
+  // Anti-piracy shortcuts and Blackout Overlay
+  useEffect(() => {
+    const blackoutDiv = document.createElement('div');
+    blackoutDiv.id = 'anti-screenshot-blackout-live';
+    blackoutDiv.style.position = 'fixed';
+    blackoutDiv.style.top = '0';
+    blackoutDiv.style.left = '0';
+    blackoutDiv.style.width = '100vw';
+    blackoutDiv.style.height = '100vh';
+    blackoutDiv.style.backgroundColor = 'black';
+    blackoutDiv.style.zIndex = '99999999';
+    blackoutDiv.style.color = 'white';
+    blackoutDiv.style.display = 'flex';
+    blackoutDiv.style.alignItems = 'center';
+    blackoutDiv.style.justifyContent = 'center';
+    blackoutDiv.style.fontSize = '24px';
+    blackoutDiv.style.fontWeight = 'bold';
+    blackoutDiv.style.opacity = '0';
+    blackoutDiv.style.pointerEvents = 'none';
+    blackoutDiv.style.transition = 'opacity 0.1s ease';
+    blackoutDiv.innerText = 'Live Content Protected';
+    document.body.appendChild(blackoutDiv);
+
+    const showBlackout = () => {
+      blackoutDiv.style.opacity = '1';
+      blackoutDiv.style.pointerEvents = 'all';
+    };
+    
+    const hideBlackout = () => {
+      blackoutDiv.style.opacity = '0';
+      blackoutDiv.style.pointerEvents = 'none';
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent PrintScreen, Ctrl+P, Mac Cmd+Shift+3/4/5
+      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'))) {
+        e.preventDefault();
+        showBlackout();
+        try { navigator.clipboard.writeText("Content Protected"); } catch(err) {}
+        setTimeout(hideBlackout, 3000);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('blur', showBlackout);
+    window.addEventListener('focus', hideBlackout);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', showBlackout);
+      window.removeEventListener('focus', hideBlackout);
+      if (document.body.contains(blackoutDiv)) {
+        document.body.removeChild(blackoutDiv);
+      }
+    };
+  }, []);
+
   // Utility to extract Zoom Meeting ID and Password from link
   const getZoomDetails = (url: string) => {
     if (!url) return null;

@@ -82,19 +82,20 @@ export async function POST(request: Request) {
 
           // Create video document
           const videoRef = adminDb.collection('videos').doc();
+          const libraryId = bunnyLibraryId || process.env.BUNNY_STREAM_LIBRARY_ID || '748058';
           const videoData: any = {
             id: videoRef.id,
             title: `${liveData.title} (Recorded Live)`,
             description: liveData.description || '',
             videoId: bunnyVideoId,
-            libraryId: bunnyLibraryId || process.env.BUNNY_STREAM_LIBRARY_ID,
+            libraryId: libraryId,
+            url: `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}?autoplay=true`,
             platform: 'bunny',
             courseId: actualCourseId,
             folderId: liveData.targetFolderId,
             type: 'video',
             createdAt: Date.now(),
             views: 0,
-            processingStatus: 'processing', // Bunny will process it
             isReady: false
           };
 
