@@ -22,7 +22,7 @@ export default function StudentLivePortal() {
   // Video Player States
   const [playing, setPlaying] = useState(true);
   const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -394,27 +394,13 @@ export default function StudentLivePortal() {
                           }}
                         />
                       </div>
-
-                      {/* Unmute floating banner for RTMP */}
-                      {cls.platform === 'rtmp' && muted && (
-                        <button
-                          onClick={() => setMuted(false)}
-                          className="absolute top-4 right-4 z-30 bg-black/80 hover:bg-black text-white text-xs px-3.5 py-2 rounded-full border border-white/20 flex items-center gap-2 shadow-xl backdrop-blur-sm animate-pulse cursor-pointer"
-                        >
-                          <VolumeX className="w-4 h-4 text-amber-400" />
-                          <span className="font-semibold">Click anywhere to Unmute</span>
-                        </button>
-                      )}
                       
-                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek (Unmutes for RTMP) */}
+                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek (Disabled for RTMP) */}
                       <div className="absolute inset-0 z-10 cursor-pointer flex">
                         <div 
                           className="w-1/2 h-full"
                           onClick={(e) => {
-                            if (cls.platform === 'rtmp') {
-                              setMuted(!muted);
-                              return;
-                            }
+                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
                             if (clickTimeoutRef.current) {
                               clearTimeout(clickTimeoutRef.current);
                               clickTimeoutRef.current = null;
@@ -434,10 +420,7 @@ export default function StudentLivePortal() {
                         <div 
                           className="w-1/2 h-full"
                           onClick={(e) => {
-                            if (cls.platform === 'rtmp') {
-                              setMuted(!muted);
-                              return;
-                            }
+                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
                             if (clickTimeoutRef.current) {
                               clearTimeout(clickTimeoutRef.current);
                               clickTimeoutRef.current = null;
