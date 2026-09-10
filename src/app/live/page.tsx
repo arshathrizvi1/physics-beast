@@ -339,7 +339,7 @@ export default function StudentLivePortal() {
               )}
 
               {/* Custom Player Section for YouTube, Native RTMP & Bunny DRM */}
-              {(cls.platform === 'youtube' || cls.platform === 'rtmp' || cls.platform === 'bunny') && cls.status === 'live' && (
+              {(cls.platform === 'youtube' || cls.platform === 'rtmp' || cls.platform === 'bunny' || cls.platform === 'custom') && cls.status === 'live' && (
                 <div 
                   ref={playerContainerRef} 
                   className="aspect-video w-full relative bg-black group/player overflow-hidden"
@@ -353,27 +353,28 @@ export default function StudentLivePortal() {
                       allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
                       allowFullScreen={true}
                     />
-                  ) : (cls.platform === 'rtmp' || getYouTubeId(cls.link)) ? (
+                  ) : (
                     <>
-                      {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying iframe/video */}
-                      <div className="absolute inset-0 pointer-events-none w-full h-full">
+                      {/* Video Player Container */}
+                      <div className="absolute inset-0 w-full h-full z-0">
                         <ReactPlayer
                           ref={playerRef}
                           url={getStreamUrl(cls)}
                           width="100%"
                           height="100%"
-                          playing={cls.platform === 'rtmp' ? true : playing} // RTMP is always forced playing
+                          playing={playing}
                           volume={volume}
                           muted={muted}
+                          controls={cls.platform === 'youtube'} // Show native controls for YouTube for best mobile compatibility
                           playsinline
                           config={{
                             youtube: {
                               playerVars: { 
                                 autoplay: 1, 
-                                controls: 0, 
+                                controls: 1, 
                                 modestbranding: 1, 
                                 rel: 0, 
-                                disablekb: 1 
+                                disablekb: 0
                               }
                             },
                             file: {
@@ -395,49 +396,15 @@ export default function StudentLivePortal() {
                         />
                       </div>
                       
-                      {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek (Disabled for RTMP) */}
-                      <div className="absolute inset-0 z-10 cursor-pointer flex">
-                        <div 
-                          className="w-1/2 h-full"
-                          onClick={(e) => {
-                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
-                            if (clickTimeoutRef.current) {
-                              clearTimeout(clickTimeoutRef.current);
-                              clickTimeoutRef.current = null;
-                              // Double click Left: Seek -10s
-                              if (playerRef.current) {
-                                const ct = playerRef.current.getCurrentTime();
-                                playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
-                              }
-                            } else {
-                              clickTimeoutRef.current = setTimeout(() => {
-                                clickTimeoutRef.current = null;
-                                setPlaying(!playing);
-                              }, 250);
-                            }
-                          }}
-                        />
-                        <div 
-                          className="w-1/2 h-full"
-                          onClick={(e) => {
-                            if (cls.platform === 'rtmp') return; // NO seeking or pausing for RTMP
-                            if (clickTimeoutRef.current) {
-                              clearTimeout(clickTimeoutRef.current);
-                              clickTimeoutRef.current = null;
-                              // Double click Right: Seek +10s
-                              if (playerRef.current) {
-                                const ct = playerRef.current.getCurrentTime();
-                                playerRef.current.seekTo(ct + 10, 'seconds');
-                              }
-                            } else {
-                              clickTimeoutRef.current = setTimeout(() => {
-                                clickTimeoutRef.current = null;
-                                setPlaying(!playing);
-                              }, 250);
-                            }
-                          }}
-                        />
-                      </div>
+                      {/* Unmute sound banner if muted for browser autoplay compliance */}
+                      {muted && (
+                        <button
+                          onClick={() => setMuted(false)}
+                          className="absolute top-4 left-4 z-30 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg transition-transform hover:scale-105"
+                        >
+                          <VolumeX className="w-4 h-4 animate-bounce" /> Click to Unmute Sound
+                        </button>
+                      )}
 
                       {/* Floating Email Watermark */}
                       <div
@@ -504,13 +471,6 @@ export default function StudentLivePortal() {
                         </div>
                       </div>
                     </>
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-zinc-900 border-t border-border">
-                      <p className="text-red-400 mb-4">Invalid YouTube Link format. Click below to open directly.</p>
-                      <a href={cls.link} target="_blank" rel="noreferrer">
-                        <Button variant="outline"><ExternalLink className="w-4 h-4 mr-2" /> Open in YouTube</Button>
-                      </a>
-                    </div>
                   )}
                 </div>
               )}
