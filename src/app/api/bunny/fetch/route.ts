@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { url, title } = await request.json();
+    const { url, title, zoomPassword } = await request.json();
     
     const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
     const apiKey = process.env.BUNNY_STREAM_API_KEY;
@@ -13,6 +13,13 @@ export async function POST(request: Request) {
 
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+    }
+
+    // Process Zoom URLs if password is provided
+    let finalFetchUrl = url;
+    if (zoomPassword && url.includes('zoom.us')) {
+      const separator = finalFetchUrl.includes('?') ? '&' : '?';
+      finalFetchUrl = `${finalFetchUrl}${separator}pwd=${encodeURIComponent(zoomPassword)}`;
     }
 
     // 1. Create a video object first
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url: finalFetchUrl })
     });
 
     if (!fetchRes.ok) {

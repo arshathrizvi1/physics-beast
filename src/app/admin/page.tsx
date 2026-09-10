@@ -2799,14 +2799,15 @@ export default function AdminDashboard() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <Input placeholder="Enter Zoom recording URL or any direct MP4 link..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Input placeholder="Enter Zoom recording URL or any direct MP4 link..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} className="flex-1" />
+                              <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
                               <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
                                 {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                               </Button>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                              <strong>Note:</strong> Paste a direct MP4 URL. If using a Zoom link, ensure it is a direct download link or publicly accessible video file link.
+                              <strong>Note:</strong> Paste a direct MP4 URL. If using a Zoom link with a password, enter the password in the optional field.
                             </p>
                           </div>
                         )}
