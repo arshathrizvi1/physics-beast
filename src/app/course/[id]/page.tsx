@@ -343,18 +343,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     blackoutDiv.style.left = '0';
     blackoutDiv.style.width = '100vw';
     blackoutDiv.style.height = '100vh';
-    blackoutDiv.style.backgroundColor = 'black';
+    blackoutDiv.style.backgroundColor = '#000000';
     blackoutDiv.style.zIndex = '99999999';
     blackoutDiv.style.color = 'white';
     blackoutDiv.style.display = 'flex';
     blackoutDiv.style.alignItems = 'center';
     blackoutDiv.style.justifyContent = 'center';
-    blackoutDiv.style.fontSize = '24px';
+    blackoutDiv.style.fontSize = '28px';
     blackoutDiv.style.fontWeight = 'bold';
     blackoutDiv.style.opacity = '0';
     blackoutDiv.style.pointerEvents = 'none';
     blackoutDiv.style.transition = 'opacity 0.1s ease';
-    blackoutDiv.innerText = 'Content Protected';
+    blackoutDiv.innerHTML = '<div style="text-align:center;"><span style="font-size:64px; display:block; margin-bottom:15px;">🛡️</span><span style="color:#ef4444;">You can\'t screenshot this page.</span><br/><span style="font-size:16px; font-weight:normal; color:#a1a1aa; margin-top:10px; display:block;">Screen recording and screenshots are disabled due to security policy.</span></div>';
     document.body.appendChild(blackoutDiv);
 
     const showBlackout = () => {
