@@ -2886,7 +2886,7 @@ export default function AdminDashboard() {
                               </Button>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                              <strong>✨ Zoom Supported:</strong> You can paste standard Zoom cloud recording links. The server will automatically download them in the background (using your optional password) and upload them to BunnyCDN.
+                              <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background (using your optional password for Zoom) and upload them securely to BunnyCDN.
                             </p>
                           </div>
                         )}
