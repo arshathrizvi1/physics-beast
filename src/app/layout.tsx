@@ -15,7 +15,6 @@ import { MobilePermissionPrompt } from "@/components/MobilePermissionPrompt";
 import { PushNotificationSetup } from "@/components/PushNotificationSetup";
 import { PasskeyShim } from "@/components/PasskeyShim";
 import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
-import { AntiScreenshotProtection } from "@/components/AntiScreenshotProtection";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -63,7 +62,6 @@ export default function RootLayout({
                 <PasskeyShim />
                 <AndroidBackButtonHandler />
                 <AndroidSwipeReloadHandler />
-                <AntiScreenshotProtection />
                 <MobilePermissionPrompt />
                 <PremiumNavbar />
 

@@ -335,80 +335,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
     setupListeners();
 
-    // Anti-piracy shortcuts and Blackout Overlay
-    const blackoutDiv = document.createElement('div');
-    blackoutDiv.id = 'anti-screenshot-blackout';
-    blackoutDiv.style.position = 'fixed';
-    blackoutDiv.style.top = '0';
-    blackoutDiv.style.left = '0';
-    blackoutDiv.style.width = '100vw';
-    blackoutDiv.style.height = '100vh';
-    blackoutDiv.style.backgroundColor = '#000000';
-    blackoutDiv.style.zIndex = '99999999';
-    blackoutDiv.style.color = 'white';
-    blackoutDiv.style.display = 'flex';
-    blackoutDiv.style.alignItems = 'center';
-    blackoutDiv.style.justifyContent = 'center';
-    blackoutDiv.style.fontSize = '28px';
-    blackoutDiv.style.fontWeight = 'bold';
-    blackoutDiv.style.opacity = '0';
-    blackoutDiv.style.pointerEvents = 'none';
-    blackoutDiv.style.transition = 'opacity 0.1s ease';
-    blackoutDiv.innerHTML = '<div style="text-align:center;"><span style="font-size:64px; display:block; margin-bottom:15px;">🛡️</span><span style="color:#ef4444;">You can\'t screenshot this page.</span><br/><span style="font-size:16px; font-weight:normal; color:#a1a1aa; margin-top:10px; display:block;">Screen recording and screenshots are disabled due to security policy.</span></div>';
-    document.body.appendChild(blackoutDiv);
-
-    const showBlackout = () => {
-      blackoutDiv.style.opacity = '1';
-      blackoutDiv.style.pointerEvents = 'all';
-    };
-    
-    const hideBlackout = () => {
-      blackoutDiv.style.opacity = '0';
-      blackoutDiv.style.pointerEvents = 'none';
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent PrintScreen, Ctrl+P, Mac Cmd+Shift+3/4/5
-      if (e.key === 'PrintScreen' || (e.ctrlKey && e.key === 'p') || (e.metaKey && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5'))) {
-        e.preventDefault();
-        showBlackout();
-        try { navigator.clipboard.writeText("Content Protected"); } catch(err) {}
-        setTimeout(hideBlackout, 3000);
-      }
-    };
-    
-    // Android 3-finger gesture screenshot & multi-touch detection
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches && e.touches.length >= 3) {
-        showBlackout();
-        setTimeout(hideBlackout, 2500);
-      }
-    };
-
-    // Android notification shade / app switch / screenshot preview detection
-    const handleVisibilityChange = () => {
-      if (document.hidden || document.visibilityState === 'hidden') {
-        showBlackout();
-      } else {
-        hideBlackout();
-      }
-    };
-
-    const handleWindowBlur = () => {
-      showBlackout();
-    };
-
-    const handleWindowFocus = () => {
-      hideBlackout();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchStart, { passive: true });
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
-
     // Anti-IDM / Downloader Extension DOM removal
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -440,17 +366,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (unsubVideos) unsubVideos();
       if (unsubLive) unsubLive();
       if (unsubConfig) unsubConfig();
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchStart);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
-      window.removeEventListener('focus', handleWindowFocus);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
-      if (document.body.contains(blackoutDiv)) {
-        document.body.removeChild(blackoutDiv);
-      }
     };
   }, [id]);
 
