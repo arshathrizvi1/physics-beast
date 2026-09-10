@@ -73,15 +73,25 @@ export function AntiScreenshotProtection() {
       }
     };
 
-    // 4. Keyboard Shortcuts (PrintScreen, Mac Cmd+Shift+3/4/5, Ctrl+P, Ctrl+S)
+    // 4. Keyboard & Hardware Key Shortcuts (PrintScreen, AudioVolumeDown, AudioVolumeUp, Cmd+Shift+3/4/5, Ctrl+P, Ctrl+S)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
+      const isVolumeKey =
+        e.key === "AudioVolumeDown" ||
+        e.key === "AudioVolumeUp" ||
+        e.key === "VolumeDown" ||
+        e.key === "VolumeUp" ||
+        e.keyCode === 25 ||
+        e.keyCode === 24 ||
+        e.keyCode === 174 ||
+        e.keyCode === 175;
+
+      const isScreenshotKey =
         e.key === "PrintScreen" ||
         e.keyCode === 44 ||
         (e.ctrlKey && (e.key === "p" || e.key === "s" || e.key === "u")) ||
-        (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "5"))
-      ) {
-        e.preventDefault();
+        (e.metaKey && e.shiftKey && (e.key === "3" || e.key === "4" || e.key === "5"));
+
+      if (isVolumeKey || isScreenshotKey) {
         showBlackout();
         try {
           navigator.clipboard.writeText("Content Protected");
@@ -91,7 +101,17 @@ export function AntiScreenshotProtection() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "PrintScreen" || e.keyCode === 44) {
+      const isVolumeKey =
+        e.key === "AudioVolumeDown" ||
+        e.key === "AudioVolumeUp" ||
+        e.key === "VolumeDown" ||
+        e.key === "VolumeUp" ||
+        e.keyCode === 25 ||
+        e.keyCode === 24 ||
+        e.keyCode === 174 ||
+        e.keyCode === 175;
+
+      if (e.key === "PrintScreen" || e.keyCode === 44 || isVolumeKey) {
         showBlackout();
         try {
           navigator.clipboard.writeText("Content Protected");
