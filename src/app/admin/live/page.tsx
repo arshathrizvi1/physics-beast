@@ -35,7 +35,7 @@ export default function AdminLiveStudio() {
   const [folders, setFolders] = useState<any[]>([]);
   const [allowDirectJoin, setAllowDirectJoin] = useState(true);
   const [rtmpStreamKey, setRtmpStreamKey] = useState("");
-  const [rtmpServerUrl, setRtmpServerUrl] = useState("");
+  const [rtmpServerUrl, setRtmpServerUrl] = useState("rtmp://13.60.252.104:1935/live");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -390,7 +390,7 @@ export default function AdminLiveStudio() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-[11px] text-muted-foreground font-medium mb-0.5">RTMP Server URL</div>
-                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://YOUR_SERVER:1935/live'}</code>
+                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://13.60.252.104:1935/live'}</code>
                       </div>
                       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
                         onClick={() => { navigator.clipboard.writeText(rtmpServerUrl); }}
