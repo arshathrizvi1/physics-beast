@@ -1259,14 +1259,45 @@ export default function AdminDashboard() {
       } else if (uploadItemType === "video" && videoPlatform === "bunny") {
         effectivePlatform = "bunny";
         if (bunnyUploadMode === "url" && videoUrl) {
-           const fetchRes = await fetch("/api/bunny/fetch", {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ url: videoUrl, title: videoTitle, zoomPassword })
-           });
-           const fetchData = await fetchRes.json();
-           if (!fetchRes.ok) throw new Error(fetchData.error);
-           finalUrl = `https://iframe.mediadelivery.net/embed/${fetchData.libraryId}/${fetchData.videoId}?autoplay=true`;
+           const isZoomOrYt = videoUrl.includes('zoom.us') || videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
+           
+           if (isZoomOrYt) {
+             const videoDocId = doc(collection(db, 'videos')).id;
+             const metadata = {
+               videoDocId,
+               videoTitle,
+               videoDescription,
+               selectedItemType,
+               selectedCourseId,
+               selectedCourseFolderId,
+               selectedFolderId
+             };
+             
+             const fetchRes = await fetch("/api/bunny/aws-download", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ url: videoUrl, password: zoomPassword, title: videoTitle, metadata })
+             });
+             
+             if (!fetchRes.ok) {
+               const err = await fetchRes.json();
+               throw new Error(err.error || "AWS download failed");
+             }
+             
+             alert("✅ Background download started! Your AWS server will download and upload this video to BunnyCDN. It will appear in the folder in a few minutes.");
+             setIsUploading(false);
+             resetForm();
+             return; // Stop here, webhook will create the Firestore document
+           } else {
+             const fetchRes = await fetch("/api/bunny/fetch", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ url: videoUrl, title: videoTitle, zoomPassword })
+             });
+             const fetchData = await fetchRes.json();
+             if (!fetchRes.ok) throw new Error(fetchData.error);
+             finalUrl = `https://iframe.mediadelivery.net/embed/${fetchData.libraryId}/${fetchData.videoId}?autoplay=true`;
+           }
         } else if (bunnyUploadMode === "file" && resourceFile) {
            const createRes = await fetch("/api/bunny/create", {
              method: "POST",

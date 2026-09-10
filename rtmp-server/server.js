@@ -426,6 +426,64 @@ app.post('/api/convert-youtube', (req, res) => {
   });
 });
 
+// Generic Downloader for Admin Dashboard
+app.post('/api/generic-download', (req, res) => {
+  const { secret, url, password, title, metadata, webhookUrl } = req.body;
+  if (secret !== CALLBACK_SECRET) return res.status(403).json({ error: 'Invalid secret' });
+  
+  res.json({ success: true, message: 'Generic download started' });
+
+  const { spawn } = require('child_process');
+  const jobId = crypto.randomBytes(8).toString('hex');
+  const outputPath = path.join(recordingsDir, `generic_${jobId}.mp4`);
+
+  const args = ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', '-o', outputPath];
+  if (password) args.push('--video-password', password);
+  args.push(url);
+
+  const ytdlp = spawn('yt-dlp', args);
+  ytdlp.on('close', async (code) => {
+    if (code === 0 && fs.existsSync(outputPath)) {
+      try {
+        console.log(`[Generic] ✅ Download complete for ${title}`);
+        
+        // Upload to Bunny
+        const createRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos`, {
+          method: 'POST',
+          headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ title: title || 'AWS Download' })
+        });
+        const videoData = await createRes.json();
+        const videoId = videoData.guid;
+
+        const fileBuffer = fs.readFileSync(outputPath);
+        await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+          method: 'PUT',
+          headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream', 'Content-Length': fileBuffer.length.toString() },
+          body: fileBuffer
+        });
+        
+        console.log(`[Generic] ✅ Uploaded to Bunny for ${title}`);
+
+        // Notify Vercel generic webhook
+        if (webhookUrl) {
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: CALLBACK_SECRET, videoId, metadata, libraryId: BUNNY_LIBRARY_ID })
+          });
+        }
+
+        fs.unlinkSync(outputPath);
+      } catch (err) {
+        console.error("[Generic] Upload failed", err);
+      }
+    } else {
+      console.error(`[Generic] ❌ yt-dlp failed with code ${code}`);
+    }
+  });
+});
+
 // ─── Start Everything ──────────────────────────────────────────
 
 app.listen(HTTP_PORT, () => {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, Reply, Check, X, Paperclip, FileIcon, ImageIcon, ExternalLink } from "lucide-react";
 
-export default function AdminLiveChat({ liveClassId }: { liveClassId: string }) {
+export default function AdminLiveChat({ liveClassId, fullHeight }: { liveClassId: string, fullHeight?: boolean }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -20,7 +20,6 @@ export default function AdminLiveChat({ liveClassId }: { liveClassId: string }) 
     const q = query(collection(db, 'live_chats'), where('liveClassId', '==', liveClassId));
     const unsub = onSnapshot(q, (snap) => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-      // Sort by client-side to avoid composite index requirements
       msgs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
       setMessages(msgs);
     });
@@ -125,10 +124,10 @@ export default function AdminLiveChat({ liveClassId }: { liveClassId: string }) 
     );
   };
 
-  if (messages.length === 0) return <div className="text-sm text-muted-foreground p-4">No questions asked yet.</div>;
+  if (messages.length === 0) return <div className="text-sm text-muted-foreground p-4 flex-1">No questions asked yet.</div>;
 
   return (
-    <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto p-2">
+    <div className={`flex flex-col gap-3 overflow-y-auto p-2 ${fullHeight ? 'flex-1 h-full' : 'max-h-[400px]'}`}>
       {messages.map(msg => (
         <div key={msg.id} className="bg-secondary/20 p-3 rounded-md text-sm border border-border/50">
           <div className="flex justify-between items-start mb-1">

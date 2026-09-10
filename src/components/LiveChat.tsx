@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { db, storage } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,33 @@ export default function LiveChat({ liveClassId }: { liveClassId: string }) {
   const [sentMsg, setSentMsg] = useState(false);
   const [sending, setSending] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [handRaised, setHandRaised] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!liveClassId || !user) return;
+    const presenceRef = doc(db, 'presence', `live_${liveClassId}_${user.uid}`);
+    const unsubPresence = onSnapshot(presenceRef, (snap) => {
+      if (snap.exists()) {
+        setHandRaised(!!snap.data().handRaised);
+      }
+    });
+    return () => unsubPresence();
+  }, [liveClassId, user]);
+
+  const toggleHandRaise = async () => {
+    if (!user) return;
+    const presenceRef = doc(db, 'presence', `live_${liveClassId}_${user.uid}`);
+    try {
+      await setDoc(presenceRef, {
+        handRaised: !handRaised,
+        studentName: user.name || user.email?.split('@')[0] || "Student",
+        lastActive: Date.now()
+      }, { merge: true });
+    } catch(e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     if (!liveClassId || !user) return;
@@ -136,11 +162,19 @@ export default function LiveChat({ liveClassId }: { liveClassId: string }) {
 
   return (
     <div className="flex flex-col bg-secondary/10 border-t border-border/50 h-full max-h-[500px]">
-      <div className="p-4 border-b border-border/50">
+      <div className="p-4 border-b border-border/50 flex items-center justify-between">
         <h3 className="text-sm font-bold flex items-center gap-2">
           Ask the Teacher 
-          <span className="text-xs font-normal text-muted-foreground border border-border/50 bg-background px-2 py-0.5 rounded-full">Only Admin can see this</span>
+          <span className="text-xs font-normal text-muted-foreground border border-border/50 bg-background px-2 py-0.5 rounded-full hidden sm:inline-block">Only Admin can see this</span>
         </h3>
+        <Button 
+          variant={handRaised ? "default" : "outline"}
+          size="sm"
+          className={`h-8 gap-2 transition-colors ${handRaised ? 'bg-yellow-500 hover:bg-yellow-600 text-black font-bold' : ''}`}
+          onClick={toggleHandRaise}
+        >
+          {handRaised ? "✋ Hand Raised" : "✋ Raise Hand"}
+        </Button>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
