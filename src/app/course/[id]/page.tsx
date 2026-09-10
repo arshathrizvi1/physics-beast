@@ -377,11 +377,28 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       }
     };
     
+    // Android 3-finger gesture screenshot & multi-touch detection
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches.length >= 2) {
+        showBlackout();
+        setTimeout(hideBlackout, 2500);
+      }
+    };
+
+    // Android notification shade / app switch / screenshot preview detection
+    const handleVisibilityChange = () => {
+      if (document.hidden || document.visibilityState === 'hidden') {
+        showBlackout();
+      } else {
+        hideBlackout();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    
-    // Blackout when window loses focus (Deters Snipping Tool and some screen recorders)
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('blur', showBlackout);
     window.addEventListener('focus', hideBlackout);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Anti-IDM / Downloader Extension DOM removal
     const observer = new MutationObserver((mutations) => {
@@ -415,8 +432,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (unsubLive) unsubLive();
       if (unsubConfig) unsubConfig();
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('blur', showBlackout);
       window.removeEventListener('focus', hideBlackout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
       if (document.body.contains(blackoutDiv)) {

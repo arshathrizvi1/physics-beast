@@ -229,14 +229,35 @@ export default function StudentLivePortal() {
       }
     };
     
+    // Android 3-finger gesture screenshot & multi-touch detection
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches && e.touches.length >= 2) {
+        showBlackout();
+        setTimeout(hideBlackout, 2500);
+      }
+    };
+
+    // Android notification shade / app switch / screenshot preview detection
+    const handleVisibilityChange = () => {
+      if (document.hidden || document.visibilityState === 'hidden') {
+        showBlackout();
+      } else {
+        hideBlackout();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('blur', showBlackout);
     window.addEventListener('focus', hideBlackout);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('blur', showBlackout);
       window.removeEventListener('focus', hideBlackout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (document.body.contains(blackoutDiv)) {
         document.body.removeChild(blackoutDiv);
       }
