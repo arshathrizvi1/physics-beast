@@ -22,8 +22,10 @@ export default function StudentLivePortal() {
   // Video Player States
   const [playing, setPlaying] = useState(true);
   const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [showControls, setShowControls] = useState(true);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -367,6 +369,11 @@ export default function StudentLivePortal() {
                           muted={muted}
                           controls={false} // Disable all native controls so students can't share/copy URL
                           playsinline
+                          onStart={() => setHasStarted(true)}
+                          onPlay={() => { setPlaying(true); setHasStarted(true); }}
+                          onBuffer={() => setIsBuffering(true)}
+                          onBufferEnd={() => setIsBuffering(false)}
+                          onError={(e) => console.error("Live player error:", e)}
                           config={{
                             youtube: {
                               playerVars: { 
@@ -389,10 +396,10 @@ export default function StudentLivePortal() {
                               },
                               hlsOptions: {
                                 enableWorker: true,
-                                lowLatencyMode: true,
-                                liveSyncDurationCount: 1,
-                                liveMaxLatencyDurationCount: 2,
-                                maxLiveSyncPlaybackRate: 1.5,
+                                lowLatencyMode: false,
+                                liveSyncDurationCount: 2,
+                                liveMaxLatencyDurationCount: 4,
+                                maxLiveSyncPlaybackRate: 1.2,
                               }
                             }
                           }}
@@ -404,15 +411,36 @@ export default function StudentLivePortal() {
                         className="absolute inset-0 z-[5] w-full h-full cursor-pointer"
                         onContextMenu={(e) => e.preventDefault()}
                         onClick={() => {
-                          if (cls.platform !== 'rtmp') setPlaying(!playing);
+                          setPlaying(true);
+                          setMuted(false);
                           setShowControls(true);
                           if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
                           clickTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
                         }}
                       />
+
+                      {/* Click to Start / Watch Banner if not yet started */}
+                      {!hasStarted && (
+                        <div 
+                          onClick={() => { setPlaying(true); setMuted(false); }}
+                          className="absolute inset-0 z-[6] flex flex-col items-center justify-center bg-black/60 cursor-pointer backdrop-blur-[2px] transition-all"
+                        >
+                          <div className="bg-red-600 hover:bg-red-700 text-white font-black px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl animate-pulse transition-transform hover:scale-105">
+                            <Play className="w-6 h-6 fill-white" /> CLICK TO WATCH LIVE
+                          </div>
+                          <p className="text-white/80 text-xs mt-3 font-medium">Click to connect with sound</p>
+                        </div>
+                      )}
+
+                      {/* Buffering Indicator */}
+                      {isBuffering && hasStarted && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                          <div className="w-10 h-10 border-4 border-white/20 border-t-red-500 rounded-full animate-spin"></div>
+                        </div>
+                      )}
                       
                       {/* Unmute sound banner if muted for browser autoplay compliance */}
-                      {muted && (
+                      {muted && hasStarted && (
                         <button
                           onClick={() => setMuted(false)}
                           className="absolute top-4 left-4 z-30 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg transition-transform hover:scale-105"
