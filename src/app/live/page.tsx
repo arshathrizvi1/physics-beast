@@ -423,15 +423,22 @@ export default function StudentLivePortal() {
                 </div>
               )}
 
-              {/* Custom Player Section for YouTube & Native RTMP */}
-              {(cls.platform === 'youtube' || cls.platform === 'rtmp') && cls.status === 'live' && (
+              {/* Custom Player Section for YouTube, Native RTMP & Bunny DRM */}
+              {(cls.platform === 'youtube' || cls.platform === 'rtmp' || cls.platform === 'bunny') && cls.status === 'live' && (
                 <div 
                   ref={playerContainerRef} 
                   className="aspect-video w-full relative bg-black group/player overflow-hidden"
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {(cls.platform === 'rtmp' || getYouTubeId(cls.link)) ? (
+                  {cls.platform === 'bunny' ? (
+                    <iframe
+                      src={`https://iframe.mediadelivery.net/embed/748058/${cls.streamKey || cls.link}?autoplay=true`}
+                      className="w-full h-full border-0 relative z-[50]"
+                      allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                      allowFullScreen={true}
+                    />
+                  ) : (cls.platform === 'rtmp' || getYouTubeId(cls.link)) ? (
                     <>
                       {/* The pointer-events-none wrapper completely disables ANY interaction with the underlying iframe/video */}
                       <div className="absolute inset-0 pointer-events-none w-full h-full">
