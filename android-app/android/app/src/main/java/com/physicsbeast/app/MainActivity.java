@@ -15,14 +15,14 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(BackgroundPermissionPlugin.class);
-        super.onCreate(savedInstanceState);
-
-        // Prevent screenshots and screen recordings
+        // Prevent screenshots and screen recordings AT THE EARLIEST POSSIBLE POINT
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         );
+
+        registerPlugin(BackgroundPermissionPlugin.class);
+        super.onCreate(savedInstanceState);
 
         // Only clean up stale service worker files — do NOT clearCache
         cleanServiceWorkerFiles();
