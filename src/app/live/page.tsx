@@ -248,15 +248,11 @@ export default function StudentLivePortal() {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('blur', showBlackout);
-    window.addEventListener('focus', hideBlackout);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('blur', showBlackout);
-      window.removeEventListener('focus', hideBlackout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (document.body.contains(blackoutDiv)) {
         document.body.removeChild(blackoutDiv);

@@ -396,8 +396,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('blur', showBlackout);
-    window.addEventListener('focus', hideBlackout);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Anti-IDM / Downloader Extension DOM removal
@@ -433,8 +431,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (unsubConfig) unsubConfig();
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('blur', showBlackout);
-      window.removeEventListener('focus', hideBlackout);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       observer.disconnect();
