@@ -154,6 +154,7 @@ export default function AdminDashboard() {
   const [editVideoUrl, setEditVideoUrl] = useState("");
 
   // Content Browser --- which folder is expanded in the Content tab
+  const [contentBrowseBatchId, setContentBrowseBatchId] = useState<string | null>("all");
   const [contentBrowseCourseId, setContentBrowseCourseId] = useState<string | null>(null);
   const [contentBrowseFolderId, setContentBrowseFolderId] = useState<string | null>(null);
 
@@ -2652,9 +2653,9 @@ export default function AdminDashboard() {
                       onChange={(e) => { setVideoBatchId(e.target.value); setVideoCourseId(""); setVideoFolderId(""); }}
                       required
                     >
-                      <option value="" disabled>Select Batch</option>
+                      <option value="" disabled>Select Batch (Year)</option>
                       <option value="all">All Batches (Global)</option>
-                      {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      {batches.map(b => <option key={b.id} value={b.id}>{b.year ? `[${b.year}] ${b.name}` : b.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -2667,7 +2668,7 @@ export default function AdminDashboard() {
                       required
                     >
                       <option value="" disabled>Select Course</option>
-                      {courses.filter(c => c.batchId === videoBatchId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {courses.filter(c => videoBatchId === 'all' || c.batchId === videoBatchId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -2890,16 +2891,41 @@ export default function AdminDashboard() {
               <CardDescription>Browse all courses, expand folders, and edit or delete individual videos.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Select Course to Browse</label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={contentBrowseCourseId || ""}
-                  onChange={(e) => { setContentBrowseCourseId(e.target.value); setContentBrowseFolderId(null); setEditingVideoId(null); }}
-                >
-                  <option value="" disabled>-- Select a Course --</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Filter by Batch / Year</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={contentBrowseBatchId || "all"}
+                    onChange={(e) => {
+                      setContentBrowseBatchId(e.target.value);
+                      setContentBrowseCourseId(null);
+                      setContentBrowseFolderId(null);
+                      setEditingVideoId(null);
+                    }}
+                  >
+                    <option value="all">All Batches / Years</option>
+                    {batches.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.year ? `[${b.year}] ${b.name}` : b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Course to Browse</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={contentBrowseCourseId || ""}
+                    onChange={(e) => { setContentBrowseCourseId(e.target.value); setContentBrowseFolderId(null); setEditingVideoId(null); }}
+                  >
+                    <option value="" disabled>-- Select a Course --</option>
+                    {courses
+                      .filter(c => !contentBrowseBatchId || contentBrowseBatchId === "all" || c.batchId === contentBrowseBatchId)
+                      .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                    }
+                  </select>
+                </div>
               </div>
 
               {contentBrowseCourseId && (
