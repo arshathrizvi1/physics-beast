@@ -129,7 +129,7 @@ export default function AdminLiveStudio() {
     if (platform === 'rtmp' && !rtmpStreamKey) {
       const key = generateStreamKey();
       setRtmpStreamKey(key);
-      const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || 'YOUR_SERVER_IP';
+      const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
       const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
       setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
       // Auto-set the HLS link for students
