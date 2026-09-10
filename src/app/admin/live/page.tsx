@@ -660,16 +660,11 @@ export default function AdminLiveStudio() {
                                     alert("Error starting conversion: " + err.error);
                                     return;
                                   }
-                                  alert(`✅ ${platformName} download started! The recording will automatically appear in the folder once it finishes uploading to BunnyCDN (usually 2-5 minutes).`);
+                                  
+                                  alert(`✅ ${platformName} download started! The recording will automatically appear in the folder once it finishes uploading to BunnyCDN.`);
                                   return; // Stop here, webhook handles the rest
                                 } else {
-                                  // User canceled, maybe just save as direct link?
-                                  if (confirm(`Save as standard ${platformName} link instead?`)) {
-                                    platform = isZoom ? 'zoom' : 'youtube';
-                                    videoUrl = inputTrimmed;
-                                  } else {
-                                    return;
-                                  }
+                                  return; // If they cancel the download, just abort.
                                 }
                               } else {
                                 videoUrl = inputTrimmed;
