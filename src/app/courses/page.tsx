@@ -101,6 +101,18 @@ function CoursesContent() {
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
+  const coursesWithProgress = displayedCourses.map(course => {
+    const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
+    const userProgress = user?.videoProgress || {};
+    const courseProgress = courseVideos.length > 0
+      ? Math.round(courseVideos.reduce((acc, v) => acc + (userProgress[v.id] || 0), 0) / courseVideos.length)
+      : 0;
+    return { ...course, courseProgress };
+  });
+
+  const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100);
+  const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100);
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div>
@@ -222,78 +234,108 @@ function CoursesContent() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayedCourses.map((course) => (
-            <Card key={course.id} className="overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex flex-col h-full group">
-              <div className="aspect-video relative overflow-hidden bg-secondary/20 flex items-center justify-center border-b border-secondary/30">
-                {course.image || course.thumbnailUrl ? (
-                  <img 
-                    src={course.image || course.thumbnailUrl} 
-                    alt={course.name || course.title}
-                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <BookOpen className="w-16 h-16 text-primary/30" />
-                )}
-                {/* Teacher Badge overlay on card */}
-                {course.teacherName && (
-                  <div 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (course.teacherId) setSelectedTeacherId(course.teacherId);
-                    }}
-                    className="absolute top-3 right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full text-[11px] font-medium text-foreground flex items-center gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
-                    title={`Click to filter by ${course.teacherName}`}
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-primary" />
-                    <span>{course.teacherName}</span>
-                    {course.teacherSubject && (
-                      <span className="text-primary text-[10px] font-bold">• {course.teacherSubject}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <CardHeader className="flex-grow">
-                <CardTitle>{course.name || course.title}</CardTitle>
-                {course.teacherName && (
-                  <div className="flex items-center gap-1.5 text-xs text-primary font-medium mt-1">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    <span>Instructor: {course.teacherName}</span>
-                    {course.teacherSubject && <span className="text-muted-foreground">({course.teacherSubject})</span>}
-                  </div>
-                )}
-                <CardDescription className="mt-1">{course.description || "A comprehensive Brilliant Academy learning path."}</CardDescription>
-
-                {/* Progress Bar matching student screenshot */}
-                {(() => {
-                  const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
-                  const userProgress = user?.videoProgress || {};
-                  const courseProgress = courseVideos.length > 0
-                    ? Math.round(courseVideos.reduce((acc, v) => acc + (userProgress[v.id] || 0), 0) / courseVideos.length)
-                    : 0;
-
-                  return (
-                    <div className="mt-4 pt-3 border-t border-secondary/20">
-                      <div className="flex items-center gap-3">
-                        <div className="w-full bg-secondary/40 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-primary h-full rounded-full transition-all duration-300"
-                            style={{ width: `${courseProgress}%` }}
-                          />
+        <div className="space-y-10">
+          {activeCourses.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold mb-4">Active Courses</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+                {activeCourses.map((course) => (
+                  <Card key={course.id} className="overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex flex-col h-full group">
+                    <div className="aspect-video relative overflow-hidden bg-secondary/20 flex items-center justify-center border-b border-secondary/30">
+                      {course.image || course.thumbnailUrl ? (
+                        <img 
+                          src={course.image || course.thumbnailUrl} 
+                          alt={course.name || course.title}
+                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <BookOpen className="w-10 h-10 sm:w-16 sm:h-16 text-primary/30" />
+                      )}
+                      {/* Teacher Badge overlay on card */}
+                      {course.teacherName && (
+                        <div 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (course.teacherId) setSelectedTeacherId(course.teacherId);
+                          }}
+                          className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-medium text-foreground flex items-center gap-1 sm:gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
+                          title={`Click to filter by ${course.teacherName}`}
+                        >
+                          <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+                          <span className="hidden sm:inline">{course.teacherName}</span>
+                          <span className="sm:hidden">{course.teacherName.split(' ')[0]}</span>
                         </div>
-                        <span className="text-xs font-bold text-foreground shrink-0">{courseProgress}%</span>
+                      )}
+                    </div>
+                    <CardHeader className="flex-grow p-3 sm:p-6">
+                      <CardTitle className="text-sm sm:text-lg leading-tight line-clamp-2">{course.name || course.title}</CardTitle>
+                      {course.teacherName && (
+                        <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-primary font-medium mt-1">
+                          <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span className="truncate">By {course.teacherName}</span>
+                        </div>
+                      )}
+                      <CardDescription className="mt-1 text-xs hidden sm:block line-clamp-2">{course.description || "A comprehensive learning path."}</CardDescription>
+
+                      {/* Progress Bar */}
+                      <div className="mt-2 sm:mt-4 pt-2 sm:pt-3 border-t border-secondary/20">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-full bg-secondary/40 h-1.5 sm:h-2 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-primary h-full rounded-full transition-all duration-300"
+                              style={{ width: `${course.courseProgress}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] sm:text-xs font-bold text-foreground shrink-0">{course.courseProgress}%</span>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardFooter className="bg-secondary/5 border-t border-secondary/20 p-2 sm:p-4 mt-auto">
+                      <Link href={`/course/${course.id}`} className={buttonVariants({ variant: "default", className: "w-full h-8 sm:h-10 text-xs sm:text-sm" })}>
+                        <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {completedCourses.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <span className="bg-primary/20 text-primary p-1 rounded-full"><PlayCircle className="w-5 h-5" /></span>
+                Completed
+              </h3>
+              <div className="flex flex-col gap-3">
+                {completedCourses.map((course) => (
+                  <Link href={`/course/${course.id}`} key={course.id}>
+                    <div className="flex items-center gap-4 bg-card hover:bg-secondary/10 border border-secondary/30 rounded-xl p-3 transition-colors">
+                      <div className="w-16 h-12 sm:w-20 sm:h-14 rounded-lg overflow-hidden bg-secondary/20 shrink-0 border border-secondary/30">
+                        {course.image || course.thumbnailUrl ? (
+                          <img src={course.image || course.thumbnailUrl} className="w-full h-full object-cover" alt="" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-primary/30" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-grow min-w-0">
+                        <h4 className="font-bold text-sm sm:text-base truncate">{course.name || course.title}</h4>
+                        {course.teacherName && (
+                          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{course.teacherName}</p>
+                        )}
+                      </div>
+                      <div className="shrink-0 flex items-center gap-1 sm:gap-2 text-primary font-bold text-xs sm:text-sm bg-primary/10 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        100%
                       </div>
                     </div>
-                  );
-                })()}
-              </CardHeader>
-              <CardFooter className="bg-secondary/5 border-t border-secondary/20 p-4 mt-auto">
-                <Link href={`/course/${course.id}`} className={buttonVariants({ variant: "default", className: "w-full" })}>
-                  <PlayCircle className="w-4 h-4 mr-2" /> Start Learning
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
