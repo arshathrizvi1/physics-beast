@@ -157,26 +157,36 @@ export function AntiScreenshotProtection() {
       }
     };
 
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchStart, { passive: true });
-    document.addEventListener("contextmenu", handleContextMenu);
-    document.addEventListener("dragstart", handleDragStart);
+    // 8. Window Resize Event (Fires on Android Chrome when screenshot preview overlay or split screen / quick settings appears)
+    let resizeTimer: any;
+    const handleResize = () => {
+      showBlackout();
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(hideBlackout, 1500);
+    };
+
+    window.addEventListener("blur", handleBlur, true);
+    window.addEventListener("focus", handleFocus, true);
+    document.addEventListener("visibilitychange", handleVisibilityChange, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keyup", handleKeyUp, true);
+    window.addEventListener("touchstart", handleTouchStart, { capture: true, passive: true });
+    window.addEventListener("touchmove", handleTouchStart, { capture: true, passive: true });
+    window.addEventListener("resize", handleResize, true);
+    document.addEventListener("contextmenu", handleContextMenu, true);
+    document.addEventListener("dragstart", handleDragStart, true);
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchStart);
-      document.removeEventListener("contextmenu", handleContextMenu);
-      document.removeEventListener("dragstart", handleDragStart);
+      window.removeEventListener("blur", handleBlur, true);
+      window.removeEventListener("focus", handleFocus, true);
+      document.removeEventListener("visibilitychange", handleVisibilityChange, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("keyup", handleKeyUp, true);
+      window.removeEventListener("touchstart", handleTouchStart, true);
+      window.removeEventListener("touchmove", handleTouchStart, true);
+      window.removeEventListener("resize", handleResize, true);
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      document.removeEventListener("dragstart", handleDragStart, true);
 
       if (blackoutDiv && document.body.contains(blackoutDiv)) {
         document.body.removeChild(blackoutDiv);
