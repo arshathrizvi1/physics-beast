@@ -222,7 +222,8 @@ export default function AdminLiveStudio() {
               id: videoRef.id,
               title: `${cls.title} (Recorded Live)`,
               description: cls.description || '',
-              link: cls.link,
+              url: cls.link,
+              platform: cls.platform,
               courseId: actualCourseId,
               folderId: cls.targetFolderId,
               type: 'video',
@@ -312,6 +313,7 @@ export default function AdminLiveStudio() {
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
+                    <SelectItem value="bunny">Bunny Live / RTMP (Auto-VOD)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
                     <SelectItem value="meet">Google Meet</SelectItem>
                     <SelectItem value="custom">Custom HLS / External Link</SelectItem>
@@ -348,12 +350,28 @@ export default function AdminLiveStudio() {
                 </div>
               )}
               
+              {platform === "bunny" && (
+                <div className="p-3.5 bg-orange-500/10 border border-orange-500/30 rounded-xl text-xs space-y-2">
+                  <div className="font-bold text-orange-500 flex items-center gap-1.5 text-sm">
+                    <span>🐰</span> Bunny.net Live Stream (RTMP & Auto-VOD)
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Stream directly to Bunny CDN via Zoom Pro Custom Streaming, OBS, or StreamYard! When the class ends, it automatically converts to a recorded video in your selected folder.
+                  </p>
+                  <div className="bg-background/80 p-2.5 rounded-lg border border-border/50 space-y-1.5">
+                    <div><strong>🎥 Setup:</strong> Go to Bunny Dashboard &rarr; Stream &rarr; Create Live Stream (Enable Keep Replay). Use the provided RTMP URL & Stream Key in your broadcasting software.</div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label>
                   {platform === "zoom" 
                     ? "Zoom Meeting Link *" 
                     : platform === "youtube" 
                     ? "YouTube Live / Video Link *" 
+                    : platform === "bunny"
+                    ? "Bunny Live HLS (.m3u8) or Embed URL *"
                     : platform === "meet" 
                     ? "Google Meet Link *" 
                     : "Live Stream Link *"}
@@ -368,6 +386,8 @@ export default function AdminLiveStudio() {
                       ? "https://zoom.us/j/... (or start in Zoom to auto-fill)" 
                       : platform === "youtube" 
                       ? "https://www.youtube.com/watch?v=..." 
+                      : platform === "bunny"
+                      ? "https://live.b-cdn.net/live_abc.../playlist.m3u8 OR https://iframe.mediadelivery..."
                       : "https://..."
                   }
                 />
