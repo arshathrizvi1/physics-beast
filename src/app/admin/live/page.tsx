@@ -622,8 +622,29 @@ export default function AdminLiveStudio() {
                                 }
                                 videoUrl = inputTrimmed;
                               } else if (inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be')) {
-                                platform = 'youtube';
-                                videoUrl = inputTrimmed;
+                                // TRIGGER BACKGROUND DOWNLOAD ON AWS
+                                if (confirm(`Do you want to automatically download this YouTube video and upload it to BunnyCDN?\n\nThis will run in the background and take a few minutes.`)) {
+                                  const res = await fetch('/api/live/convert-youtube', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ url: inputTrimmed, streamKey: cls.streamKey })
+                                  });
+                                  if (!res.ok) {
+                                    const err = await res.json();
+                                    alert("Error starting conversion: " + err.error);
+                                    return;
+                                  }
+                                  alert("✅ YouTube download started! The recording will automatically appear in the folder once it finishes uploading to BunnyCDN (usually 2-5 minutes).");
+                                  return; // Stop here, webhook handles the rest
+                                } else {
+                                  // User canceled, maybe just save as youtube?
+                                  if (confirm("Save as standard YouTube link instead?")) {
+                                    platform = 'youtube';
+                                    videoUrl = inputTrimmed;
+                                  } else {
+                                    return;
+                                  }
+                                }
                               } else {
                                 videoUrl = inputTrimmed;
                               }
