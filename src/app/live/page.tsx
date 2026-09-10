@@ -467,9 +467,9 @@ export default function StudentLivePortal() {
                               hlsOptions: {
                                 enableWorker: true,
                                 lowLatencyMode: true,
-                                liveSyncDurationCount: 3,
-                                liveMaxLatencyDurationCount: 10,
-                                liveDurationIntersectionFactor: 0.3,
+                                liveSyncDurationCount: 1,
+                                liveMaxLatencyDurationCount: 2,
+                                maxLiveSyncPlaybackRate: 1.5,
                               }
                             }
                           }}

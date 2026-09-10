@@ -297,12 +297,26 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               });
             } else if ("serviceWorker" in navigator) {
               const reg = await navigator.serviceWorker.ready;
-              reg.showNotification(n.title, {
-                body: n.message,
-                icon: "/logo.jpg",
-                badge: "/logo.jpg",
-                data: { link: targetLink }
-              } as NotificationOptions);
+              try {
+                await reg.showNotification(n.title, {
+                  body: n.message,
+                  icon: "/logo.jpg",
+                  badge: "/logo.jpg",
+                  data: { link: targetLink }
+                } as NotificationOptions);
+              } catch (swError) {
+                console.warn("SW showNotification failed (likely incognito/persistence issue), falling back to window.Notification", swError);
+                if ("Notification" in window && Notification.permission === "granted") {
+                  const desktopNotif = new Notification(n.title, {
+                    body: n.message,
+                    icon: "/logo.jpg",
+                  });
+                  desktopNotif.onclick = () => {
+                    window.focus();
+                    window.location.href = targetLink;
+                  };
+                }
+              }
             } else if ("Notification" in window) {
               const desktopNotif = new Notification(n.title, {
                 body: n.message,
