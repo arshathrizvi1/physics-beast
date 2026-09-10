@@ -1266,7 +1266,6 @@ export default function AdminDashboard() {
              const metadata = {
                videoDocId,
                videoTitle,
-               videoDescription,
                videoFolderId,
                videoCourseId,
                videoBatchId
@@ -1278,7 +1277,7 @@ export default function AdminDashboard() {
              await setDoc(videoRef, {
                id: videoDocId,
                title: videoTitle,
-               description: videoDescription || '',
+               description: '',
                url: '', // Empty until ready
                videoId: '',
                libraryId: '',
@@ -2815,8 +2814,7 @@ export default function AdminDashboard() {
                         required={uploadItemType === 'video'}
                       >
                         <option value="s3">Upload Video File directly to Amazon S3 (.mp4, .mov, .mkv)</option>
-                        <option value="bunny">Bunny Stream (Direct Upload or Zoom Link)</option>
-                        <option value="youtube">YouTube</option>
+                        <option value="bunny">Bunny Stream (Zoom, YouTube, or File Upload)</option>
                         <option value="vimeo">Vimeo</option>
                         <option value="dailymotion">Dailymotion</option>
                       </select>
@@ -2854,7 +2852,7 @@ export default function AdminDashboard() {
                           </Label>
                           <Label className="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'url'} onChange={() => setBunnyUploadMode('url')} />
-                            Import from Zoom / Direct URL
+                            Import from Zoom / YouTube / URL
                           </Label>
                         </div>
                         
@@ -2878,7 +2876,7 @@ export default function AdminDashboard() {
                         ) : (
                           <div className="space-y-2">
                             <div className="flex flex-col sm:flex-row gap-2">
-                              <Input placeholder="Enter Zoom recording URL or any direct MP4 link..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} className="flex-1" />
+                              <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} className="flex-1" />
                               <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
                               <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
                                 {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
