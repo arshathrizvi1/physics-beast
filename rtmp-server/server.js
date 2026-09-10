@@ -374,6 +374,50 @@ app.post('/generate-key', (req, res) => {
   });
 });
 
+// Download from YouTube and push to Bunny
+app.post('/api/convert-youtube', (req, res) => {
+  const { secret, url, streamKey } = req.body;
+  
+  if (secret !== CALLBACK_SECRET) {
+    return res.status(403).json({ error: 'Invalid secret' });
+  }
+  if (!url || !streamKey) {
+    return res.status(400).json({ error: 'Missing url or streamKey' });
+  }
+
+  console.log(`[YouTube] Received download request for ${streamKey}: ${url}`);
+  
+  // Respond immediately so Vercel doesn't time out
+  res.json({ success: true, message: 'YouTube download started in background' });
+
+  // Run yt-dlp in background
+  const { spawn } = require('child_process');
+  const outputPath = path.join(recordingsDir, `${streamKey}_youtube.mp4`);
+  
+  // Download best mp4 format (usually 1080p video + audio, or 720p)
+  const ytdlp = spawn('yt-dlp', [
+    '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+    '-o', outputPath,
+    url
+  ]);
+
+  ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
+  ytdlp.stderr.on('data', (data) => console.error(`[yt-dlp] ${data.toString().trim()}`));
+
+  ytdlp.on('close', (code) => {
+    if (code === 0) {
+      console.log(`[YouTube] ✅ Download complete for ${streamKey}`);
+      // Trigger the existing post-stream pipeline to upload to Bunny and notify website
+      handleStreamEnded(streamKey).catch(err => 
+        console.error('[YouTube] Error in post-stream pipeline:', err.message)
+      );
+    } else {
+      console.error(`[YouTube] ❌ yt-dlp process exited with code ${code}`);
+      notifyWebsite('stream_ended', { streamKey, hasRecording: false }).catch(() => {});
+    }
+  });
+});
+
 // ─── Start Everything ──────────────────────────────────────────
 
 app.listen(HTTP_PORT, () => {

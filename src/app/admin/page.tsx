@@ -2806,8 +2806,8 @@ export default function AdminDashboard() {
                                 {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                               </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                              <strong>Note:</strong> Paste a direct MP4 URL. If using a Zoom link with a password, enter the password in the optional field.
+                            <p className="text-xs text-destructive mt-1 bg-destructive/10 border border-destructive/20 p-2 rounded">
+                              <strong>🚨 CRITICAL ZOOM WARNING:</strong> BunnyCDN cannot process Zoom "Share" links (it downloads the webpage instead of the video, causing "Processing Failed"). You MUST download the MP4 from Zoom to your computer first, then select <strong>"Upload File"</strong> mode above instead of "Fetch URL".
                             </p>
                           </div>
                         )}
