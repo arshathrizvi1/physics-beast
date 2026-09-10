@@ -633,13 +633,25 @@ export default function AdminLiveStudio() {
                                     videoPassword = prompt(`(Optional) Enter the Zoom Passcode if this video is password protected:`, "") || "";
                                   }
 
-                                  const res = await fetch('/api/live/convert-youtube', {
+                                  const videoDocId = doc(collection(db, 'videos')).id;
+                                  const metadata = {
+                                    videoDocId,
+                                    videoTitle: `${cls.title} (Recorded Live)`,
+                                    videoDescription: cls.description || '',
+                                    selectedItemType: cls.courseId ? 'course' : 'folder',
+                                    selectedCourseId: cls.courseId || 'none',
+                                    selectedCourseFolderId: cls.targetFolderId,
+                                    selectedFolderId: cls.targetFolderId
+                                  };
+
+                                  const res = await fetch('/api/bunny/aws-download', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ 
                                       url: inputTrimmed, 
-                                      streamKey: cls.streamKey,
-                                      password: videoPassword
+                                      password: videoPassword,
+                                      title: `${cls.title} (Recorded Live)`,
+                                      metadata
                                     })
                                   });
                                   
