@@ -15,6 +15,7 @@ export interface AppNotification {
   timestamp: number;
   type?: "technical" | "exam" | "course" | "contact_us" | "general" | "student_login" | "student_signup" | "payment";
   readBy?: string[];
+  clearedBy?: string[];
 }
 
 interface NotificationContextType {
@@ -25,6 +26,8 @@ interface NotificationContextType {
   toggleBrowserNotifications: () => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  clearNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -35,6 +38,8 @@ const NotificationContext = createContext<NotificationContextType>({
   toggleBrowserNotifications: () => {},
   markAsRead: async () => {},
   markAllAsRead: async () => {},
+  clearNotification: async () => {},
+  clearAllNotifications: async () => {},
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
@@ -227,8 +232,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           return;
         }
 
-        // Ensure readBy exists
+        // Ensure readBy/clearedBy exists
         if (!notif.readBy) notif.readBy = [];
+        if (!notif.clearedBy) notif.clearedBy = [];
+
+        // If the user has cleared this notification, do not show it
+        if (notif.clearedBy.includes(user.uid)) {
+          return;
+        }
 
         fetched.push(notif);
 
@@ -367,8 +378,45 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  const clearNotification = async (id: string) => {
+    if (!user) return;
+    try {
+      const notifRef = doc(db, "notifications", id);
+      await updateDoc(notifRef, {
+        clearedBy: arrayUnion(user.uid)
+      });
+      // Optimistic update
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (error) {
+      console.error("Error clearing notification:", error);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!user) return;
+    try {
+      await Promise.all(
+        notifications.map(n => updateDoc(doc(db, "notifications", n.id), { clearedBy: arrayUnion(user.uid) }))
+      );
+      // Optimistic update
+      setNotifications([]);
+    } catch (error) {
+      console.error("Error clearing all notifications:", error);
+    }
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, browserEnabled, requestBrowserPermission, toggleBrowserNotifications, markAsRead, markAllAsRead }}>
+    <NotificationContext.Provider value={{ 
+      notifications, 
+      unreadCount, 
+      browserEnabled, 
+      requestBrowserPermission, 
+      toggleBrowserNotifications, 
+      markAsRead, 
+      markAllAsRead,
+      clearNotification,
+      clearAllNotifications 
+    }}>
       {children}
     </NotificationContext.Provider>
   );

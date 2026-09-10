@@ -26,7 +26,7 @@ function timeAgo(timestamp: number | string | Date): string {
 }
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, browserEnabled, toggleBrowserNotifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, browserEnabled, toggleBrowserNotifications, markAsRead, markAllAsRead, clearNotification, clearAllNotifications } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
 
@@ -72,50 +72,65 @@ export default function NotificationBell() {
         <div className="fixed inset-x-3 top-16 max-w-[380px] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-3 w-auto sm:w-[380px] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[1000] animate-in slide-in-from-top-2 fade-in duration-200">
           
           {/* Header */}
-          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-zinc-900/50">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base text-white">
-                Notifications
-              </h3>
-              {unreadCount > 0 && (
-                <span className="bg-red-500/20 text-red-500 text-xs px-2 py-0.5 rounded-full font-semibold">
-                  {unreadCount} new
-                </span>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-3">
-              {unreadCount > 0 && (
-                <button 
-                  onClick={markAllAsRead}
-                  className="text-xs text-[#d4af37] hover:text-white font-medium transition-colors"
-                >
-                  Mark all read
-                </button>
-              )}
-              {/* Push Toggle Switch Button */}
-              <button
-                onClick={toggleBrowserNotifications}
-                title={browserEnabled ? "Push Notifications: ON (Click to Turn Off)" : "Push Notifications: OFF (Click to Turn On)"}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                  browserEnabled 
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' 
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                }`}
-              >
-                {browserEnabled ? (
-                  <>
-                    <BellRing className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                    <span>Push: ON</span>
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Push: OFF</span>
-                  </>
+          <div className="p-4 border-b border-white/5 flex flex-col gap-3 bg-zinc-900/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base text-white">
+                  Notifications
+                </h3>
+                {unreadCount > 0 && (
+                  <span className="bg-red-500/20 text-red-500 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    {unreadCount} new
+                  </span>
                 )}
-              </button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Push Toggle Switch Button */}
+                <button
+                  onClick={toggleBrowserNotifications}
+                  title={browserEnabled ? "Push Notifications: ON (Click to Turn Off)" : "Push Notifications: OFF (Click to Turn On)"}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
+                    browserEnabled 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20' 
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                  }`}
+                >
+                  {browserEnabled ? (
+                    <>
+                      <BellRing className="w-3 h-3 text-emerald-400 animate-pulse" />
+                      <span>Push: ON</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellOff className="w-3 h-3 text-zinc-400" />
+                      <span>Push: OFF</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {notifications.length > 0 && (
+              <div className="flex items-center justify-end gap-3">
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={markAllAsRead}
+                    className="text-xs text-[#d4af37] hover:text-white font-medium transition-colors flex items-center gap-1"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Mark all read
+                  </button>
+                )}
+                <button 
+                  onClick={clearAllNotifications}
+                  className="text-xs text-red-400 hover:text-red-300 font-medium transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Browser Push Quick Enable Banner if OFF */}
@@ -153,6 +168,7 @@ export default function NotificationBell() {
                     key={notif.id} 
                     notif={notif} 
                     markAsRead={markAsRead}
+                    clearNotification={clearNotification}
                     onClose={() => setIsOpen(false)}
                   />
                 ))}
@@ -174,10 +190,12 @@ export default function NotificationBell() {
 function NotificationItem({ 
   notif, 
   markAsRead, 
+  clearNotification,
   onClose 
 }: { 
   notif: any; 
   markAsRead: (id: string) => void; 
+  clearNotification: (id: string) => void;
   onClose: () => void;
 }) {
   const { user } = useAuth();
@@ -311,13 +329,19 @@ function NotificationItem({
     );
   };
 
+  const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    clearNotification(notif.id);
+  };
+
   const content = (
     <div 
       onClick={handleClick}
-      className={`p-4 flex gap-4 transition-colors cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/[0.04] ${!isRead ? 'bg-white/[0.04]' : 'opacity-70'}`}
+      className={`p-4 flex gap-4 transition-colors cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/[0.04] group relative ${!isRead ? 'bg-white/[0.04]' : 'opacity-70'}`}
     >
       {getIcon()}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-6">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h4 className={`text-sm font-semibold truncate ${!isRead ? 'text-white' : 'text-zinc-300'}`}>
             {notif.title}
@@ -330,14 +354,25 @@ function NotificationItem({
           {notif.message}
         </p>
       </div>
-      {!isRead && (
-        <div className="w-2 h-2 rounded-full bg-[#d4af37] shrink-0 mt-1.5 shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
-      )}
+      
+      {/* Action Indicators (Read Dot / Delete Button) */}
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+        {!isRead && (
+          <div className="w-2 h-2 rounded-full bg-[#d4af37] shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
+        )}
+        <button
+          onClick={handleClear}
+          className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded-md transition-all duration-200 focus:opacity-100"
+          title="Clear notification"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+        </button>
+      </div>
     </div>
   );
 
   if (targetLink) {
-    return <Link href={targetLink} onClick={handleClick}>{content}</Link>;
+    return <Link href={targetLink} onClick={handleClick} className="block">{content}</Link>;
   }
 
   return content;
