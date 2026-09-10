@@ -1267,12 +1267,11 @@ export default function AdminDashboard() {
                videoDocId,
                videoTitle,
                videoDescription,
-               selectedItemType,
-               selectedCourseId,
-               selectedCourseFolderId,
-               selectedFolderId
+               videoFolderId,
+               videoCourseId,
+               videoBatchId
              };
-             const targetFolderId = selectedItemType === 'course' ? selectedCourseFolderId : selectedFolderId;
+             const targetFolderId = videoFolderId;
              const videoRef = doc(db, 'videos', videoDocId);
              
              // 1. Create Placeholder Document immediately!
@@ -1284,7 +1283,7 @@ export default function AdminDashboard() {
                videoId: '',
                libraryId: '',
                platform: 'bunny',
-               courseId: selectedCourseId === 'none' ? null : selectedCourseId,
+               courseId: videoCourseId === 'none' ? null : videoCourseId,
                folderId: targetFolderId,
                type: 'video',
                isReady: false,
