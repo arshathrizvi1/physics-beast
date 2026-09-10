@@ -34,6 +34,8 @@ export default function AdminLiveStudio() {
   const [targetFolderId, setTargetFolderId] = useState("none");
   const [folders, setFolders] = useState<any[]>([]);
   const [allowDirectJoin, setAllowDirectJoin] = useState(true);
+  const [rtmpStreamKey, setRtmpStreamKey] = useState("");
+  const [rtmpServerUrl, setRtmpServerUrl] = useState("");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -114,9 +116,31 @@ export default function AdminLiveStudio() {
     handleDrafts();
   }, [liveClasses]);
 
+  // Generate a random stream key for RTMP
+  const generateStreamKey = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let key = 'ba_';
+    for (let i = 0; i < 24; i++) key += chars[Math.floor(Math.random() * chars.length)];
+    return key;
+  };
+
+  // Auto-generate RTMP credentials when platform changes to 'rtmp'
+  useEffect(() => {
+    if (platform === 'rtmp' && !rtmpStreamKey) {
+      const key = generateStreamKey();
+      setRtmpStreamKey(key);
+      const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || 'YOUR_SERVER_IP';
+      const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
+      setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
+      // Auto-set the HLS link for students
+      setLink(`http://${serverHost}:${serverPort}/live/${key}/index.m3u8`);
+    }
+  }, [platform]);
+
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !link || !scheduledFor) return;
+    if (!title || !scheduledFor) return;
+    if (platform !== 'rtmp' && !link) return; // RTMP auto-fills the link
     
     setIsSubmitting(true);
     try {
@@ -146,6 +170,7 @@ export default function AdminLiveStudio() {
           batchId: batchId === "all" ? null : batchId,
           targetFolderId: targetFolderId === "none" ? null : targetFolderId,
           allowDirectJoin: allowDirectJoin,
+          ...(platform === 'rtmp' ? { streamKey: rtmpStreamKey } : {}),
           status: 'scheduled',
           createdAt: serverTimestamp()
         });
@@ -157,6 +182,8 @@ export default function AdminLiveStudio() {
       setScheduledFor("");
       setTargetFolderId("none");
       setAllowDirectJoin(true);
+      setRtmpStreamKey("");
+      setRtmpServerUrl("");
       router.push('/admin/live'); // clear draftId from URL if present
     } catch (error) {
       alert("Failed to create class. Quota exceeded?");
@@ -312,6 +339,7 @@ export default function AdminLiveStudio() {
                   <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)} disabled={editingClass?.status === 'draft'}>
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
                     <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
                     <SelectItem value="meet">Google Meet</SelectItem>
@@ -349,6 +377,45 @@ export default function AdminLiveStudio() {
                 </div>
               )}
               
+              {platform === "rtmp" && (
+                <div className="p-3.5 bg-green-500/10 border border-green-500/30 rounded-xl text-xs space-y-3">
+                  <div className="font-bold text-green-500 flex items-center gap-1.5 text-sm">
+                    <span>📡</span> RTMP Direct Stream (Auto-Record & Auto-Upload)
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Stream directly from <strong>OBS</strong>, <strong>Zoom Pro</strong> (Custom Live Streaming), or <strong>StreamYard</strong> to your own server. When you end the stream, the recording is <strong>automatically uploaded to BunnyCDN</strong> and appears in your course folder!
+                  </p>
+                  
+                  <div className="bg-background/80 p-3 rounded-lg border border-border/50 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[11px] text-muted-foreground font-medium mb-0.5">RTMP Server URL</div>
+                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://YOUR_SERVER:1935/live'}</code>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
+                        onClick={() => { navigator.clipboard.writeText(rtmpServerUrl); }}
+                      >📋 Copy</Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[11px] text-muted-foreground font-medium mb-0.5">Stream Key</div>
+                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpStreamKey}</code>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
+                        onClick={() => { navigator.clipboard.writeText(rtmpStreamKey); }}
+                      >📋 Copy</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-[11px] text-muted-foreground space-y-1">
+                    <div><strong>🎥 OBS:</strong> Settings → Stream → Select <em>Custom</em> → Paste Server URL & Stream Key → Start Streaming</div>
+                    <div><strong>📹 Zoom Pro:</strong> More (...) → Live on Custom Live Streaming → Paste Server URL & Stream Key → Go Live</div>
+                    <div><strong>🎬 StreamYard:</strong> Add Destination → Custom RTMP → Paste Server URL & Stream Key → Go Live</div>
+                  </div>
+                </div>
+              )}
+              
+              {platform !== "rtmp" && (
               <div className="space-y-2">
                 <Label>
                   {platform === "zoom" 
@@ -378,6 +445,7 @@ export default function AdminLiveStudio() {
                   </p>
                 )}
               </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="flex items-center justify-between">
