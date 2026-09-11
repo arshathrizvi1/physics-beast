@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing videoId or metadata' }, { status: 400 });
     }
 
-    const targetFolderId = metadata.videoFolderId;
+    const targetFolderId = metadata.selectedItemType === 'course' ? metadata.selectedCourseFolderId : metadata.selectedFolderId;
 
     const finalUrl = 'https://iframe.mediadelivery.net/embed/' + libraryId + '/' + videoId + '?autoplay=true';
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       videoId: videoId,
       libraryId: libraryId,
       platform: 'bunny',
-      courseId: metadata.videoCourseId === 'none' || !metadata.videoCourseId ? null : metadata.videoCourseId,
+      courseId: metadata.selectedCourseId === 'none' || !metadata.selectedCourseId ? null : metadata.selectedCourseId,
       folderId: targetFolderId,
       type: 'video',
       isReady: true,
@@ -41,8 +41,21 @@ export async function POST(request: Request) {
     // Use merge: true to avoid overwriting views or createdAt
     await videoRef.set(videoData, { merge: true });
 
-    // Note: We DO NOT update the folder's items array here because 
-    // the frontend already appended the video placeholder to the folder immediately when the upload started.
+    // Append the video to the folder so it is visible in the UI
+    if (targetFolderId && targetFolderId !== 'none') {
+      const folderRef = adminDb.collection('folders').doc(targetFolderId);
+      const folderSnap = await folderRef.get();
+      if (folderSnap.exists) {
+        const folderData = folderSnap.data();
+        const items = folderData?.items || [];
+        // Only append if it's not already in the array
+        if (!items.some((i: any) => i.id === metadata.videoDocId)) {
+          await folderRef.update({
+            items: [...items, { id: metadata.videoDocId, type: 'video' }]
+          });
+        }
+      }
+    }
 
     // Send Notification to admins
     await adminDb.collection('notifications').add({

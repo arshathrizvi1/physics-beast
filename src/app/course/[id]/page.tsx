@@ -105,6 +105,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
+  const [folderTabs, setFolderTabs] = useState<Record<string, 'videos' | 'resources'>>({});
   const lastSavedProgressRef = useRef<Record<string, number>>({});
 
   // Sync with user's videoProgress from Firestore when profile updates
@@ -1332,11 +1333,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   const onlyVideos = folderVideos.filter(v => v.type !== 'resource');
                                   const onlyPdfs = folderVideos.filter(v => v.type === 'resource');
                                   
+                                  const activeTab = folderTabs[folder.id] || 'videos';
+                                  
                                   return (
                                     <>
-                                      {onlyVideos.length > 0 && (
+                                      <div className="flex bg-secondary/10 p-1 border-b border-secondary/30">
+                                        <button 
+                                          className={`flex-1 text-xs font-bold py-1.5 rounded-sm transition-colors ${activeTab === 'videos' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                          onClick={() => setFolderTabs(prev => ({ ...prev, [folder.id]: 'videos' }))}
+                                        >
+                                          Videos ({onlyVideos.length})
+                                        </button>
+                                        <button 
+                                          className={`flex-1 text-xs font-bold py-1.5 rounded-sm transition-colors ${activeTab === 'resources' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                          onClick={() => setFolderTabs(prev => ({ ...prev, [folder.id]: 'resources' }))}
+                                        >
+                                          Resources & PDFs ({onlyPdfs.length})
+                                        </button>
+                                      </div>
+
+                                      {activeTab === 'videos' && onlyVideos.length > 0 && (
                                         <div className="flex flex-col">
-                                          <div className="px-3 py-1 bg-secondary/5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-secondary/10">Videos</div>
                                           {onlyVideos.map((video) => {
                                             const isPlaying = activeVideo?.id === video.id;
                                             const vPct = localVideoProgress[video.id] || user?.videoProgress?.[video.id] || 0;
@@ -1360,7 +1377,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                                     {video.title}
                                                   </span>
                                                 </div>
-                                                {/* Percentage only in video, no bar (as requested) */}
                                                 <span className={`text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
                                                   vPct >= 90
                                                     ? 'bg-green-500/10 text-green-500'
@@ -1376,9 +1392,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         </div>
                                       )}
                                       
-                                      {onlyPdfs.length > 0 && (
+                                      {activeTab === 'videos' && onlyVideos.length === 0 && (
+                                        <div className="p-4 text-center text-xs text-muted-foreground">No videos found in this folder.</div>
+                                      )}
+
+                                      {activeTab === 'resources' && onlyPdfs.length > 0 && (
                                         <div className="flex flex-col">
-                                          <div className="px-3 py-1 bg-secondary/5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-secondary/10">Resources & PDFs</div>
                                           {onlyPdfs.map((video) => {
                                             const isPlaying = activeVideo?.id === video.id;
                                             return (
@@ -1403,6 +1422,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                             );
                                           })}
                                         </div>
+                                      )}
+
+                                      {activeTab === 'resources' && onlyPdfs.length === 0 && (
+                                        <div className="p-4 text-center text-xs text-muted-foreground">No resources or PDFs found in this folder.</div>
                                       )}
                                     </>
                                   );
