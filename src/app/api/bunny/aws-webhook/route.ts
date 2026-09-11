@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { doc, setDoc, updateDoc, getDoc, addDoc, collection } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -15,45 +14,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing videoId or metadata' }, { status: 400 });
     }
 
-    // Determine target folder based on whether it is a course or root
-    const targetFolderId = metadata.selectedItemType === 'course' ? metadata.selectedCourseFolderId : metadata.selectedFolderId;
+    const targetFolderId = metadata.videoFolderId;
 
     const finalUrl = 'https://iframe.mediadelivery.net/embed/' + libraryId + '/' + videoId + '?autoplay=true';
 
-    const videoRef = doc(db, 'videos', metadata.videoDocId);
+    const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
     
+    // We fetch the existing video document first to preserve any data,
+    // although `set` with `{ merge: true }` is better.
     const videoData = {
       id: metadata.videoDocId,
       title: metadata.videoTitle,
-      description: metadata.videoDescription || '',
+      description: '',
       url: finalUrl,
       videoId: videoId,
       libraryId: libraryId,
       platform: 'bunny',
-      courseId: metadata.selectedCourseId === 'none' ? null : metadata.selectedCourseId,
+      courseId: metadata.videoCourseId === 'none' || !metadata.videoCourseId ? null : metadata.videoCourseId,
       folderId: targetFolderId,
       type: 'video',
       isReady: true,
       processingStatus: 'ready',
-      createdAt: Date.now(),
-      views: 0
+      updatedAt: Date.now(),
     };
 
-    await setDoc(videoRef, videoData);
+    // Use merge: true to avoid overwriting views or createdAt
+    await videoRef.set(videoData, { merge: true });
 
-    if (targetFolderId && targetFolderId !== 'none') {
-      const folderRef = doc(db, 'folders', targetFolderId);
-      const folderSnap = await getDoc(folderRef);
-      if (folderSnap.exists()) {
-        const items = folderSnap.data().items || [];
-        await updateDoc(folderRef, {
-          items: [...items, { id: videoRef.id, type: 'video' }]
-        });
-      }
-    }
+    // Note: We DO NOT update the folder's items array here because 
+    // the frontend already appended the video placeholder to the folder immediately when the upload started.
 
     // Send Notification to admins
-    await addDoc(collection(db, 'notifications'), {
+    await adminDb.collection('notifications').add({
       title: "Live Recording Processed",
       message: `The YouTube/Zoom recording "${metadata.videoTitle}" has been automatically downloaded, uploaded to BunnyCDN, and saved to the folder.`,
       type: "info",

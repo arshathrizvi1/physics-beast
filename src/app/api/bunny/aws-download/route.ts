@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { addDoc, collection } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
 
     const data = await res.json();
 
-    await addDoc(collection(db, 'notifications'), {
+    await adminDb.collection('notifications').add({
       title: "Recording Download Started",
       message: `The server is now downloading "${title}". You will be notified once it finishes uploading and is pushed to the folder.`,
       type: "info",
