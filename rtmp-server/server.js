@@ -427,59 +427,163 @@ app.post('/api/convert-youtube', (req, res) => {
 });
 
 // Generic Downloader for Admin Dashboard
+// Handles YouTube (with bot-bypass) and Zoom separately
 app.post('/api/generic-download', (req, res) => {
   const { secret, url, password, title, metadata, webhookUrl } = req.body;
   if (secret !== CALLBACK_SECRET) return res.status(403).json({ error: 'Invalid secret' });
-  
+
   res.json({ success: true, message: 'Generic download started' });
 
   const { spawn } = require('child_process');
   const jobId = crypto.randomBytes(8).toString('hex');
   const outputPath = path.join(recordingsDir, `generic_${jobId}.mp4`);
 
-  const args = ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', '-o', outputPath];
-  if (password) args.push('--video-password', password);
-  args.push(url);
+  const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
 
+  let args = [];
+
+  if (isYoutube) {
+    // ─── YouTube: Full Bot-Bypass Configuration ───────────────────
+    console.log(`[Generic] 🎬 YouTube URL detected - using bot-bypass mode`);
+
+    // Check if Cloudflare WARP proxy is available (installed via setup.sh)
+    const warpProxy = process.env.WARP_PROXY || 'socks5://127.0.0.1:40000';
+    const cookiesPath = process.env.YT_COOKIES_PATH || '/opt/brilliant-academy-rtmp/cookies.txt';
+    const cookiesExist = fs.existsSync(cookiesPath);
+
+    args = [
+      // 1. Route through Cloudflare WARP to avoid AWS IP block
+      '--proxy', warpProxy,
+
+      // 2. Pretend to be the YouTube Android app (less bot detection)
+      '--extractor-args', 'youtube:player_client=android,web',
+
+      // 3. Use cookies if available (burner account login to bypass bot checks)
+      ...(cookiesExist ? ['--cookies', cookiesPath] : []),
+
+      // 4. Throttle speed to avoid triggering bot alarms (5 MB/s = realistic)
+      '--limit-rate', '5M',
+
+      // 5. Best quality up to 720p (good quality, smaller file for faster transfer)
+      '--format', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+      '--merge-output-format', 'mp4',
+
+      // 6. Retry on failure (YouTube sometimes blocks first attempt)
+      '--retries', '5',
+      '--fragment-retries', '5',
+
+      // 7. Add headers to look like a real browser
+      '--add-header', 'Accept-Language:en-US,en;q=0.9',
+
+      '-o', outputPath,
+      url
+    ];
+
+    if (!cookiesExist) {
+      console.log(`[Generic] ⚠️  No cookies.txt found at ${cookiesPath}. Downloads may fail for some videos. See setup instructions.`);
+    }
+  } else {
+    // ─── Zoom / Other URLs: Standard Download ─────────────────────
+    console.log(`[Generic] 📹 Non-YouTube URL detected - using standard mode`);
+    args = [
+      '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '--merge-output-format', 'mp4',
+      '--retries', '3',
+      '-o', outputPath
+    ];
+    if (password) args.push('--video-password', password);
+    args.push(url);
+  }
+
+  console.log(`[Generic] Running yt-dlp for: ${title}`);
   const ytdlp = spawn('yt-dlp', args);
+
+  ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
+  ytdlp.stderr.on('data', (data) => console.error(`[yt-dlp stderr] ${data.toString().trim()}`));
+
   ytdlp.on('close', async (code) => {
     if (code === 0 && fs.existsSync(outputPath)) {
       try {
-        console.log(`[Generic] ✅ Download complete for ${title}`);
-        
-        // Upload to Bunny
+        const fileSizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
+        console.log(`[Generic] ✅ Download complete for "${title}" (${fileSizeMB} MB)`);
+
+        // Upload to Bunny using streaming (better for large files)
+        console.log(`[Generic] Uploading to BunnyCDN...`);
         const createRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos`, {
           method: 'POST',
           headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ title: title || 'AWS Download' })
+          body: JSON.stringify({ title: title || 'Downloaded Video' })
         });
+
+        if (!createRes.ok) throw new Error(`Bunny create failed: ${await createRes.text()}`);
         const videoData = await createRes.json();
         const videoId = videoData.guid;
 
-        const fileBuffer = fs.readFileSync(outputPath);
-        await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
-          method: 'PUT',
-          headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream', 'Content-Length': fileBuffer.length.toString() },
-          body: fileBuffer
-        });
-        
-        console.log(`[Generic] ✅ Uploaded to Bunny for ${title}`);
+        // Stream upload (handles large files without loading into memory)
+        const fileStats = fs.statSync(outputPath);
+        let uploadOk = false;
+        try {
+          const fileStream = fs.createReadStream(outputPath);
+          const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+            method: 'PUT',
+            headers: {
+              'AccessKey': BUNNY_API_KEY,
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': fileStats.size.toString()
+            },
+            body: fileStream,
+            duplex: 'half'
+          });
+          uploadOk = uploadRes.ok;
+          if (!uploadOk) console.error(`[Generic] Stream upload failed: ${await uploadRes.text()}`);
+        } catch (streamErr) {
+          console.warn(`[Generic] Stream upload failed, falling back to buffer: ${streamErr.message}`);
+        }
 
-        // Notify Vercel generic webhook
+        // Buffer fallback for small files
+        if (!uploadOk) {
+          const fileBuffer = fs.readFileSync(outputPath);
+          const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+            method: 'PUT',
+            headers: {
+              'AccessKey': BUNNY_API_KEY,
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': fileBuffer.length.toString()
+            },
+            body: fileBuffer
+          });
+          if (!uploadRes.ok) throw new Error(`Bunny upload failed: ${await uploadRes.text()}`);
+        }
+
+        console.log(`[Generic] ✅ Uploaded to Bunny: ${videoId} for "${title}"`);
+
+        // Notify Vercel webhook
         if (webhookUrl) {
           await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ secret: CALLBACK_SECRET, videoId, metadata, libraryId: BUNNY_LIBRARY_ID })
           });
+          console.log(`[Generic] ✅ Notified webhook for "${title}"`);
         }
 
-        fs.unlinkSync(outputPath);
+        // Clean up temp file
+        try { fs.unlinkSync(outputPath); } catch (e) {}
       } catch (err) {
-        console.error("[Generic] Upload failed", err);
+        console.error(`[Generic] ❌ Upload/notify failed for "${title}":`, err.message);
       }
     } else {
-      console.error(`[Generic] ❌ yt-dlp failed with code ${code}`);
+      console.error(`[Generic] ❌ yt-dlp failed with code ${code} for "${title}"`);
+      // Notify webhook of failure so frontend can update status
+      if (webhookUrl && metadata) {
+        try {
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: CALLBACK_SECRET, error: 'yt-dlp download failed', metadata, libraryId: BUNNY_LIBRARY_ID })
+          });
+        } catch (e) {}
+      }
     }
   });
 });

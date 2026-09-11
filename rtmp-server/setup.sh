@@ -116,6 +116,62 @@ echo "🔓 Opening firewall ports (1935 for RTMP, 8000 for HLS)..."
 sudo ufw allow 1935/tcp 2>/dev/null || true
 sudo ufw allow 8000/tcp 2>/dev/null || true
 
+# 8. Install Cloudflare WARP (bypasses YouTube AWS IP blocks)
+echo ""
+echo "🌐 Installing Cloudflare WARP (YouTube bot-bypass)..."
+
+# Add Cloudflare WARP repo
+curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg 2>/dev/null
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list > /dev/null
+sudo apt-get update -qq
+sudo apt-get install -y -qq cloudflare-warp || echo "⚠️  WARP install failed - will try manual setup"
+
+# Register and connect WARP
+if command -v warp-cli &> /dev/null; then
+  warp-cli --accept-tos registration new 2>/dev/null || true
+  warp-cli --accept-tos mode proxy 2>/dev/null || true
+  warp-cli --accept-tos proxy port 40000 2>/dev/null || true
+  warp-cli --accept-tos connect 2>/dev/null || true
+  echo "✅ Cloudflare WARP connected on socks5://127.0.0.1:40000"
+
+  # Add WARP auto-start to systemd service
+  sudo sed -i '/ExecStart=\/usr\/bin\/node/i ExecStartPre=warp-cli connect' /etc/systemd/system/ba-rtmp.service 2>/dev/null || true
+  sudo systemctl daemon-reload
+else
+  echo "⚠️  WARP not available. YouTube downloads may be blocked by AWS IP."
+  echo "   Manually install: https://pkg.cloudflareclient.com/"
+fi
+
+# 9. Update yt-dlp to latest version (fixes new YouTube bot checks)
+echo ""
+echo "📦 Updating yt-dlp to latest..."
+if command -v yt-dlp &> /dev/null; then
+  yt-dlp --update || pip install --upgrade yt-dlp 2>/dev/null || true
+else
+  pip install yt-dlp 2>/dev/null || pip3 install yt-dlp 2>/dev/null || \
+    sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    sudo chmod +x /usr/local/bin/yt-dlp
+fi
+echo "✅ yt-dlp version: $(yt-dlp --version 2>/dev/null || echo 'installed')"
+
+# 10. Create placeholder cookies file
+COOKIES_PATH="$APP_DIR/cookies.txt"
+if [ ! -f "$COOKIES_PATH" ]; then
+  cat > "$COOKIES_PATH" << 'COOKIES_PLACEHOLDER'
+# Netscape HTTP Cookie File
+# This file is a placeholder. Replace with real YouTube cookies to bypass bot checks.
+# How to get cookies:
+#   1. Install the "Get cookies.txt LOCALLY" browser extension on Chrome/Firefox
+#   2. Go to youtube.com and sign in with a BURNER Google account
+#   3. Click the extension and export cookies.txt
+#   4. Upload the file to: /opt/brilliant-academy-rtmp/cookies.txt
+#      Command: scp cookies.txt ubuntu@YOUR_EC2_IP:/opt/brilliant-academy-rtmp/cookies.txt
+#   5. Restart the server: sudo systemctl restart ba-rtmp
+COOKIES_PLACEHOLDER
+  echo "✅ Placeholder cookies.txt created at $COOKIES_PATH"
+  echo "   ⚠️  Replace with real YouTube cookies for best results (see file for instructions)"
+fi
+
 echo ""
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║   ✅ RTMP Server is now running!                         ║"

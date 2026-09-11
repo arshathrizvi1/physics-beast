@@ -10,9 +10,57 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing url' }, { status: 400 });
     }
 
+    const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+    const serverPort = process.env.RTMP_HTTP_PORT || '8000';
+    const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
     const websiteUrl = process.env.WEBSITE_URL || 'https://brilliantacademy.vercel.app';
+
     const isYoutube = url.includes('youtube.com') || url.includes('youtu.be');
-    const apifyToken = process.env.APIFY_API_TOKEN;
+
+    const awsUrl = 'http://' + serverHost + ':' + serverPort + '/api/generic-download';
+    const webhookUrl = websiteUrl + '/api/bunny/aws-webhook';
+
+    const res = await fetch(awsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url,
+        password,
+        title,
+        metadata,
+        webhookUrl,
+        secret: callbackSecret
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return NextResponse.json({ error: 'EC2 server error: ' + errText }, { status: res.status });
+    }
+
+    const data = await res.json();
+
+    await adminDb.collection('notifications').add({
+      title: isYoutube ? '🎬 YouTube Download Started' : '📹 Recording Download Started',
+      message: isYoutube
+        ? `The AWS server is now downloading "${title}" from YouTube using bot-bypass (WARP proxy). This may take a few minutes.`
+        : `The AWS server is now downloading "${title}". You will be notified once it finishes.`,
+      type: 'info',
+      link: '/admin/library',
+      createdAt: Date.now(),
+      isGlobal: true,
+      readBy: [],
+      clearedBy: []
+    });
+
+    return NextResponse.json(data);
+
+  } catch (error: any) {
+    console.error('[Generic Download] Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 
     if (isYoutube && apifyToken) {
       // 1. Call Apify
