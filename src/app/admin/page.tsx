@@ -2918,11 +2918,6 @@ export default function AdminDashboard() {
                           if (e.target.files && e.target.files[0]) {
                             const file = e.target.files[0];
                             setResourceFile(file);
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setUploadFileBase64(event.target?.result as string);
-                            };
-                            reader.readAsDataURL(file);
                           }
                         }} 
                         required={uploadItemType === 'resource'}

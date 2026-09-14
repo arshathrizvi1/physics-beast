@@ -3,15 +3,27 @@ import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
-    const { secret, videoId, metadata, libraryId } = await request.json();
+    const body = await request.json();
+    const { secret, videoId, metadata, libraryId, error } = body;
     const expectedSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
 
     if (secret !== expectedSecret) {
       return NextResponse.json({ error: 'Invalid secret' }, { status: 403 });
     }
 
-    if (!videoId || !metadata) {
-      return NextResponse.json({ error: 'Missing videoId or metadata' }, { status: 400 });
+    if (!metadata) {
+      return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
+    }
+    
+    // If GitHub actions sends a failure notification
+    if (error) {
+      const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
+      await videoRef.set({ processingStatus: 'error', error: error }, { merge: true });
+      return NextResponse.json({ success: true, noted: 'Error recorded' });
+    }
+
+    if (!videoId) {
+      return NextResponse.json({ error: 'Missing videoId' }, { status: 400 });
     }
 
     const targetFolderId = metadata.selectedItemType === 'course' ? metadata.selectedCourseFolderId : metadata.selectedFolderId;
