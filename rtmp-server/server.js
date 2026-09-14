@@ -396,7 +396,7 @@ app.post('/api/convert-youtube', (req, res) => {
   
   // Base yt-dlp args
   const args = [
-    '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+    '-f', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
     '-o', outputPath
   ];
   
@@ -456,7 +456,7 @@ app.post('/api/generic-download', (req, res) => {
       '--extractor-args', 'youtube:player_client=android,web',
       ...(cookiesExist ? ['--cookies', cookiesPath] : []),
       '--limit-rate', '5M',
-      '--format', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+      '--format', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
       '--merge-output-format', 'mp4',
       '--retries', '5',
       '--fragment-retries', '5',
@@ -489,7 +489,7 @@ app.post('/api/generic-download', (req, res) => {
           console.log(`[Generic] ✅ Zoom Extraction Success! Downloading raw MP4...`);
           
           let stdArgs = [
-            '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            '--format', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
             '--merge-output-format', 'mp4',
             '--retries', '3',
             '-o', outputPath
@@ -517,7 +517,7 @@ app.post('/api/generic-download', (req, res) => {
 
   function runStandardMode(targetUrl, targetPassword, outPath, hasCookies, cPath, vidTitle, reqBody) {
     let stdArgs = [
-      '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '--format', 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
       '--merge-output-format', 'mp4',
       '--retries', '3',
       '-o', outPath
