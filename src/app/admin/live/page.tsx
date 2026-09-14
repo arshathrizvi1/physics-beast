@@ -395,8 +395,6 @@ export default function AdminLiveStudio() {
                     <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
                     <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
-                    <SelectItem value="meet">Google Meet</SelectItem>
-                    <SelectItem value="custom">Custom HLS / External Link</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -475,8 +473,6 @@ export default function AdminLiveStudio() {
                     ? "Zoom Meeting Link *" 
                     : platform === "youtube" 
                     ? "YouTube Live / Video Link *" 
-                    : platform === "meet" 
-                    ? "Google Meet Link *" 
                     : "Live Stream Link *"}
                 </Label>
                 <Input 
