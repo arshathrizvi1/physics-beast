@@ -327,19 +327,19 @@ export function PdfViewer({
               transform: `scale(${cssScale})`, 
               transformOrigin: 'top center'
             }}
-            className="flex flex-col min-w-max mx-auto"
+            className="flex flex-col shrink-0 min-w-max mx-auto"
           >
             <Document
               file={trimmed}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={
-                <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-zinc-300">
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-zinc-300 shrink-0">
                   <RefreshCw className="w-8 h-8 mb-4 animate-spin text-[#d4af37]" />
                   <p>Loading document...</p>
                 </div>
               }
               error={
-                <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-400 p-6 text-center">
+                <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-400 p-6 text-center shrink-0">
                   <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
                   <p className="font-medium">Failed to load PDF file.</p>
                   <p className="text-sm mt-2 opacity-80 text-zinc-400">
@@ -350,16 +350,16 @@ export function PdfViewer({
                   </p>
                 </div>
               }
-              className="flex flex-col gap-6 w-full"
+              className="flex flex-col gap-6 w-full shrink-0"
             >
               {numPages && Array.from(new Array(numPages), (el, index) => (
-                <div key={`page_${index + 1}`} className="relative group mx-auto">
+                <div key={`page_${index + 1}`} className="relative group mx-auto shrink-0">
                   <Page 
                     pageNumber={index + 1} 
                     scale={renderScale}
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
-                    className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white"
+                    className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white shrink-0"
                     width={containerWidth ? Math.min(containerWidth - 32, 1200) : undefined}
                   />
                 </div>
