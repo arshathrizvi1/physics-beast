@@ -1263,12 +1263,14 @@ export default function AdminDashboard() {
            
            if (isZoomOrYt) {
              const videoDocId = doc(collection(db, 'videos')).id;
+             const isYoutube = videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
              const metadata = {
                videoDocId,
                videoTitle,
                videoFolderId,
                videoCourseId,
-               videoBatchId
+               videoBatchId,
+               originalYoutubeUrl: isYoutube ? videoUrl : null
              };
              const targetFolderId = videoFolderId;
              const videoRef = doc(db, 'videos', videoDocId);

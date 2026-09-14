@@ -55,6 +55,10 @@ export async function POST(request: Request) {
       updatedAt: Date.now(),
     };
 
+    if (metadata.originalYoutubeUrl) {
+      (videoData as any).originalYoutubeUrl = metadata.originalYoutubeUrl;
+    }
+
     // Use merge: true to avoid overwriting views or createdAt
     await videoRef.set(videoData, { merge: true });
 

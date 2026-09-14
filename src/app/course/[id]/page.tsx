@@ -73,6 +73,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
@@ -394,7 +395,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const playingRef = useRef(playing);
   useEffect(() => { playingRef.current = playing; }, [playing]);
   const activeVideoRef = useRef(activeVideo);
-  useEffect(() => { activeVideoRef.current = activeVideo; }, [activeVideo]);
+  useEffect(() => { activeVideoRef.current = activeVideo; setActiveServer('bunny'); }, [activeVideo]);
   const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
 
   // Heartbeat & Presence Logic (Tracks Real "Students Watching" and Updates "Total Study Time")
@@ -746,17 +747,29 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {activeVideo.platform === 'bunny' && (
-                    <iframe 
-                      src={bunnyEmbedUrl || activeVideo.url} 
-                      className="w-full h-full border-0 relative z-[50]"
-                      allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                      allowFullScreen={true}
-                    />
-                  )}
-                  <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
-                    <ReactPlayer
-                      ref={playerRef}
+                  {activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? (
+                    <div className="absolute inset-0 w-full h-full z-[50]">
+                      <ReactPlayer
+                        url={activeVideo.originalYoutubeUrl}
+                        width="100%"
+                        height="100%"
+                        playing={true}
+                        controls={true}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {activeVideo.platform === 'bunny' && (
+                        <iframe 
+                          src={bunnyEmbedUrl || activeVideo.url} 
+                          className="w-full h-full border-0 relative z-[50]"
+                          allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                          allowFullScreen={true}
+                        />
+                      )}
+                      <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                        <ReactPlayer
+                          ref={playerRef}
                       url={activeVideo.url}
                       width="100%"
                       height="100%"
@@ -855,6 +868,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
                   </div>
+                    </>
+                  )}
 
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && (
@@ -1108,7 +1123,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {activeVideo ? (activeVideo.type === 'resource' ? "Course Resource / PDF document." : "Currently playing from the course syllabus.") : "Course overview."}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end gap-3">
+              {activeVideo && activeVideo.originalYoutubeUrl && activeVideo.type !== 'resource' && (
+                <div className="flex items-center gap-1 bg-secondary/30 p-1 rounded-lg border border-secondary/50">
+                  <button
+                    onClick={() => setActiveServer('bunny')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'bunny' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+                  >
+                    Server 1 (Bunny)
+                  </button>
+                  <button
+                    onClick={() => setActiveServer('youtube')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'youtube' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+                  >
+                    Server 2 (YouTube)
+                  </button>
+                </div>
+              )}
               {activeVideo && activeVideo.type !== 'resource' && (
                 <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
                   <Eye className="w-4 h-4" />

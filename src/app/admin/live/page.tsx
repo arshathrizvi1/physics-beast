@@ -702,6 +702,7 @@ export default function AdminLiveStudio() {
                                   }
 
                                   const videoDocId = doc(collection(db, 'videos')).id;
+                                  const isYoutubeLink = inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be');
                                   const metadata = {
                                     videoDocId,
                                     videoTitle: `${cls.title} (Recorded Live)`,
@@ -709,7 +710,8 @@ export default function AdminLiveStudio() {
                                     selectedItemType: cls.courseId ? 'course' : 'folder',
                                     selectedCourseId: cls.courseId || 'none',
                                     selectedCourseFolderId: cls.targetFolderId,
-                                    selectedFolderId: cls.targetFolderId
+                                    selectedFolderId: cls.targetFolderId,
+                                    originalYoutubeUrl: isYoutubeLink ? inputTrimmed : null
                                   };
 
                                   const res = await fetch('/api/bunny/aws-download', {
