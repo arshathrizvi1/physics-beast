@@ -619,14 +619,20 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
         </CardHeader>
         <CardContent>
           <RadioGroup value={answers[currentQuestion] || ""} onValueChange={handleSelect} className="space-y-3">
-            {q.options.map((opt: any) => (
-              <div key={opt.id} className="flex items-center space-x-3 bg-secondary/5 p-4 rounded-lg border border-transparent hover:border-secondary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                <RadioGroupItem value={opt.id} id={`opt-${opt.id}`} />
-                <Label htmlFor={`opt-${opt.id}`} className="flex-1 cursor-pointer text-base">
-                  {opt.text}
-                </Label>
-              </div>
-            ))}
+            {q.options.map((opt: any) => {
+              const isSelected = answers[currentQuestion] === opt.id;
+              return (
+                <div key={opt.id} className={`flex items-center space-x-3 p-4 rounded-lg border transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'bg-secondary/5 border-transparent hover:border-secondary'}`}>
+                  <RadioGroupItem value={opt.id} id={`opt-${opt.id}`} className="sr-only" />
+                  <Label htmlFor={`opt-${opt.id}`} className="flex items-center gap-3 flex-1 cursor-pointer text-base m-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-secondary/80 text-muted-foreground border border-border/50'}`}>
+                      {opt.id}
+                    </div>
+                    <span className="leading-tight">{opt.text}</span>
+                  </Label>
+                </div>
+              );
+            })}
           </RadioGroup>
         </CardContent>
         <CardFooter className="flex justify-between border-t p-6">
