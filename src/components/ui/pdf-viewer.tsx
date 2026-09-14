@@ -255,7 +255,7 @@ export function PdfViewer({
               <ZoomOut className="w-3.5 h-3.5" />
             </Button>
             <span className="min-w-[40px] text-center font-medium">
-              {Math.round(renderScale * 100)}%
+              {Math.round(renderScale * cssScale * 100)}%
             </span>
             <Button
               type="button"
@@ -318,8 +318,7 @@ export function PdfViewer({
           <div 
             style={{ 
               transform: `scale(${cssScale})`, 
-              transformOrigin: 'top center',
-              transition: cssScale === 1.0 ? 'transform 0.1s ease-out' : 'none' 
+              transformOrigin: 'top center'
             }}
             className="flex flex-col min-w-max mx-auto"
           >
@@ -354,7 +353,6 @@ export function PdfViewer({
                     renderAnnotationLayer={true}
                     className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white"
                     width={containerWidth ? (Math.min(containerWidth - 32, 1200) * renderScale) : undefined}
-                    loading={<div className="bg-white/50 w-full h-full absolute inset-0" />}
                   />
                 </div>
               ))}
