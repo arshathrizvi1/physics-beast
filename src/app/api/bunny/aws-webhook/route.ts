@@ -15,11 +15,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
     }
     
-    // If GitHub actions sends a failure notification
+    // If AWS EC2 sends a failure notification
     if (error) {
       const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
-      await videoRef.set({ processingStatus: 'error', error: error }, { merge: true });
-      return NextResponse.json({ success: true, noted: 'Error recorded' });
+      
+      // Get the target folder so we can remove the ghost item
+      const targetFolderId = metadata.selectedItemType === 'course' 
+        ? metadata.selectedCourseFolderId 
+        : (metadata.selectedFolderId || metadata.videoFolderId || 'none');
+
+      // 1. Remove from folder
+      if (targetFolderId && targetFolderId !== 'none') {
+        const folderRef = adminDb.collection('folders').doc(targetFolderId);
+        const folderSnap = await folderRef.get();
+        if (folderSnap.exists) {
+          const folderData = folderSnap.data();
+          const items = folderData?.items || [];
+          const newItems = items.filter((i: any) => i.id !== metadata.videoDocId);
+          await folderRef.update({ items: newItems });
+        }
+      }
+
+      // 2. Delete the broken video document
+      await videoRef.delete();
+
+      // 3. Notify Admins
+      await adminDb.collection('notifications').add({
+        title: "❌ Video Download Failed",
+        message: `The automatic download for "${metadata.videoTitle || 'Unknown Video'}" failed on the AWS Server. Error: ${error}. The ghost video has been removed from the folder.`,
+        type: "error",
+        link: "/admin",
+        createdAt: Date.now(),
+        isGlobal: true, // Show to all admins
+        readBy: [],
+        clearedBy: []
+      });
+
+      return NextResponse.json({ success: true, noted: 'Error recorded, rolled back.' });
     }
 
     if (!videoId) {
