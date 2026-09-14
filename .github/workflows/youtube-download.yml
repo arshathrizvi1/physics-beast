@@ -37,10 +37,24 @@ jobs:
           sudo chmod +x /usr/local/bin/yt-dlp
           yt-dlp --version
 
+      - name: Setup YouTube Cookies
+        if: ${{ secrets.YT_COOKIES != '' }}
+        run: |
+          echo "${{ secrets.YT_COOKIES }}" | base64 --decode > /tmp/cookies.txt
+          echo "Cookies loaded."
+
       - name: Download YouTube Video (720p)
         run: |
+          COOKIES_ARG=""
+          if [ -f /tmp/cookies.txt ]; then
+            COOKIES_ARG="--cookies /tmp/cookies.txt"
+            echo "Using cookies for authentication."
+          fi
+
+          # Try tv client first (best bot bypass), fallback to android+web
           yt-dlp \
-            --extractor-args "youtube:player_client=android,web" \
+            --extractor-args "youtube:player_client=tv,android,web" \
+            $COOKIES_ARG \
             --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
             --merge-output-format mp4 \
             --retries 10 \
