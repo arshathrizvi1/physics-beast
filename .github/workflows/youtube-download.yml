@@ -1,0 +1,184 @@
+name: YouTube Video Download & Upload to BunnyCDN
+
+on:
+  repository_dispatch:
+    types: [youtube-download]
+
+jobs:
+  download-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 📋 Print Job Info
+        run: |
+          echo "======================================"
+          echo "  Brilliant Academy - YouTube Pipeline"
+          echo "======================================"
+          echo "Title   : ${{ github.event.client_payload.title }}"
+          echo "URL     : ${{ github.event.client_payload.url }}"
+          echo "VideoDoc: ${{ github.event.client_payload.metadata.videoDocId }}"
+          echo "Folder  : ${{ github.event.client_payload.metadata.selectedFolderId }}"
+          echo "======================================"
+
+      - name: 📦 Install yt-dlp (latest)
+        run: |
+          sudo curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+            -o /usr/local/bin/yt-dlp
+          sudo chmod +x /usr/local/bin/yt-dlp
+          echo "yt-dlp version: $(yt-dlp --version)"
+
+      - name: 🍪 Setup YouTube Cookies (if provided)
+        if: ${{ secrets.YT_COOKIES != '' }}
+        run: |
+          echo "${{ secrets.YT_COOKIES }}" > /tmp/cookies.txt
+          echo "Cookies file created."
+
+      - name: 🎬 Download YouTube Video (720p)
+        run: |
+          COOKIES_ARG=""
+          if [ -f /tmp/cookies.txt ]; then
+            COOKIES_ARG="--cookies /tmp/cookies.txt"
+          fi
+
+          yt-dlp \
+            --extractor-args "youtube:player_client=android,web" \
+            $COOKIES_ARG \
+            --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
+            --merge-output-format mp4 \
+            --retries 10 \
+            --fragment-retries 10 \
+            --retry-sleep 5 \
+            --add-header "Accept-Language:en-US,en;q=0.9" \
+            --no-playlist \
+            --progress \
+            -o "/tmp/video.mp4" \
+            "${{ github.event.client_payload.url }}"
+
+          # Verify file downloaded
+          if [ ! -f /tmp/video.mp4 ]; then
+            echo "ERROR: Download failed - file not found"
+            exit 1
+          fi
+
+          FILE_SIZE=$(du -sh /tmp/video.mp4 | cut -f1)
+          echo "✅ Download complete. File size: $FILE_SIZE"
+
+      - name: 📤 Create Video Entry in BunnyCDN
+        id: bunny-create
+        run: |
+          TITLE="${{ github.event.client_payload.title }}"
+          LIBRARY_ID="${{ secrets.BUNNY_LIBRARY_ID }}"
+          API_KEY="${{ secrets.BUNNY_API_KEY }}"
+
+          RESPONSE=$(curl -s -X POST \
+            "https://video.bunnycdn.com/library/${LIBRARY_ID}/videos" \
+            -H "AccessKey: ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "{\"title\": \"${TITLE}\"}")
+
+          echo "Bunny create response: $RESPONSE"
+
+          VIDEO_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('guid',''))")
+
+          if [ -z "$VIDEO_ID" ]; then
+            echo "ERROR: Failed to create Bunny video entry"
+            echo "Response was: $RESPONSE"
+            exit 1
+          fi
+
+          echo "video_id=$VIDEO_ID" >> $GITHUB_OUTPUT
+          echo "✅ Bunny video created: $VIDEO_ID"
+
+      - name: 🚀 Upload MP4 to BunnyCDN
+        run: |
+          VIDEO_ID="${{ steps.bunny-create.outputs.video_id }}"
+          LIBRARY_ID="${{ secrets.BUNNY_LIBRARY_ID }}"
+          API_KEY="${{ secrets.BUNNY_API_KEY }}"
+          FILE_SIZE=$(stat -c%s /tmp/video.mp4)
+
+          echo "Uploading ${FILE_SIZE} bytes to Bunny..."
+
+          HTTP_STATUS=$(curl -s -o /tmp/upload_response.txt -w "%{http_code}" \
+            -X PUT \
+            "https://video.bunnycdn.com/library/${LIBRARY_ID}/videos/${VIDEO_ID}" \
+            -H "AccessKey: ${API_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            -H "Content-Length: ${FILE_SIZE}" \
+            --data-binary @/tmp/video.mp4)
+
+          echo "Upload HTTP status: $HTTP_STATUS"
+          cat /tmp/upload_response.txt
+
+          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
+            echo "ERROR: Upload failed with status $HTTP_STATUS"
+            exit 1
+          fi
+
+          echo "✅ Upload to BunnyCDN complete!"
+
+          # Delete the temp file to save runner space
+          rm -f /tmp/video.mp4
+          echo "🗑️ Temp file deleted"
+
+      - name: 🔔 Notify Website (Update Firestore + Send Admin Notification)
+        run: |
+          VIDEO_ID="${{ steps.bunny-create.outputs.video_id }}"
+          LIBRARY_ID="${{ secrets.BUNNY_LIBRARY_ID }}"
+          WEBSITE_URL="${{ secrets.WEBSITE_URL }}"
+          SECRET="${{ secrets.WEBHOOK_SECRET }}"
+
+          # Build metadata JSON from client_payload
+          METADATA=$(cat <<EOF
+          ${{ toJSON(github.event.client_payload.metadata) }}
+          EOF
+          )
+
+          PAYLOAD=$(cat <<EOF
+          {
+            "secret": "${SECRET}",
+            "videoId": "${VIDEO_ID}",
+            "libraryId": "${LIBRARY_ID}",
+            "metadata": $METADATA
+          }
+          EOF
+          )
+
+          echo "Calling website webhook..."
+
+          HTTP_STATUS=$(curl -s -o /tmp/webhook_response.txt -w "%{http_code}" \
+            -X POST \
+            "${WEBSITE_URL}/api/bunny/aws-webhook" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          echo "Webhook HTTP status: $HTTP_STATUS"
+          cat /tmp/webhook_response.txt
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "WARNING: Webhook call returned $HTTP_STATUS — video was uploaded but database may not be updated"
+          else
+            echo "✅ Website notified successfully!"
+          fi
+
+      - name: ❌ Notify Website of Failure
+        if: failure()
+        run: |
+          WEBSITE_URL="${{ secrets.WEBSITE_URL }}"
+          SECRET="${{ secrets.WEBHOOK_SECRET }}"
+          TITLE="${{ github.event.client_payload.title }}"
+
+          METADATA=$(cat <<EOF
+          ${{ toJSON(github.event.client_payload.metadata) }}
+          EOF
+          )
+
+          # Notify the website about failure so it can update the video status
+          curl -s -X POST \
+            "${WEBSITE_URL}/api/bunny/aws-webhook" \
+            -H "Content-Type: application/json" \
+            -d "{\"secret\": \"${SECRET}\", \"error\": \"GitHub Actions download failed for: ${TITLE}\", \"metadata\": $METADATA, \"libraryId\": \"\"}" \
+            || true
+
+          echo "Failure notification sent to website."
