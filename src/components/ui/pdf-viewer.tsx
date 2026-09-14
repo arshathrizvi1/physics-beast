@@ -262,7 +262,7 @@ export function PdfViewer({
                   The file might be corrupted, or your server is blocking cross-origin requests (CORS).
                 </p>
                 <p className="text-xs mt-4 max-w-sm text-center font-mono bg-red-950/50 p-2 rounded text-red-300">
-                  If using Amazon S3, ensure your bucket&apos;s CORS configuration allows GET requests from this domain.
+                  Please enable "Add CORS Headers" in your CDN dashboard (e.g. Bunny CDN Pull Zone settings).
                 </p>
               </div>
             }
