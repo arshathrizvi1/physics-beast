@@ -1633,12 +1633,9 @@ export default function AdminDashboard() {
         id: q.id, 
         text: q.text || "",
         image: q.image || null,
-        options: { 
-          A: q.options?.[0]?.text || q.options?.A || "", 
-          B: q.options?.[1]?.text || q.options?.B || "", 
-          C: q.options?.[2]?.text || q.options?.C || "", 
-          D: q.options?.[3]?.text || q.options?.D || "" 
-        },
+        options: Array.isArray(q.options)
+          ? q.options.reduce((acc: any, opt: any, idx: number) => ({ ...acc, [opt.id || String.fromCharCode(65 + idx)]: opt.text }), {})
+          : (q.options || { A: "", B: "", C: "", D: "" }),
         correct: q.correct || "A"
       })));
     } else {
@@ -1689,12 +1686,10 @@ export default function AdminDashboard() {
         id: idx + 1,
         text: q.text || `Question ${idx + 1}`,
         image: q.image,
-        options: [
-          { id: "A", text: q.options.A || "Option A" },
-          { id: "B", text: q.options.B || "Option B" },
-          { id: "C", text: q.options.C || "Option C" },
-          { id: "D", text: q.options.D || "Option D" },
-        ],
+        options: Object.keys(q.options).sort().map(key => ({
+          id: key,
+          text: q.options[key] || `Option ${key}`
+        })),
         correct: q.correct
       })) : [],
       duration: `${examTime || 15} min`,
@@ -3500,9 +3495,48 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         
+                        {/* Options Configuration */}
+                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                          <Label className="text-sm font-semibold">Answer Options</Label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Count:</span>
+                            <Input 
+                              type="number" 
+                              min="2" 
+                              max="10" 
+                              className="w-16 h-8 text-xs"
+                              value={Object.keys(q.options).length}
+                              onChange={(e) => {
+                                const num = parseInt(e.target.value) || 4;
+                                const maxOpts = Math.min(Math.max(num, 2), 10);
+                                const newOptions: Record<string, string> = {};
+                                for (let i = 0; i < maxOpts; i++) {
+                                  const char = String.fromCharCode(65 + i);
+                                  newOptions[char] = q.options[char] || "";
+                                }
+                                handleQuestionChange(q.id, 'options', newOptions);
+                              }}
+                            />
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 text-xs gap-1"
+                              onClick={() => {
+                                const currentCount = Object.keys(q.options).length;
+                                if (currentCount < 10) {
+                                  const char = String.fromCharCode(65 + currentCount);
+                                  handleQuestionChange(q.id, 'options', { ...q.options, [char]: "" });
+                                }
+                              }}
+                            >
+                              <Plus className="w-3 h-3" /> Add Option
+                            </Button>
+                          </div>
+                        </div>
+
                         {/* Options Row */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-border/50">
-                          {(['A', 'B', 'C', 'D'] as const).map((opt) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                          {Object.keys(q.options).sort().map((opt) => (
                             <div key={opt} className="flex items-center space-x-2">
                               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-bold text-secondary-foreground">{opt}</div>
                               <Input 
@@ -3534,7 +3568,7 @@ export default function AdminDashboard() {
                             variant="secondary" 
                             size="sm" 
                             className="text-xs h-7"
-                            onClick={() => handleQuestionChange(q.id, 'correct', ['A', 'B', 'C', 'D'])}
+                            onClick={() => handleQuestionChange(q.id, 'correct', Object.keys(q.options))}
                           >
                             Set "All Answers Correct"
                           </Button>
