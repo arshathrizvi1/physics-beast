@@ -350,11 +350,11 @@ export function PdfViewer({
                 <div key={`page_${index + 1}`} className="relative group mx-auto">
                   <Page 
                     pageNumber={index + 1} 
-                    scale={renderScale}
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
                     className="shadow-[0_2px_10px_rgba(0,0,0,0.3)] bg-white"
-                    width={containerWidth ? Math.min(containerWidth - 32, 1200) : undefined}
+                    width={containerWidth ? (Math.min(containerWidth - 32, 1200) * renderScale) : undefined}
+                    loading={<div className="bg-white/50 w-full h-full absolute inset-0" />}
                   />
                 </div>
               ))}
