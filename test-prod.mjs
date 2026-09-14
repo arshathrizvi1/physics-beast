@@ -3,7 +3,7 @@ async function test() {
   const res = await fetch('https://brilliantacademy.vercel.app/api/bunny/s3-upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename: 'test.pdf', contentType: 'application/pdf' })
+    body: JSON.stringify({ filename: 'test file with spaces.pdf', contentType: 'application/pdf' })
   });
   
   if (!res.ok) {
