@@ -26,7 +26,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing videoId' }, { status: 400 });
     }
 
-    const targetFolderId = metadata.selectedItemType === 'course' ? metadata.selectedCourseFolderId : metadata.selectedFolderId;
+    const targetFolderId = metadata.selectedItemType === 'course' 
+      ? metadata.selectedCourseFolderId 
+      : (metadata.selectedFolderId || metadata.videoFolderId || 'none');
+
+    const courseIdRaw = metadata.selectedCourseId || metadata.videoCourseId || 'none';
+    const courseIdClean = (courseIdRaw === 'none' || !courseIdRaw) ? null : courseIdRaw;
 
     const finalUrl = 'https://iframe.mediadelivery.net/embed/' + libraryId + '/' + videoId + '?autoplay=true';
 
@@ -36,13 +41,13 @@ export async function POST(request: Request) {
     // although `set` with `{ merge: true }` is better.
     const videoData = {
       id: metadata.videoDocId,
-      title: metadata.videoTitle,
+      title: metadata.videoTitle || 'Untitled Video',
       description: '',
       url: finalUrl,
       videoId: videoId,
       libraryId: libraryId,
       platform: 'bunny',
-      courseId: metadata.selectedCourseId === 'none' || !metadata.selectedCourseId ? null : metadata.selectedCourseId,
+      courseId: courseIdClean,
       folderId: targetFolderId,
       type: 'video',
       isReady: true,
