@@ -724,7 +724,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     className="w-full h-full"
                   />
                 </div>
-              ) : !activeVideo.isReady || activeVideo.processingStatus === 'downloading' ? (
+              ) : (activeServer !== 'youtube' && (!activeVideo.isReady || activeVideo.processingStatus === 'downloading')) ? (
                 <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
                   <h3 className="text-lg font-bold text-white mb-2">Video is Processing</h3>
@@ -732,7 +732,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     This video is currently being downloaded or optimized by the cloud server. It will be available to watch shortly!
                   </p>
                 </div>
-              ) : activeVideo.transcodeStatus === 'processing' ? (
+              ) : (activeServer !== 'youtube' && activeVideo.transcodeStatus === 'processing') ? (
                 <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
                   <h3 className="text-lg font-bold text-white mb-2">Optimizing Video for Smooth Playback</h3>
