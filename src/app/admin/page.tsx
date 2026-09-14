@@ -3449,6 +3449,41 @@ export default function AdminDashboard() {
                     <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
                     <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">MCQ Questions Setup</span></div>
                   </div>
+                  
+                  <div className="flex justify-between items-center bg-secondary/10 p-4 rounded-lg border border-secondary/20 mb-6">
+                    <div className="text-sm">
+                      <h4 className="font-semibold">Global Options Count</h4>
+                      <p className="text-muted-foreground text-xs mt-0.5">Set the number of choices (e.g. A, B, C, D, E) for all questions at once.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number" 
+                        min="2" 
+                        max="10" 
+                        className="w-20"
+                        defaultValue={4}
+                        id="global-options-count"
+                      />
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          const inputEl = document.getElementById('global-options-count') as HTMLInputElement;
+                          const num = parseInt(inputEl?.value) || 4;
+                          const maxOpts = Math.min(Math.max(num, 2), 10);
+                          setQuestions(questions.map(q => {
+                            const newOptions: Record<string, string> = {};
+                            for (let i = 0; i < maxOpts; i++) {
+                              const char = String.fromCharCode(65 + i);
+                              newOptions[char] = q.options[char] || "";
+                            }
+                            return { ...q, options: newOptions };
+                          }));
+                        }}
+                      >
+                        Apply to All
+                      </Button>
+                    </div>
+                  </div>
 
                   {/* Question Editor */}
                   <div className="space-y-6">
@@ -3585,7 +3620,14 @@ export default function AdminDashboard() {
                         size="sm" 
                         className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
                         onClick={() => {
-                          setQuestions([...questions, { id: Date.now(), text: "", image: null, options: { A: "", B: "", C: "", D: "" }, correct: "A" }]);
+                          const lastQ = questions[questions.length - 1];
+                          const numOpts = lastQ ? Object.keys(lastQ.options).length : 4;
+                          const newOptions: Record<string, string> = {};
+                          for (let i = 0; i < numOpts; i++) {
+                            const char = String.fromCharCode(65 + i);
+                            newOptions[char] = "";
+                          }
+                          setQuestions([...questions, { id: Date.now(), text: "", image: null, options: newOptions, correct: "A" }]);
                         }}
                       >
                         <Plus className="w-4 h-4" /> Add Another Question
