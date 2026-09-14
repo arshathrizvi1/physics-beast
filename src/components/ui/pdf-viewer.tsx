@@ -140,6 +140,14 @@ export function PdfViewer({
 
     // Mouse Drag-to-Pan
     const onMouseDown = (e: MouseEvent) => {
+      // Only trigger pan on left click (button 0)
+      if (e.button !== 0) return;
+      
+      // Don't intercept clicks on scrollbars (rough heuristic: if clicking near the right edge)
+      if (container.offsetWidth - e.offsetX < 20 || container.offsetHeight - e.offsetY < 20) {
+        return;
+      }
+
       isDragging = true;
       container.style.cursor = 'grabbing';
       dragStartX = e.pageX - container.offsetLeft;
@@ -235,7 +243,7 @@ export function PdfViewer({
     <div 
       ref={containerRef}
       aria-label={title}
-      className={`flex flex-col w-full bg-secondary/5 rounded-b-xl overflow-hidden border border-border/50 no-swipe-reload overscroll-contain ${
+      className={`flex flex-col w-full bg-secondary/5 rounded-b-xl overflow-hidden border border-border/50 ${
         isFullscreen ? "bg-background h-screen z-50 fixed inset-0" : ""
       } ${className}`}
       style={!isFullscreen ? { height } : undefined}
@@ -312,8 +320,7 @@ export function PdfViewer({
         {/* Embedded PDF container (Continuous Scroll) */}
         <div 
           ref={documentContainerRef}
-          className="relative w-full flex-1 overflow-auto bg-[#323639] custom-scrollbar flex flex-col py-6 gap-6 overscroll-contain no-swipe-reload"
-          style={{ touchAction: 'pan-x pan-y' }}
+          className="relative w-full flex-1 overflow-auto bg-[#323639] custom-scrollbar flex flex-col py-6 gap-6"
         >
           <div 
             style={{ 
