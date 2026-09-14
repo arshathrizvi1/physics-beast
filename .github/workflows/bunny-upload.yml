@@ -1,0 +1,27 @@
+name: Upload to Bunny Stream
+on:
+  repository_dispatch:
+    types: [bunny-upload]
+
+jobs:
+  upload-video:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Standard MP4 Video
+        run: |
+          echo "Downloading video from URL..."
+          wget "${{ github.event.client_payload.videoUrl }}" -O video.mp4
+
+      - name: Upload to Bunny Stream
+        run: |
+          echo "Uploading to Bunny Stream API..."
+          curl -X PUT "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos/${{ github.event.client_payload.videoId }}" \
+            -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @video.mp4
+
+      - name: Notify Vercel API (Success)
+        run: |
+          curl -X POST "${{ secrets.VERCEL_APP_URL }}/api/bunny/aws-webhook" \
+            -H "Content-Type: application/json" \
+            -d '{"videoId": "${{ github.event.client_payload.videoId }}", "status": "success"}'
