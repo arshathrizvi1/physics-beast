@@ -30,11 +30,10 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
         );
 
-        const [querySnapshot, teachersSnap, videosSnap] = await Promise.race([
+        const [querySnapshot, teachersSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
-            getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
-            getDocs(collection(db, "videos"))
+            getDocs(query(collection(db, "users"), where("role", "==", "teacher")))
           ]),
           timeoutPromise
         ]);
@@ -49,10 +48,6 @@ function CoursesContent() {
           ...doc.data() as any
         }));
         setTeachers(fetchedTeachers);
-
-        if (videosSnap) {
-          setVideos(videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any })));
-        }
         
         if (user && user.role === 'student') {
           const batchesSnap = await Promise.race([
@@ -276,19 +271,7 @@ function CoursesContent() {
                         </div>
                       )}
                       <CardDescription className="mt-1 text-xs hidden sm:block line-clamp-2">{course.description || "A comprehensive learning path."}</CardDescription>
-
-                      {/* Progress Bar */}
-                      <div className="mt-2 sm:mt-4 pt-2 sm:pt-3 border-t border-secondary/20">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-full bg-secondary/40 h-1.5 sm:h-2 rounded-full overflow-hidden">
-                            <div 
-                              className="bg-primary h-full rounded-full transition-all duration-300"
-                              style={{ width: `${course.courseProgress}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] sm:text-xs font-bold text-foreground shrink-0">{course.courseProgress}%</span>
-                        </div>
-                      </div>
+                      {/* Progress Bar intentionally removed to save DB quota */}
                     </CardHeader>
                     <CardFooter className="bg-secondary/5 border-t border-secondary/20 p-2 sm:p-4 mt-auto">
                       <Link href={`/course/${course.id}`} className={buttonVariants({ variant: "default", className: "w-full h-8 sm:h-10 text-xs sm:text-sm" })}>
