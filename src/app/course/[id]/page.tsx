@@ -911,19 +911,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   />
                 </div>
 
-                {/* Floating Email Watermark */}
+                {/* Floating Email Watermark - Enhanced for Anti-Piracy */}
                 <div
                   ref={wmRef}
-                  className="absolute z-[11] pointer-events-none select-none"
+                  className="absolute z-[11] pointer-events-none select-none mix-blend-overlay"
                   style={{
                     left: `20%`,
                     top: `20%`,
                   }}
                 >
-                  <span className="text-xs font-semibold text-foreground/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
-                    style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                    {user.email}
-                  </span>
+                  <div className="flex flex-col items-center opacity-40">
+                    <span className="text-xl md:text-2xl font-black text-white whitespace-nowrap drop-shadow-md"
+                      style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}>
+                      {user.email}
+                    </span>
+                    <span className="text-[10px] md:text-xs text-white/80 font-bold bg-black/40 px-2 rounded-full mt-1">
+                      Tracking ID: {user.uid?.substring(0, 8)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Custom Controls Overlay */}
