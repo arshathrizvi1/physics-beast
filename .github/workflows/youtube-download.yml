@@ -10,13 +10,13 @@ jobs:
     timeout-minutes: 60
 
     env:
-      VIDEO_URL:     ${{ github.event.client_payload.url }}
-      VIDEO_TITLE:   ${{ github.event.client_payload.title }}
-      VIDEO_DOC_ID:  ${{ github.event.client_payload.metadata.videoDocId }}
-      FOLDER_ID:     ${{ github.event.client_payload.metadata.selectedFolderId }}
-      COURSE_FOLDER: ${{ github.event.client_payload.metadata.selectedCourseFolderId }}
-      ITEM_TYPE:     ${{ github.event.client_payload.metadata.selectedItemType }}
-      COURSE_ID:     ${{ github.event.client_payload.metadata.selectedCourseId }}
+      VIDEO_URL:     "${{ github.event.client_payload.url }}"
+      VIDEO_TITLE:   "${{ github.event.client_payload.title }}"
+      VIDEO_DOC_ID:  "${{ github.event.client_payload.metadata.videoDocId }}"
+      FOLDER_ID:     "${{ github.event.client_payload.metadata.selectedFolderId }}"
+      COURSE_FOLDER: "${{ github.event.client_payload.metadata.selectedCourseFolderId }}"
+      ITEM_TYPE:     "${{ github.event.client_payload.metadata.selectedItemType }}"
+      COURSE_ID:     "${{ github.event.client_payload.metadata.selectedCourseId }}"
 
     steps:
       - name: Print Job Info
