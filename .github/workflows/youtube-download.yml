@@ -38,10 +38,15 @@ jobs:
           yt-dlp --version
 
       - name: Setup YouTube Cookies
-        if: ${{ secrets.YT_COOKIES != '' }}
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
         run: |
-          echo "${{ secrets.YT_COOKIES }}" | base64 --decode > /tmp/cookies.txt
-          echo "Cookies loaded."
+          if [ -n "$YT_COOKIES" ]; then
+            echo "$YT_COOKIES" | base64 --decode > /tmp/cookies.txt
+            echo "Cookies loaded."
+          else
+            echo "No cookies provided."
+          fi
 
       - name: Download YouTube Video (720p)
         run: |
