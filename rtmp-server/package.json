@@ -10,6 +10,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "node-media-server": "^2.7.4"
+    "node-media-server": "^2.7.4",
+    "playwright": "^1.63.0"
   }
 }

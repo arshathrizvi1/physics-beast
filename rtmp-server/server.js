@@ -442,39 +442,25 @@ app.post('/api/generic-download', (req, res) => {
 
   let args = [];
 
-  if (isYoutube) {
-    // ─── YouTube: Full Bot-Bypass Configuration ───────────────────
-    console.log(`[Generic] 🎬 YouTube URL detected - using bot-bypass mode`);
+  const isZoom = url.includes('zoom.us');
+  const warpProxy = process.env.WARP_PROXY || 'socks5://127.0.0.1:40000';
+  const cookiesPath = process.env.YT_COOKIES_PATH || '/opt/brilliant-academy-rtmp/cookies.txt';
+  const cookiesExist = fs.existsSync(cookiesPath);
 
-    // Check if Cloudflare WARP proxy is available (installed via setup.sh)
-    const warpProxy = process.env.WARP_PROXY || 'socks5://127.0.0.1:40000';
-    const cookiesPath = process.env.YT_COOKIES_PATH || '/opt/brilliant-academy-rtmp/cookies.txt';
-    const cookiesExist = fs.existsSync(cookiesPath);
+  if (isYoutube) {
+    // 🎥 YouTube: Full Bot-Bypass Configuration 
+    console.log(`[Generic] 🔴 YouTube URL detected - using bot-bypass mode`);
 
     args = [
-      // 1. Route through Cloudflare WARP to avoid AWS IP block
       '--proxy', warpProxy,
-
-      // 2. Pretend to be the YouTube Android app (less bot detection)
       '--extractor-args', 'youtube:player_client=android,web',
-
-      // 3. Use cookies if available (burner account login to bypass bot checks)
       ...(cookiesExist ? ['--cookies', cookiesPath] : []),
-
-      // 4. Throttle speed to avoid triggering bot alarms (5 MB/s = realistic)
       '--limit-rate', '5M',
-
-      // 5. Best quality up to 720p (good quality, smaller file for faster transfer)
       '--format', 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
       '--merge-output-format', 'mp4',
-
-      // 6. Retry on failure (YouTube sometimes blocks first attempt)
       '--retries', '5',
       '--fragment-retries', '5',
-
-      // 7. Add headers to look like a real browser
       '--add-header', 'Accept-Language:en-US,en;q=0.9',
-
       '-o', outputPath,
       url
     ];
@@ -482,21 +468,50 @@ app.post('/api/generic-download', (req, res) => {
     if (!cookiesExist) {
       console.log(`[Generic] ⚠️  No cookies.txt found at ${cookiesPath}. Downloads may fail for some videos. See setup instructions.`);
     }
+
+    runYtDlp(args, title, url, outputPath, req.body);
+  } else if (isZoom) {
+    console.log(`[Generic] 🔵 Zoom URL detected - running Playwright extractor...`);
+    const { exec } = require('child_process');
+    const extractorCmd = `node zoom-extractor.js "${url}" "${password || ''}"`;
+    
+    exec(extractorCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`[Generic] ❌ Zoom Extraction Failed:`, stderr);
+        runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
+        return;
+      }
+      
+      const rawMp4Url = stdout.toString().trim().split('\n').pop();
+      if (rawMp4Url && rawMp4Url.startsWith('http')) {
+        console.log(`[Generic] ✅ Zoom Extraction Success! Downloading raw MP4...`);
+        runStandardMode(rawMp4Url, null, outputPath, false, null, title, req.body);
+      } else {
+        console.error(`[Generic] ❌ Zoom Extractor didn't return a valid URL:`, stdout);
+        runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
+      }
+    });
   } else {
-    // ─── Zoom / Other URLs: Standard Download ─────────────────────
-    console.log(`[Generic] 📹 Non-YouTube URL detected - using standard mode`);
-    args = [
+    // 🎥 Zoom / Other URLs: Standard Download 
+    console.log(`[Generic] 🔵 Non-YouTube URL detected - using standard mode`);
+    runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
+  }
+
+  function runStandardMode(targetUrl, targetPassword, outPath, hasCookies, cPath, vidTitle, reqBody) {
+    let stdArgs = [
       '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
       '--merge-output-format', 'mp4',
       '--retries', '3',
-      '-o', outputPath
+      '-o', outPath
     ];
-    if (password) args.push('--video-password', password);
-    args.push(url);
+    if (targetPassword) stdArgs.push('--video-password', targetPassword);
+    stdArgs.push(targetUrl);
+    runYtDlp(stdArgs, vidTitle, targetUrl, outPath, reqBody);
   }
 
-  console.log(`[Generic] Running yt-dlp for: ${title}`);
-  const ytdlp = spawn('yt-dlp', args);
+  function runYtDlp(dlArgs, vidTitle, originalUrl, outPath, reqBody) {
+    console.log(`[Generic] Running yt-dlp for: ${vidTitle}`);
+    const ytdlp = spawn('yt-dlp', dlArgs);
 
   ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
   ytdlp.stderr.on('data', (data) => console.error(`[yt-dlp stderr] ${data.toString().trim()}`));
@@ -586,9 +601,10 @@ app.post('/api/generic-download', (req, res) => {
       }
     }
   });
+  } // End of runYtDlp
 });
 
-// ─── Auto Disk Cleanup (Safety Net) ───────────────────────────
+// 🗑️ Auto Disk Cleanup (Safety Net) 🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️🗑️───────────────────────────
 // Deletes any leftover temp files older than 2 hours every 60 minutes.
 // This protects the disk if the server crashes mid-upload.
 
