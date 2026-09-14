@@ -398,7 +398,444 @@ export default function AdminLiveStudio() {
           <p className="text-muted-foreground mt-1">Schedule and manage live broadcasting sessions.</p>
         </div>
         <Link href="/admin">
+          <Button variant="outline"><Settings className="w-4 h-4 mr-2" /> Back to Dashboard</Button>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Create Form */}
+        <Card className="lg:col-span-1 border-primary/20 shadow-md h-fit">
+          <form onSubmit={handleCreateClass}>
+            <CardHeader className="bg-secondary/5 border-b border-border/50">
+              <CardTitle>{editingClass?.status === 'draft' ? "Publish Zoom Draft" : "Schedule Broadcast"}</CardTitle>
+              {editingClass?.status === 'draft' && (
+                <CardDescription>Assign this Zoom meeting to a course and folder, then publish it.</CardDescription>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <div className="space-y-2">
+                <Label>Class Title *</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+              </div>
+              <div className="space-y-2">
+                  <Label>Target Audience</Label>
+                  <div className="flex gap-2">
+                    <Select value={courseId} onValueChange={(val: any) => setCourseId(val)}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select Course" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Global (All Courses)</SelectItem>
+                        {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={batchId} onValueChange={(val: any) => setBatchId(val)}>
+                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select Batch" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Global (All Batches)</SelectItem>
+                        {batches.map(b => <SelectItem key={b.id} value={b.year}>{b.year}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Platform</Label>
+                  <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)} disabled={editingClass?.status === 'draft'}>
+                  <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
+                    <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
+                    <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {platform === "youtube" && (
+                <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl text-xs space-y-2">
+                  <div className="font-bold text-primary flex items-center gap-1.5 text-sm">
+                    <span>🚀</span> OBS Streaming (Internet Worldwide)
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Uses YouTube RTMPS as the backend. Vercel cannot host RTMP. Students get high-speed adaptive quality (1080p, 720p).
+                  </p>
+                  <div className="bg-background/80 p-2.5 rounded-lg border border-border/50 space-y-1.5">
+                    <div><strong>🎥 From OBS:</strong> Settings &rarr; Stream &rarr; Select <em>YouTube - RTMPS</em> &rarr; Paste your YouTube stream key &rarr; Click <em>Start Streaming</em>.</div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    👉 Then paste your YouTube unlisted video link in the <strong>Live Link</strong> box below.
+                  </div>
+                </div>
+              )}
+              
+              {platform === "zoom" && (
+                <div className="p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs space-y-2">
+                  <div className="font-bold text-blue-500 flex items-center gap-1.5 text-sm">
+                    <span>📹</span> Zoom Webhook Integration
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    When you start a meeting in your Zoom account, the link is <strong>automatically drafted</strong> here via webhook.
+                    <br />You just need to click the notification, select a folder, and hit Publish!
+                  </p>
+                </div>
+              )}
+              
+              {platform === "rtmp" && (
+                <div className="p-3.5 bg-green-500/10 border border-green-500/30 rounded-xl text-xs space-y-3">
+                  <div className="font-bold text-green-500 flex items-center gap-1.5 text-sm">
+                    <span>📡</span> RTMP Direct Stream (Auto-Record & Auto-Upload)
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Stream directly from <strong>OBS</strong>, <strong>Zoom Pro</strong> (Custom Live Streaming), or <strong>StreamYard</strong> to your own server. When you end the stream, the recording is <strong>automatically uploaded to BunnyCDN</strong> and appears in your course folder!
+                  </p>
+                  
+                  <div className="bg-background/80 p-3 rounded-lg border border-border/50 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[11px] text-muted-foreground font-medium mb-0.5">RTMP Server URL</div>
+                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://13.60.252.104:1935/live'}</code>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
+                        onClick={() => { navigator.clipboard.writeText(rtmpServerUrl); }}
+                      >📋 Copy</Button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[11px] text-muted-foreground font-medium mb-0.5">Stream Key</div>
+                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpStreamKey}</code>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
+                        onClick={() => { navigator.clipboard.writeText(rtmpStreamKey); }}
+                      >📋 Copy</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="text-[11px] text-muted-foreground space-y-1">
+                    <div><strong>🎥 OBS:</strong> Settings → Stream → Select <em>Custom</em> → Paste Server URL & Stream Key → Start Streaming</div>
+                    <div><strong>📹 Zoom Pro:</strong> More (...) → Live on Custom Live Streaming → Paste Server URL & Stream Key → Go Live</div>
+                    <div><strong>🎬 StreamYard:</strong> Add Destination → Custom RTMP → Paste Server URL & Stream Key → Go Live</div>
+                  </div>
+                </div>
+              )}
+              
+              {platform !== "rtmp" && (
+              <div className="space-y-2">
+                <Label>
+                  {platform === "zoom" 
+                    ? "Zoom Meeting Link *" 
+                    : platform === "youtube" 
+                    ? "YouTube Live / Video Link *" 
+                    : "Live Stream Link *"}
+                </Label>
+                <Input 
+                  value={link} 
+                  onChange={e => setLink(e.target.value)} 
+                  required 
+                  disabled={editingClass?.status === 'draft'} 
+                  placeholder={
+                    platform === "zoom" 
+                      ? "https://zoom.us/j/... (or start in Zoom to auto-fill)" 
+                      : platform === "youtube" 
+                      ? "https://www.youtube.com/watch?v=..." 
+                      : "https://..."
+                  }
+                />
+                {platform === "zoom" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    💡 <em>Tip: If you start a meeting directly in Zoom, this link is <strong>automatically filled</strong> for you!</em>
+                  </p>
+                )}
+              </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="flex items-center justify-between">
+                  <span>Save Recorded Video to Folder</span>
+                  <span className="text-[11px] text-muted-foreground font-normal">Auto-saves when ended</span>
+                </Label>
+                <Select value={targetFolderId} onValueChange={(val: any) => setTargetFolderId(val)}>
+                  <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Don't save automatically</SelectItem>
+                    {folders.filter(f => courseId === "all" || f.courseId === courseId).map(f => {
+                      const c = courses.find(c => c.id === f.courseId);
+                      return (
+                        <SelectItem key={f.id} value={f.id}>
+                          📁 {f.name} {c ? `(${c.name})` : ''}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Date & Time *</Label>
+                <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
+              </div>
+
+              {platform === "zoom" && (
+                <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
+                  <div className="space-y-0.5 pr-3">
+                    <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
+                      <span>📹</span> Direct Zoom Join (Option 1)
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {allowDirectJoin 
+                        ? "Enabled: Students see the 'JOIN ZOOM MEETING' 1-click button." 
+                        : "Disabled: 1-Click button hidden. Students cannot enter your Zoom room directly."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={allowDirectJoin ? "default" : "outline"}
+                    className={`h-8 px-3 text-xs font-bold shrink-0 transition-all ${
+                      allowDirectJoin 
+                        ? "bg-green-600 hover:bg-green-700 text-white shadow-sm" 
+                        : "border-zinc-700 text-zinc-400 hover:bg-zinc-800"
+                    }`}
+                    onClick={() => setAllowDirectJoin(!allowDirectJoin)}
+                  >
+                    {allowDirectJoin ? "✓ Enabled" : "✕ Disabled"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Processing..." : editingClass?.status === 'draft' ? "Publish Zoom Meeting" : "Schedule Class"}
+              </Button>
+              {editingClass?.status === 'draft' && (
+                <Button type="button" variant="outline" onClick={() => { setEditingClass(null); router.push('/admin/live'); }}>Cancel</Button>
+              )}
+            </CardFooter>
+          </form>
+        </Card>
+
+        {/* Classes List */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between border-b pb-2">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Calendar className="w-5 h-5" /> Managed Sessions
+            </h2>
+            {liveClasses.length > 0 && (
+              <Button size="sm" variant="destructive" onClick={handleDeleteAll} className="h-8 text-xs font-bold bg-red-600 hover:bg-red-700">
+                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
+              </Button>
+            )}
+          </div>
           
+          {liveClasses.length === 0 ? (
+            <div className="p-12 border-2 border-dashed border-secondary rounded-xl text-center text-muted-foreground">
+              No live classes scheduled yet.
+            </div>
+          ) : (
+            liveClasses.map(cls => (
+              <Card key={cls.id} className={`overflow-hidden transition-all ${cls.status === 'live' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-secondary/30'}`}>
+                <div className={`h-1.5 w-full ${
+                  cls.status === 'live' ? 'bg-red-500 animate-pulse' : 
+                  cls.status === 'scheduled' ? 'bg-blue-500' : 'bg-zinc-600'
+                }`}></div>
+                <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-lg leading-tight">{cls.title}</h3>
+                      <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${
+                        cls.status === 'live' ? 'bg-red-500 text-foreground animate-pulse' : 
+                        cls.status === 'scheduled' ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-800 text-muted-foreground'
+                      }`}>
+                        {cls.status}
+                      </span>
+                    </div>
+                    {cls.description && <p className="text-sm text-muted-foreground line-clamp-1">{cls.description}</p>}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium pt-2">
+                      <span className="text-primary flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(cls.scheduledFor).toLocaleString()}
+                      </span>
+                      {cls.multiStreams ? (
+                          <div className="flex gap-1.5 flex-wrap ml-2 border-l border-border pl-2">
+                            {cls.multiStreams.youtube?.enabled && <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">YOUTUBE</span>}
+                            {cls.multiStreams.zoom?.enabled && <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">ZOOM</span>}
+                            {cls.multiStreams.rtmp?.enabled && <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded">RTMP</span>}
+                            {cls.multiStreams.direct?.enabled && <span className="text-[10px] font-bold text-gray-500 bg-gray-500/10 px-1.5 py-0.5 rounded">DIRECT</span>}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground uppercase">{cls.platform}</span>
+                        )}
+                      <span className="text-muted-foreground truncate">{cls.courseId ? 'Specific Course' : 'Global'}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+                    {cls.status === 'draft' && (
+                      <Link href={`/admin/live?draftId=${cls.id}`}>
+                        <Button size="sm" variant="default" className="w-full bg-blue-600 hover:bg-blue-700">
+                          Configure & Publish
+                        </Button>
+                      </Link>
+                    )}
+                    {cls.status === 'scheduled' && (
+                      <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-foreground w-full">
+                        <PlayCircle className="w-4 h-4 mr-2" /> GO LIVE
+                      </Button>
+                    )}
+                    {cls.status === 'live' && (
+                      <Button size="sm" onClick={() => updateStatus(cls.id, 'ended')} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-foreground w-full">
+                        <StopCircle className="w-4 h-4 mr-2" /> End Broadcast
+                      </Button>
+                    )}
+                    {cls.status === 'ended' && (
+                      <div className="space-y-2 w-full">
+                        <Button size="sm" onClick={() => updateStatus(cls.id, 'scheduled')} variant="secondary" className="w-full">
+                          <RefreshCw className="w-3.5 h-3.5 mr-2" /> Re-schedule
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full text-xs font-bold border-green-500/40 text-green-400 hover:bg-green-500/10"
+                          onClick={async () => {
+                            if (!cls.targetFolderId || cls.targetFolderId === "none") {
+                              alert("Please click the Settings (gear) icon below and select a 'Save Recorded Video to Folder' target first.");
+                              return;
+                            }
+                            
+                            let videoInput = "";
+                            let inputTrimmed = "";
+                            let platform = cls.platform || 'direct';
+                            let videoUrl = cls.link;
+                            let videoId = null;
+                            const libraryId = process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID || '748058';
+
+                            // If the platform is RTMP, check if auto-upload already happened
+                            if (cls.platform === 'rtmp' || !cls.link) {
+                              if (cls.vodVideoId) {
+                                // Auto-upload already completed! Use it directly.
+                                inputTrimmed = cls.vodVideoId;
+                              } else if (cls.platform === 'rtmp') {
+                                // RTMP stream ended but recording hasn't been uploaded yet
+                                alert("The RTMP recording is still being processed by your AWS server. Please wait 2-5 minutes and try again.\n\nIf it's been more than 10 minutes, check your AWS server logs.");
+                                return;
+                              } else {
+                                const manualInput = prompt("Enter the recorded Bunny Video ID, full Bunny iframe URL, or Direct Video URL:", "");
+                                if (!manualInput) return;
+                                videoInput = manualInput;
+                                inputTrimmed = videoInput.trim();
+                              }
+                            } else {
+                              // Confirm auto-push
+                              if (!confirm(`Add this ${cls.platform.toUpperCase()} recording directly to the folder?\n\nLink: ${cls.link}`)) return;
+                              inputTrimmed = cls.link.trim();
+                            }
+
+                            try {
+                              // If they typed a raw Bunny GUID
+                              const isBunnyGuid = /^[a-f0-9-]{36}$/i.test(inputTrimmed);
+                              // If they pasted a Bunny embed URL
+                              const isBunnyUrl = inputTrimmed.includes('iframe.mediadelivery.net');
+                              
+                              if (isBunnyGuid) {
+                                platform = 'bunny';
+                                videoId = inputTrimmed;
+                                videoUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true`;
+                              } else if (isBunnyUrl) {
+                                platform = 'bunny';
+                                const match = inputTrimmed.match(/embed\/\d+\/([a-f0-9-]+)/i);
+                                if (match && match[1]) {
+                                  videoId = match[1];
+                                }
+                                videoUrl = inputTrimmed;
+                              } else if (inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be') || inputTrimmed.includes('zoom.us/rec')) {
+                                const isZoom = inputTrimmed.includes('zoom.us/rec');
+                                const platformName = isZoom ? "Zoom" : "YouTube";
+                                
+                                // TRIGGER BACKGROUND DOWNLOAD ON AWS
+                                if (confirm(`Do you want to automatically download this ${platformName} video and upload it to BunnyCDN?\n\nThis will run in the background and take a few minutes.`)) {
+                                  
+                                  let videoPassword = "";
+                                  if (isZoom) {
+                                    videoPassword = prompt(`(Optional) Enter the Zoom Passcode if this video is password protected:`, "") || "";
+                                  }
+
+                                  const videoDocId = doc(collection(db, 'videos')).id;
+                                  const isYoutubeLink = inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be');
+                                  const metadata = {
+                                    videoDocId,
+                                    videoTitle: `${cls.title} (Recorded Live)`,
+                                    videoDescription: cls.description || '',
+                                    selectedItemType: cls.courseId ? 'course' : 'folder',
+                                    selectedCourseId: cls.courseId || 'none',
+                                    selectedCourseFolderId: cls.targetFolderId,
+                                    selectedFolderId: cls.targetFolderId,
+                                    originalYoutubeUrl: isYoutubeLink ? inputTrimmed : null
+                                  };
+
+                                  const res = await fetch('/api/bunny/aws-download', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      url: inputTrimmed, 
+                                      password: videoPassword,
+                                      title: `${cls.title} (Recorded Live)`,
+                                      metadata
+                                    })
+                                  });
+                                  
+                                  if (!res.ok) {
+                                    const err = await res.json();
+                                    alert("Error starting conversion: " + err.error);
+                                    return;
+                                  }
+                                  
+                                  alert(`✅ ${platformName} download started! The recording will automatically appear in the folder once it finishes uploading to BunnyCDN.`);
+                                  return; // Stop here, webhook handles the rest
+                                } else {
+                                  return; // If they cancel the download, just abort.
+                                }
+                              } else {
+                                videoUrl = inputTrimmed;
+                              }
+
+                              const videoRef = doc(collection(db, 'videos'));
+                              const videoData = {
+                                id: videoRef.id,
+                                title: `${cls.title} (Recorded Live)`,
+                                description: cls.description || '',
+                                url: videoUrl,
+                                videoId: videoId,
+                                libraryId: platform === 'bunny' ? libraryId : null,
+                                platform: platform,
+                                courseId: cls.courseId || null,
+                                folderId: cls.targetFolderId,
+                                type: 'video',
+                                isReady: true,
+                                processingStatus: 'ready',
+                                createdAt: Date.now(),
+                                views: 0
+                              };
+
+                              await setDoc(videoRef, videoData);
+
+                              const folderRef = doc(db, 'folders', cls.targetFolderId);
+                              const folderSnap = await getDoc(folderRef);
+                              if (folderSnap.exists()) {
+                                const items = folderSnap.data().items || [];
+                                await updateDoc(folderRef, {
+                                  items: [...items, { id: videoRef.id, type: 'video' }]
+                                });
+                              }
+                              alert(`✅ Recording video successfully saved to folder!`);
+                            } catch (e: any) {
+                              alert("Failed to save video: " + e.message);
+                            }
+                          }}
+                        >
+                          🎬 Add/Push Recording to Folder
+                        </Button>
                       </div>
                     )}
                     
