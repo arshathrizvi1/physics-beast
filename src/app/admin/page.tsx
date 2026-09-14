@@ -2918,15 +2918,20 @@ export default function AdminDashboard() {
                           if (e.target.files && e.target.files[0]) {
                             const file = e.target.files[0];
                             setResourceFile(file);
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setUploadFileBase64(event.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
                           }
                         }} 
                         required={uploadItemType === 'resource'}
                       />
                       <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || (!uploadFileBase64 && !resourceFile)}>
-                        {isUploading ? "Uploading to S3..." : "Upload Resource (S3)"}
+                        {isUploading ? "Uploading..." : "Upload Resource (Bunny)"}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">PDFs and Resources are uploaded securely to Amazon S3.</p>
+                    <p className="text-xs text-muted-foreground mt-2">PDFs are uploaded securely to Bunny Storage.</p>
                   </div>
                 )}
               </form>
