@@ -17,6 +17,7 @@ const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: 
 export default function StudentLivePortal() {
   const { user, loading } = useAuth();
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
+  const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
   const [fetchingClasses, setFetchingClasses] = useState(true);
 
   // Video Player States
@@ -205,14 +206,38 @@ export default function StudentLivePortal() {
   };
 
   // Utility to extract secure HTTPS HLS stream URL for RTMP broadcasts
+  const getAvailableStreams = (cls: any) => {
+    if (cls.multiStreams) {
+      const streams = [];
+      if (cls.multiStreams.rtmp?.enabled) streams.push({ id: 'rtmp', label: 'App Stream', link: cls.multiStreams.rtmp.link, icon: 'PlayCircle' });
+      if (cls.multiStreams.youtube?.enabled) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
+      if (cls.multiStreams.zoom?.enabled) streams.push({ id: 'zoom', label: 'Zoom', link: cls.multiStreams.zoom.link, icon: 'Video' });
+      if (cls.multiStreams.direct?.enabled) streams.push({ id: 'direct', label: 'Direct', link: cls.multiStreams.direct.link, icon: 'ExternalLink' });
+      return streams;
+    } else {
+      return [{ id: cls.platform, label: cls.platform?.toUpperCase(), link: cls.link }];
+    }
+  };
+
+  const getActiveStream = (cls: any) => {
+    const streams = getAvailableStreams(cls);
+    const selected = activeStreamMap[cls.id];
+    if (selected) {
+       const found = streams.find(s => s.id === selected);
+       if (found) return found;
+    }
+    return streams.length > 0 ? streams[0] : { id: cls.platform, link: cls.link };
+  };
+
   const getStreamUrl = (cls: any) => {
-    if (cls.platform === 'rtmp') {
-      const key = cls.streamKey || (cls.link ? cls.link.match(/\/live\/([^\/]+)\/index\.m3u8/)?.[1] : null);
+    const active = getActiveStream(cls);
+    if (active.id === 'rtmp') {
+      const key = cls.streamKey || (active.link ? active.link.match(/\/live\/([^\/]+)\/index\.m3u8/)?.[1] : null);
       if (key) {
         return `/api/live/hls/${key}/index.m3u8`;
       }
     }
-    return cls.link;
+    return active.link;
   };
 
   if (loading) {
@@ -308,13 +333,13 @@ export default function StudentLivePortal() {
               </div>
 
               {/* Zoom Embedded Player Section */}
-              {cls.platform === 'zoom' && cls.status === 'live' && (
+              {getActiveStream(cls).id === 'zoom' && cls.status === 'live' && (
                 <div className="w-full relative border-t border-border/30">
                   {cls.allowDirectJoin !== false ? (
-                    getZoomDetails(cls.link) ? (
+                    getZoomDetails(getActiveStream(cls).link) ? (
                       <ZoomPlayer 
-                        meetingNumber={getZoomDetails(cls.link)!.meetingId} 
-                        password={getZoomDetails(cls.link)!.pwd}
+                        meetingNumber={getZoomDetails(getActiveStream(cls).link)!.meetingId} 
+                        password={getZoomDetails(getActiveStream(cls).link)!.pwd}
                         userName={user.displayName || user.email || "Student"}
                         userEmail={user.email}
                         role={0} 
@@ -322,7 +347,7 @@ export default function StudentLivePortal() {
                     ) : (
                       <div className="p-8 text-center bg-zinc-900 min-h-[500px] flex flex-col justify-center items-center">
                         <p className="text-red-400 mb-4">Invalid Zoom Link format. Could not extract Meeting ID.</p>
-                        <a href={cls.link} target="_blank" rel="noreferrer">
+                        <a href={getActiveStream(cls).link} target="_blank" rel="noreferrer">
                           <Button variant="outline"><ExternalLink className="w-4 h-4 mr-2" /> Open in Zoom App</Button>
                         </a>
                       </div>
@@ -341,14 +366,14 @@ export default function StudentLivePortal() {
               )}
 
               {/* Custom Player Section for YouTube, Native RTMP & Bunny DRM */}
-              {(cls.platform === 'youtube' || cls.platform === 'rtmp' || cls.platform === 'bunny' || cls.platform === 'custom') && cls.status === 'live' && (
+              {['youtube', 'rtmp', 'bunny', 'custom', 'direct'].includes(getActiveStream(cls).id) && cls.status === 'live' && (
                 <div 
                   ref={playerContainerRef} 
                   className="aspect-video w-full relative bg-black group/player overflow-hidden"
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {cls.platform === 'bunny' ? (
+                  {getActiveStream(cls).id === 'bunny' ? (
                     <iframe
                       src={`https://iframe.mediadelivery.net/embed/748058/${cls.streamKey || cls.link}?autoplay=true`}
                       className="w-full h-full border-0 relative z-[50]"
@@ -388,7 +413,7 @@ export default function StudentLivePortal() {
                               }
                             },
                             file: {
-                              forceHLS: cls.platform === 'rtmp' || cls.link?.includes('.m3u8'),
+                              forceHLS: getActiveStream(cls).id === 'rtmp' || cls.link?.includes('.m3u8'),
                               attributes: {
                                 disablePictureInPicture: true,
                                 controlsList: "nodownload noplaybackrate",
@@ -515,6 +540,28 @@ export default function StudentLivePortal() {
                       </div>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Multi-Stream Tabs */}
+              {cls.status === 'live' && getAvailableStreams(cls).length > 1 && (
+                <div className="flex bg-secondary/30 p-2 overflow-x-auto hide-scrollbar border-t border-border">
+                  <div className="flex gap-2 mx-auto">
+                    {getAvailableStreams(cls).map((s: any) => (
+                      <button 
+                        key={s.id}
+                        onClick={() => setActiveStreamMap(p => ({...p, [cls.id]: s.id}))}
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+                          getActiveStream(cls).id === s.id 
+                            ? 'bg-primary text-primary-foreground shadow-md' 
+                            : 'bg-background hover:bg-secondary text-muted-foreground'
+                        }`}
+                      >
+                         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                         Watch on {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               

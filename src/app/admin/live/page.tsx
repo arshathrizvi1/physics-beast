@@ -25,8 +25,14 @@ export default function AdminLiveStudio() {
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [platform, setPlatform] = useState("youtube");
-  const [link, setLink] = useState("");
+  const [platform, setPlatform] = useState("youtube"); // Legacy default
+  const [link, setLink] = useState(""); // Legacy default
+  const [multiStreams, setMultiStreams] = useState({
+    youtube: { enabled: false, link: "" },
+    zoom: { enabled: false, link: "" },
+    rtmp: { enabled: false, link: "" },
+    direct: { enabled: false, link: "" }
+  });
   const [scheduledFor, setScheduledFor] = useState("");
   const [courseId, setCourseId] = useState("all");
   const [batchId, setBatchId] = useState("all");
@@ -44,6 +50,7 @@ export default function AdminLiveStudio() {
   const [editingClass, setEditingClass] = useState<any>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editLink, setEditLink] = useState("");
+  const [editMultiStreams, setEditMultiStreams] = useState<any>(null);
   const [editDescription, setEditDescription] = useState("");
   const [editTargetFolderId, setEditTargetFolderId] = useState("none");
   const [editAllowDirectJoin, setEditAllowDirectJoin] = useState(true);
@@ -102,6 +109,17 @@ export default function AdminLiveStudio() {
           setDescription(draft.description || "");
           setPlatform(draft.platform || "zoom");
           setLink(draft.link || "");
+          if (draft.multiStreams) {
+            setMultiStreams(draft.multiStreams);
+          } else {
+            // Fallback for old drafts
+            setMultiStreams({
+              youtube: { enabled: draft.platform === 'youtube', link: draft.platform === 'youtube' ? draft.link : '' },
+              zoom: { enabled: draft.platform === 'zoom', link: draft.platform === 'zoom' ? draft.link : '' },
+              rtmp: { enabled: draft.platform === 'rtmp', link: draft.platform === 'rtmp' ? draft.link : '' },
+              direct: { enabled: draft.platform === 'direct', link: draft.platform === 'direct' ? draft.link : '' }
+            });
+          }
           setAllowDirectJoin(draft.allowDirectJoin !== false);
           
           if (draft.scheduledFor) {
@@ -126,7 +144,7 @@ export default function AdminLiveStudio() {
 
   // Auto-generate RTMP credentials when platform changes to 'rtmp'
   useEffect(() => {
-    if (platform === 'rtmp' && !rtmpStreamKey) {
+    if (multiStreams.rtmp.enabled && !rtmpStreamKey) {
       const key = generateStreamKey();
       setRtmpStreamKey(key);
       const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
@@ -134,13 +152,13 @@ export default function AdminLiveStudio() {
       setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
       // Auto-set the HLS link for students
       setLink(`http://${serverHost}:${serverPort}/live/${key}/index.m3u8`);
+      setMultiStreams(prev => ({ ...prev, rtmp: { ...prev.rtmp, link: `http://${serverHost}:${serverPort}/live/${key}/index.m3u8` } }));
     }
-  }, [platform]);
+  }, [multiStreams.rtmp.enabled]);
 
-  const handleCreateClass = async (e: React.FormEvent) => {
+    const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !scheduledFor) return;
-    if (platform !== 'rtmp' && !link) return; // RTMP auto-fills the link
     
     setIsSubmitting(true);
     try {
@@ -149,8 +167,9 @@ export default function AdminLiveStudio() {
         await updateDoc(doc(db, 'live_classes', editingClass.id), {
           title,
           description,
-          platform,
-          link,
+          platform: multiStreams.youtube.enabled ? 'youtube' : (multiStreams.zoom.enabled ? 'zoom' : (multiStreams.rtmp.enabled ? 'rtmp' : 'direct')),
+          link: multiStreams.youtube.enabled ? multiStreams.youtube.link : (multiStreams.zoom.enabled ? multiStreams.zoom.link : (multiStreams.rtmp.enabled ? multiStreams.rtmp.link : multiStreams.direct.link)),
+          multiStreams,
           scheduledFor: new Date(scheduledFor).getTime(),
           courseId: courseId === "all" ? null : courseId,
           batchId: batchId === "all" ? null : batchId,
@@ -163,14 +182,15 @@ export default function AdminLiveStudio() {
         await addDoc(collection(db, 'live_classes'), {
           title,
           description,
-          platform,
-          link,
+          platform: multiStreams.youtube.enabled ? 'youtube' : (multiStreams.zoom.enabled ? 'zoom' : (multiStreams.rtmp.enabled ? 'rtmp' : 'direct')),
+          link: multiStreams.youtube.enabled ? multiStreams.youtube.link : (multiStreams.zoom.enabled ? multiStreams.zoom.link : (multiStreams.rtmp.enabled ? multiStreams.rtmp.link : multiStreams.direct.link)),
+          multiStreams,
           scheduledFor: new Date(scheduledFor).getTime(),
           courseId: courseId === "all" ? null : courseId,
           batchId: batchId === "all" ? null : batchId,
           targetFolderId: targetFolderId === "none" ? null : targetFolderId,
           allowDirectJoin: allowDirectJoin,
-          ...(platform === 'rtmp' ? { streamKey: rtmpStreamKey } : {}),
+          ...(multiStreams.rtmp.enabled ? { streamKey: rtmpStreamKey } : {}),
           status: 'scheduled',
           createdAt: serverTimestamp()
         });
@@ -178,7 +198,14 @@ export default function AdminLiveStudio() {
       
       setTitle("");
       setDescription("");
+      setPlatform("youtube");
       setLink("");
+      setMultiStreams({
+        youtube: { enabled: false, link: "" },
+        zoom: { enabled: false, link: "" },
+        rtmp: { enabled: false, link: "" },
+        direct: { enabled: false, link: "" }
+      });
       setScheduledFor("");
       setTargetFolderId("none");
       setAllowDirectJoin(true);
@@ -186,7 +213,7 @@ export default function AdminLiveStudio() {
       setRtmpServerUrl("");
       router.push('/admin/live'); // clear draftId from URL if present
     } catch (error) {
-      alert("Failed to create class. Quota exceeded?");
+      alert("Failed to create class.");
     } finally {
       setIsSubmitting(false);
     }
@@ -194,14 +221,24 @@ export default function AdminLiveStudio() {
 
   const handleUpdateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingClass || !editTitle || !editLink) return;
+    if (!editingClass || !editTitle) return;
 
     setIsUpdating(true);
     try {
+      const isYoutube = editMultiStreams?.youtube?.enabled;
+      const isZoom = editMultiStreams?.zoom?.enabled;
+      const isRtmp = editMultiStreams?.rtmp?.enabled;
+      const isDirect = editMultiStreams?.direct?.enabled;
+      
+      const newPlatform = isYoutube ? 'youtube' : (isZoom ? 'zoom' : (isRtmp ? 'rtmp' : (isDirect ? 'direct' : editingClass.platform)));
+      const newLink = isYoutube ? editMultiStreams.youtube.link : (isZoom ? editMultiStreams.zoom.link : (isRtmp ? editMultiStreams.rtmp.link : editMultiStreams.direct.link));
+
       await updateDoc(doc(db, 'live_classes', editingClass.id), {
         title: editTitle,
         description: editDescription,
-        link: editLink,
+        platform: newPlatform,
+        link: newLink,
+        multiStreams: editMultiStreams || editingClass.multiStreams || null,
         targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId,
         allowDirectJoin: editAllowDirectJoin
       });
@@ -236,12 +273,30 @@ export default function AdminLiveStudio() {
       if (newStatus === 'ended') {
         const cls = liveClasses.find(c => c.id === id);
         if (cls && cls.targetFolderId && cls.targetFolderId !== 'none') {
-          const inputTrimmed = cls.link ? cls.link.trim() : "";
-          const isYoutubeOrZoom = inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be') || inputTrimmed.includes('zoom.us/rec');
+          let inputTrimmed = "";
+          let isYoutubeOrZoom = false;
+          let isZoom = false;
+
+          if (cls.multiStreams) {
+             if (cls.multiStreams.youtube?.enabled && cls.multiStreams.youtube?.link) {
+               inputTrimmed = cls.multiStreams.youtube.link.trim();
+               isYoutubeOrZoom = true;
+             } else if (cls.multiStreams.zoom?.enabled && cls.multiStreams.zoom?.link) {
+               inputTrimmed = cls.multiStreams.zoom.link.trim();
+               isYoutubeOrZoom = true;
+               isZoom = true;
+             }
+          } else {
+             inputTrimmed = cls.link ? cls.link.trim() : "";
+             isYoutubeOrZoom = inputTrimmed.includes('youtube.com') || inputTrimmed.includes('youtu.be') || inputTrimmed.includes('zoom.us/rec');
+             isZoom = inputTrimmed.includes('zoom.us/rec');
+          }
+          
+          
           
           if (isYoutubeOrZoom) {
             // Trigger automatic background download and Bunny upload
-            const isZoom = inputTrimmed.includes('zoom.us/rec');
+            // isZoom determined above
             let videoPassword = "";
             
             // Note: If Zoom has a password, we can't easily prompt during auto-end unless we add a prompt here.
@@ -602,7 +657,16 @@ export default function AdminLiveStudio() {
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(cls.scheduledFor).toLocaleString()}
                       </span>
-                      <span className="text-muted-foreground uppercase">{cls.platform}</span>
+                      {cls.multiStreams ? (
+                          <div className="flex gap-1.5 flex-wrap ml-2 border-l border-border pl-2">
+                            {cls.multiStreams.youtube?.enabled && <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">YOUTUBE</span>}
+                            {cls.multiStreams.zoom?.enabled && <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">ZOOM</span>}
+                            {cls.multiStreams.rtmp?.enabled && <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded">RTMP</span>}
+                            {cls.multiStreams.direct?.enabled && <span className="text-[10px] font-bold text-gray-500 bg-gray-500/10 px-1.5 py-0.5 rounded">DIRECT</span>}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground uppercase">{cls.platform}</span>
+                        )}
                       <span className="text-muted-foreground truncate">{cls.courseId ? 'Specific Course' : 'Global'}</span>
                     </div>
                   </div>
@@ -823,6 +887,16 @@ export default function AdminLiveStudio() {
                         setEditTitle(cls.title);
                         setEditDescription(cls.description || "");
                         setEditLink(cls.link);
+                        if (cls.multiStreams) {
+                          setEditMultiStreams(cls.multiStreams);
+                        } else {
+                          setEditMultiStreams({
+                            youtube: { enabled: cls.platform === 'youtube', link: cls.platform === 'youtube' ? cls.link : '' },
+                            zoom: { enabled: cls.platform === 'zoom', link: cls.platform === 'zoom' ? cls.link : '' },
+                            rtmp: { enabled: cls.platform === 'rtmp', link: cls.platform === 'rtmp' ? cls.link : '' },
+                            direct: { enabled: cls.platform === 'direct', link: cls.platform === 'direct' ? cls.link : '' }
+                          });
+                        }
                         setEditTargetFolderId(cls.targetFolderId || "none");
                         setEditAllowDirectJoin(cls.allowDirectJoin !== false);
                       }} className="text-blue-500 border-blue-500/20 hover:bg-blue-500/10 px-2 h-8">
