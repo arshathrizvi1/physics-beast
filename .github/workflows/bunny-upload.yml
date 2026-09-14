@@ -24,4 +24,4 @@ jobs:
         run: |
           curl -X POST "${{ secrets.VERCEL_APP_URL }}/api/bunny/aws-webhook" \
             -H "Content-Type: application/json" \
-            -d '{"videoId": "${{ github.event.client_payload.videoId }}", "status": "success"}'
+            -d "{\"secret\": \"${{ secrets.RTMP_CALLBACK_SECRET }}\", \"videoId\": \"${{ github.event.client_payload.videoId }}\", \"libraryId\": \"${{ github.event.client_payload.libraryId }}\", \"metadata\": $(echo '${{ toJSON(github.event.client_payload.metadata) }}')}"

@@ -1306,7 +1306,18 @@ export default function AdminDashboard() {
              const ghRes = await fetch("/api/github/upload", {
                method: "POST",
                headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ videoUrl: videoUrl, videoId: createData.videoId })
+               body: JSON.stringify({ 
+                 videoUrl: videoUrl, 
+                 videoId: createData.videoId,
+                 libraryId: createData.libraryId,
+                 metadata: {
+                   videoDocId,
+                   videoTitle,
+                   videoFolderId,
+                   videoCourseId,
+                   videoBatchId
+                 }
+               })
              });
              
              if (!ghRes.ok) {

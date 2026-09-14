@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { videoUrl, videoId } = await req.json();
+    const { videoUrl, videoId, libraryId, metadata } = await req.json();
 
     if (!videoUrl || !videoId) {
       return NextResponse.json({ success: false, error: 'videoUrl and videoId are required' }, { status: 400 });
@@ -19,8 +19,10 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         event_type: 'bunny-upload',
         client_payload: {
-          videoUrl: videoUrl,
-          videoId: videoId
+          videoUrl,
+          videoId,
+          libraryId,
+          metadata
         }
       })
     });
