@@ -6,10 +6,9 @@ const password = process.argv[3] || "";
 (async () => {
   let browser;
   try {
+    const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
     browser = await chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"] });
-    const context = await browser.newContext({
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    });
+    const context = await browser.newContext({ userAgent });
     const page = await context.newPage();
     
     let mediaUrl = null;
@@ -22,9 +21,7 @@ const password = process.argv[3] || "";
 
     try {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
-    } catch(e) {
-      console.error("goto timeout, continuing anyway...");
-    }
+    } catch(e) {}
     
     try {
       await page.waitForSelector("#onetrust-accept-btn-handler", { timeout: 3000 });
@@ -55,11 +52,16 @@ const password = process.argv[3] || "";
     } catch(e) {}
 
     if (mediaUrl) {
-      console.log(mediaUrl);
+      const cookies = await context.cookies();
+      const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join("; ");
+      console.log(JSON.stringify({
+         url: mediaUrl,
+         cookies: cookieStr,
+         userAgent: userAgent
+      }));
       process.exit(0);
     } else {
       console.error("Could not extract video URL.");
-      console.error("PAGE TITLE:", await page.title());
       process.exit(1);
     }
   } catch (error) {

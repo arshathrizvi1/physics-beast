@@ -482,12 +482,30 @@ app.post('/api/generic-download', (req, res) => {
         return;
       }
       
-      const rawMp4Url = stdout.toString().trim().split('\n').pop();
-      if (rawMp4Url && rawMp4Url.startsWith('http')) {
-        console.log(`[Generic] ✅ Zoom Extraction Success! Downloading raw MP4...`);
-        runStandardMode(rawMp4Url, null, outputPath, false, null, title, req.body);
-      } else {
-        console.error(`[Generic] ❌ Zoom Extractor didn't return a valid URL:`, stdout);
+      const outputJsonStr = stdout.toString().trim().split('\n').pop();
+      try {
+        const data = JSON.parse(outputJsonStr);
+        if (data.url && data.url.startsWith('http')) {
+          console.log(`[Generic] ✅ Zoom Extraction Success! Downloading raw MP4...`);
+          
+          let stdArgs = [
+            '--format', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            '--merge-output-format', 'mp4',
+            '--retries', '3',
+            '-o', outputPath
+          ];
+          
+          if (data.userAgent) stdArgs.push('--user-agent', data.userAgent);
+          if (data.cookies) stdArgs.push('--add-header', `Cookie: ${data.cookies}`);
+          stdArgs.push('--add-header', `Referer: https://zoom.us/`);
+          stdArgs.push(data.url);
+          
+          runYtDlp(stdArgs, title, data.url, outputPath, req.body);
+        } else {
+          throw new Error("Invalid URL");
+        }
+      } catch (e) {
+        console.error(`[Generic] ❌ Zoom Extractor didn't return valid JSON:`, stdout);
         runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
       }
     });
