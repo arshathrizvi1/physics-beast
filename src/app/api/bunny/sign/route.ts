@@ -20,8 +20,8 @@ export async function GET(request: Request) {
       });
     }
 
-    // Expiration timestamp in seconds (valid for 24 hours)
-    const expires = Math.floor(Date.now() / 1000) + 86400;
+    // Expiration timestamp in seconds (valid for 4 hours)
+    const expires = Math.floor(Date.now() / 1000) + 14400;
 
     // SHA256(token_security_key + video_id + expiration_timestamp)
     const rawSignature = `${tokenKey}${videoId}${expires}`;
