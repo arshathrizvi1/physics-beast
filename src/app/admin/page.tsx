@@ -971,7 +971,7 @@ export default function AdminDashboard() {
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
-  const [bunnyUploadMode, setBunnyUploadMode] = useState<"file" | "url">("file");
+  const [bunnyUploadMode, setBunnyUploadMode] = useState<"file" | "url" | "github">("file");
   
   const [isSavingExam, setIsSavingExam] = useState(false);
   const [examSuccess, setExamSuccess] = useState(false);
@@ -1258,7 +1258,71 @@ export default function AdminDashboard() {
         }
       } else if (uploadItemType === "video" && (videoPlatform === "bunny" || videoPlatform === "youtube")) {
         effectivePlatform = "bunny";
-        if ((bunnyUploadMode === "url" || videoPlatform === "youtube") && videoUrl) {
+        if (bunnyUploadMode === "github" && videoUrl) {
+             const videoDocId = doc(collection(db, 'videos')).id;
+             const targetFolderId = videoFolderId;
+             const videoRef = doc(db, 'videos', videoDocId);
+             
+             // 1. Create Placeholder Document
+             await setDoc(videoRef, {
+               id: videoDocId,
+               title: videoTitle,
+               description: '',
+               url: '', // Empty until ready
+               videoId: '',
+               libraryId: '',
+               platform: 'bunny',
+               courseId: videoCourseId === 'none' ? null : videoCourseId,
+               folderId: targetFolderId,
+               type: 'video',
+               isReady: false,
+               processingStatus: 'downloading',
+               createdAt: Date.now(),
+               views: 0
+             });
+
+             // 2. Add to folder
+             if (targetFolderId && targetFolderId !== 'none') {
+               const folderRef = doc(db, 'folders', targetFolderId);
+               const folderSnap = await getDoc(folderRef);
+               if (folderSnap.exists()) {
+                 const items = folderSnap.data().items || [];
+                 await updateDoc(folderRef, {
+                   items: [...items, { id: videoDocId, type: 'video' }]
+                 });
+               }
+             }
+
+             // 3. Create Bunny Video placeholder to get videoId
+             const createRes = await fetch("/api/bunny/create", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ title: videoTitle })
+             });
+             const createData = await createRes.json();
+             if (!createRes.ok) throw new Error(createData.error || "Failed to create Bunny video");
+             
+             // 4. Trigger GitHub Action with the created videoId
+             const ghRes = await fetch("/api/github/upload", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ videoUrl: videoUrl, videoId: createData.videoId })
+             });
+             
+             if (!ghRes.ok) {
+               await deleteDoc(videoRef);
+               const err = await ghRes.json();
+               throw new Error(err.error || "GitHub Action failed");
+             }
+             
+             alert("✅ Background download started on GitHub Actions! It will appear as 'Downloading...' in the folder.");
+             setIsUploading(false);
+             setUploadSuccess(true);
+             setVideoTitle("");
+             setVideoUrl("");
+             setTimeout(() => setUploadSuccess(false), 6000);
+             return;
+        } else if ((bunnyUploadMode === "url" || videoPlatform === "youtube") && videoUrl) {
            const isZoomOrYt = videoUrl.includes('zoom.us') || videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be');
            
            if (isZoomOrYt) {
@@ -2816,7 +2880,11 @@ export default function AdminDashboard() {
                         </Label>
                         <Label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                           <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'url'} onChange={() => setBunnyUploadMode('url')} />
-                          Import from Zoom / YouTube / URL
+                          Import from Zoom / YouTube (AWS)
+                        </Label>
+                        <Label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-green-500">
+                          <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'github'} onChange={() => setBunnyUploadMode('github')} />
+                          Import MP4 URL (GitHub Free)
                         </Label>
                       </div>
                     </div>
@@ -2841,15 +2909,23 @@ export default function AdminDashboard() {
                     ) : (
                       <div className="space-y-2">
                         <div className="flex flex-col sm:flex-row gap-2">
-                          <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video' && bunnyUploadMode === 'url'} className="flex-1" />
-                          <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
-                          <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
-                            {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
+                          <Input placeholder={bunnyUploadMode === 'github' ? "Enter direct MP4 URL to process via GitHub..." : "Enter Zoom URL, YouTube link, or direct MP4..."} value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video' && (bunnyUploadMode === 'url' || bunnyUploadMode === 'github')} className="flex-1" />
+                          {bunnyUploadMode === 'url' && (
+                            <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
+                          )}
+                          <Button type="button" onClick={handleUploadItem} className={bunnyUploadMode === 'github' ? "shrink-0 bg-green-600 hover:bg-green-700 text-white" : "shrink-0"} disabled={isUploading || !videoFolderId || !videoUrl}>
+                            {isUploading ? "Processing..." : (bunnyUploadMode === 'github' ? "Run via GitHub Action" : "Fetch via AWS")}
                           </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                          <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background (using your optional password for Zoom) and upload them securely to BunnyCDN.
-                        </p>
+                        {bunnyUploadMode === 'github' ? (
+                          <p className="text-xs text-green-600/80 mt-1 bg-green-500/5 p-2 rounded">
+                            <strong>✅ 100% Free Github Serverless Mode:</strong> Paste a standard direct MP4 URL. GitHub Actions will convert and upload it securely to BunnyCDN.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                            <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The AWS server will process them in the background.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
