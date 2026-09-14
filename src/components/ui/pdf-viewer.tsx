@@ -126,6 +126,63 @@ export function PdfViewer({
     };
   }, []);
 
+  // Mouse drag-to-pan logic
+  useEffect(() => {
+    const container = documentContainerRef.current;
+    if (!container) return;
+
+    let isDown = false;
+    let startX: number;
+    let startY: number;
+    let scrollLeft: number;
+    let scrollTop: number;
+
+    const onMouseDown = (e: MouseEvent) => {
+      isDown = true;
+      container.style.cursor = 'grabbing';
+      startX = e.pageX - container.offsetLeft;
+      startY = e.pageY - container.offsetTop;
+      scrollLeft = container.scrollLeft;
+      scrollTop = container.scrollTop;
+    };
+
+    const onMouseLeave = () => {
+      isDown = false;
+      container.style.cursor = 'grab';
+    };
+
+    const onMouseUp = () => {
+      isDown = false;
+      container.style.cursor = 'grab';
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      e.preventDefault(); // Prevent text selection
+      const x = e.pageX - container.offsetLeft;
+      const y = e.pageY - container.offsetTop;
+      const walkX = (x - startX) * 1.5; // Scroll speed multiplier
+      const walkY = (y - startY) * 1.5;
+      container.scrollLeft = scrollLeft - walkX;
+      container.scrollTop = scrollTop - walkY;
+    };
+
+    // Initial cursor
+    container.style.cursor = 'grab';
+
+    container.addEventListener("mousedown", onMouseDown);
+    container.addEventListener("mouseleave", onMouseLeave);
+    container.addEventListener("mouseup", onMouseUp);
+    container.addEventListener("mousemove", onMouseMove);
+
+    return () => {
+      container.removeEventListener("mousedown", onMouseDown);
+      container.removeEventListener("mouseleave", onMouseLeave);
+      container.removeEventListener("mouseup", onMouseUp);
+      container.removeEventListener("mousemove", onMouseMove);
+    };
+  }, []);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen().catch((err) => {
