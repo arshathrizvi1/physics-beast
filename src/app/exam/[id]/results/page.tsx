@@ -522,18 +522,28 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                       
                       let bgClass = "bg-secondary/10 border-border";
                       let textClass = "text-foreground";
+                      let iconClass = "bg-secondary text-muted-foreground";
                       
-                      if (isActualCorrect) {
-                        bgClass = "bg-green-500/20 border-green-500/50 shadow-sm";
+                      if (isActualCorrect && isSelected) {
+                        // Student selected the right answer (Green)
+                        bgClass = "bg-green-500/30 border-green-500 shadow-sm";
                         textClass = "text-green-700 dark:text-green-400 font-bold";
-                      } else if (isSelected && !isCorrect) {
-                        bgClass = "bg-destructive/20 border-destructive/50 shadow-sm";
-                        textClass = "text-destructive font-bold";
+                        iconClass = "bg-green-500 text-foreground";
+                      } else if (isActualCorrect && !isSelected) {
+                        // Right answer, but student didn't select it (Light Green)
+                        bgClass = "bg-green-500/10 border-green-500/40 shadow-sm";
+                        textClass = "text-green-600 dark:text-green-400/80 font-medium";
+                        iconClass = "bg-green-500/80 text-foreground";
+                      } else if (isSelected && !isActualCorrect) {
+                        // Student selected wrong answer (Light Red)
+                        bgClass = "bg-destructive/10 border-destructive/40 shadow-sm";
+                        textClass = "text-destructive/90 font-medium";
+                        iconClass = "bg-destructive/80 text-foreground";
                       }
 
                       return (
                         <div key={opt.id} className={`p-4 rounded-lg border ${bgClass} flex items-center gap-3 transition-all`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isActualCorrect ? 'bg-green-500 text-foreground' : isSelected && !isCorrect ? 'bg-destructive text-foreground' : 'bg-secondary text-muted-foreground'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${iconClass}`}>
                             {opt.id}
                           </div>
                           <span className={`${textClass} leading-tight`}>{opt.text}</span>
