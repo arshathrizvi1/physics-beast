@@ -3,7 +3,12 @@
  * Strictly used for Videos, PDFs, and auto-fallback storage.
  */
 export async function uploadToS3(file: File, folder: string = "uploads"): Promise<string> {
-  const res = await fetch("/api/s3/upload", {
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  
+  // Route PDFs to Bunny S3 automatically
+  const apiUrl = isPdf ? "/api/bunny/s3-upload" : "/api/s3/upload";
+  
+  const res = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
