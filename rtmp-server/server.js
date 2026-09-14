@@ -616,9 +616,9 @@ app.post('/api/generic-download', (req, res) => {
       }
     } else {
       if ((stderrLog.includes("This live event has ended") || stderrLog.includes("Premieres in") || stderrLog.includes("No video formats found") || stderrLog.includes("Requested format is not available")) && attempt < maxAttempts) {
-        console.log(`[Generic] ⏳ YouTube is still processing the live stream. Waiting 5 minutes to retry...`);
+        console.log(`[Generic] ⏳ YouTube is still processing the live stream. Waiting 15 minutes to retry...`);
         attempt++;
-        setTimeout(attemptDownload, 5 * 60 * 1000);
+        setTimeout(attemptDownload, 15 * 60 * 1000);
       } else {
         console.error(`[Generic] ❌ yt-dlp failed with code ${code} for "${title}"`);
         // Notify webhook of failure so frontend can update status
