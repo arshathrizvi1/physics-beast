@@ -2806,93 +2806,50 @@ export default function AdminDashboard() {
                 </div>
 
                 {uploadItemType === 'video' ? (
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Video Source Platform</Label>
-                      <select 
-                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={videoPlatform} 
-                        onChange={(e) => setVideoPlatform(e.target.value)}
-                        required={uploadItemType === 'video'}
-                      >
-                        <option value="bunny">Bunny Stream (Zoom, YouTube, or File Upload)</option>
-                      </select>
-                    </div>
-
-                        <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                          <Input 
-                            key="s3-video-file-input"
-                            type="file" 
-                            accept="video/*,.mp4,.mov,.mkv,.webm" 
-                            className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setResourceFile(e.target.files[0]);
-                              }
-                            }} 
-                            required={videoPlatform === 's3'}
-                          />
-                          <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
-                            {isUploading ? "Uploading Video to S3..." : "Upload Video (S3)"}
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">Video files are uploaded directly to Amazon S3 and will play seamlessly in the student video player.</p>
+                  <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <Label className="text-primary font-semibold text-base">Bunny Stream Video</Label>
+                      <div className="flex gap-4">
+                        <Label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                          <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'file'} onChange={() => setBunnyUploadMode('file')} />
+                          Upload Video File
+                        </Label>
+                        <Label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                          <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'url'} onChange={() => setBunnyUploadMode('url')} />
+                          Import from Zoom / YouTube / URL
+                        </Label>
                       </div>
-                    ) : videoPlatform === 'bunny' ? (
-                      <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
-                        <Label className="text-primary font-medium">Add Video to Bunny Stream</Label>
-                        <div className="flex gap-4 mb-4">
-                          <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                            <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'file'} onChange={() => setBunnyUploadMode('file')} />
-                            Upload Video File
-                          </Label>
-                          <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                            <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'url'} onChange={() => setBunnyUploadMode('url')} />
-                            Import from Zoom / YouTube / URL
-                          </Label>
-                        </div>
-                        
-                        {bunnyUploadMode === 'file' ? (
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <Input 
-                              type="file" 
-                              accept="video/*" 
-                              className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files[0]) {
-                                  setResourceFile(e.target.files[0]);
-                                }
-                              }} 
-                              required={videoPlatform === 'bunny' && bunnyUploadMode === 'file'}
-                            />
-                            <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
-                              {isUploading ? "Uploading to Bunny..." : "Upload File to Bunny"}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={videoPlatform === 'bunny' && bunnyUploadMode === 'url'} className="flex-1" />
-                              <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
-                              <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
-                                {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
-                              </Button>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                              <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background (using your optional password for Zoom) and upload them securely to BunnyCDN.
-                            </p>
-                          </div>
-                        )}
+                    </div>
+                    
+                    {bunnyUploadMode === 'file' ? (
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Input 
+                          type="file" 
+                          accept="video/*" 
+                          className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setResourceFile(e.target.files[0]);
+                            }
+                          }} 
+                          required={uploadItemType === 'video' && bunnyUploadMode === 'file'}
+                        />
+                        <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
+                          {isUploading ? "Uploading to Bunny..." : "Upload File to Bunny"}
+                        </Button>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <Label>Video URL</Label>
-                        <div className="flex gap-2">
-                          <Input key="video-url-text-input" placeholder="https://youtube.com/watch?v=..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video'} />
-                          <Button type="button" onClick={handleUploadItem} variant="secondary" disabled={isUploading || !videoFolderId}>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video' && bunnyUploadMode === 'url'} className="flex-1" />
+                          <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
+                          <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
                             {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                           </Button>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
+                          <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background (using your optional password for Zoom) and upload them securely to BunnyCDN.
+                        </p>
                       </div>
                     )}
                   </div>
