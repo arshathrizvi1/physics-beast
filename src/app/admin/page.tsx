@@ -967,7 +967,7 @@ export default function AdminDashboard() {
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [zoomPassword, setZoomPassword] = useState("");
-  const [videoPlatform, setVideoPlatform] = useState("youtube");
+  const [videoPlatform, setVideoPlatform] = useState("bunny");
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
@@ -2813,16 +2813,10 @@ export default function AdminDashboard() {
                         onChange={(e) => setVideoPlatform(e.target.value)}
                         required={uploadItemType === 'video'}
                       >
-                        <option value="s3">Upload Video File directly to Amazon S3 (.mp4, .mov, .mkv)</option>
                         <option value="bunny">Bunny Stream (Zoom, YouTube, or File Upload)</option>
-                        <option value="vimeo">Vimeo</option>
-                        <option value="dailymotion">Dailymotion</option>
                       </select>
                     </div>
 
-                    {videoPlatform === 's3' ? (
-                      <div className="space-y-2 p-4 border border-primary/20 rounded-xl bg-primary/5">
-                        <Label className="text-primary font-medium">Upload Video File to Amazon S3</Label>
                         <div className="flex flex-col sm:flex-row gap-3 mt-2">
                           <Input 
                             key="s3-video-file-input"
