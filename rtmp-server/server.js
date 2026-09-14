@@ -528,14 +528,23 @@ app.post('/api/generic-download', (req, res) => {
   }
 
   function runYtDlp(dlArgs, vidTitle, originalUrl, outPath, reqBody) {
-    console.log(`[Generic] Running yt-dlp for: ${vidTitle}`);
-    const ytdlp = spawn('yt-dlp', dlArgs);
+    let attempt = 1;
+    const maxAttempts = 12;
 
-  ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
-  ytdlp.stderr.on('data', (data) => console.error(`[yt-dlp stderr] ${data.toString().trim()}`));
+    const attemptDownload = () => {
+      console.log(`[Generic] yt-dlp attempt ${attempt}/${maxAttempts} for: ${vidTitle}`);
+      const ytdlp = spawn('yt-dlp', dlArgs);
+      let stderrLog = "";
 
-  ytdlp.on('close', async (code) => {
-    if (code === 0 && fs.existsSync(outputPath)) {
+      ytdlp.stdout.on('data', (data) => console.log(`[yt-dlp] ${data.toString().trim()}`));
+      ytdlp.stderr.on('data', (data) => {
+        const msg = data.toString();
+        stderrLog += msg;
+        console.error(`[yt-dlp stderr] ${msg.trim()}`);
+      });
+
+      ytdlp.on('close', async (code) => {
+        if (code === 0 && fs.existsSync(outputPath)) {
       try {
         const fileSizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
         console.log(`[Generic] ✅ Download complete for "${title}" (${fileSizeMB} MB)`);
@@ -606,19 +615,27 @@ app.post('/api/generic-download', (req, res) => {
         console.error(`[Generic] ❌ Upload/notify failed for "${title}":`, err.message);
       }
     } else {
-      console.error(`[Generic] ❌ yt-dlp failed with code ${code} for "${title}"`);
-      // Notify webhook of failure so frontend can update status
-      if (webhookUrl && metadata) {
-        try {
-          await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ secret: CALLBACK_SECRET, error: 'yt-dlp download failed', metadata, libraryId: BUNNY_LIBRARY_ID })
-          });
-        } catch (e) {}
+      if ((stderrLog.includes("This live event has ended") || stderrLog.includes("Premieres in") || stderrLog.includes("No video formats found") || stderrLog.includes("Requested format is not available")) && attempt < maxAttempts) {
+        console.log(`[Generic] ⏳ YouTube is still processing the live stream. Waiting 5 minutes to retry...`);
+        attempt++;
+        setTimeout(attemptDownload, 5 * 60 * 1000);
+      } else {
+        console.error(`[Generic] ❌ yt-dlp failed with code ${code} for "${title}"`);
+        // Notify webhook of failure so frontend can update status
+        if (webhookUrl && metadata) {
+          try {
+            await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ secret: CALLBACK_SECRET, error: 'yt-dlp download failed', metadata, libraryId: BUNNY_LIBRARY_ID })
+            });
+          } catch (e) {}
+        }
       }
     }
   });
+  };
+  attemptDownload();
   } // End of runYtDlp
 });
 
