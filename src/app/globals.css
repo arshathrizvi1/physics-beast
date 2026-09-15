@@ -239,3 +239,12 @@ input[type="number"] {
     page-break-inside: avoid !important;
   }
 }
+
+body {
+  background: linear-gradient(180deg, #F7F7F7 0%, #EEEEEE 100%);
+  background-attachment: fixed;
+}
+.dark body {
+  background: #111111; /* Dark charcoal */
+}
+
