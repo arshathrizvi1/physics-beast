@@ -196,11 +196,6 @@ export default function Home() {
 
       <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
         
-        {/* Test Banner */}
-        <div className="bg-[#d4af37] text-black text-center py-2 font-bold z-50 relative">
-          This is a test banner to verify git push works!
-        </div>
-
         {/* 3. Hero Background — lightweight static glows only */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />

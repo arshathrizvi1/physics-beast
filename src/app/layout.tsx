@@ -16,6 +16,7 @@ import { PushNotificationSetup } from "@/components/PushNotificationSetup";
 import { PasskeyShim } from "@/components/PasskeyShim";
 import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -77,6 +78,7 @@ export default function RootLayout({
             </NotificationProvider>
           </AuthProvider>
           <SpeedInsights />
+          <ThemeToggle />
         </ThemeProvider>
       </body>
     </html>
