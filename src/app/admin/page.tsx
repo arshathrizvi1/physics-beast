@@ -174,6 +174,7 @@ export default function AdminDashboard() {
   const [newStreamName, setNewStreamName] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseDescription, setNewCourseDescription] = useState("");
+  const [newCourseIsMonthly, setNewCourseIsMonthly] = useState(false);
   const [newCourseImage, setNewCourseImage] = useState<File | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderPrice, setNewFolderPrice] = useState("");
@@ -819,6 +820,7 @@ export default function AdminDashboard() {
         batchId: selectedBatchId, 
         subjectId: selectedSubjectId,
         subjectName: subject?.name || "",
+        isMonthly: newCourseIsMonthly,
         image: thumbnailUrl || null,
         teacherId: newCourseTeacherId || null,
         teacherName: assignedTeacher ? (assignedTeacher.name || assignedTeacher.email?.split('@')[0]) : null,
@@ -840,6 +842,7 @@ export default function AdminDashboard() {
 
       setNewCourseName("");
       setNewCourseDescription("");
+      setNewCourseIsMonthly(false);
       setNewCourseImage(null);
       setNewCourseTeacherId("");
       setSelectedCourseId(ref.id); // Auto-select so user can immediately add folders
@@ -1257,6 +1260,29 @@ export default function AdminDashboard() {
     setIsUploading(true);
     setUploadSuccess(false);
     try {
+      let targetFolderId = videoFolderId;
+      const selectedCourse = courses.find(c => c.id === videoCourseId);
+      if (selectedCourse?.isMonthly) {
+        const monthName = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        const existing = folders.find(f => f.courseId === videoCourseId && f.name === monthName);
+        if (existing) {
+          targetFolderId = existing.id;
+        } else {
+          // Auto create
+          const now = new Date();
+          const folderId = `month_${videoCourseId}_${now.getFullYear()}_${now.getMonth()}`;
+          const newFolderRef = doc(db, 'folders', folderId);
+          await setDoc(newFolderRef, {
+            id: folderId,
+            name: monthName,
+            courseId: videoCourseId,
+            createdAt: Date.now(),
+            items: []
+          });
+          targetFolderId = folderId;
+        }
+      }
+
       let finalUrl = uploadItemType === "resource" && uploadFileBase64 ? uploadFileBase64 : videoUrl;
       let effectivePlatform = videoPlatform;
       let transcodeJobId: string | null = null;
@@ -1303,12 +1329,11 @@ export default function AdminDashboard() {
              const metadata = {
                videoDocId,
                videoTitle,
-               videoFolderId,
+               videoFolderId: targetFolderId,
                videoCourseId,
                videoBatchId,
                originalYoutubeUrl: isYoutube ? videoUrl : null
              };
-             const targetFolderId = videoFolderId;
              const videoRef = doc(db, 'videos', videoDocId);
              
              // 1. Create Placeholder Document immediately!
@@ -1429,7 +1454,7 @@ export default function AdminDashboard() {
         effectivePlatform = "direct";
       }
       
-      if (!videoTitle || !finalUrl || !videoFolderId) {
+      if (!videoTitle || !finalUrl || !targetFolderId) {
         alert("Please provide a title, a folder, and either a URL or a file to upload.");
         setIsUploading(false);
         return;
@@ -1444,16 +1469,16 @@ export default function AdminDashboard() {
         platform: uploadItemType === 'video' ? effectivePlatform : null,
         batchId: videoBatchId,
         courseId: videoCourseId,
-        folderId: videoFolderId,
+        folderId: targetFolderId,
         transcodeJobId: transcodeJobId || null,
         transcodeStatus: transcodeStatus || 'ready',
         isReady: true,
         createdAt: Date.now()
       });
 
-      if (videoFolderId) {
+      if (targetFolderId) {
         try {
-          const folderRef = doc(db, 'folders', videoFolderId);
+          const folderRef = doc(db, 'folders', targetFolderId);
           const folderSnap = await getDoc(folderRef);
           if (folderSnap.exists()) {
             const items = folderSnap.data().items || [];
@@ -2590,6 +2615,14 @@ export default function AdminDashboard() {
                       <form onSubmit={handleCreateCourse} className="space-y-2">
                         <Input placeholder="Course Name (e.g. Mechanics)" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required />
                         <Textarea placeholder="Course Description (Optional)" value={newCourseDescription} onChange={e => setNewCourseDescription(e.target.value)} className="h-16 text-xs resize-none" />
+                        <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={newCourseIsMonthly} 
+                            onChange={e => setNewCourseIsMonthly(e.target.checked)} 
+                          />
+                          Is Monthly Live Classes Course
+                        </label>
                         <select
                           className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs"
                           value={newCourseTeacherId}
@@ -2855,16 +2888,22 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label>Folder</Label>
-                    <select 
-                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={videoFolderId} 
-                      onChange={(e) => setVideoFolderId(e.target.value)}
-                      disabled={!videoCourseId}
-                      required
-                    >
-                      <option value="" disabled>Select Folder</option>
-                      {folders.filter(f => f.courseId === videoCourseId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                    </select>
+                    {courses.find(c => c.id === videoCourseId)?.isMonthly ? (
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-secondary/20 px-3 py-2 text-sm text-muted-foreground italic">
+                        Auto-assigned to current month ({new Date().toLocaleString('default', { month: 'long', year: 'numeric' })})
+                      </div>
+                    ) : (
+                      <select 
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={videoFolderId} 
+                        onChange={(e) => setVideoFolderId(e.target.value)}
+                        disabled={!videoCourseId}
+                        required
+                      >
+                        <option value="" disabled>Select Folder</option>
+                        {folders.filter(f => f.courseId === videoCourseId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                      </select>
+                    )}
                   </div>
                 </div>
 
@@ -2917,7 +2956,7 @@ export default function AdminDashboard() {
                           }} 
                           required={uploadItemType === 'video' && bunnyUploadMode === 'file'}
                         />
-                        <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || !resourceFile}>
+                        <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || !resourceFile}>
                           {isUploading ? "Uploading to Bunny..." : "Upload File to Bunny"}
                         </Button>
                       </div>
@@ -2926,7 +2965,7 @@ export default function AdminDashboard() {
                         <div className="flex flex-col sm:flex-row gap-2">
                           <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video' && bunnyUploadMode === 'url'} className="flex-1" />
                           <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
-                          <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId || !videoUrl}>
+                          <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || !videoUrl}>
                             {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
                           </Button>
                         </div>
@@ -2958,7 +2997,7 @@ export default function AdminDashboard() {
                         }} 
                         required={uploadItemType === 'resource'}
                       />
-                      <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId || (!uploadFileBase64 && !resourceFile)}>
+                      <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || (!uploadFileBase64 && !resourceFile)}>
                         {isUploading ? "Uploading..." : "Upload Resource (Bunny)"}
                       </Button>
                     </div>

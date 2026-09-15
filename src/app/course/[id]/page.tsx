@@ -37,6 +37,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [pastLiveClasses, setPastLiveClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [selectedMonthlyFolderId, setSelectedMonthlyFolderId] = useState<string | null>(null);
   const [activeVideo, setActiveVideo] = useState<any>(null);
   const [viewersCount, setViewersCount] = useState(0);
 
@@ -375,7 +376,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   useEffect(() => {
     if (!user || folders.length === 0 || activeFolderId) return;
-    const accessibleFolders = folders.filter((f: any) => {
+    const accessibleFolders = sidebarFolders.filter((f: any) => {
       const exp = user.folderAccess?.[f.id];
       return user.role === 'admin' || user.role === 'teacher' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
     });
@@ -704,9 +705,101 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     );
   }
 
+    // Monthly Course Interceptor
+  let displayFolders = folders;
+  let virtualNextMonth = null;
+  if (course.isMonthly) {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (now.getDate() >= daysInMonth - 5) {
+      const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+      const nextMonthExists = folders.some(f => f.name === nextMonthName);
+      if (!nextMonthExists) {
+        virtualNextMonth = {
+          id: `month_${course.id}_${nextMonthDate.getFullYear()}_${nextMonthDate.getMonth()}`,
+          name: nextMonthName,
+          isVirtual: true,
+          price: folders.find(f => f.price > 0)?.price || 0
+        };
+        displayFolders = [...folders, virtualNextMonth];
+      }
+    }
+  }
+
+  // Filter sidebar folders if isolated to a month
+  const sidebarFolders = (course.isMonthly && selectedMonthlyFolderId) 
+    ? folders.filter(f => f.id === selectedMonthlyFolderId) 
+    : folders;
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 select-none">
-      {/* Video Player Area */}
+    <>
+      {course.isMonthly && !selectedMonthlyFolderId ? (
+        <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-[var(--gold)] flex items-center gap-3">
+                <PlayCircle className="w-8 h-8" /> {course.name}
+              </h1>
+              <p className="text-muted-foreground mt-2 text-sm max-w-xl">
+                Select a month below to access the live classes, recordings, and PDF notes for that specific period.
+              </p>
+            </div>
+            <Link href="/courses">
+              <Button variant="outline" size="sm" className="border-secondary/30 hover:border-primary/50 text-xs">
+                &larr; Back to Subjects
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...displayFolders].sort((a, b) => {
+              if (a.isVirtual) return -1;
+              if (b.isVirtual) return 1;
+              return (b.createdAt || 0) - (a.createdAt || 0);
+            }).map(folder => {
+               const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || (user?.folderAccess && user.folderAccess[folder.id] && user.folderAccess[folder.id] > Date.now());
+               return (
+                 <Card key={folder.id} className={`overflow-hidden transition-all duration-300 border-secondary/20 hover:border-[var(--gold)]/50 hover:shadow-lg hover:shadow-[var(--gold)]/10 ${!hasAccess ? 'opacity-80 hover:opacity-100' : ''}`}>
+                   <div className="aspect-[4/3] bg-gradient-to-br from-secondary/30 to-background flex flex-col items-center justify-center p-6 border-b border-secondary/20 relative group">
+                     {!hasAccess && <Lock className="w-5 h-5 absolute top-4 right-4 text-muted-foreground/50 group-hover:text-red-400 transition-colors" />}
+                     {hasAccess && <CheckCircle2 className="w-5 h-5 absolute top-4 right-4 text-green-500" />}
+                     <div className="text-center group-hover:scale-105 transition-transform duration-300">
+                       <Folder className={`w-14 h-14 mx-auto mb-3 ${hasAccess ? 'text-[var(--gold)]' : 'text-muted-foreground/50'}`} />
+                       <h3 className="font-bold text-xl text-foreground">{folder.name}</h3>
+                       {folder.isVirtual && (
+                         <span className="bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20 text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full mt-3 inline-block">
+                           Coming Soon
+                         </span>
+                       )}
+                     </div>
+                   </div>
+                   <CardContent className="p-4 bg-background/50 flex flex-col gap-3 border-t-0">
+                     {hasAccess ? (
+                       <Button className="w-full bg-[var(--gold)] text-black hover:bg-[var(--light-gold)] font-bold shadow-md shadow-[var(--gold)]/20" onClick={() => setSelectedMonthlyFolderId(folder.id)}>
+                         Enter Classes
+                       </Button>
+                     ) : (
+                       <Button className="w-full bg-secondary hover:bg-[var(--gold)] hover:text-black text-foreground font-bold transition-all" onClick={() => setCheckoutFolder(folder)}>
+                         {folder.price ? `Pay Rs. ${folder.price}` : 'Request Access'}
+                       </Button>
+                     )}
+                   </CardContent>
+                 </Card>
+               );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {course.isMonthly && (
+            <div className="flex items-center gap-2 mb-2">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedMonthlyFolderId(null)} className="h-8 px-2 text-xs text-muted-foreground hover:text-[var(--gold)]">
+                &larr; Back to Months
+              </Button>
+            </div>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 select-none animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="lg:col-span-2 space-y-4">
         <div 
           className="aspect-video bg-black rounded-xl overflow-hidden border border-secondary/50 relative flex items-center justify-center group"
@@ -1282,7 +1375,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {folders.length === 0 ? (
                   <p className="p-4 text-muted-foreground text-sm text-center">No folders available for this course yet.</p>
                 ) : (
-                  folders.map((folder) => {
+                  sidebarFolders.map((folder) => {
                     const isExpanded = activeFolderId === folder.id;
                     const folderVideos = videos.filter(v => v.folderId === folder.id);
                     const folderOnlyVideos = folderVideos.filter(v => v.type !== 'resource');
@@ -1555,7 +1648,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
+    </div>
+    )}
 
       {/* Checkout Modal */}
       {checkoutFolder && (
@@ -1729,7 +1825,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
+
+
 

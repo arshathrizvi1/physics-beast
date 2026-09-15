@@ -118,8 +118,9 @@ function CoursesContent() {
     return { ...course, courseProgress };
   });
 
-  const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100);
-  const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100);
+  const monthlyCourses = coursesWithProgress.filter(c => c.isMonthly);
+  const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100 && !c.isMonthly);
+  const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100 && !c.isMonthly);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -173,7 +174,16 @@ function CoursesContent() {
               .map(subject => (
                 <button
                   key={subject.id}
-                  onClick={() => setSelectedSubjectId(subject.id)}
+                  onClick={() => {
+                    setSelectedSubjectId(subject.id);
+                    const coursesForSubject = courses.filter(c => c.subjectId === subject.id);
+                    const uniqueTeachers = Array.from(new Set(coursesForSubject.map(c => c.teacherId).filter(Boolean)));
+                    if (uniqueTeachers.length === 1) {
+                      setSelectedTeacherId(uniqueTeachers[0]);
+                    } else {
+                      setSelectedTeacherId("all");
+                    }
+                  }}
                   className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     selectedSubjectId === subject.id
                       ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
@@ -195,7 +205,7 @@ function CoursesContent() {
       )}
 
       {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
-      {selectedSubjectId && teachers.length > 0 && !loading && !dbError && (
+      {selectedSubjectId && teachers.length > 0 && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1 && !loading && !dbError && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -315,7 +325,65 @@ function CoursesContent() {
         </div>
       ) : (
         <div className="space-y-10">
-          {activeCourses.length > 0 && (
+            {monthlyCourses.length > 0 && (
+              <div>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-[var(--gold)]">
+                  <PlayCircle className="w-6 h-6" /> Monthly Live Classes
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {monthlyCourses.map((course) => (
+                    <Link key={course.id} href={`/course/${course.id}`}>
+                      <Card className="overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex flex-col h-full group shadow-lg hover:shadow-[var(--gold)]/20 relative">
+                        <div className="absolute top-0 right-0 p-2">
+                          <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider">Premium Live</span>
+                        </div>
+                        <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center border-b border-[var(--gold)]/20">
+                          {course.image || course.thumbnailUrl ? (
+                            <img 
+                              src={course.image || course.thumbnailUrl} 
+                              alt={course.name || course.title}
+                              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
+                              <BookOpen className="w-8 h-8" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
+                          <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          </div>
+                        </div>
+                        <CardHeader className="p-4 sm:p-5 flex-1 relative z-10">
+                          <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white">
+                            {course.name || course.title}
+                          </CardTitle>
+                          {course.description && (
+                            <p className="text-xs text-zinc-400 mt-2 line-clamp-2">
+                              {course.description}
+                            </p>
+                          )}
+                        </CardHeader>
+                        <CardContent className="p-4 sm:p-5 pt-0 mt-auto">
+                          <div className="flex items-center justify-between text-xs mb-3 text-zinc-400">
+                            {course.teacherName && (
+                              <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
+                                <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
+                              </span>
+                            )}
+                          </div>
+                          <Button className="w-full bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] hover:from-[var(--light-gold)] hover:to-[var(--gold)] text-black border-0 shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all hover:shadow-[0_0_20px_rgba(212,175,55,0.5)]">
+                            Enter Live Class
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeCourses.length > 0 && (
             <div>
               <h3 className="text-xl font-bold mb-4">Active Courses</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
