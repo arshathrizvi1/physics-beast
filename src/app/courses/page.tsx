@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +14,10 @@ import { Suspense } from "react";
 function CoursesContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("all");
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
   const [loading, setLoading] = useState(true);
@@ -30,10 +32,11 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
         );
 
-        const [querySnapshot, teachersSnap] = await Promise.race([
+        const [querySnapshot, teachersSnap, subjectsSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
-            getDocs(query(collection(db, "users"), where("role", "==", "teacher")))
+            getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
+            getDocs(collection(db, "subjects"))
           ]),
           timeoutPromise
         ]);
@@ -48,6 +51,12 @@ function CoursesContent() {
           ...doc.data() as any
         }));
         setTeachers(fetchedTeachers);
+
+        const fetchedSubjects = subjectsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data() as any
+        }));
+        setSubjects(fetchedSubjects);
         
         if (user && user.role === 'student') {
           const batchesSnap = await Promise.race([
@@ -90,8 +99,12 @@ function CoursesContent() {
     }
     
     // teacher filter
-    if (selectedTeacherId === 'all') return true;
-    return c.teacherId === selectedTeacherId;
+    if (selectedTeacherId !== 'all' && c.teacherId !== selectedTeacherId) return false;
+
+    // subject filter
+    if (selectedSubjectId !== 'all' && c.subjectId !== selectedSubjectId) return false;
+
+    return true;
   });
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
@@ -114,6 +127,56 @@ function CoursesContent() {
         <h1 className="text-3xl font-bold">Course Explorer</h1>
         <p className="text-muted-foreground mt-2">Browse all available courses and start learning today.</p>
       </div>
+
+      {/* SUBJECT SELECTION / FILTER */}
+      {subjects.length > 0 && !loading && !dbError && (
+        <div className="space-y-4 border-b pb-6 border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <BookOpen className="w-5 h-5 text-primary" /> Browse by Subject
+              </h2>
+            </div>
+            {selectedSubjectId !== "all" && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedSubjectId("all")} 
+                className="text-xs text-primary h-7 px-2"
+              >
+                Clear Subject Filter
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedSubjectId("all")}
+              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                selectedSubjectId === "all"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "bg-secondary/30 hover:bg-secondary/50 text-foreground"
+              }`}
+            >
+              All Subjects
+            </button>
+            {subjects
+              .filter(s => !user?.stream || s.streamName === user.stream)
+              .map(subject => (
+                <button
+                  key={subject.id}
+                  onClick={() => setSelectedSubjectId(subject.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                    selectedSubjectId === subject.id
+                      ? "bg-primary text-primary-foreground shadow-md"
+                      : "bg-secondary/30 hover:bg-secondary/50 text-foreground"
+                  }`}
+                >
+                  {subject.name}
+                </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
       {teachers.length > 0 && !loading && !dbError && (

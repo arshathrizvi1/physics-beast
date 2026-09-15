@@ -78,11 +78,19 @@ export default function Home() {
     fetchAboutContact();
   }, []);
 
-  // Initial loading animation
+  // Initial loading animation (only play once per session)
   useEffect(() => {
+    const hasSeenIntro = sessionStorage.getItem('hasSeenIntro');
+    if (hasSeenIntro) {
+      setLoadingComplete(true);
+      return;
+    }
+
     const timer = setTimeout(() => {
       setLoadingComplete(true);
+      sessionStorage.setItem('hasSeenIntro', 'true');
     }, 2000); // 2 second intro
+    
     return () => clearTimeout(timer);
   }, []);
 

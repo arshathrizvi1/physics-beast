@@ -166,6 +166,10 @@ export default function AdminDashboard() {
   const [newBatchName, setNewBatchName] = useState("");
   const [newBatchYear, setNewBatchYear] = useState("");
   const [streams, setStreams] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
+  const [newSubjectName, setNewSubjectName] = useState("");
   const [newStreamName, setNewStreamName] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseDescription, setNewCourseDescription] = useState("");
@@ -251,6 +255,10 @@ export default function AdminDashboard() {
       setPublishedExams(list);
     });
 
+    const unsubSubjects = onSnapshot(collection(db, 'subjects'), (snapshot) => {
+      setSubjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     const unsubStreams = onSnapshot(collection(db, 'streams'), (snapshot) => {
       setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -260,6 +268,7 @@ export default function AdminDashboard() {
       unsubMessages();
       unsubBatches();
       unsubStreams();
+      unsubSubjects();
       unsubCourses();
       unsubFolders();
       unsubVideos();
@@ -712,6 +721,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubjectName || !selectedStreamId) return;
+    try {
+      const stream = streams.find(s => s.id === selectedStreamId);
+      await addDoc(collection(db, 'subjects'), { name: newSubjectName, streamId: selectedStreamId, streamName: stream?.name || '', createdAt: Date.now() });
+      setNewSubjectName('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const handleDeleteSubject = async (id: string) => {
+    if (confirm('Are you sure you want to delete this subject?')) {
+      await deleteDoc(doc(db, 'subjects', id));
+    }
+  };
+
   const handleCreateStream = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStreamName) return;
@@ -742,7 +768,7 @@ export default function AdminDashboard() {
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCourseName || !selectedBatchId) return;
+    if (!newCourseName || !selectedBatchId || !selectedSubjectId) return;
     try {
       let thumbnailUrl = "";
       if (newCourseImage) {
@@ -778,11 +804,14 @@ export default function AdminDashboard() {
       }
       
       const assignedTeacher = teamMembers.find(m => m.id === newCourseTeacherId);
+      const subject = subjects.find(s => s.id === selectedSubjectId);
       const ref = doc(collection(db, 'courses'));
       await setDoc(ref, { 
         name: newCourseName, 
         description: newCourseDescription,
         batchId: selectedBatchId, 
+        subjectId: selectedSubjectId,
+        subjectName: subject?.name || "",
         image: thumbnailUrl || null,
         teacherId: newCourseTeacherId || null,
         teacherName: assignedTeacher ? (assignedTeacher.name || assignedTeacher.email?.split('@')[0]) : null,
@@ -2354,7 +2383,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                   {/* BATCHES COLUMN */}
                   <div className="border border-border/50 rounded-lg p-4 space-y-4">
                     <h3 className="font-bold text-lg border-b pb-2">1. Batches (Years)</h3>
@@ -2397,9 +2426,13 @@ export default function AdminDashboard() {
                     <h3 className="font-bold text-lg border-b pb-2">Global Streams</h3>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {streams.map(s => (
-                        <div key={s.id} className="p-3 rounded-md bg-secondary/20 flex justify-between items-center">
+                        <div 
+                          key={s.id} 
+                          onClick={() => { setSelectedStreamId(s.id); setSelectedSubjectId(null); setSelectedCourseId(null); }}
+                          className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedStreamId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
+                        >
                           <p className="font-bold text-sm">{s.name}</p>
-                          <button onClick={() => handleDeleteStream(s.id)} className="p-1 hover:bg-destructive/20 rounded-md text-destructive">
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteStream(s.id); }} className={`p-1 rounded-md transition-colors ${selectedStreamId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-destructive/20 text-destructive'}`}>
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -2407,13 +2440,38 @@ export default function AdminDashboard() {
                       {streams.length === 0 && <p className="text-sm text-muted-foreground italic">No streams yet.</p>}
                     </div>
                     <form onSubmit={handleCreateStream} className="pt-2 border-t space-y-2">
-                      <Input placeholder="Stream Name (e.g. Maths)" value={newStreamName} onChange={e => setNewStreamName(e.target.value)} required />
+                      <Input placeholder="Stream Name (e.g. Science)" value={newStreamName} onChange={e => setNewStreamName(e.target.value)} required />
                       <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Stream</Button>
                     </form>
                   </div>
 
+                  {/* SUBJECTS COLUMN */}
+                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedStreamId ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <h3 className="font-bold text-lg border-b pb-2">Subjects</h3>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {subjects.filter(s => s.streamId === selectedStreamId).map(s => (
+                        <div 
+                          key={s.id} 
+                          onClick={() => { setSelectedSubjectId(s.id); setSelectedCourseId(null); }}
+                          className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedSubjectId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
+                        >
+                          <p className="font-bold text-sm">{s.name}</p>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteSubject(s.id); }} className={`p-1 rounded-md transition-colors ${selectedSubjectId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-destructive/20 text-destructive'}`}>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      {!selectedStreamId && <p className="text-sm text-muted-foreground italic">Select a stream first.</p>}
+                      {selectedStreamId && subjects.filter(s => s.streamId === selectedStreamId).length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
+                    </div>
+                    <form onSubmit={handleCreateSubject} className="pt-2 border-t space-y-2">
+                      <Input placeholder="Subject Name (e.g. Maths)" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} required />
+                      <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Subject</Button>
+                    </form>
+                  </div>
+
                   {/* COURSES COLUMN */}
-                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedBatchId ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${(!selectedBatchId || !selectedSubjectId) ? 'opacity-50 pointer-events-none' : ''}`}>
                     <div className="flex items-center justify-between border-b pb-2">
                       <h3 className="font-bold text-lg">2. Courses</h3>
                       {courseTeacherFilter !== "all" && (
@@ -2426,7 +2484,8 @@ export default function AdminDashboard() {
                       {courses.filter(c => {
                         const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
                         const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
-                        return matchBatch && matchTeacher;
+                        const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId; // show unassigned courses too
+                        return matchBatch && matchTeacher && matchSubject;
                       }).map(c => (
                         <div
                           key={c.id}
@@ -2494,7 +2553,8 @@ export default function AdminDashboard() {
                       {selectedBatchId && courses.filter(c => {
                         const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
                         const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
-                        return matchBatch && matchTeacher;
+                        const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId;
+                        return matchBatch && matchTeacher && matchSubject;
                       }).length === 0 && (
                         <p className="text-sm text-muted-foreground italic">
                           {courseTeacherFilter !== 'all' ? 'No courses for this teacher in this batch.' : 'No courses in this batch.'}
