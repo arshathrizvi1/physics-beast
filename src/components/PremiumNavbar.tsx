@@ -211,87 +211,103 @@ export default function PremiumNavbar() {
                     </Link>
                   </motion.div>
                 )}
-              </AnimatePresence>
-
-              {/* Global Search Trigger Button */}
-              <button
-                type="button"
-                onClick={() => setIsSearchModalOpen(true)}
-                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-card border border-border hover:border-[#d4af37]/50 hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-all group shrink-0"
-                title="Global Search"
-              >
-                <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
-                <span className="hidden sm:inline text-xs font-medium text-zinc-400 group-hover:text-zinc-200">
-                  Search...
-                </span>
-              </button>
-
-              {/* User or Login */}
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <NotificationBell />
-                  <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/login"}>
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 300, damping: 22 }}
-                      className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-secondary flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
-                    >
-                      {user.photoUrl ? (
-                        <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-[#d4af37] font-bold text-sm">
-                          {(user.name || user.email || "U").charAt(0).toUpperCase()}
-                        </span>
+                      {active && (
+                        <motion.div
+                          layoutId="nav-pill"
+                          className="absolute inset-0 bg-white/5 border border-white/10 rounded-full"
+                          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        />
                       )}
+                      <div className="absolute inset-0 bg-[#d4af37]/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full" />
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* 3. RIGHT CONTROLS */}
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                {(isTeacher || isAdmin) && (
+                  <Link href="/admin" className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-[#d4af37]/10 hover:bg-[#d4af37]/20 border border-[#d4af37]/30 text-[#d4af37] font-semibold text-xs transition-all shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Admin Dashboard
+                  </Link>
+                )}
+
+                <button
+                  onClick={() => setIsSearchModalOpen(true)}
+                  className="hidden sm:flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10 hover:border-white/20 transition-all text-xs"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span className="w-24 text-left">Search...</span>
+                  <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-black/40 text-[9px] font-mono border border-white/10 text-zinc-500">⌘K</kbd>
+                </button>
+
+                {user ? (
+                  <div className="flex items-center gap-3">
+                    <NotificationBell />
+                    <Link href={(user.role === 'admin' || user.role === 'teacher') ? "/admin#myprofile" : "/login"}>
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                        className="w-9 h-9 rounded-full border-2 border-[#d4af37]/40 overflow-hidden bg-secondary flex items-center justify-center shadow-[0_0_12px_rgba(212,175,55,0.2)] hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:border-[#d4af37]/70 transition-all cursor-pointer shrink-0"
+                      >
+                        {user.photoUrl ? (
+                          <img src={user.photoUrl} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[#d4af37] font-bold text-sm">
+                            {(user.name || user.email || "U").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </motion.div>
+                    </Link>
+                    {/* Logout */}
+                    <motion.button
+                      onClick={logout}
+                      whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(212,175,55,0.25)" }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center justify-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-full transition-all"
+                    >
+                      <LogOut className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">Logout</span>
+                    </motion.button>
+                  </div>
+                ) : (
+                  <Link href="/login">
+                    <motion.div
+                      whileHover={{ scale: 1.04, y: -1 }}
+                      className="flex items-center gap-1.5 bg-[#d4af37] text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-[#c9a830] transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)]"
+                    >
+                      <User className="w-3.5 h-3.5" /> Login
                     </motion.div>
                   </Link>
-                  {/* Logout */}
-                  <motion.button
-                    onClick={logout}
-                    whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(212,175,55,0.25)" }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex items-center justify-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-full transition-all"
-                  >
-                    <LogOut className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
-                    <span className="hidden sm:inline">Logout</span>
-                  </motion.button>
-                </div>
-              ) : (
-                <Link href="/login">
-                  <motion.div
-                    whileHover={{ scale: 1.04, y: -1 }}
-                    className="flex items-center gap-1.5 bg-[#d4af37] text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-[#c9a830] transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)]"
-                  >
-                    <User className="w-3.5 h-3.5" /> Login
-                  </motion.div>
-                </Link>
-              )}
+                )}
 
-              {/* Mobile hamburger */}
-              <button
-                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 transition-all"
-                onClick={() => setMobileOpen(v => !v)}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  {mobileOpen ? (
-                    <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                      <X className="w-4 h-4 text-[#d4af37]" />
-                    </motion.div>
-                  ) : (
-                    <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                      <Menu className="w-4 h-4 text-foreground/90" />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </button>
+                {/* Mobile hamburger */}
+                <button
+                  className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 transition-all"
+                  onClick={() => setMobileOpen(v => !v)}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {mobileOpen ? (
+                      <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                        <X className="w-4 h-4 text-[#d4af37]" />
+                      </motion.div>
+                    ) : (
+                      <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                        <Menu className="w-4 h-4 text-foreground/90" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
+        </div>
       </motion.header>
 
-        {/* ── MOBILE MENU ── */}
+        {/* 📱 MOBILE MENU 📱 */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
@@ -299,7 +315,7 @@ export default function PremiumNavbar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-[#d4af37]/20"
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-black/95 backdrop-blur-md border-t border-[#d4af37]/20"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
@@ -377,7 +393,6 @@ export default function PremiumNavbar() {
           isOpen={isSearchModalOpen}
           onClose={() => setIsSearchModalOpen(false)}
         />
-    </>
+    </div>
   );
 }
-
