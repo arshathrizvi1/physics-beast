@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
@@ -75,7 +75,7 @@ export default function PremiumNavbar() {
 
   return (
     <>
-      {/* ───────────────── NAVBAR ───────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ NAVBAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <motion.header
         ref={navRef}
         onMouseMove={handleMouseMove}
@@ -111,8 +111,8 @@ export default function PremiumNavbar() {
 
             {/* Slow-moving liquid shine strip */}
             <motion.div
-              className="absolute top-0 bottom-0 w-40"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(212,175,55,0.04), transparent)" }}
+              className="absolute top-0 bottom-0 w-40 bg-gradient-to-r from-transparent via-white/40 dark:via-[#d4af37]/10 to-transparent"
+              
               animate={{ x: ["-160px", "calc(100vw + 160px)"] }}
               transition={{ duration: 7, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
             />
@@ -120,7 +120,7 @@ export default function PremiumNavbar() {
 
           <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4 relative z-10">
 
-            {/* ── LOGO ── */}
+            {/* â”€â”€ LOGO â”€â”€ */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={mounted ? { opacity: 1, scale: 1 } : {}}
@@ -151,7 +151,7 @@ export default function PremiumNavbar() {
               </Link>
             </motion.div>
 
-            {/* ── DESKTOP NAV ── */}
+            {/* â”€â”€ DESKTOP NAV â”€â”€ */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map((link, i) => {
                 const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
@@ -183,7 +183,7 @@ export default function PremiumNavbar() {
               })}
             </nav>
 
-            {/* ── RIGHT SIDE ── */}
+            {/* â”€â”€ RIGHT SIDE â”€â”€ */}
             <div className="flex items-center gap-2 shrink-0">
 
               {/* Teacher / Admin dashboard glowing button */}
@@ -286,7 +286,7 @@ export default function PremiumNavbar() {
 
       </motion.header>
 
-        {/* ── MOBILE MENU ── */}
+        {/* â”€â”€ MOBILE MENU â”€â”€ */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
@@ -375,5 +375,6 @@ export default function PremiumNavbar() {
     </>
   );
 }
+
 
 
