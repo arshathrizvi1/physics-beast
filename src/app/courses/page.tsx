@@ -17,7 +17,7 @@ function CoursesContent() {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
   const [loading, setLoading] = useState(true);
@@ -130,12 +130,15 @@ function CoursesContent() {
 
       {/* SUBJECT SELECTION / FILTER */}
       {subjects.length > 0 && !loading && !dbError && (
-        <div className="space-y-4 border-b pb-6 border-border/50">
+        <div className="space-y-4 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
-                <BookOpen className="w-5 h-5 text-primary" /> Browse by Subject
+              <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <BookOpen className="w-6 h-6 text-primary" /> Select Subject
               </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Choose a subject to see its available courses.
+              </p>
             </div>
             {selectedSubjectId !== "all" && (
               <Button 
@@ -144,34 +147,47 @@ function CoursesContent() {
                 onClick={() => setSelectedSubjectId("all")} 
                 className="text-xs text-primary h-7 px-2"
               >
-                Clear Subject Filter
+                Show All Subjects
               </Button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             <button
               onClick={() => setSelectedSubjectId("all")}
-              className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+              className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                 selectedSubjectId === "all"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "bg-secondary/30 hover:bg-secondary/50 text-foreground"
+                  ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                  : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
               }`}
             >
-              All Subjects
+              <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
+                <BookOpen className={`w-10 h-10 ${selectedSubjectId === "all" ? "text-primary" : "text-muted-foreground"}`} />
+              </div>
+              <div className={`p-3 ${selectedSubjectId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                <p className="font-bold text-sm leading-tight">All Subjects</p>
+              </div>
             </button>
             {subjects
-              .filter(s => !user?.stream || s.streamName === user.stream)
+              .filter(s => !user?.stream || (s.streamNames || []).includes(user.stream) || s.streamName === user.stream)
               .map(subject => (
                 <button
                   key={subject.id}
                   onClick={() => setSelectedSubjectId(subject.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${
+                  className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     selectedSubjectId === subject.id
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "bg-secondary/30 hover:bg-secondary/50 text-foreground"
+                      ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                      : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
                   }`}
                 >
-                  {subject.name}
+                  <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === subject.id ? "bg-primary/20" : "bg-secondary/20"}`}>
+                    <span className={`text-4xl font-bold ${selectedSubjectId === subject.id ? "text-primary/60" : "text-muted-foreground/30"}`}>
+                      {subject.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className={`p-3 ${selectedSubjectId === subject.id ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                    <p className="font-bold text-sm leading-tight truncate">{subject.name}</p>
+                  </div>
                 </button>
             ))}
           </div>
@@ -179,7 +195,7 @@ function CoursesContent() {
       )}
 
       {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
-      {teachers.length > 0 && !loading && !dbError && (
+      {selectedSubjectId && teachers.length > 0 && !loading && !dbError && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -254,7 +270,7 @@ function CoursesContent() {
                   <div className={`p-3 ${isSelected ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
                     <p className="font-bold text-sm leading-tight truncate">{displayName}</p>
                     {teacher.subject && (
-                      <p className={`text-xs mt-0.5 truncate ${isSelected ? "text-primary-foreground/80" : "text-primary"}`}>
+                      <p className={`text-xs mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-primary"}`}>
                         {teacher.subject}
                       </p>
                     )}
@@ -276,6 +292,12 @@ function CoursesContent() {
         </div>
       ) : loading ? (
         <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
+      ) : !selectedSubjectId ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
+          <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
+          <h3 className="text-xl font-bold">Select a Subject</h3>
+          <p className="text-muted-foreground mt-2">Please select a subject from above to view the available courses.</p>
+        </div>
       ) : displayedCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
           <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />

@@ -170,6 +170,7 @@ export default function AdminDashboard() {
   const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [newSubjectName, setNewSubjectName] = useState("");
+  const [newSubjectStreamIds, setNewSubjectStreamIds] = useState<string[]>([]);
   const [newStreamName, setNewStreamName] = useState("");
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseDescription, setNewCourseDescription] = useState("");
@@ -723,11 +724,17 @@ export default function AdminDashboard() {
 
   const handleCreateSubject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSubjectName || !selectedStreamId) return;
+    if (!newSubjectName || newSubjectStreamIds.length === 0) return;
     try {
-      const stream = streams.find(s => s.id === selectedStreamId);
-      await addDoc(collection(db, 'subjects'), { name: newSubjectName, streamId: selectedStreamId, streamName: stream?.name || '', createdAt: Date.now() });
+      const selectedStreams = streams.filter(s => newSubjectStreamIds.includes(s.id));
+      await addDoc(collection(db, 'subjects'), { 
+        name: newSubjectName, 
+        streamIds: newSubjectStreamIds, 
+        streamNames: selectedStreams.map(s => s.name), 
+        createdAt: Date.now() 
+      });
       setNewSubjectName('');
+      setNewSubjectStreamIds([]);
     } catch (err) {
       console.error(err);
     }
@@ -2428,7 +2435,7 @@ export default function AdminDashboard() {
                       {streams.map(s => (
                         <div 
                           key={s.id} 
-                          onClick={() => { setSelectedStreamId(s.id); setSelectedSubjectId(null); setSelectedCourseId(null); }}
+                          onClick={() => { setSelectedStreamId(s.id); setSelectedSubjectId(null); setSelectedCourseId(null); setNewSubjectStreamIds([s.id]); }}
                           className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedStreamId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
                         >
                           <p className="font-bold text-sm">{s.name}</p>
@@ -2449,7 +2456,7 @@ export default function AdminDashboard() {
                   <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedStreamId ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h3 className="font-bold text-lg border-b pb-2">Subjects</h3>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {subjects.filter(s => s.streamId === selectedStreamId).map(s => (
+                      {subjects.filter(s => (s.streamIds || []).includes(selectedStreamId) || s.streamId === selectedStreamId).map(s => (
                         <div 
                           key={s.id} 
                           onClick={() => { setSelectedSubjectId(s.id); setSelectedCourseId(null); }}
@@ -2462,10 +2469,26 @@ export default function AdminDashboard() {
                         </div>
                       ))}
                       {!selectedStreamId && <p className="text-sm text-muted-foreground italic">Select a stream first.</p>}
-                      {selectedStreamId && subjects.filter(s => s.streamId === selectedStreamId).length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
+                      {selectedStreamId && subjects.filter(s => (s.streamIds || []).includes(selectedStreamId) || s.streamId === selectedStreamId).length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
                     </div>
                     <form onSubmit={handleCreateSubject} className="pt-2 border-t space-y-2">
-                      <Input placeholder="Subject Name (e.g. Maths)" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} required />
+                      <Input placeholder="Subject Name (e.g. Physics)" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} required />
+                      <div className="max-h-24 overflow-y-auto space-y-1 bg-secondary/10 p-2 rounded-md">
+                        <p className="text-xs font-semibold mb-1">Select Streams:</p>
+                        {streams.map(s => (
+                          <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={newSubjectStreamIds.includes(s.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) setNewSubjectStreamIds(prev => [...prev, s.id]);
+                                else setNewSubjectStreamIds(prev => prev.filter(id => id !== s.id));
+                              }}
+                            />
+                            {s.name}
+                          </label>
+                        ))}
+                      </div>
                       <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Subject</Button>
                     </form>
                   </div>
