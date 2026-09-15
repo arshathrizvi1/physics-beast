@@ -97,12 +97,7 @@ export default function PremiumNavbar() {
         {/* Glass panel */}
         <div
           className="relative"
-          style={{
-            background: "rgba(8,8,8,0.82)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            borderBottom: "1px solid rgba(212,175,55,0.12)",
-          }}
+          className="bg-[#d4af37]/95 dark:bg-[#080808]/82 backdrop-blur-[20px] border-b border-black/10 dark:border-[#d4af37]/12"
         >
           {/* Background effects container */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-b-lg">
@@ -145,13 +140,13 @@ export default function PremiumNavbar() {
                 <div className="hidden sm:flex flex-col uppercase leading-none justify-center">
                   {/* Gold shine sweep on BRILLIANT text (hover only) */}
                   <div className="relative overflow-hidden">
-                    <span className="font-bold text-[18px] tracking-widest font-serif text-[#d4af37]">Brilliant</span>
+                    <span className="font-bold text-[18px] tracking-widest font-serif text-black dark:text-[#d4af37]">Brilliant</span>
                     <div
                       className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-in-out"
                       style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
                     />
                   </div>
-                  <span className="text-muted-foreground text-[11px] tracking-[0.22em] font-sans">Academy</span>
+                  <span className="text-black/70 dark:text-muted-foreground text-[11px] tracking-[0.22em] font-sans">Academy</span>
                 </div>
               </Link>
             </motion.div>
@@ -168,7 +163,7 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.4 + i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link href={link.href} className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5">
-                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#d4af37]" : "text-muted-foreground group-hover:text-foreground"}`}>
+                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-black dark:text-[#d4af37]" : "text-black/70 dark:text-muted-foreground group-hover:text-black dark:group-hover:text-foreground"}`}>
                         {link.label}
                         {link.label === "Live" && isLive && (
                           <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
@@ -217,11 +212,11 @@ export default function PremiumNavbar() {
               <button
                 type="button"
                 onClick={() => setIsSearchModalOpen(true)}
-                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-card border border-border hover:border-[#d4af37]/50 hover:bg-secondary/40 text-muted-foreground hover:text-foreground transition-all group shrink-0"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-white/20 dark:bg-card border border-black/10 dark:border-border hover:border-black/30 dark:hover:border-[#d4af37]/50 hover:bg-white/30 dark:hover:bg-secondary/40 text-black/80 dark:text-muted-foreground hover:text-black dark:hover:text-foreground transition-all group shrink-0"
                 title="Global Search"
               >
-                <Search className="w-4 h-4 text-muted-foreground group-hover:text-[#d4af37] transition-colors" />
-                <span className="hidden sm:inline text-xs font-medium text-zinc-400 group-hover:text-zinc-200">
+                <Search className="w-4 h-4 text-black/80 dark:text-muted-foreground group-hover:text-black dark:group-hover:text-[#d4af37] transition-colors" />
+                <span className="hidden sm:inline text-xs font-medium text-black/70 dark:text-zinc-400 group-hover:text-black dark:group-hover:text-zinc-200">
                   Search...
                 </span>
               </button>
@@ -251,7 +246,7 @@ export default function PremiumNavbar() {
                     onClick={logout}
                     whileHover={{ y: -2, boxShadow: "0 4px 20px rgba(212,175,55,0.25)" }}
                     whileTap={{ scale: 0.95 }}
-                    className="flex items-center justify-center gap-1.5 bg-card border border-border hover:border-[#d4af37]/40 text-foreground/90 hover:text-foreground text-xs font-semibold w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-full transition-all"
+                    className="flex items-center justify-center gap-1.5 bg-white/20 dark:bg-card border border-black/10 dark:border-border hover:border-black/30 dark:hover:border-[#d4af37]/40 text-black/90 dark:text-foreground/90 hover:text-black dark:hover:text-foreground text-xs font-semibold w-9 h-9 sm:w-auto sm:px-3 sm:py-2 rounded-full transition-all"
                   >
                     <LogOut className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     <span className="hidden sm:inline">Logout</span>
@@ -261,7 +256,7 @@ export default function PremiumNavbar() {
                 <Link href="/login">
                   <motion.div
                     whileHover={{ scale: 1.04, y: -1 }}
-                    className="flex items-center gap-1.5 bg-[#d4af37] text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-[#c9a830] transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)]"
+                    className="flex items-center gap-1.5 bg-black dark:bg-[#d4af37] text-white dark:text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-zinc-800 dark:hover:bg-[#c9a830] transition-colors shadow-[0_0_15px_rgba(212,175,55,0.3)] hover:shadow-[0_0_25px_rgba(212,175,55,0.5)]"
                   >
                     <User className="w-3.5 h-3.5" /> Login
                   </motion.div>
@@ -270,17 +265,17 @@ export default function PremiumNavbar() {
 
               {/* Mobile hamburger */}
               <button
-                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 transition-all"
+                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white/20 dark:bg-card border border-black/10 dark:border-border hover:border-black/30 dark:hover:border-[#d4af37]/40 transition-all"
                 onClick={() => setMobileOpen(v => !v)}
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {mobileOpen ? (
                     <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                      <X className="w-4 h-4 text-[#d4af37]" />
+                      <X className="w-4 h-4 text-black dark:text-[#d4af37]" />
                     </motion.div>
                   ) : (
                     <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                      <Menu className="w-4 h-4 text-foreground/90" />
+                      <Menu className="w-4 h-4 text-black/90 dark:text-foreground/90" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -313,7 +308,7 @@ export default function PremiumNavbar() {
                     >
                       <Link
                         href={link.href}
-                        className={`flex items-center justify-between py-4 border-b border-border/50 text-lg font-semibold transition-colors ${active ? "text-[#d4af37]" : "text-foreground/90 hover:text-foreground"}`}
+                        className={`flex items-center justify-between py-4 border-b border-border/50 text-lg font-semibold transition-colors ${active ? "text-black dark:text-[#d4af37]" : "text-foreground/90 hover:text-foreground"}`}
                       >
                         {link.label}
                         {active && <span className="w-2 h-2 rounded-full bg-[#d4af37]" />}
@@ -362,7 +357,7 @@ export default function PremiumNavbar() {
                   </motion.div>
                 ) : (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }} className="mt-6">
-                    <Link href="/login" className="flex items-center justify-center gap-2 w-full bg-[#d4af37] text-black font-bold py-3.5 rounded-xl text-base">
+                    <Link href="/login" className="flex items-center justify-center gap-2 w-full bg-black dark:bg-[#d4af37] text-white dark:text-black font-bold py-3.5 rounded-xl text-base">
                       <User className="w-5 h-5" /> Login to Brilliant Academy
                     </Link>
                   </motion.div>
@@ -380,4 +375,5 @@ export default function PremiumNavbar() {
     </>
   );
 }
+
 
