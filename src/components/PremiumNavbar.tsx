@@ -187,29 +187,6 @@ export default function PremiumNavbar() {
               })}
             </nav>
 
-            {/* Ã¢â€â‚¬Ã¢â€â‚¬ RIGHT SIDE Ã¢â€â‚¬Ã¢â€â‚¬ */}
-            <div className="flex items-center gap-2 shrink-0">
-
-              {/* Teacher / Admin dashboard glowing button */}
-              <AnimatePresence>
-                {(isTeacher || isAdmin) && (
-                  <motion.div
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: "auto", opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden hidden md:block"
-                  >
-                    <Link href="/admin" className="relative group flex items-center rounded-full p-[1px] overflow-hidden bg-[#d4af37]/20">
-                      {/* moving gold border glow - visible only on hover */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_300deg,#f9e596_330deg,#d4af37_360deg)] opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-[spin_3s_linear_infinite]" />
-                      <div className="relative flex items-center gap-2 bg-background text-[#d4af37] text-xs font-bold px-4 py-2 rounded-full transition-all whitespace-nowrap w-full h-full">
-                        <LayoutDashboard className="w-3.5 h-3.5" />
-                        {isAdmin ? "Admin Dashboard" : "Teacher Dashboard"}
-                      </div>
-                    </Link>
-                  </motion.div>
-                )}
             {/* 3. RIGHT CONTROLS */}
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               {(isTeacher || isAdmin) && (
