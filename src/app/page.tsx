@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -236,7 +236,7 @@ export default function Home() {
                   variants={wordVariants}
                   initial="hidden"
                   animate={loadingComplete ? "visible" : "hidden"}
-                  className={`inline-block mr-3 ${word === "Brighter" || word === "Future" ? "text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] via-zinc-200 to-[#ffd700] drop-shadow-[0_0_10px_rgba(212,175,55,0.4)]" : ""}`}
+                  className={`inline-block mr-3 ${word === "Brighter" || word === "Future" ? "text-[#d4af37] drop-shadow-[0_0_10px_rgba(212,175,55,0.3)]" : ""}`}
                 >
                   {word}
                 </motion.span>
