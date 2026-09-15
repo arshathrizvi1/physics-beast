@@ -260,7 +260,7 @@ export default function Home() {
               className="max-w-xl relative group"
             >
               <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/30 to-[#d4af37]/0 rounded-full blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-              <div className="relative flex items-center bg-secondary border border-border rounded-full p-2 pl-4 md:pl-6 shadow-2xl">
+              <div className="relative flex items-center bg-white dark:bg-secondary border border-black/10 dark:border-border rounded-full p-2 pl-4 md:pl-6 shadow-2xl">
                 <Search className="w-5 h-5 text-zinc-500 mr-2 md:mr-3 shrink-0" />
                 <input 
                   type="text"
@@ -280,16 +280,16 @@ export default function Home() {
                 whileTap={{ scale: 0.95 }}
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-[#d4af37] via-[#f9e596] to-[#d4af37] rounded-full blur opacity-75 group-hover:opacity-100 animate-pulse transition duration-1000" />
-                <Link href="/courses" className="relative flex items-center justify-center bg-black px-8 py-4 rounded-full border border-[#d4af37]/50 text-foreground font-bold tracking-wider hover:bg-zinc-900 transition-colors">
+                <Link href="/courses" className="relative flex items-center justify-center bg-black px-8 py-4 rounded-full border border-[#d4af37]/50 text-white font-bold tracking-wider hover:bg-zinc-900 transition-colors">
                   START LEARNING
                 </Link>
               </motion.div>
               {/* Search Dropdown Results */}
               {showSearch && searchResults.length > 0 && (
-                <div className="absolute top-full mt-2 w-full bg-secondary border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                <div className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
                   {searchResults.map((r, i) => (
                     <Link key={i} href={`/course/${r.id}`} onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-800 transition-colors border-b border-border/50 last:border-0">
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-b border-black/10 dark:border-border/50 last:border-0">
                       {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
                       <div className="overflow-hidden">
                         <div className="text-foreground text-sm font-medium truncate">{r.title}</div>
@@ -300,7 +300,7 @@ export default function Home() {
                 </div>
               )}
               {showSearch && searchResults.length === 0 && searchQuery.trim() && (
-                <div className="absolute top-full mt-2 w-full bg-secondary border border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+                <div className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
                   <div className="px-5 py-4 text-zinc-500 text-sm">No results found for "{searchQuery}"</div>
                 </div>
               )}
@@ -938,5 +938,6 @@ function CheckIcon(props: any) {
     </svg>
   );
 }
+
 
 
