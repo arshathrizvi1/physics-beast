@@ -74,7 +74,7 @@ export default function PremiumNavbar() {
   const isTeacher = user?.role === "teacher";
 
   return ( <div className="dark"> <>
-      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ NAVBAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ NAVBAR Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <motion.header
         ref={navRef}
         onMouseMove={handleMouseMove}
@@ -124,7 +124,7 @@ export default function PremiumNavbar() {
 
           <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4 relative z-10">
 
-            {/* â”€â”€ LOGO â”€â”€ */}
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ LOGO Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={mounted ? { opacity: 1, scale: 1 } : {}}
@@ -155,7 +155,7 @@ export default function PremiumNavbar() {
               </Link>
             </motion.div>
 
-            {/* â”€â”€ DESKTOP NAV â”€â”€ */}
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ DESKTOP NAV Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map((link, i) => {
                 const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
@@ -187,7 +187,7 @@ export default function PremiumNavbar() {
               })}
             </nav>
 
-            {/* â”€â”€ RIGHT SIDE â”€â”€ */}
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ RIGHT SIDE Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <div className="flex items-center gap-2 shrink-0">
 
               {/* Teacher / Admin dashboard glowing button */}
@@ -225,7 +225,7 @@ export default function PremiumNavbar() {
               >
                 <Search className="w-3.5 h-3.5 text-[#F4E3A1]" />
                 <span className="w-24 text-left text-[#F3F3F3]">Search...</span>
-                <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-black/40 text-[9px] font-mono border border-white/10 text-zinc-500">⌘K</kbd>
+                <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-black/40 text-[9px] font-mono border border-white/10 text-zinc-500">âŒ˜K</kbd>
               </button>
 
               {user ? (
@@ -268,7 +268,6 @@ export default function PremiumNavbar() {
                   </motion.div>
                 </Link>
               )}
-            </div>
 
               {/* Mobile hamburger */}
               <button
@@ -293,7 +292,7 @@ export default function PremiumNavbar() {
 
       </motion.header>
 
-        {/* â”€â”€ MOBILE MENU â”€â”€ */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ MOBILE MENU Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
@@ -380,3 +379,4 @@ export default function PremiumNavbar() {
           onClose={() => setIsSearchModalOpen(false)}
         />
     </> </div> ); }
+
