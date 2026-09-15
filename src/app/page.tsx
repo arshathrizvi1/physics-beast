@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -90,7 +90,7 @@ export default function Home() {
   useEffect(() => {
     const fetchTopReviews = async () => {
       try {
-        // Simple query — only filter by rating to avoid needing a composite index
+        // Simple query â€” only filter by rating to avoid needing a composite index
         const q = query(
           collection(db, "reviews"),
           where("rating", ">=", 4),
@@ -105,7 +105,7 @@ export default function Home() {
           .slice(0, 20);
         setTopReviews(data);
       } catch {
-        // silently fail — no reviews yet is fine
+        // silently fail â€” no reviews yet is fine
       }
     };
     fetchTopReviews();
@@ -196,7 +196,7 @@ export default function Home() {
 
       <div className="min-h-screen bg-background text-foreground font-sans selection:bg-[#d4af37] selection:text-black overflow-hidden relative -mt-16 pt-16">
         
-        {/* 3. Hero Background — lightweight static glows only */}
+        {/* 3. Hero Background â€” lightweight static glows only */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#d4af37]/5 blur-[100px] rounded-full mix-blend-screen" />
@@ -356,7 +356,7 @@ export default function Home() {
         </section>
 
         {/* 7. Feature Cards Animation (Scroll Reveal) */}
-        <section className="border-y border-border/50 bg-[#0c0c0c] relative z-10">
+        <section className="border-y border-border/50 bg-zinc-50 dark:bg-[#0c0c0c] relative z-10">
           <div className="container mx-auto px-6 py-8">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               {[
@@ -414,7 +414,7 @@ export default function Home() {
         </section>
 
         {/* Popular Courses Section */}
-        <section className="bg-[#0c0c0c] py-24 relative z-10 border-t border-border/50">
+        <section className="bg-zinc-50 dark:bg-[#0c0c0c] py-24 relative z-10 border-t border-border/50">
           <div className="container mx-auto px-6">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
@@ -661,7 +661,7 @@ export default function Home() {
                             <div className="bg-zinc-900/60 border border-border/50 rounded-xl p-2 flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-lg bg-[#d4af37]/20 border border-[#d4af37]/40 flex items-center justify-center text-[#d4af37] font-bold text-xs">
-                                  🏆
+                                  ðŸ†
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-white leading-tight">Student XP Rank</p>
@@ -783,7 +783,7 @@ export default function Home() {
             </motion.h2>
           </div>
 
-          {/* Slider — only if we have reviews */}
+          {/* Slider â€” only if we have reviews */}
           {topReviews.length > 0 ? (
             <div className="relative w-full overflow-hidden mb-14">
               <div
@@ -938,4 +938,5 @@ function CheckIcon(props: any) {
     </svg>
   );
 }
+
 

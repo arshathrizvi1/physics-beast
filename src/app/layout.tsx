@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -70,7 +70,7 @@ export default function RootLayout({
                   {children}
                 </main>
 
-                <footer className="border-t border-border/50 py-12 bg-[#070707] pb-24 md:pb-12 print:hidden">
+                <footer className="border-t border-border/50 py-12 bg-zinc-100 dark:bg-[#070707] pb-24 md:pb-12 print:hidden">
                   <FooterContent />
                 </footer>
                 <MobileBottomNav />
@@ -84,4 +84,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
