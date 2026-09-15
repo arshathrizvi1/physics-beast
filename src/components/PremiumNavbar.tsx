@@ -144,13 +144,13 @@ export default function PremiumNavbar() {
                 <div className="hidden sm:flex flex-col uppercase leading-none justify-center">
                   {/* Gold shine sweep on BRILLIANT text (hover only) */}
                   <div className="relative overflow-hidden">
-                    <span className="font-bold text-[18px] tracking-widest font-serif text-[#d4af37]">Brilliant</span>
+                    <span className="font-bold text-[18px] tracking-widest font-serif text-[#C9A227]">Brilliant</span>
                     <div
                       className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-in-out"
                       style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
                     />
                   </div>
-                  <span className="text-muted-foreground text-[11px] tracking-[0.22em] font-sans">Academy</span>
+                  <span className="text-[#D8D8D8] text-[11px] tracking-[0.22em] font-sans">Academy</span>
                 </div>
               </Link>
             </motion.div>
@@ -167,7 +167,7 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.4 + i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   >
                     <Link href={link.href} className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5">
-                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#d4af37]" : "text-muted-foreground group-hover:text-foreground"}`}>
+                      <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#C9A227]" : "text-[#D8D8D8] group-hover:text-[#E7C866]"}`}>
                         {link.label}
                         {link.label === "Live" && isLive && (
                           <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
@@ -248,7 +248,7 @@ export default function PremiumNavbar() {
 
               {/* Mobile hamburger */}
               <button
-                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-card border border-border hover:border-[#d4af37]/40 transition-all"
+                className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-[#1B1B1B] border border-[#C9A227]/40 hover:border-[#C9A227] transition-all duration-200"
                 onClick={() => setMobileOpen(v => !v)}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -277,7 +277,7 @@ export default function PremiumNavbar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-[#d4af37]/20"
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-[#111111]/98 backdrop-blur-md border-t border-[#C9A227]/30"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
@@ -291,7 +291,7 @@ export default function PremiumNavbar() {
                     >
                       <Link
                         href={link.href}
-                        className={`flex items-center justify-between py-4 border-b border-border/50 text-lg font-semibold transition-colors ${active ? "text-[#d4af37]" : "text-foreground/90 hover:text-foreground"}`}
+                        className={`flex items-center justify-between py-4 border-b border-[#242424] text-lg font-semibold transition-colors ${active ? "text-[#C9A227]" : "text-[#D8D8D8] hover:text-[#E7C866]"}`}
                       >
                         {link.label}
                         {active && <span className="w-2 h-2 rounded-full bg-[#d4af37]" />}
