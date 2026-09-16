@@ -1092,6 +1092,51 @@ export default function AdminDashboard() {
     return () => unsub();
   }, [user]);
 
+  // Auto-create Monthly Live Classes course for any teacher that doesn't have one
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    if (teamMembers.length === 0 || courses.length === 0 || subjects.length === 0) return;
+
+    const autoCreateMonthlyCourses = async () => {
+      const teachers = teamMembers.filter(m => m.role === 'teacher' && m.isApproved);
+      for (const teacher of teachers) {
+        if (!teacher.subject) continue; // Skip if no subject assigned
+
+        const hasMonthly = courses.some(c => c.teacherId === teacher.id && c.isMonthly);
+        if (!hasMonthly) {
+          try {
+            const subject = subjects.find(s => s.name === teacher.subject);
+            if (!subject) continue;
+
+            console.log(`Auto-creating Monthly Live Classes course for ${teacher.name}`);
+            const ref = doc(collection(db, 'courses'));
+            await setDoc(ref, {
+              name: `${teacher.subject} Monthly Live Classes`,
+              description: `Access all live classes, recordings, and PDF notes for ${teacher.subject}.`,
+              subjectId: subject.id,
+              subjectName: subject.name,
+              teacherId: teacher.id,
+              teacherName: teacher.name || teacher.email?.split('@')[0],
+              teacherSubject: teacher.subject,
+              batchId: 'all',
+              isMonthly: true,
+              createdAt: Date.now()
+            });
+          } catch (e) {
+            console.error("Auto-create monthly course failed", e);
+          }
+        }
+      }
+    };
+    
+    // Slight delay to ensure state settles and prevent rapid re-fires on mount
+    const timeout = setTimeout(() => {
+      autoCreateMonthlyCourses();
+    }, 2000);
+    
+    return () => clearTimeout(timeout);
+  }, [user, teamMembers, courses, subjects]);
+
   // Pre-fill profile fields when user loads
   useEffect(() => {
     if (user) {
