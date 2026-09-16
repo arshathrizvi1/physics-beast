@@ -284,7 +284,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={loadingComplete ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 0.6, duration: 0.8 }}
-              className="text-lg lg:text-xl text-muted-foreground max-w-xl"
+              className="text-[15px] sm:text-base lg:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
               Learn from expert instructors, gain in-demand skills, and turn your goals into real opportunities with Brilliant Academy.
             </motion.p>
@@ -322,20 +322,31 @@ export default function Home() {
                 </Link>
               </motion.div>
               {/* Search Dropdown Results */}
-              {showSearch && searchResults.length > 0 && (
-                <div className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
-                  {searchResults.map((r, i) => (
-                    <Link key={i} href={`/course/${r.id}`} onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-b border-black/10 dark:border-border/50 last:border-0">
-                      {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
-                      <div className="overflow-hidden">
-                        <div className="text-foreground text-sm font-medium truncate">{r.title}</div>
-                        <div className="text-zinc-500 text-xs truncate">{r.subtitle}</div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
+              <motion.div 
+                initial={false}
+                animate={{ height: showSearch && searchResults.length > 0 ? 'auto' : 0, opacity: showSearch && searchResults.length > 0 ? 1 : 0 }}
+                className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50 flex flex-col"
+              >
+                {searchResults.slice(0, 5).map((r, i) => (
+                  <Link 
+                    key={i} 
+                    href={`/course/${r.id}`}
+                    onClick={() => { setSearchQuery(""); setShowSearch(false); }}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-b border-black/10 dark:border-border/50 last:border-0"
+                  >
+                    {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
+                    <div className="overflow-hidden">
+                      <div className="text-foreground text-sm font-medium truncate">{r.title}</div>
+                      <div className="text-zinc-500 text-xs truncate">{r.subtitle}</div>
+                    </div>
+                  </Link>
+                ))}
+                {searchResults.length > 5 && (
+                  <div className="px-5 py-2 text-xs text-center text-[#d4af37] font-medium border-t border-black/5 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/50">
+                    +{searchResults.length - 5} more results
+                  </div>
+                )}
+              </motion.div>
               {showSearch && searchResults.length === 0 && searchQuery.trim() && (
                 <div className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
                   <div className="px-5 py-4 text-zinc-500 text-sm">No results found for "{searchQuery}"</div>
@@ -347,12 +358,12 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={loadingComplete ? { opacity: 1 } : {}}
               transition={{ delay: 1, duration: 0.8 }}
-              className="flex flex-wrap items-center gap-3 text-sm text-zinc-500"
+              className="flex items-center gap-3 text-sm text-zinc-500 w-full overflow-hidden"
             >
-              <span className="font-semibold text-muted-foreground">Popular:</span>
-              <div className="flex flex-wrap gap-2">
+              <span className="font-semibold text-muted-foreground shrink-0">Popular:</span>
+              <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-4 -mb-4 pr-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {courses.slice(0, 5).map(c => (
-                  <Link key={c.id} href={`/course/${c.id}`} title={c.name} className="px-3 py-1 rounded-full bg-zinc-900 border border-border hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors text-xs text-center max-w-[150px] truncate">
+                  <Link key={c.id} href={`/course/${c.id}`} title={c.name} className="px-3 py-1 rounded-full shrink-0 bg-zinc-900 border border-border hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors text-[11px] sm:text-xs text-center max-w-[150px] truncate">
                     {c.name.length > 16 ? c.name.substring(0, 16) + '...' : c.name}
                   </Link>
                 ))}
