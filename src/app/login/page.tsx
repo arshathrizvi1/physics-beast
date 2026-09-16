@@ -471,27 +471,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Technical Support Action Banner */}
-        <Card className="border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
-          <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/30">
-                <ShieldAlert className="w-6 h-6 text-amber-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base sm:text-lg text-foreground">Facing Technical Issues or Glitches?</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">Report video loading errors, quality issues, or exam glitches directly to System Administrators.</p>
-              </div>
-            </div>
-            <Button 
-              onClick={() => setIsReportModalOpen(true)}
-              className="bg-amber-500 text-black font-bold hover:bg-amber-400 shrink-0 gap-2 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] w-full sm:w-auto"
-            >
-              <ShieldAlert className="w-4 h-4" /> Report Issue to Admin
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Global Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           <Card className="border-secondary/50 bg-card hover:bg-secondary/5 transition-colors">
@@ -663,6 +642,27 @@ export default function LoginPage() {
         </Card>
 
           <PasskeySettings />
+
+        {/* Technical Support Action Banner */}
+        <Card className="border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
+          <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <ShieldAlert className="w-6 h-6 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base sm:text-lg text-foreground">Facing Technical Issues or Glitches?</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">Report video loading errors, quality issues, or exam glitches directly to System Administrators.</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setIsReportModalOpen(true)}
+              className="bg-amber-500 text-black font-bold hover:bg-amber-400 shrink-0 gap-2 rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.2)] w-full sm:w-auto"
+            >
+              <ShieldAlert className="w-4 h-4" /> Report Issue to Admin
+            </Button>
+          </CardContent>
+        </Card>
           <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
       </div>
     );
@@ -970,5 +970,6 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
 
