@@ -28,6 +28,15 @@ function CoursesContent() {
   const [dbError, setDbError] = useState(false);
   const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
 
+  // Sync state with URL params on client-side navigation
+  useEffect(() => {
+    setSelectedTeacherId(viewTeacher || "all");
+  }, [viewTeacher]);
+
+  useEffect(() => {
+    setSelectedSubjectId(viewSubject || "");
+  }, [viewSubject]);
+
   const { user } = useAuth();
 
   useEffect(() => {
