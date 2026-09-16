@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle, TrendingUp } from "lucide-react";
+import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Database, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -1072,7 +1072,62 @@ export default function AdminDashboard() {
     correct: "A" 
   }]);
 
+  const [isMigratingData, setIsMigratingData] = useState(false);
+  const [migrationLog, setMigrationLog] = useState<string[]>([]);
 
+  const handleMigrateLegacyData = async () => {
+    setIsMigratingData(true);
+    setMigrationLog(prev => [...prev, "Starting migration..."]);
+    try {
+      const dataURLtoFile = (dataurl: string, filename: string) => {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+        const bstr = atob(arr[1]); 
+        let n = bstr.length; 
+        const u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, {type: mime});
+      };
+
+      // Migrate Users (NICs)
+      setMigrationLog(prev => [...prev, "Fetching users with Base64 NIC..."]);
+      const usersSnap = await getDocs(collection(db, 'users'));
+      let userCount = 0;
+      for (const userDoc of usersSnap.docs) {
+        const data = userDoc.data();
+        if (data.nicUrl && data.nicUrl.startsWith('data:')) {
+          setMigrationLog(prev => [...prev, `Migrating NIC for user ${data.email}...`]);
+          const file = dataURLtoFile(data.nicUrl, `nic-${userDoc.id}.jpg`);
+          const newUrl = await uploadToS3(file, "student-nic", true);
+          await updateDoc(doc(db, 'users', userDoc.id), { nicUrl: newUrl });
+          userCount++;
+        }
+      }
+
+      // Migrate Payments
+      setMigrationLog(prev => [...prev, "Fetching payments with Base64 receipts..."]);
+      const paymentsSnap = await getDocs(collection(db, 'payments'));
+      let paymentCount = 0;
+      for (const payDoc of paymentsSnap.docs) {
+        const data = payDoc.data();
+        if (data.receiptBase64 && data.receiptBase64.startsWith('data:')) {
+          setMigrationLog(prev => [...prev, `Migrating receipt for payment ${payDoc.id}...`]);
+          const file = dataURLtoFile(data.receiptBase64, `receipt-${payDoc.id}.jpg`);
+          const newUrl = await uploadToS3(file, "payment-receipts", true);
+          await updateDoc(doc(db, 'payments', payDoc.id), { receiptUrl: newUrl, receiptBase64: "" });
+          paymentCount++;
+        }
+      }
+
+      setMigrationLog(prev => [...prev, `✅ Migration Complete! Updated ${userCount} users and ${paymentCount} payments.`]);
+    } catch (e: any) {
+      setMigrationLog(prev => [...prev, `❌ Error: ${e.message}`]);
+    } finally {
+      setIsMigratingData(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -4280,6 +4335,38 @@ export default function AdminDashboard() {
         {/* SITE SETTINGS TAB */}
         <TabsContent value="site" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            {/* Legacy Data Migration Card */}
+            <Card className="border-red-500/30 shadow-md hover:shadow-lg hover:border-red-500/60 transition-all group">
+              <CardHeader className="bg-red-500/5 border-b border-red-500/20 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg text-red-500">
+                  <Database className="w-6 h-6" />
+                  Data Migration
+                </CardTitle>
+                <CardDescription>
+                  Migrate legacy Base64 images from Firestore to Bunny CDN Storage.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                <div className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 text-xs text-muted-foreground space-y-1.5 h-32 overflow-y-auto">
+                  {migrationLog.length === 0 ? (
+                    <p>Click below to find and migrate old database images.</p>
+                  ) : (
+                    migrationLog.map((log, i) => <p key={i}>{log}</p>)
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="border-t border-border/50 bg-secondary/5 py-3">
+                <Button 
+                  className="w-full bg-red-500 hover:bg-red-600" 
+                  onClick={handleMigrateLegacyData} 
+                  disabled={isMigratingData}
+                >
+                  {isMigratingData ? "Migrating..." : "Run Migration"}
+                </Button>
+              </CardFooter>
+            </Card>
+
             {/* Footer Editor Card */}
             <Card className="border-primary/30 shadow-md hover:shadow-lg hover:border-primary/60 transition-all group">
               <CardHeader className="bg-primary/5 border-b border-primary/20 pb-4">

@@ -11,7 +11,32 @@ import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const CourseCard = ({ course, viewStyle, setSelectedTeacherId }: { course: any, viewStyle: string, setSelectedTeacherId: (id: string) => void }) => {
+const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: { course: any, viewStyle: string, setSelectedTeacherId: (id: string) => void, user: any, folders: any[] }) => {
+  let isPaid = false;
+  let paidStatus: React.ReactNode = null;
+
+  if (user) {
+    if (user.role === 'admin' || user.role === 'teacher') {
+      isPaid = true;
+      paidStatus = <span className="text-green-500 font-bold text-[11px] bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">Full Access (Staff)</span>;
+    } else if (user.accessibleCourses && user.accessibleCourses.includes(course.id)) {
+      isPaid = true;
+      paidStatus = <span className="text-green-500 font-bold text-[11px] bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">Paid: Full Course</span>;
+    } else {
+      const courseFolders = folders.filter(f => f.courseId === course.id);
+      const paidFolders = courseFolders.filter(f => user.folderAccess && user.folderAccess[f.id] && user.folderAccess[f.id] > Date.now());
+      if (paidFolders.length > 0) {
+        isPaid = true;
+        const displayNames = paidFolders.slice(0, 2).map(f => f.name).join(", ");
+        const moreCount = paidFolders.length - 2;
+        const text = `Paid: ${displayNames}${moreCount > 0 ? ` +${moreCount} more` : ''}`;
+        paidStatus = <span className="text-green-500 font-bold text-[11px] bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20 truncate max-w-full inline-block" title={text}>{text}</span>;
+      } else {
+        paidStatus = <span className="text-red-500 font-bold text-[11px] bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">Not Paid</span>;
+      }
+    }
+  }
+
   if (course.isMonthly) {
     return (
       <Link key={course.id} href={`/course/${course.id}`}>
@@ -413,7 +438,7 @@ function CoursesContent() {
           </div>
           <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
             {activatedCourses.map((course) => (
-              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} />
+              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} user={user} folders={folders} />
             ))}
           </div>
         </div>
@@ -567,7 +592,7 @@ function CoursesContent() {
           
           <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
             {availableCourses.map((course) => (
-              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} />
+              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} user={user} folders={folders} />
             ))}
           </div>
         </div>
