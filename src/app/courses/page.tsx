@@ -113,7 +113,11 @@ function CoursesContent() {
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
-  const topMonthlyCourses = courses.filter(c => c.isMonthly && (!selectedSubjectId || selectedSubjectId === "all" || c.subjectId === selectedSubjectId));
+  const topMonthlyCourses = courses.filter(c => 
+    c.isMonthly && 
+    (!selectedSubjectId || selectedSubjectId === "all" || c.subjectId === selectedSubjectId) &&
+    (selectedTeacherId === "all" || c.teacherId === selectedTeacherId)
+  );
   const coursesWithProgress = displayedCourses.map(course => {
     const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
     const userProgress = user?.videoProgress || {};
