@@ -66,6 +66,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
               <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white line-clamp-2">
                 {course.name || course.title}
               </CardTitle>
+              <div className="mt-2">{paidStatus}</div>
               {course.description && (
                 <p className={`text-xs text-zinc-400 mt-2 ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>
                   {course.description}
@@ -126,6 +127,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
         <div className="flex flex-col flex-1 min-w-0">
           <CardHeader className={`flex-grow p-3 sm:p-6 ${viewStyle === 'list' ? 'pb-2' : ''}`}>
             <CardTitle className="text-sm sm:text-lg leading-tight line-clamp-2">{course.name || course.title}</CardTitle>
+            <div className="mt-2">{paidStatus}</div>
             {course.teacherName && (
               <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-primary font-medium mt-1">
                 <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
