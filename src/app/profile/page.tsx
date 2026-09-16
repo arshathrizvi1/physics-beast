@@ -24,6 +24,7 @@ export default function StudentProfilePage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
+    const [isPfpModalOpen, setIsPfpModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -222,3 +223,4 @@ export default function StudentProfilePage() {
     </div>
   );
 }
+

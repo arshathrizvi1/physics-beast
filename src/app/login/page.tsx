@@ -44,6 +44,7 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [isGoogleSignupForm, setIsGoogleSignupForm] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isPfpModalOpen, setIsPfpModalOpen] = useState(false);
   const [isWebAuthnSupported, setIsWebAuthnSupported] = useState(false);
 
   useEffect(() => {
@@ -419,7 +420,11 @@ export default function LoginPage() {
         {/* Profile Header */}
         <div className="flex flex-col md:flex-row items-start justify-between gap-6 bg-secondary/10 p-4 sm:p-6 rounded-2xl border border-secondary/30">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 w-full md:w-auto">
-            <label className="relative group cursor-pointer shrink-0">
+            <button 
+              type="button"
+              onClick={() => setIsPfpModalOpen(true)}
+              className="relative group cursor-pointer shrink-0 outline-none rounded-full"
+            >
               {user.photoUrl ? (
                 <img src={user.photoUrl} alt="Profile" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-primary/50 object-cover" />
               ) : (
@@ -428,10 +433,9 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[10px] sm:text-xs text-foreground font-bold">{isUploadingPfp ? "Uploading..." : "Change PFP"}</span>
+                <span className="text-[10px] sm:text-xs text-foreground font-bold">View PFP</span>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
-            </label>
+            </button>
             <div className="flex flex-col items-center sm:items-start max-w-full overflow-hidden">
               <div className="flex items-center gap-2 mb-2">
                 <h1 className="text-2xl sm:text-3xl font-bold truncate">{user.name || user.email.split('@')[0]}</h1>
@@ -664,6 +668,36 @@ export default function LoginPage() {
           </CardContent>
         </Card>
           <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
+          
+          {isPfpModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
+              <div className="bg-card border border-secondary/50 rounded-2xl p-6 max-w-sm w-full relative flex flex-col items-center gap-6 shadow-2xl">
+                <button 
+                  onClick={() => setIsPfpModalOpen(false)}
+                  className="absolute top-4 right-4 p-2 bg-secondary/20 hover:bg-secondary/40 rounded-full transition-colors"
+                >
+                  <XCircle className="w-5 h-5 text-muted-foreground hover:text-foreground" />
+                </button>
+                <h3 className="text-xl font-bold">Profile Picture</h3>
+                <div className="relative">
+                  {user.photoUrl ? (
+                    <img src={user.photoUrl} alt="Profile" className="w-48 h-48 sm:w-56 sm:h-56 rounded-full border-4 border-primary object-cover shadow-lg" />
+                  ) : (
+                    <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-primary/20 border-4 border-primary flex items-center justify-center text-6xl font-bold text-primary shadow-lg">
+                      {user.name ? user.name[0].toUpperCase() : user.email[0].toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <label className="w-full">
+                  <div className="bg-primary hover:brightness-110 text-primary-foreground font-bold py-3 px-4 rounded-xl text-center cursor-pointer transition-all w-full flex items-center justify-center gap-2">
+                    {isUploadingPfp ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit2 className="w-5 h-5" />}
+                    {isUploadingPfp ? "Uploading..." : "Change Profile Picture"}
+                  </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
+                </label>
+              </div>
+            </div>
+          )}
       </div>
     );
   }
@@ -970,6 +1004,7 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
 
 
