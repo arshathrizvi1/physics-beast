@@ -464,8 +464,8 @@ export default function Home() {
         </section>
 
         {/* Popular Courses Section */}
-        <section className="bg-zinc-50 dark:bg-[#0c0c0c] py-24 relative z-10 border-t border-border/50">
-          <div className="container mx-auto px-6 mb-10">
+        <section className="bg-zinc-50 dark:bg-[#0c0c0c] py-12 md:py-24 relative z-10 border-t border-border/50">
+          <div className="container mx-auto px-6 mb-8 md:mb-10">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -473,10 +473,10 @@ export default function Home() {
               className="flex justify-between items-end"
             >
               <div>
-                <h2 className="text-4xl font-bold text-foreground mb-4">Popular Courses</h2>
-                <p className="text-muted-foreground">Explore our most in-demand courses and start learning today.</p>
+                <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2 md:mb-4">Popular Courses</h2>
+                <p className="text-sm md:text-base text-muted-foreground">Explore our most in-demand courses and start learning today.</p>
               </div>
-              <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors">
+              <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors text-sm md:text-base shrink-0 ml-4">
                 <span className="hidden sm:inline">View All Courses</span> <ArrowRight className="w-4 h-4" />
               </Link>
             </motion.div>
@@ -489,16 +489,16 @@ export default function Home() {
               onMouseLeave={onMouseLeave}
               onMouseUp={onMouseUp}
               onMouseMove={onMouseMove}
-              className={`flex gap-6 px-6 overflow-x-auto snap-x snap-mandatory pb-8 pt-4 -mt-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+              className={`flex gap-4 md:gap-6 px-6 overflow-x-auto snap-x snap-mandatory pb-6 pt-2 md:pb-8 md:pt-4 -mt-2 md:-mt-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
             >
               {courses.length > 0 ? courses.map((course, i) => (
                 <div
                   key={course.id}
-                  className="group shrink-0 w-[280px] sm:w-[320px] snap-center sm:snap-start"
+                  className="group shrink-0 w-[220px] sm:w-[320px] snap-center sm:snap-start"
                 >
                   <Link href={`/course/${course.id}`} className="block h-full" draggable={false}>
                     <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col" style={{ pointerEvents: isDragging ? 'none' : 'auto' }}>
-                      <div className="relative h-48 overflow-hidden bg-zinc-900">
+                      <div className="relative h-32 sm:h-48 overflow-hidden bg-zinc-900">
                         {/* 11. Course Image Hover Animation */}
                         <motion.img 
                           whileHover={{ scale: 1.1 }}
@@ -510,21 +510,21 @@ export default function Home() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
                       </div>
-                      <CardHeader className="p-5 pb-0 flex-1">
-                        <CardTitle className="text-xl font-bold text-foreground group-hover:text-[#d4af37] transition-colors">{course.name}</CardTitle>
+                      <CardHeader className="p-4 sm:p-5 pb-0 flex-1">
+                        <CardTitle className="text-base sm:text-xl font-bold text-foreground group-hover:text-[#d4af37] transition-colors line-clamp-2">{course.name}</CardTitle>
                         {course.description && (
-                          <CardDescription className="text-muted-foreground line-clamp-2 mt-2">
+                          <CardDescription className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1 sm:mt-2">
                             {course.description}
                           </CardDescription>
                         )}
                       </CardHeader>
-                      <CardFooter className="p-5 pt-4 flex justify-between items-center text-sm border-t border-border/50 mt-4">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Users className="w-4 h-4" />
-                          <span>{Math.floor(Math.random() * 200 + 50)} students</span>
+                      <CardFooter className="p-4 sm:p-5 pt-3 sm:pt-4 flex justify-between items-center text-xs sm:text-sm border-t border-border/50 mt-3 sm:mt-4">
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+                          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                          <span className="truncate">{Math.floor(Math.random() * 200 + 50)} students</span>
                         </div>
-                        <div className="flex items-center gap-1 text-[#d4af37]">
-                          <Star className="w-4 h-4 fill-current" />
+                        <div className="flex items-center gap-1 text-[#d4af37] shrink-0">
+                          <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
                           <span className="font-bold">{(Math.random() * 0.5 + 4.5).toFixed(1)}</span>
                         </div>
                       </CardFooter>
@@ -534,23 +534,23 @@ export default function Home() {
               )) : (
                 // Skeleton placeholders if no courses fetched yet
                 [...Array(4)].map((_, i) => (
-                  <div key={i} className="shrink-0 w-[280px] sm:w-[320px] snap-start">
-                    <Card className="bg-card border-border h-[320px] animate-pulse">
-                      <div className="h-48 bg-zinc-900" />
-                      <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
+                  <div key={i} className="shrink-0 w-[220px] sm:w-[320px] snap-start">
+                    <Card className="bg-card border-border h-[260px] sm:h-[320px] animate-pulse">
+                      <div className="h-32 sm:h-48 bg-zinc-900" />
+                      <CardHeader className="p-4 sm:p-5"><div className="h-5 sm:h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
                     </Card>
                   </div>
                 ))
               )}
             </div>
             
-            <div className="absolute top-0 bottom-0 left-0 w-8 sm:w-16 bg-gradient-to-r from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
-            <div className="absolute top-0 bottom-0 right-0 w-8 sm:w-16 bg-gradient-to-l from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 left-0 w-6 sm:w-16 bg-gradient-to-r from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 right-0 w-6 sm:w-16 bg-gradient-to-l from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
           </div>
         </section>
 
         {/* 13. About Section Animation */}
-        <section className="py-24 relative z-10 overflow-hidden">
+        <section className="py-12 md:py-24 relative z-10 overflow-hidden">
           <div className="container mx-auto px-6">
             <div className="flex flex-col lg:flex-row items-center gap-16 bg-card border border-border rounded-[2.5rem] p-8 lg:p-16">
               
