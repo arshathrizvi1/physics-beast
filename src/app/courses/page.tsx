@@ -372,7 +372,7 @@ function CoursesContent() {
                 <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
                   <BookOpen className={`w-10 h-10 ${selectedSubjectId === "all" ? "text-primary" : "text-muted-foreground"}`} />
                 </div>
-                <div className={`p-3 ${selectedSubjectId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                <div className={`p-3 ${selectedSubjectId === "all" ? "bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black" : "bg-secondary/10"}`}>
                   <p className="font-bold text-sm leading-tight">All Subjects</p>
                 </div>
               </button>
@@ -401,7 +401,7 @@ function CoursesContent() {
                       {subject.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <div className={`p-3 ${selectedSubjectId === subject.id ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                  <div className={`p-3 ${selectedSubjectId === subject.id ? "bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black" : "bg-secondary/10"}`}>
                     <p className="font-bold text-sm leading-tight truncate">{subject.name}</p>
                   </div>
                 </button>
@@ -485,9 +485,9 @@ function CoursesContent() {
                 <div className={`w-full aspect-square flex items-center justify-center ${selectedTeacherId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
                   <GraduationCap className={`w-12 h-12 ${selectedTeacherId === "all" ? "text-primary" : "text-muted-foreground"}`} />
                 </div>
-                <div className={`p-3 ${selectedTeacherId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                <div className={`p-3 ${selectedTeacherId === "all" ? "bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black" : "bg-secondary/10"}`}>
                   <p className="font-bold text-sm leading-tight">All Teachers</p>
-                  <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.filter(c => c.subjectId === selectedSubjectId).length} courses</p>
+                  <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-black/80" : "text-muted-foreground"}`}>{courses.filter(c => c.subjectId === selectedSubjectId).length} courses</p>
                 </div>
               </Link>
             )}
@@ -522,14 +522,14 @@ function CoursesContent() {
                       </div>
                     )}
                   </div>
-                  <div className={`p-3 ${isSelected ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                  <div className={`p-3 ${isSelected ? "bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black" : "bg-secondary/10"}`}>
                     <p className="font-bold text-sm leading-tight truncate">{displayName}</p>
                     {teacher.subject && (
-                      <p className={`text-xs mt-0.5 ${isSelected ? "text-primary-foreground/80" : "text-primary"}`}>
+                      <p className={`text-xs mt-0.5 ${isSelected ? "text-black/80" : "text-primary"}`}>
                         {teacher.subject}
                       </p>
                     )}
-                    <p className={`text-xs mt-0.5 ${isSelected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    <p className={`text-xs mt-0.5 ${isSelected ? "text-black/70" : "text-muted-foreground"}`}>
                       {teacherCourseCount} course{teacherCourseCount !== 1 ? 's' : ''}
                     </p>
                   </div>
