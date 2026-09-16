@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase";
+import { uploadToS3 } from "@/lib/s3Storage";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, increment, onSnapshot, addDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -515,63 +516,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     setIsSubmittingPayment(true);
     try {
-      let receiptBase64 = "";
+      let receiptUrl = "";
 
       if (paymentMethod === 'bank' && receiptFile) {
-        const isPdf = receiptFile.type === 'application/pdf' || receiptFile.name.toLowerCase().endsWith('.pdf');
-
-        if (isPdf) {
-          // Check file size (Firestore document limit is 1MB, so max 800KB for PDF)
-          if (receiptFile.size > 800 * 1024) {
-            alert("❌ PDF file is too large (max 800KB). Please upload a smaller PDF or a screenshot image of your payment slip.");
-            setIsSubmittingPayment(false);
-            return;
-          }
-
-          try {
-            receiptBase64 = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = () => reject(new Error("Failed to read PDF file"));
-              reader.readAsDataURL(receiptFile);
-            });
-          } catch (pdfErr: any) {
-            alert(`❌ Failed to process PDF: ${pdfErr.message}`);
-            setIsSubmittingPayment(false);
-            return;
-          }
-        } else {
-          // Compress image in-browser and convert to base64 (no Firebase Storage needed)
-          try {
-            receiptBase64 = await new Promise<string>((resolve, reject) => {
-              const img = new Image();
-              const objectUrl = URL.createObjectURL(receiptFile);
-              img.onload = () => {
-                URL.revokeObjectURL(objectUrl);
-                // Scale down to max 900px wide while keeping aspect ratio
-                const MAX = 900;
-                let { width, height } = img;
-                if (width > MAX) { height = Math.round(height * MAX / width); width = MAX; }
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-                canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
-                // Compress to JPEG at 70% quality → typically 50–150KB
-                const base64 = canvas.toDataURL('image/jpeg', 0.7);
-                resolve(base64);
-              };
-              img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("Image load failed")); };
-              img.src = objectUrl;
-            });
-          } catch (compressError: any) {
-            alert(`❌ Failed to process receipt image: ${compressError.message}`);
-            setIsSubmittingPayment(false);
-            return;
-          }
+        try {
+          // Upload directly to Bunny CDN (forceBunny = true)
+          receiptUrl = await uploadToS3(receiptFile, "payment-receipts", true);
+        } catch (uploadErr: any) {
+          alert(`❌ Failed to upload receipt: ${uploadErr.message}`);
+          setIsSubmittingPayment(false);
+          return;
         }
       }
 
-      // Save payment record to Firestore (receipt stored as compressed base64)
+      // Save payment record to Firestore
       try {
         await addDoc(collection(db, "payments"), {
           studentId: user.uid,
@@ -585,8 +543,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           teacherName: course.teacherName || null,
           amount: checkoutFolder.price || 0,
           method: paymentMethod,
-          receiptUrl: "",         // kept for schema compatibility
-          receiptBase64,          // compressed image stored directly in Firestore
+          receiptUrl: receiptUrl,
           status: paymentMethod === 'card' ? 'approved' : 'pending',
           createdAt: Date.now()
         });

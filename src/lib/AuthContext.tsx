@@ -17,6 +17,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
+import { uploadToS3 } from './s3Storage';
 import { calculateXpLevel } from './xp';
 
 const safeStorage = {
@@ -643,45 +644,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let nicUrl = "";
       if (nicFile) {
         try {
-          nicUrl = await new Promise<string>((resolve, reject) => {
-            if (nicFile.type === 'application/pdf') {
-              if (nicFile.size > 800 * 1024) return reject(new Error("PDF too large"));
-              const r = new FileReader();
-              r.onload = () => resolve(r.result as string);
-              r.onerror = reject;
-              r.readAsDataURL(nicFile);
-              return;
-            }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = new Image();
-              img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const MAX_WIDTH = 900;
-                if (width > MAX_WIDTH) {
-                  height = Math.round((height * MAX_WIDTH) / width);
-                  width = MAX_WIDTH;
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                  ctx.drawImage(img, 0, 0, width, height);
-                  resolve(canvas.toDataURL('image/jpeg', 0.7));
-                } else {
-                  resolve(e.target?.result as string);
-                }
-              };
-              img.onerror = reject;
-              if (e.target?.result) img.src = e.target.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(nicFile);
-          });
+          nicUrl = await uploadToS3(nicFile, "student-nic", true);
         } catch (uploadError) {
-          console.error("NIC base64 conversion failed:", uploadError);
+          console.error("NIC upload failed:", uploadError);
           // Continue anyway, maybe they can upload later
         }
       }
@@ -1042,26 +1007,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let nicUrl = "";
       if (nicFile) {
         try {
-          nicUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              const img = new Image();
-              img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width; let height = img.height;
-                if (width > 900) { height = Math.round((height * 900) / width); width = 900; }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) { ctx.drawImage(img, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', 0.7)); }
-                else resolve(e.target?.result as string);
-              };
-              img.onerror = reject;
-              if (e.target?.result) img.src = e.target.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(nicFile);
-          });
-        } catch (uploadError) {}
+          nicUrl = await uploadToS3(nicFile, "student-nic", true);
+        } catch (uploadError) {
+          console.error("NIC upload failed:", uploadError);
+        }
       }
 
       const newDeviceId = Math.random().toString(36).substring(2, 15);
