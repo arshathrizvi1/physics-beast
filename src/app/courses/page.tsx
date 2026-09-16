@@ -320,7 +320,7 @@ function CoursesContent() {
             {selectedTeacherId !== "all" && displayedTeachers.length > 1 && (
               <Link 
                 href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
-                target="_blank"
+                
                 className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-primary h-7 px-2" })}
               >
                 Show All Courses ({courses.length})
@@ -333,7 +333,7 @@ function CoursesContent() {
             {/* All Teachers card */}
             {displayedTeachers.length > 1 && (
               <Link
-                target="_blank"
+                
                 href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
                 className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                   selectedTeacherId === "all"
@@ -358,7 +358,7 @@ function CoursesContent() {
               return (
                 <Link
                   key={teacher.id}
-                  target="_blank"
+                  
                   href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=${teacher.id}`}
                   className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     isSelected
