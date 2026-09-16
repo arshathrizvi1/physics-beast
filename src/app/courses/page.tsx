@@ -130,6 +130,22 @@ function CoursesContent() {
   const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100 && !c.isMonthly);
   const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100 && !c.isMonthly);
 
+  const displayedSubjects = subjects.filter(s => !user?.stream || (s.streamNames || []).includes(user.stream) || s.streamName === user.stream);
+  const displayedTeachers = teachers.filter(teacher => courses.some(c => c.subjectId === selectedSubjectId && c.teacherId === teacher.id));
+
+  // Auto-select if only one option exists
+  useEffect(() => {
+    if (displayedSubjects.length === 1 && selectedSubjectId !== displayedSubjects[0].id && !isViewMode) {
+      setSelectedSubjectId(displayedSubjects[0].id);
+    }
+  }, [displayedSubjects.length, displayedSubjects[0]?.id, selectedSubjectId, isViewMode]);
+
+  useEffect(() => {
+    if (displayedTeachers.length === 1 && selectedTeacherId !== displayedTeachers[0].id && !isViewMode) {
+      setSelectedTeacherId(displayedTeachers[0].id);
+    }
+  }, [displayedTeachers.length, displayedTeachers[0]?.id, selectedTeacherId, isViewMode]);
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {!isViewMode ? (
@@ -162,7 +178,7 @@ function CoursesContent() {
                 Choose a subject to see its available courses.
               </p>
             </div>
-            {selectedSubjectId !== "all" && (
+            {selectedSubjectId !== "all" && displayedSubjects.length > 1 && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -175,24 +191,24 @@ function CoursesContent() {
           </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            <button
-              onClick={() => setSelectedSubjectId("all")}
-              className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
-                selectedSubjectId === "all"
-                  ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                  : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
-              }`}
-            >
-              <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
-                <BookOpen className={`w-10 h-10 ${selectedSubjectId === "all" ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
-              <div className={`p-3 ${selectedSubjectId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
-                <p className="font-bold text-sm leading-tight">All Subjects</p>
-              </div>
-            </button>
-            {subjects
-              .filter(s => !user?.stream || (s.streamNames || []).includes(user.stream) || s.streamName === user.stream)
-              .map(subject => (
+            {displayedSubjects.length > 1 && (
+              <button
+                onClick={() => setSelectedSubjectId("all")}
+                className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
+                  selectedSubjectId === "all"
+                    ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                    : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
+                }`}
+              >
+                <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
+                  <BookOpen className={`w-10 h-10 ${selectedSubjectId === "all" ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
+                <div className={`p-3 ${selectedSubjectId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                  <p className="font-bold text-sm leading-tight">All Subjects</p>
+                </div>
+              </button>
+            )}
+            {displayedSubjects.map(subject => (
                 <button
                   key={subject.id}
                   onClick={() => {
@@ -301,7 +317,7 @@ function CoursesContent() {
                 Select a teacher to explore the specific courses they teach.
               </p>
             </div>
-            {selectedTeacherId !== "all" && (
+            {selectedTeacherId !== "all" && displayedTeachers.length > 1 && (
               <Link 
                 href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
                 target="_blank"
@@ -315,25 +331,27 @@ function CoursesContent() {
           {/* Big teacher cards grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {/* All Teachers card */}
-            <Link
-              target="_blank"
-              href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
-              className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
-                selectedTeacherId === "all"
-                  ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                  : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
-              }`}
-            >
-              <div className={`w-full aspect-square flex items-center justify-center ${selectedTeacherId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
-                <GraduationCap className={`w-12 h-12 ${selectedTeacherId === "all" ? "text-primary" : "text-muted-foreground"}`} />
-              </div>
-              <div className={`p-3 ${selectedTeacherId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
-                <p className="font-bold text-sm leading-tight">All Teachers</p>
-                <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.filter(c => c.subjectId === selectedSubjectId).length} courses</p>
-              </div>
-            </Link>
+            {displayedTeachers.length > 1 && (
+              <Link
+                target="_blank"
+                href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
+                className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
+                  selectedTeacherId === "all"
+                    ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                    : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
+                }`}
+              >
+                <div className={`w-full aspect-square flex items-center justify-center ${selectedTeacherId === "all" ? "bg-primary/20" : "bg-secondary/20"}`}>
+                  <GraduationCap className={`w-12 h-12 ${selectedTeacherId === "all" ? "text-primary" : "text-muted-foreground"}`} />
+                </div>
+                <div className={`p-3 ${selectedTeacherId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
+                  <p className="font-bold text-sm leading-tight">All Teachers</p>
+                  <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.filter(c => c.subjectId === selectedSubjectId).length} courses</p>
+                </div>
+              </Link>
+            )}
 
-            {teachers.filter(teacher => courses.some(c => c.subjectId === selectedSubjectId && c.teacherId === teacher.id)).map(teacher => {
+            {displayedTeachers.map(teacher => {
               const teacherCourseCount = courses.filter(c => c.teacherId === teacher.id && c.subjectId === selectedSubjectId).length;
               const isSelected = selectedTeacherId === teacher.id;
               const displayName = teacher.name || teacher.email?.split('@')[0] || 'Teacher';
