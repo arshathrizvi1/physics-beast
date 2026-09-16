@@ -61,6 +61,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);
 
+  // Lock body scroll when checkout modal is open to prevent double scrollbars
+  useEffect(() => {
+    if (checkoutFolder) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [checkoutFolder]);
+
   // Doubt / Question to Teacher State
   const [doubtText, setDoubtText] = useState("");
   const [isDoubtSending, setIsDoubtSending] = useState(false);
