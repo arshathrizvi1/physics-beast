@@ -969,7 +969,7 @@ export default function Home() {
                 <motion.div
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                  className="bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black shadow-[0_4px_15px_rgba(212,175,55,0.25)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer border border-[#f9e596]/30"
                 >
                   About Us
                 </motion.div>
@@ -978,7 +978,7 @@ export default function Home() {
                 <motion.div
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                  className="bg-gradient-to-r from-zinc-300 to-[#d4af37] text-black shadow-[0_4px_15px_rgba(212,175,55,0.25)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer border border-[#f9e596]/30"
                 >
                   Contact Us
                 </motion.div>
