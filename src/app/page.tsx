@@ -350,11 +350,13 @@ export default function Home() {
               className="flex flex-wrap items-center gap-3 text-sm text-zinc-500"
             >
               <span className="font-semibold text-muted-foreground">Popular:</span>
-              {courses.slice(0, 5).map(c => (
-                <Link key={c.id} href={`/course/${c.id}`} className="px-3 py-1 rounded-full bg-zinc-900 border border-border hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors">
-                  {c.name}
-                </Link>
-              ))}
+              <div className="flex flex-wrap gap-2">
+                {courses.slice(0, 5).map(c => (
+                  <Link key={c.id} href={`/course/${c.id}`} title={c.name} className="px-3 py-1 rounded-full bg-zinc-900 border border-border hover:border-[#d4af37]/50 hover:text-[#d4af37] cursor-pointer transition-colors text-xs text-center max-w-[150px] truncate">
+                    {c.name.length > 16 ? c.name.substring(0, 16) + '...' : c.name}
+                  </Link>
+                ))}
+              </div>
             </motion.div>
           </div>
 
