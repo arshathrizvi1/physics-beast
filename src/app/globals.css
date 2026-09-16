@@ -248,3 +248,10 @@ body {
   background: #111111; /* Dark charcoal */
 }
 
+
+:root {
+  --gold: #C9A227;
+  --light-gold: #F4E3A1;
+  --silver: #D8D8D8;
+}
+

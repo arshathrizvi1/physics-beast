@@ -50,15 +50,13 @@ export default function GlobalError({
           Reload App
         </Button>
         <Button 
-          asChild
+          render={<Link href="/dashboard" />}
           variant="outline"
           size="lg"
           className="font-semibold"
         >
-          <Link href="/dashboard">
-            <Home className="w-4 h-4 mr-2" />
-            Go Home
-          </Link>
+          <Home className="w-4 h-4 mr-2" />
+          Go Home
         </Button>
       </div>
     </div>

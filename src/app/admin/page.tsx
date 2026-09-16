@@ -1010,6 +1010,8 @@ export default function AdminDashboard() {
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+
   const [bunnyUploadMode, setBunnyUploadMode] = useState<"file" | "url">("file");
   
   const [isSavingExam, setIsSavingExam] = useState(false);
@@ -2460,11 +2462,10 @@ export default function AdminDashboard() {
                       {streams.map(s => (
                         <div 
                           key={s.id} 
-                          onClick={() => { setSelectedStreamId(s.id); setSelectedSubjectId(null); setSelectedCourseId(null); setNewSubjectStreamIds([s.id]); }}
-                          className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedStreamId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
+                          className="p-3 rounded-md flex justify-between items-center transition-colors bg-secondary/20 border border-secondary/30"
                         >
                           <p className="font-bold text-sm">{s.name}</p>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteStream(s.id); }} className={`p-1 rounded-md transition-colors ${selectedStreamId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-destructive/20 text-destructive'}`}>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteStream(s.id); }} className="p-1 rounded-md transition-colors hover:bg-destructive/20 text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -2478,10 +2479,10 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* SUBJECTS COLUMN */}
-                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedStreamId ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className="border border-border/50 rounded-lg p-4 space-y-4">
                     <h3 className="font-bold text-lg border-b pb-2">Subjects</h3>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {subjects.filter(s => (s.streamIds || []).includes(selectedStreamId) || s.streamId === selectedStreamId).map(s => (
+                      {subjects.map(s => (
                         <div 
                           key={s.id} 
                           onClick={() => { setSelectedSubjectId(s.id); setSelectedCourseId(null); }}
@@ -2493,8 +2494,7 @@ export default function AdminDashboard() {
                           </button>
                         </div>
                       ))}
-                      {!selectedStreamId && <p className="text-sm text-muted-foreground italic">Select a stream first.</p>}
-                      {selectedStreamId && subjects.filter(s => (s.streamIds || []).includes(selectedStreamId) || s.streamId === selectedStreamId).length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
+                      {subjects.length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
                     </div>
                     <form onSubmit={handleCreateSubject} className="pt-2 border-t space-y-2">
                       <Input placeholder="Subject Name (e.g. Physics)" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} required />
@@ -4021,11 +4021,16 @@ export default function AdminDashboard() {
                 </div>
                 <div className="space-y-2 w-full md:w-48">
                   <Label>Subject Taught</Label>
-                  <Input 
-                    placeholder="e.g. Physics, Mechanics" 
+                  <select
                     value={newTeamSubject}
                     onChange={(e) => setNewTeamSubject(e.target.value)}
-                  />
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="" disabled>Select a subject...</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <Button type="submit" disabled={isAddingTeamMember} className="w-full md:w-auto">
                   {isAddingTeamMember ? "Adding..." : "Add to Team"}
@@ -4106,17 +4111,21 @@ export default function AdminDashboard() {
                               <td className="p-3">
                                 {isEditingSubject ? (
                                   <div className="flex items-center gap-1.5">
-                                    <Input
+                                    <select
                                       value={editTeacherSubjectValue}
                                       onChange={(e) => setEditTeacherSubjectValue(e.target.value)}
-                                      className="h-7 text-xs w-32"
-                                      placeholder="Subject"
+                                      className="h-7 text-xs w-32 border border-input bg-background rounded-md px-2"
                                       autoFocus
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') handleSaveTeacherSubject(member.id, editTeacherSubjectValue);
                                         if (e.key === 'Escape') setEditingTeacherSubjectId(null);
                                       }}
-                                    />
+                                    >
+                                      <option value="" disabled>Select subject...</option>
+                                      {subjects.map(s => (
+                                        <option key={s.id} value={s.name}>{s.name}</option>
+                                      ))}
+                                    </select>
                                     <button 
                                       onClick={() => handleSaveTeacherSubject(member.id, editTeacherSubjectValue)}
                                       className="p-1 bg-green-600 hover:bg-green-700 text-foreground rounded text-xs"
@@ -5173,11 +5182,16 @@ export default function AdminDashboard() {
                 </Label>
                 <p className="text-xs text-muted-foreground">What subject this teacher instructs (e.g. A/L Physics, Mechanics, Waves, Modern Physics).</p>
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="e.g. Physics, Mechanics"
-                    defaultValue={selectedTeacherDetails.subject || (selectedTeacherDetails.role === 'teacher' ? 'Physics' : 'Administration')}
+                  <select
                     id="teacher-modal-subject"
-                  />
+                    defaultValue={selectedTeacherDetails.subject || (selectedTeacherDetails.role === 'teacher' ? 'Physics' : 'Administration')}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="" disabled>Select a subject...</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
                   <Button 
                     size="sm"
                     onClick={() => {
@@ -5894,6 +5908,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 

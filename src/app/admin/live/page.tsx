@@ -38,6 +38,9 @@ export default function AdminLiveStudio() {
   const [batchId, setBatchId] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
   const [targetFolderId, setTargetFolderId] = useState("none");
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingForType, setCreatingForType] = useState<"new" | "edit">("new");
   const [folders, setFolders] = useState<any[]>([]);
   const [allowDirectJoin, setAllowDirectJoin] = useState(true);
   const [rtmpStreamKey, setRtmpStreamKey] = useState("");
@@ -856,4 +859,5 @@ export default function AdminLiveStudio() {
     </div>
   );
 }
+
 

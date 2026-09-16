@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlayCircle, BookOpen, GraduationCap } from "lucide-react";
+import { PlayCircle, BookOpen, GraduationCap, Play } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -16,10 +16,14 @@ function CoursesContent() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("all");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
+  const viewSubject = searchParams.get('viewSubject');
+  const viewTeacher = searchParams.get('viewTeacher');
+  const isViewMode = !!viewSubject;
+  
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(viewTeacher || "all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(viewSubject || "");
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
 
@@ -109,6 +113,7 @@ function CoursesContent() {
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
+  const topMonthlyCourses = courses.filter(c => c.isMonthly && (!selectedSubjectId || selectedSubjectId === "all" || c.subjectId === selectedSubjectId));
   const coursesWithProgress = displayedCourses.map(course => {
     const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
     const userProgress = user?.videoProgress || {};
@@ -118,19 +123,31 @@ function CoursesContent() {
     return { ...course, courseProgress };
   });
 
-  const monthlyCourses = coursesWithProgress.filter(c => c.isMonthly);
   const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100 && !c.isMonthly);
   const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100 && !c.isMonthly);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div>
-        <h1 className="text-3xl font-bold">Course Explorer</h1>
-        <p className="text-muted-foreground mt-2">Browse all available courses and start learning today.</p>
-      </div>
+      {!isViewMode ? (
+        <div>
+          <h1 className="text-3xl font-bold">Course Explorer</h1>
+          <p className="text-muted-foreground mt-2">Browse all available courses and start learning today.</p>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-3xl font-bold">
+            {viewTeacher !== "all" 
+              ? `${teachers.find(t => t.id === viewTeacher)?.name || 'Teacher'}'s Courses` 
+              : `${subjects.find(s => s.id === viewSubject)?.name || 'Subject'} Courses`}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            <Link href="/courses" className="text-primary hover:underline">&larr; Back to Course Explorer</Link>
+          </p>
+        </div>
+      )}
 
       {/* SUBJECT SELECTION / FILTER */}
-      {subjects.length > 0 && !loading && !dbError && (
+      {!isViewMode && subjects.length > 0 && !loading && !dbError && (
         <div className="space-y-4 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -204,8 +221,72 @@ function CoursesContent() {
         </div>
       )}
 
+      {/* TOP MONTHLY COURSES */}
+      {topMonthlyCourses.length > 0 && !loading && !dbError && (
+        <div className="space-y-4 pb-6">
+          <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--gold)]">
+            <PlayCircle className="w-6 h-6" /> Premium Live Classes
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+            {topMonthlyCourses.map((course) => (
+              <Link key={course.id} href={`/course/${course.id}`}>
+                <Card className="overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex flex-col h-full group shadow-lg hover:shadow-[var(--gold)]/20 relative">
+                  <div className="absolute top-0 right-0 p-2">
+                    <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider">Premium Live</span>
+                  </div>
+                  <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center border-b border-[var(--gold)]/20">
+                    {course.image || course.thumbnailUrl ? (
+                      <img 
+                        src={course.image || course.thumbnailUrl} 
+                        alt={course.name || course.title}
+                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
+                        <BookOpen className="w-8 h-8" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
+                    <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                      <Play className="w-4 h-4 fill-current ml-0.5" />
+                    </div>
+                  </div>
+                  <CardHeader className="p-4 sm:p-5 flex-1 relative z-10">
+                    <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white">
+                      {course.name || course.title}
+                    </CardTitle>
+                    {course.description && (
+                      <p className="text-xs text-zinc-400 mt-2 line-clamp-2">
+                        {course.description}
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-5 pt-0 mt-auto">
+                    <div className="flex flex-col gap-1 text-xs mb-3 text-zinc-400">
+                      {course.subjectName && (
+                        <span className="flex items-center gap-1.5 font-medium text-[var(--gold)]/80">
+                          <BookOpen className="w-3.5 h-3.5" /> {course.subjectName}
+                        </span>
+                      )}
+                      {course.teacherName && (
+                        <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
+                          <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
+                        </span>
+                      )}
+                    </div>
+                    <Button className="w-full bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] hover:from-[var(--light-gold)] hover:to-[var(--gold)] text-black border-0 shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all hover:shadow-[0_0_20px_rgba(212,175,55,0.5)]">
+                      Enter Live Class
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
-      {selectedSubjectId && teachers.length > 0 && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1 && !loading && !dbError && (
+      {!isViewMode && selectedSubjectId && teachers.length > 0 && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1 && !loading && !dbError && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -217,22 +298,22 @@ function CoursesContent() {
               </p>
             </div>
             {selectedTeacherId !== "all" && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setSelectedTeacherId("all")} 
-                className="text-xs text-primary h-7 px-2"
+              <Link 
+                href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
+                target="_blank"
+                className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-primary h-7 px-2" })}
               >
                 Show All Courses ({courses.length})
-              </Button>
+              </Link>
             )}
           </div>
 
           {/* Big teacher cards grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {/* All Teachers card */}
-            <button
-              onClick={() => setSelectedTeacherId("all")}
+            <Link
+              target="_blank"
+              href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
               className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                 selectedTeacherId === "all"
                   ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
@@ -244,18 +325,19 @@ function CoursesContent() {
               </div>
               <div className={`p-3 ${selectedTeacherId === "all" ? "bg-primary text-primary-foreground" : "bg-secondary/10"}`}>
                 <p className="font-bold text-sm leading-tight">All Teachers</p>
-                <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.length} courses</p>
+                <p className={`text-xs mt-0.5 ${selectedTeacherId === "all" ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{courses.filter(c => c.subjectId === selectedSubjectId).length} courses</p>
               </div>
-            </button>
+            </Link>
 
-            {teachers.map(teacher => {
-              const teacherCourseCount = courses.filter(c => c.teacherId === teacher.id).length;
+            {teachers.filter(teacher => courses.some(c => c.subjectId === selectedSubjectId && c.teacherId === teacher.id)).map(teacher => {
+              const teacherCourseCount = courses.filter(c => c.teacherId === teacher.id && c.subjectId === selectedSubjectId).length;
               const isSelected = selectedTeacherId === teacher.id;
               const displayName = teacher.name || teacher.email?.split('@')[0] || 'Teacher';
               return (
-                <button
+                <Link
                   key={teacher.id}
-                  onClick={() => setSelectedTeacherId(teacher.id)}
+                  target="_blank"
+                  href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=${teacher.id}`}
                   className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     isSelected
                       ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
@@ -288,7 +370,7 @@ function CoursesContent() {
                       {teacherCourseCount} course{teacherCourseCount !== 1 ? 's' : ''}
                     </p>
                   </div>
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -302,7 +384,7 @@ function CoursesContent() {
         </div>
       ) : loading ? (
         <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
-      ) : !selectedSubjectId ? (
+      ) : !selectedSubjectId && !isViewMode ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
           <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
           <h3 className="text-xl font-bold">Select a Subject</h3>
@@ -312,77 +394,21 @@ function CoursesContent() {
         <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
           <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
           <h3 className="text-xl font-bold">No Courses Available</h3>
-          <p className="text-muted-foreground mt-2">
-            {selectedTeacherId !== "all" 
+          <p className="text-muted-foreground mt-2 max-w-md">
+            {searchQuery 
+              ? "Try adjusting your search terms." 
+              : selectedTeacherId !== "all" 
               ? `No courses found taught by ${selectedTeacher?.name || 'this teacher'}.` 
               : "The admin hasn't published any courses yet."}
           </p>
           {selectedTeacherId !== "all" && (
-            <Button variant="outline" size="sm" onClick={() => setSelectedTeacherId("all")} className="mt-4">
+            <Link href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`} className={buttonVariants({ variant: "outline", size: "sm", className: "mt-4" })}>
               View All Courses
-            </Button>
+            </Link>
           )}
         </div>
       ) : (
         <div className="space-y-10">
-            {monthlyCourses.length > 0 && (
-              <div>
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-[var(--gold)]">
-                  <PlayCircle className="w-6 h-6" /> Monthly Live Classes
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {monthlyCourses.map((course) => (
-                    <Link key={course.id} href={`/course/${course.id}`}>
-                      <Card className="overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex flex-col h-full group shadow-lg hover:shadow-[var(--gold)]/20 relative">
-                        <div className="absolute top-0 right-0 p-2">
-                          <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider">Premium Live</span>
-                        </div>
-                        <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center border-b border-[var(--gold)]/20">
-                          {course.image || course.thumbnailUrl ? (
-                            <img 
-                              src={course.image || course.thumbnailUrl} 
-                              alt={course.name || course.title}
-                              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
-                              <BookOpen className="w-8 h-8" />
-                            </div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
-                          <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                            <Play className="w-4 h-4 fill-current ml-0.5" />
-                          </div>
-                        </div>
-                        <CardHeader className="p-4 sm:p-5 flex-1 relative z-10">
-                          <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white">
-                            {course.name || course.title}
-                          </CardTitle>
-                          {course.description && (
-                            <p className="text-xs text-zinc-400 mt-2 line-clamp-2">
-                              {course.description}
-                            </p>
-                          )}
-                        </CardHeader>
-                        <CardContent className="p-4 sm:p-5 pt-0 mt-auto">
-                          <div className="flex items-center justify-between text-xs mb-3 text-zinc-400">
-                            {course.teacherName && (
-                              <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
-                                <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
-                              </span>
-                            )}
-                          </div>
-                          <Button className="w-full bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] hover:from-[var(--light-gold)] hover:to-[var(--gold)] text-black border-0 shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all hover:shadow-[0_0_20px_rgba(212,175,55,0.5)]">
-                            Enter Live Class
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {activeCourses.length > 0 && (
             <div>
               <h3 className="text-xl font-bold mb-4">Active Courses</h3>
