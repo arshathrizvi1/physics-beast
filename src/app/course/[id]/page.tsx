@@ -1837,10 +1837,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           </Card>
           </div>
         </div>
+        </div>
       )}
     </>
   );
 }
-
-
-
