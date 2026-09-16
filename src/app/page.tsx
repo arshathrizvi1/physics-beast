@@ -65,6 +65,17 @@ export default function Home() {
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [topReviews, setTopReviews] = useState<any[]>([]);
   const [aboutContact, setAboutContact] = useState<{ email?: string; phone?: string; location?: string; website?: string }>({});
+  const [isAppView, setIsAppView] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent.toLowerCase();
+      // Detect Android WebView commonly used for APK wrappers
+      if (ua.includes('wv') || (ua.includes('android') && ua.includes('version/'))) {
+        setIsAppView(true);
+      }
+    }
+  }, []);
 
   // Courses Horizontal Scroll Drag State
   const scrollRef = useRef<HTMLDivElement>(null);

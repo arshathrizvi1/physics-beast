@@ -15,6 +15,15 @@ import { useRouter } from "next/navigation";
 export default function StudentProfilePage() {
   const { user, loading, updateProfileName, updateProfilePicture } = useAuth();
   const router = useRouter();
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pfp') === 'true') {
+        setIsPfpModalOpen(true);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
@@ -223,4 +232,6 @@ export default function StudentProfilePage() {
     </div>
   );
 }
+
+
 

@@ -19,6 +19,15 @@ import PasskeySettings from "@/components/PasskeySettings";
 export default function LoginPage() {
   const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup, loginWithCustomToken } = useAuth();
   const router = useRouter();
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pfp') === 'true') {
+        setIsPfpModalOpen(true);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -1004,6 +1013,8 @@ export default function LoginPage() {
     </div>
   );
 }
+
+
 
 
 
