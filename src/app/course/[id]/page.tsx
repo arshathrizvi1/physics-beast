@@ -1655,9 +1655,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
       {/* Checkout Modal */}
       {checkoutFolder && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex justify-center items-start overflow-y-auto p-4 sm:p-6">
-          <div className="my-auto w-full max-w-md py-8">
-            <Card className="bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-black/80 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-md my-8">
+              <Card className="bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col">
               <CardHeader className="bg-primary/5 border-b border-primary/10 flex-none pb-4">
                 <div className="flex justify-between items-start">
                   <div>

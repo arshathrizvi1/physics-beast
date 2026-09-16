@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlayCircle, BookOpen, GraduationCap, Play } from "lucide-react";
+import { PlayCircle, BookOpen, GraduationCap, Play, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -26,6 +26,7 @@ function CoursesContent() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(viewSubject || "");
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
+  const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
 
   const { user } = useAuth();
 
