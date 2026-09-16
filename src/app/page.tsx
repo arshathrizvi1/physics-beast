@@ -423,33 +423,31 @@ export default function Home() {
 
         {/* Popular Courses Section */}
         <section className="bg-zinc-50 dark:bg-[#0c0c0c] py-24 relative z-10 border-t border-border/50">
-          <div className="container mx-auto px-6">
+          <div className="container mx-auto px-6 mb-10">
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="flex justify-between items-end mb-12"
+              className="flex justify-between items-end"
             >
               <div>
                 <h2 className="text-4xl font-bold text-foreground mb-4">Popular Courses</h2>
                 <p className="text-muted-foreground">Explore our most in-demand courses and start learning today.</p>
               </div>
               <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors">
-                View All Courses <ArrowRight className="w-4 h-4" />
+                <span className="hidden sm:inline">View All Courses</span> <ArrowRight className="w-4 h-4" />
               </Link>
             </motion.div>
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {courses.length > 0 ? courses.map((course, i) => (
-                <motion.div
-                  key={course.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ delay: i * 0.1, duration: 0.6 }}
-                  className="group"
+          <div className="relative w-full overflow-hidden">
+            <div className="flex gap-6 w-max pl-6 animate-[marquee_40s_linear_infinite] hover:[animation-play-state:paused]">
+              {courses.length > 0 ? [...courses, ...courses, ...courses].map((course, i) => (
+                <div
+                  key={`${course.id}-${i}`}
+                  className="group shrink-0 w-[280px] sm:w-[320px]"
                 >
-                  <Link href={`/course/${course.id}`}>
+                  <Link href={`/course/${course.id}`} className="block h-full">
                     <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
                       <div className="relative h-48 overflow-hidden bg-zinc-900">
                         {/* 11. Course Image Hover Animation */}
@@ -482,17 +480,22 @@ export default function Home() {
                       </CardFooter>
                     </Card>
                   </Link>
-                </motion.div>
+                </div>
               )) : (
                 // Skeleton placeholders if no courses fetched yet
-                [...Array(4)].map((_, i) => (
-                  <Card key={i} className="bg-card border-border h-[320px] animate-pulse">
-                    <div className="h-48 bg-zinc-900" />
-                    <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
-                  </Card>
+                [...Array(6)].map((_, i) => (
+                  <div key={i} className="shrink-0 w-[280px] sm:w-[320px]">
+                    <Card className="bg-card border-border h-[320px] animate-pulse">
+                      <div className="h-48 bg-zinc-900" />
+                      <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
+                    </Card>
+                  </div>
                 ))
               )}
             </div>
+            
+            <div className="absolute top-0 bottom-0 left-0 w-12 sm:w-20 bg-gradient-to-r from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 right-0 w-12 sm:w-20 bg-gradient-to-l from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
           </div>
         </section>
 
@@ -795,7 +798,7 @@ export default function Home() {
           {topReviews.length > 0 ? (
             <div className="relative w-full overflow-hidden mb-14">
               <div
-                className="flex gap-6 w-max pl-6 animate-[marquee_30s_linear_infinite]"
+                className="flex gap-6 w-max pl-6 animate-[marquee_15s_linear_infinite]"
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
                   <div key={`${r.id}-${i}`} className="w-[360px] bg-card border border-border rounded-2xl p-7 shrink-0 flex flex-col justify-between">
