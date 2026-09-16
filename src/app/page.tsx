@@ -561,9 +561,9 @@ export default function Home() {
         </section>
 
         {/* 13. About Section Animation */}
-        <section className="py-12 md:py-24 relative z-10 overflow-hidden">
-          <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16 bg-card border border-border rounded-[2.5rem] p-6 lg:p-16">
+          <section className="py-12 md:py-24 relative z-10 overflow-hidden">
+            <div className="container mx-auto px-4 sm:px-6">
+              <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16 bg-card border border-border rounded-[2.5rem] p-4 sm:p-6 lg:p-16">
               
               <motion.div 
                 initial={{ opacity: 0, x: -50 }}
@@ -595,18 +595,19 @@ export default function Home() {
                 </motion.div>
               </motion.div>
 
-              <motion.div 
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8 }}
-                className="flex-1 relative group w-full flex justify-center cursor-default"
-              >
-                {/* Glowing ambient background light effect on hover */}
-                <div className="absolute -inset-2 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/35 to-[#d4af37]/0 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                {!isAppView && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 50 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8 }}
+                    className="flex-1 relative group w-full flex justify-center cursor-default"
+                  >
+                    {/* Glowing ambient background light effect on hover */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-[#d4af37]/0 via-[#d4af37]/35 to-[#d4af37]/0 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-                {/* Outer Card Display Container */}
-                <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 transition-all duration-500 bg-gradient-to-b from-[#111115] via-[#09090c] to-black p-5 sm:p-8 flex flex-col items-center justify-center min-h-[520px]">
+                    {/* Outer Card Display Container */}
+                    <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 transition-all duration-500 bg-gradient-to-b from-[#111115] via-[#09090c] to-black p-2 sm:p-5 lg:p-8 flex flex-col items-center justify-center min-h-[460px] sm:min-h-[520px]">
                   
                   {/* Subtle background grid pattern */}
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(212,175,55,0.09),transparent_70%)] pointer-events-none" />
@@ -797,9 +798,10 @@ export default function Home() {
                       </div>
                     </div>
 
+                    </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+                )}
               </div>
             </div>
           </section>

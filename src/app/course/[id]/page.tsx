@@ -29,7 +29,7 @@ const getDailymotionId = (url: string) => {
 
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { user, updateVideoProgress } = useAuth();
+  const { user, updateVideoProgress, recordStudyMinute } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
   const [courseNotFound, setCourseNotFound] = useState(false);
@@ -1827,3 +1827,4 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+

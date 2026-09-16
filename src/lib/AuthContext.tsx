@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
@@ -1209,6 +1209,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const pendingStudyMinutesRef = useRef(0);
+
+  const recordStudyMinute = useCallback(() => {
+    if (!user) return;
+    
+    setUser(prev => {
+      if (!prev) return prev;
+      
+      const newMins = (prev.totalStudyTimeMins || 0) + 1;
+      const todayMins = (prev as any).todayStudyTimeMins || 0;
+      const newTotalXp = (prev.totalXp || 0) + 1; // Assuming XP_PER_STUDY_MINUTE = 1, as per xp.ts
+      
+      return {
+        ...prev,
+        totalStudyTimeMins: newMins,
+        todayStudyTimeMins: todayMins + 1,
+        totalXp: newTotalXp,
+        xpLevel: Math.max(1, Math.floor(newTotalXp / 500) + 1) // XP_PER_LEVEL = 500
+      };
+    });
+
+    pendingStudyMinutesRef.current += 1;
+  }, [user]);
+
+  const syncStudyTimeNow = useCallback(async () => {
+    if (!user || pendingStudyMinutesRef.current === 0) return;
+    
+    const minutesToSync = pendingStudyMinutesRef.current;
+    pendingStudyMinutesRef.current = 0;
+    
+    try {
+      const { doc, updateDoc, increment } = await import('firebase/firestore');
+      const now = new Date();
+      const nowStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        totalStudyTimeMins: increment(minutesToSync),
+        todayStudyTimeMins: increment(minutesToSync),
+        [`studyHistory.${nowStr}`]: increment(minutesToSync),
+        totalXp: increment(minutesToSync),
+        xpLevel: Math.max(1, Math.floor(((user.totalXp || 0)) / 500) + 1),
+        lastStudyPing: Date.now(),
+        lastStudyDate: nowStr
+      });
+    } catch (err) {
+      console.error("Failed to sync study time", err);
+      pendingStudyMinutesRef.current += minutesToSync;
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncStudyTimeNow();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        syncStudyTimeNow();
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      syncStudyTimeNow();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      syncStudyTimeNow();
+    };
+  }, [syncStudyTimeNow]);
+
   const updateVideoProgress = async (videoId: string, percent: number) => {
     if (!videoId) return;
     const cleanPercent = Math.min(100, Math.max(0, Math.round(percent)));
@@ -1251,11 +1327,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup, loginWithCustomToken, updateVideoProgress }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateProfilePicture, updateProfileName, resetPassword, googleSignIn, completeGoogleSignup, signupTeacher, completeGoogleTeacherSignup, loginWithCustomToken, updateVideoProgress, recordStudyMinute, syncStudyTimeNow }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+
 
