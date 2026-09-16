@@ -916,8 +916,8 @@ export default function Home() {
               <p className="text-muted-foreground text-xs md:text-sm">Reach out to Brilliant Academy anytime</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-6 md:mb-10">
-              <a href={`mailto:${aboutContact.email || "contact@brilliantacademy.com"}`} className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-4 max-w-5xl mx-auto mb-6 md:mb-10">
+              <a href={`mailto:${aboutContact.email || "contact@brilliantacademy.com"}`} className="flex items-center gap-3 sm:gap-4 p-2 sm:p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Mail className="w-5 h-5 text-[#d4af37]" />
                 </div>
@@ -927,7 +927,7 @@ export default function Home() {
                 </div>
               </a>
 
-              <a href={`tel:${aboutContact.phone || "+94 77 123 4567"}`} className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <a href={`tel:${aboutContact.phone || "+94 77 123 4567"}`} className="flex items-center gap-3 sm:gap-4 p-2 sm:p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Phone className="w-5 h-5 text-[#d4af37]" />
                 </div>
@@ -937,7 +937,7 @@ export default function Home() {
                 </div>
               </a>
 
-              <div className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
+              <div className="flex items-center gap-3 sm:gap-4 p-2 sm:p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <MapPin className="w-5 h-5 text-[#d4af37]" />
                 </div>
@@ -951,7 +951,7 @@ export default function Home() {
                 href={(aboutContact.website || "www.brilliantacademy.com").startsWith("http") ? (aboutContact.website || "www.brilliantacademy.com") : `https://${aboutContact.website || "www.brilliantacademy.com"}`} 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex items-center gap-3 sm:gap-4 p-2 sm:p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Globe className="w-5 h-5 text-[#d4af37]" />

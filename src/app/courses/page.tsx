@@ -508,9 +508,9 @@ function CoursesContent() {
                   }`}
                 >
                   <div className="w-full aspect-square bg-secondary/20 relative overflow-hidden">
-                    {teacher.profilePicture ? (
+                    {(teacher.photoUrl || teacher.profilePicture) ? (
                       <img
-                        src={teacher.profilePicture}
+                        src={teacher.photoUrl || teacher.profilePicture}
                         alt={displayName}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
