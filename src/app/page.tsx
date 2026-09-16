@@ -436,8 +436,8 @@ export default function Home() {
         </section>
 
         {/* 10. Statistics Counter Animation */}
-        <section className="container mx-auto px-6 py-20 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <section className="container mx-auto px-2 sm:px-6 py-10 sm:py-20 relative z-10">
+          <div className="grid grid-cols-4 gap-2 sm:gap-8">
             {[
               { num: 2000, suffix: "+", label: "Students Learning", icon: Users },
               { num: 50, suffix: "+", label: "Online Courses", icon: BookOpen },
@@ -450,14 +450,14 @@ export default function Home() {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="flex flex-col items-center justify-center text-center p-8 bg-card rounded-3xl border border-border/50 relative overflow-hidden group"
+                className="flex flex-col items-center justify-center text-center p-2 sm:p-8 bg-card rounded-xl sm:rounded-3xl border border-border/50 relative overflow-hidden group"
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-[#d4af37]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <stat.icon className="w-8 h-8 text-[#d4af37] mb-4 opacity-80 group-hover:scale-110 transition-transform" />
-                <h3 className="text-4xl font-bold text-foreground mb-2">
+                <stat.icon className="w-5 h-5 sm:w-8 sm:h-8 text-[#d4af37] mb-2 sm:mb-4 opacity-80 group-hover:scale-110 transition-transform" />
+                <h3 className="text-base sm:text-4xl font-bold text-foreground mb-1 sm:mb-2">
                   <Counter end={stat.num} suffix={stat.suffix} duration={2} />
                 </h3>
-                <p className="text-zinc-500 text-sm uppercase tracking-wider">{stat.label}</p>
+                <p className="text-zinc-500 text-[8px] sm:text-sm uppercase tracking-wider leading-tight">{stat.label}</p>
               </motion.div>
             ))}
           </div>
