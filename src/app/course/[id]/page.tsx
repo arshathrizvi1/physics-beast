@@ -725,6 +725,25 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   let virtualNextMonth = null;
   if (course.isMonthly) {
     const now = new Date();
+    
+    // Filter out expired folders if user doesn't have access
+    displayFolders = folders.filter(folder => {
+      const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || (user?.folderAccess && user.folderAccess[folder.id] && user.folderAccess[folder.id] > now.getTime());
+      if (hasAccess) return true; // Always show if they have access
+
+      const folderDate = new Date(folder.name);
+      if (isNaN(folderDate.getTime())) return true; // Not a valid date, keep it just in case
+      
+      // Folder expires on the 3rd day of the next month
+      // We set it to the 4th at midnight (which covers all of the 3rd)
+      const expirationDate = new Date(folderDate.getFullYear(), folderDate.getMonth() + 1, 4);
+      
+      if (now.getTime() > expirationDate.getTime()) {
+        return false; // Hide it
+      }
+      return true;
+    });
+
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     if (now.getDate() >= daysInMonth - 5) {
       const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -737,7 +756,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           isVirtual: true,
           price: folders.find(f => f.price > 0)?.price || 0
         };
-        displayFolders = [...folders, virtualNextMonth];
+        displayFolders = [...displayFolders, virtualNextMonth];
       }
     }
   }
