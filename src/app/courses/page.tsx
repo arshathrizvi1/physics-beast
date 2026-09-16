@@ -86,7 +86,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
                   </span>
                 )}
               </div>
-                <div className={`bg-gradient-to-r from-[#d4af37] to-zinc-500 dark:to-zinc-300 text-black hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md flex items-center justify-center ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
+                <div className={`bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md flex items-center justify-center ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
                   Enter Live Class
                 </div>
             </CardContent>
@@ -137,7 +137,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
             <CardDescription className={`mt-1 text-xs hidden sm:block ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>{course.description || "A comprehensive learning path."}</CardDescription>
           </CardHeader>
           <CardContent className={`bg-secondary/5 border-t border-secondary/20 p-3 sm:p-4 mt-auto ${viewStyle === 'list' ? 'border-t-0 bg-transparent pt-0 flex justify-end pb-4 pr-6' : ''}`}>
-            <div className={`flex items-center justify-center bg-gradient-to-r from-[#d4af37] to-zinc-500 dark:to-zinc-300 text-black hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md ${viewStyle === 'grid' ? 'w-full h-8 sm:h-10 text-xs sm:text-sm' : 'h-10 text-sm px-6'}`}>
+            <div className={`flex items-center justify-center bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md ${viewStyle === 'grid' ? 'w-full h-8 sm:h-10 text-xs sm:text-sm' : 'h-10 text-sm px-6'}`}>
               <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
             </div>
           </CardContent>
