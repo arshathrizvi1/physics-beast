@@ -66,6 +66,35 @@ export default function Home() {
   const [topReviews, setTopReviews] = useState<any[]>([]);
   const [aboutContact, setAboutContact] = useState<{ email?: string; phone?: string; location?: string; website?: string }>({});
 
+  // Courses Horizontal Scroll Drag State
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const onMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // scroll-fast multiplier
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
   useEffect(() => {
     const fetchAboutContact = async () => {
       try {
@@ -342,7 +371,7 @@ export default function Home() {
               <img 
                 src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=800" 
                 alt="Student" 
-                className="w-full h-full object-cover mix-blend-luminosity opacity-80"
+                className="w-full h-full object-cover opacity-90"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
@@ -440,15 +469,22 @@ export default function Home() {
             </motion.div>
           </div>
 
-          <div className="relative w-full overflow-hidden">
-            <div className="flex gap-6 w-max pl-6 animate-[marquee_40s_linear_infinite] hover:[animation-play-state:paused]">
-              {courses.length > 0 ? [...courses, ...courses, ...courses].map((course, i) => (
+          <div className="relative w-full">
+            <div 
+              ref={scrollRef}
+              onMouseDown={onMouseDown}
+              onMouseLeave={onMouseLeave}
+              onMouseUp={onMouseUp}
+              onMouseMove={onMouseMove}
+              className={`flex gap-6 px-6 overflow-x-auto snap-x snap-mandatory pb-8 pt-4 -mt-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+            >
+              {courses.length > 0 ? courses.map((course, i) => (
                 <div
-                  key={`${course.id}-${i}`}
-                  className="group shrink-0 w-[280px] sm:w-[320px]"
+                  key={course.id}
+                  className="group shrink-0 w-[280px] sm:w-[320px] snap-center sm:snap-start"
                 >
-                  <Link href={`/course/${course.id}`} className="block h-full">
-                    <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                  <Link href={`/course/${course.id}`} className="block h-full" draggable={false}>
+                    <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col" style={{ pointerEvents: isDragging ? 'none' : 'auto' }}>
                       <div className="relative h-48 overflow-hidden bg-zinc-900">
                         {/* 11. Course Image Hover Animation */}
                         <motion.img 
@@ -457,6 +493,7 @@ export default function Home() {
                           src={course.image || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400`} 
                           alt={course.name} 
                           className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+                          draggable={false}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
                       </div>
@@ -483,8 +520,8 @@ export default function Home() {
                 </div>
               )) : (
                 // Skeleton placeholders if no courses fetched yet
-                [...Array(6)].map((_, i) => (
-                  <div key={i} className="shrink-0 w-[280px] sm:w-[320px]">
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="shrink-0 w-[280px] sm:w-[320px] snap-start">
                     <Card className="bg-card border-border h-[320px] animate-pulse">
                       <div className="h-48 bg-zinc-900" />
                       <CardHeader className="p-5"><div className="h-6 bg-zinc-800 rounded w-3/4" /></CardHeader>
@@ -494,8 +531,8 @@ export default function Home() {
               )}
             </div>
             
-            <div className="absolute top-0 bottom-0 left-0 w-12 sm:w-20 bg-gradient-to-r from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
-            <div className="absolute top-0 bottom-0 right-0 w-12 sm:w-20 bg-gradient-to-l from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 left-0 w-8 sm:w-16 bg-gradient-to-r from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
+            <div className="absolute top-0 bottom-0 right-0 w-8 sm:w-16 bg-gradient-to-l from-zinc-50 dark:from-[#0c0c0c] to-transparent z-10 pointer-events-none" />
           </div>
         </section>
 
