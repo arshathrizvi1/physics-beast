@@ -891,7 +891,7 @@ export default function Home() {
                 className="relative group cursor-pointer w-full"
               >
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-[#d4af37] to-[#f9e596] rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500" />
-                <div className="relative bg-[#d4af37] text-black font-bold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide w-full">
+                <div className="relative bg-gradient-to-r from-[#d4af37] to-[#f9e596] text-black font-bold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide w-full hover:brightness-110 transition-all duration-300">
                   <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-black shrink-0" />
                   <span className="truncate">Add Review</span>
                 </div>
