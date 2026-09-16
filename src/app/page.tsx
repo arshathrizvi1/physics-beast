@@ -564,7 +564,7 @@ export default function Home() {
                 <h2 className="text-4xl lg:text-5xl font-bold text-foreground">
                   Why Choose <span className="text-[#d4af37]">Brilliant Academy?</span>
                 </h2>
-                <p className="text-lg text-muted-foreground">
+                <p className="text-[14px] leading-snug md:text-base lg:text-lg lg:leading-normal text-muted-foreground">
                   We are committed to providing high-quality education, practical skills, and real opportunities to help you achieve your goals. Our instructors are industry veterans dedicated to your success.
                 </p>
                 <ul className="space-y-4">
