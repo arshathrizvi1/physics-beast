@@ -138,7 +138,7 @@ export default function LeaderboardPage() {
       {dbError ? (
         <div className="bg-red-500/10 border-2 border-red-500/50 p-6 rounded-xl text-center">
           <h2 className="text-xl font-bold text-red-500 mb-2">Connection Error</h2>
-          <p className="text-red-400">Could not fetch leaderboard data. The database daily quota might be exceeded.</p>
+          <p className="text-red-400">Could not fetch leaderboard data. Please check your internet connection and try again.</p>
         </div>
       ) : (
         <>

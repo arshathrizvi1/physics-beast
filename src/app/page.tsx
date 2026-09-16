@@ -890,9 +890,9 @@ export default function Home() {
                 whileTap={{ scale: 0.97 }}
                 className="relative group cursor-pointer w-full"
               >
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500" />
-                <div className="relative bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] font-bold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide w-full hover:brightness-110 transition-all duration-300">
-                  <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-[#111827] shrink-0" />
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#d4af37] to-[#f9e596] rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500" />
+                <div className="relative bg-gradient-to-r from-[#d4af37] to-[#f9e596] text-black font-bold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide w-full hover:brightness-110 transition-all duration-300">
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-black shrink-0" />
                   <span className="truncate">Add Review</span>
                 </div>
               </motion.div>
@@ -969,7 +969,7 @@ export default function Home() {
                 <motion.div
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] shadow-[0_4px_15px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                  className="bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black shadow-[0_4px_15px_rgba(212,175,55,0.25)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
                 >
                   About Us
                 </motion.div>
@@ -978,7 +978,7 @@ export default function Home() {
                 <motion.div
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] shadow-[0_4px_15px_rgba(245,158,11,0.25)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                  className="bg-gradient-to-r from-zinc-300 to-[#d4af37] text-black shadow-[0_4px_15px_rgba(212,175,55,0.25)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.4)] font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
                 >
                   Contact Us
                 </motion.div>
