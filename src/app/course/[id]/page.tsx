@@ -759,6 +759,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                      <div className="text-center group-hover:scale-105 transition-transform duration-300">
                        <Folder className={`w-14 h-14 mx-auto mb-3 ${hasAccess ? 'text-[var(--gold)]' : 'text-muted-foreground/50'}`} />
                        <h3 className="font-bold text-xl text-foreground">{folder.name}</h3>
+                       <p className="text-xs text-muted-foreground mt-1 font-medium">
+                         {videos.filter(v => v.folderId === folder.id).length} Videos
+                       </p>
                        {folder.isVirtual && (
                          <span className="bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20 text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full mt-3 inline-block">
                            Coming Soon
@@ -1402,6 +1405,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               <span className="truncate">{folder.name}</span>
                               {folder.price ? <span className="ml-2 text-xs bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded font-mono shrink-0">Rs. {folder.price}</span> : null}
                             </div>
+                            <p className="text-[11px] text-muted-foreground font-medium">
+                              {videos.filter(v => v.folderId === folder.id).length} Videos
+                            </p>
                             {hasSpecificFolderAccess && user?.role !== 'admin' && !legacyCourseAccess && folderExpiration ? (
                               <p className="text-xs text-green-600 font-bold">{daysLeft} days remaining</p>
                             ) : null}
