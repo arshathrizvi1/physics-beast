@@ -883,28 +883,28 @@ export default function Home() {
           )}
 
           {/* Action Buttons: Reviews */}
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
-            <Link href="/reviews">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mt-2 px-2 sm:px-0">
+            <Link href="/reviews" className="flex-1 max-w-[200px]">
               <motion.div
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="relative group cursor-pointer"
+                className="relative group cursor-pointer w-full"
               >
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-[#d4af37] to-[#f9e596] rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500" />
-                <div className="relative bg-[#d4af37] text-black font-bold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide">
-                  <Star className="w-4 h-4 fill-black" />
-                  Add Your Review
+                <div className="relative bg-[#d4af37] text-black font-bold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide w-full">
+                  <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-black shrink-0" />
+                  <span className="truncate">Add Review</span>
                 </div>
               </motion.div>
             </Link>
-            <Link href="/reviews">
+            <Link href="/reviews" className="flex-1 max-w-[200px]">
               <motion.div
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-8 py-3.5 rounded-full flex items-center gap-2 text-sm tracking-wide transition-all duration-300 cursor-pointer"
+                className="border border-zinc-700 hover:border-[#d4af37]/60 text-foreground/90 hover:text-foreground font-semibold px-3 sm:px-8 py-3 sm:py-3.5 rounded-full flex items-center justify-center gap-1 sm:gap-2 text-[11px] sm:text-sm tracking-wide transition-all duration-300 cursor-pointer w-full"
               >
-                View All Reviews
-                <ArrowRight className="w-4 h-4" />
+                <span className="truncate">View All <span className="hidden sm:inline">Reviews</span></span>
+                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
               </motion.div>
             </Link>
           </div>
