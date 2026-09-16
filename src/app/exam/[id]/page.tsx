@@ -20,7 +20,7 @@ import { PdfViewer } from "@/components/ui/pdf-viewer";
 export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, recordStudyMinute } = useAuth();
   
   const [examData, setExamData] = useState({ title: "Loading...", durationSeconds: 15 * 60 });
   const [questions, setQuestions] = useState<any[]>([]);
@@ -659,4 +659,5 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> }
     </div>
   );
 }
+
 

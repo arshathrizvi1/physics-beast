@@ -15,7 +15,7 @@ const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
 
 export default function StudentLivePortal() {
-  const { user, loading } = useAuth();
+  const { user, loading, recordStudyMinute } = useAuth();
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
   const [fetchingClasses, setFetchingClasses] = useState(true);
@@ -576,4 +576,5 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+
 
