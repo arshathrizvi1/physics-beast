@@ -11,10 +11,120 @@ import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+const CourseCard = ({ course, viewStyle, setSelectedTeacherId }: { course: any, viewStyle: string, setSelectedTeacherId: (id: string) => void }) => {
+  if (course.isMonthly) {
+    return (
+      <Link key={course.id} href={`/course/${course.id}`}>
+        <Card className={`overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex group shadow-lg hover:shadow-[var(--gold)]/20 relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
+          <div className="absolute top-0 right-0 p-2 z-20">
+            <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
+          </div>
+          <div className={`relative overflow-hidden bg-black flex items-center justify-center border-[var(--gold)]/20 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
+            {course.image || course.thumbnailUrl ? (
+              <img 
+                src={course.image || course.thumbnailUrl} 
+                alt={course.name || course.title}
+                className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
+                <BookOpen className="w-8 h-8" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
+            <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <Play className="w-4 h-4 fill-current ml-0.5" />
+            </div>
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <CardHeader className={`p-4 sm:p-5 flex-1 relative z-10 ${viewStyle === 'list' ? 'pb-2' : ''}`}>
+              <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white line-clamp-2">
+                {course.name || course.title}
+              </CardTitle>
+              {course.description && (
+                <p className={`text-xs text-zinc-400 mt-2 ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>
+                  {course.description}
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className={`p-4 sm:p-5 pt-0 mt-auto flex justify-between items-end ${viewStyle === 'grid' ? 'flex-col sm:flex-row' : ''}`}>
+              <div className="flex flex-col gap-1 text-xs mb-3 text-zinc-400">
+                {course.subjectName && (
+                  <span className="flex items-center gap-1.5 font-medium text-[var(--gold)]/80">
+                    <BookOpen className="w-3.5 h-3.5" /> {course.subjectName}
+                  </span>
+                )}
+                {course.teacherName && (
+                  <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
+                    <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
+                  </span>
+                )}
+              </div>
+              <div className={`bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black hover:opacity-90 transition-opacity font-bold rounded-md flex items-center justify-center ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
+                Enter Live Class
+              </div>
+            </CardContent>
+          </div>
+        </Card>
+      </Link>
+    );
+  }
+
+  return (
+    <Link key={course.id} href={`/course/${course.id}`}>
+      <Card className={`overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex group relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
+        <div className={`relative overflow-hidden bg-secondary/20 flex items-center justify-center border-secondary/30 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
+          {course.image || course.thumbnailUrl ? (
+            <img 
+              src={course.image || course.thumbnailUrl} 
+              alt={course.name || course.title}
+              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <BookOpen className="w-10 h-10 sm:w-16 sm:h-16 text-primary/30" />
+          )}
+          {course.teacherName && (
+            <div 
+              onClick={(e) => {
+                e.preventDefault();
+                if (course.teacherId) setSelectedTeacherId(course.teacherId);
+              }}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-medium text-white flex items-center gap-1 sm:gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
+              title={`Click to filter by ${course.teacherName}`}
+            >
+              <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
+              <span className="hidden sm:inline">{course.teacherName}</span>
+              <span className="sm:hidden">{course.teacherName.split(' ')[0]}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col flex-1 min-w-0">
+          <CardHeader className={`flex-grow p-3 sm:p-6 ${viewStyle === 'list' ? 'pb-2' : ''}`}>
+            <CardTitle className="text-sm sm:text-lg leading-tight line-clamp-2">{course.name || course.title}</CardTitle>
+            {course.teacherName && (
+              <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-primary font-medium mt-1">
+                <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="truncate">By {course.teacherName}</span>
+              </div>
+            )}
+            <CardDescription className={`mt-1 text-xs hidden sm:block ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>{course.description || "A comprehensive learning path."}</CardDescription>
+          </CardHeader>
+          <CardContent className={`bg-secondary/5 border-t border-secondary/20 p-3 sm:p-4 mt-auto ${viewStyle === 'list' ? 'border-t-0 bg-transparent pt-0 flex justify-end pb-4 pr-6' : ''}`}>
+            <div className={`flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md ${viewStyle === 'grid' ? 'w-full h-8 sm:h-10 text-xs sm:text-sm' : 'h-10 text-sm px-6'}`}>
+              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+    </Link>
+  );
+};
+
 function CoursesContent() {
   const [courses, setCourses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [folders, setFolders] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
@@ -46,11 +156,12 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
         );
 
-        const [querySnapshot, teachersSnap, subjectsSnap] = await Promise.race([
+        const [querySnapshot, teachersSnap, subjectsSnap, foldersSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
             getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
-            getDocs(collection(db, "subjects"))
+            getDocs(collection(db, "subjects")),
+            getDocs(collection(db, "folders"))
           ]),
           timeoutPromise
         ]);
@@ -71,6 +182,12 @@ function CoursesContent() {
           ...doc.data() as any
         }));
         setSubjects(fetchedSubjects);
+
+        const fetchedFolders = foldersSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data() as any
+        }));
+        setFolders(fetchedFolders);
         
         if (user && user.role === 'student') {
           const batchesSnap = await Promise.race([
@@ -123,11 +240,14 @@ function CoursesContent() {
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
 
-  const topMonthlyCourses = courses.filter(c => 
-    c.isMonthly && 
-    (!selectedSubjectId || selectedSubjectId === "all" || c.subjectId === selectedSubjectId) &&
-    (selectedTeacherId === "all" || c.teacherId === selectedTeacherId)
-  );
+  const isCourseActivated = (course: any) => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'teacher') return true;
+    if (user.courseAccess && user.courseAccess[course.id] && user.courseAccess[course.id] > Date.now()) return true;
+    const courseFolders = folders.filter(f => f.courseId === course.id);
+    return courseFolders.some(f => user.folderAccess && user.folderAccess[f.id] && user.folderAccess[f.id] > Date.now());
+  };
+
   const coursesWithProgress = displayedCourses.map(course => {
     const courseVideos = videos.filter(v => v.courseId === course.id && v.type !== 'resource');
     const userProgress = user?.videoProgress || {};
@@ -137,8 +257,8 @@ function CoursesContent() {
     return { ...course, courseProgress };
   });
 
-  const activeCourses = coursesWithProgress.filter(c => c.courseProgress < 100 && !c.isMonthly);
-  const completedCourses = coursesWithProgress.filter(c => c.courseProgress === 100 && !c.isMonthly);
+  const activatedCourses = coursesWithProgress.filter(c => isCourseActivated(c));
+  const availableCourses = coursesWithProgress;
 
   const displayedSubjects = subjects.filter(s => !user?.stream || (s.streamNames || []).includes(user.stream) || s.streamName === user.stream);
   const displayedTeachers = teachers.filter(teacher => courses.some(c => c.subjectId === selectedSubjectId && c.teacherId === teacher.id));
@@ -251,65 +371,25 @@ function CoursesContent() {
         </div>
       )}
 
-      {/* TOP MONTHLY COURSES */}
-      {topMonthlyCourses.length > 0 && !loading && !dbError && (
+      {/* ACTIVATED COURSES */}
+      {activatedCourses.length > 0 && !loading && !dbError && (
         <div className="space-y-4 pb-6">
-          <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--gold)]">
-            <PlayCircle className="w-6 h-6" /> Premium Live Classes
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
-            {topMonthlyCourses.map((course) => (
-              <Link key={course.id} href={`/course/${course.id}`}>
-                <Card className="overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex flex-col h-full group shadow-lg hover:shadow-[var(--gold)]/20 relative">
-                  <div className="absolute top-0 right-0 p-2 z-20">
-                    <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
-                  </div>
-                  <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center border-b border-[var(--gold)]/20">
-                    {course.image || course.thumbnailUrl ? (
-                      <img 
-                        src={course.image || course.thumbnailUrl} 
-                        alt={course.name || course.title}
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
-                        <BookOpen className="w-8 h-8" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
-                    <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    </div>
-                  </div>
-                  <CardHeader className="p-4 sm:p-5 flex-1 relative z-10">
-                    <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white">
-                      {course.name || course.title}
-                    </CardTitle>
-                    {course.description && (
-                      <p className="text-xs text-zinc-400 mt-2 line-clamp-2">
-                        {course.description}
-                      </p>
-                    )}
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 pt-0 mt-auto">
-                    <div className="flex flex-col gap-1 text-xs mb-3 text-zinc-400">
-                      {course.subjectName && (
-                        <span className="flex items-center gap-1.5 font-medium text-[var(--gold)]/80">
-                          <BookOpen className="w-3.5 h-3.5" /> {course.subjectName}
-                        </span>
-                      )}
-                      {course.teacherName && (
-                        <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
-                          <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
-                        </span>
-                      )}
-                    </div>
-                    <Button className="w-full bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] hover:from-[var(--light-gold)] hover:to-[var(--gold)] text-black border-0 shadow-[0_0_15px_rgba(212,175,55,0.3)] transition-all hover:shadow-[0_0_20px_rgba(212,175,55,0.5)]">
-                      Enter Live Class
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Link>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--gold)]">
+              <PlayCircle className="w-6 h-6" /> Premium Live Classes & Active Courses
+            </h3>
+            <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
+              <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
+            {activatedCourses.map((course) => (
+              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} />
             ))}
           </div>
         </div>
@@ -456,112 +536,8 @@ function CoursesContent() {
           </div>
           
           <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
-            {/* PREMIUM MONTHLY COURSES */}
-            {topMonthlyCourses.map((course) => (
-              <Link key={course.id} href={`/course/${course.id}`}>
-                <Card className={`overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex group shadow-lg hover:shadow-[var(--gold)]/20 relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
-                  <div className="absolute top-0 right-0 p-2 z-20">
-                    <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
-                  </div>
-                  <div className={`relative overflow-hidden bg-black flex items-center justify-center border-[var(--gold)]/20 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
-                    {course.image || course.thumbnailUrl ? (
-                      <img 
-                        src={course.image || course.thumbnailUrl} 
-                        alt={course.name || course.title}
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
-                        <BookOpen className="w-8 h-8" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
-                    <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <CardHeader className={`p-4 sm:p-5 flex-1 relative z-10 ${viewStyle === 'list' ? 'pb-2' : ''}`}>
-                      <CardTitle className="text-lg leading-tight group-hover:text-[var(--gold)] transition-colors text-white line-clamp-2">
-                        {course.name || course.title}
-                      </CardTitle>
-                      {course.description && (
-                        <p className={`text-xs text-zinc-400 mt-2 ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>
-                          {course.description}
-                        </p>
-                      )}
-                    </CardHeader>
-                    <CardContent className={`p-4 sm:p-5 pt-0 mt-auto flex justify-between items-end ${viewStyle === 'grid' ? 'flex-col sm:flex-row' : ''}`}>
-                      <div className="flex flex-col gap-1 text-xs mb-3 text-zinc-400">
-                        {course.subjectName && (
-                          <span className="flex items-center gap-1.5 font-medium text-[var(--gold)]/80">
-                            <BookOpen className="w-3.5 h-3.5" /> {course.subjectName}
-                          </span>
-                        )}
-                        {course.teacherName && (
-                          <span className="flex items-center gap-1.5 font-medium text-[var(--silver)]">
-                            <GraduationCap className="w-3.5 h-3.5" /> {course.teacherName}
-                          </span>
-                        )}
-                      </div>
-                      <div className={`bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black hover:opacity-90 transition-opacity font-bold rounded-md flex items-center justify-center ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
-                        Enter Live Class
-                      </div>
-                    </CardContent>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-
-            {/* ACTIVE COURSES */}
-            {activeCourses.map((course) => (
-              <Link key={course.id} href={`/course/${course.id}`}>
-                <Card className={`overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex group relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
-                  <div className={`relative overflow-hidden bg-secondary/20 flex items-center justify-center border-secondary/30 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
-                    {course.image || course.thumbnailUrl ? (
-                      <img 
-                        src={course.image || course.thumbnailUrl} 
-                        alt={course.name || course.title}
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <BookOpen className="w-10 h-10 sm:w-16 sm:h-16 text-primary/30" />
-                    )}
-                    {/* Teacher Badge overlay on card */}
-                    {course.teacherName && (
-                      <div 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          if (course.teacherId) setSelectedTeacherId(course.teacherId);
-                        }}
-                        className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-black/80 backdrop-blur-md border border-white/10 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[11px] font-medium text-white flex items-center gap-1 sm:gap-1.5 shadow cursor-pointer hover:border-primary/50 transition-colors"
-                        title={`Click to filter by ${course.teacherName}`}
-                      >
-                        <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
-                        <span className="hidden sm:inline">{course.teacherName}</span>
-                        <span className="sm:hidden">{course.teacherName.split(' ')[0]}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <CardHeader className={`flex-grow p-3 sm:p-6 ${viewStyle === 'list' ? 'pb-2' : ''}`}>
-                      <CardTitle className="text-sm sm:text-lg leading-tight line-clamp-2">{course.name || course.title}</CardTitle>
-                      {course.teacherName && (
-                        <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-primary font-medium mt-1">
-                          <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          <span className="truncate">By {course.teacherName}</span>
-                        </div>
-                      )}
-                      <CardDescription className={`mt-1 text-xs hidden sm:block ${viewStyle === 'grid' ? 'line-clamp-2' : 'line-clamp-3'}`}>{course.description || "A comprehensive learning path."}</CardDescription>
-                    </CardHeader>
-                    <CardContent className={`bg-secondary/5 border-t border-secondary/20 p-3 sm:p-4 mt-auto ${viewStyle === 'list' ? 'border-t-0 bg-transparent pt-0 flex justify-end pb-4 pr-6' : ''}`}>
-                      <div className={`flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium rounded-md ${viewStyle === 'grid' ? 'w-full h-8 sm:h-10 text-xs sm:text-sm' : 'h-10 text-sm px-6'}`}>
-                        <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
-                      </div>
-                    </CardContent>
-                  </div>
-                </Card>
-              </Link>
+            {availableCourses.map((course) => (
+              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} />
             ))}
           </div>
         </div>
