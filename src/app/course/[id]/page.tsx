@@ -65,11 +65,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (checkoutFolder) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [checkoutFolder]);
 
