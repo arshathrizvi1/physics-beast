@@ -327,17 +327,17 @@ export default function Home() {
                 animate={{ height: showSearch && searchResults.length > 0 ? 'auto' : 0, opacity: showSearch && searchResults.length > 0 ? 1 : 0 }}
                 className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50 flex flex-col"
               >
-                {searchResults.slice(0, 5).map((r, i) => (
+                {searchResults.slice(0, 5).map(r => (
                   <Link 
-                    key={i} 
-                    href={`/course/${r.id}`}
-                    onClick={() => { setSearchQuery(""); setShowSearch(false); }}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-b border-black/10 dark:border-border/50 last:border-0"
+                    key={r.id} 
+                    href={r.type === 'course' ? `/course/${r.id}` : `/course/${r.courseId}?video=${r.id}`}
+                    onClick={() => setShowSearch(false)}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border-b border-black/5 dark:border-white/5 last:border-0"
                   >
-                    {r.type === 'video' ? <PlayCircle className="w-4 h-4 text-[#d4af37] shrink-0" /> : <BookOpen className="w-4 h-4 text-[#d4af37] shrink-0" />}
-                    <div className="overflow-hidden">
-                      <div className="text-foreground text-sm font-medium truncate">{r.title}</div>
-                      <div className="text-zinc-500 text-xs truncate">{r.subtitle}</div>
+                    {r.type === 'course' ? <BookOpen className="w-4 h-4 text-[#d4af37]" /> : <PlayCircle className="w-4 h-4 text-[#d4af37]" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
+                      <p className="text-xs text-zinc-500 truncate">{r.type === 'course' ? 'Course' : 'Video Lesson'}</p>
                     </div>
                   </Link>
                 ))}
@@ -407,8 +407,8 @@ export default function Home() {
 
         {/* 7. Feature Cards Animation (Scroll Reveal) */}
         <section className="border-y border-border/50 bg-zinc-50 dark:bg-[#0c0c0c] relative z-10">
-          <div className="container mx-auto px-6 py-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <div className="grid grid-cols-3 lg:grid-cols-6 gap-y-6 gap-x-2 sm:gap-6">
               {[
                 { icon: Users, title: "Expert Instructors" },
                 { icon: MonitorPlay, title: "Flexible Learning" },
@@ -423,12 +423,12 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
                   transition={{ delay: i * 0.1, duration: 0.6 }}
-                  className="flex flex-col items-center text-center gap-3 p-4 rounded-2xl hover:bg-zinc-900 transition-colors group cursor-pointer"
+                  className="flex flex-col items-center text-center gap-2 sm:gap-3 p-1 sm:p-4 rounded-2xl hover:bg-zinc-900 transition-colors group cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-full bg-zinc-900 border border-border flex items-center justify-center group-hover:border-[#d4af37]/50 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all">
-                    <feature.icon className="w-6 h-6 text-[#d4af37]" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-zinc-900 border border-border flex items-center justify-center group-hover:border-[#d4af37]/50 group-hover:shadow-[0_0_15px_rgba(212,175,55,0.2)] transition-all shrink-0">
+                    <feature.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#d4af37]" />
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground/90 group-hover:text-foreground transition-colors">{feature.title}</h3>
+                  <span className="font-semibold text-foreground text-[10px] sm:text-sm leading-tight">{feature.title}</span>
                 </motion.div>
               ))}
             </div>
