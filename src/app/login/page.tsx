@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,13 +21,15 @@ export default function LoginPage() {
   const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup, loginWithCustomToken } = useAuth();
   const router = useRouter();
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('pfp') === 'true') {
+    const checkHash = () => {
+      if (typeof window !== 'undefined' && window.location.hash === '#pfp') {
         setIsPfpModalOpen(true);
-        window.history.replaceState({}, '', window.location.pathname);
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
       }
-    }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
   }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -678,7 +681,7 @@ export default function LoginPage() {
         </Card>
           <ReportIssueModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
           
-          {isPfpModalOpen && (
+          {isPfpModalOpen && typeof document !== 'undefined' && createPortal(
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
               <div className="bg-card border border-secondary/50 rounded-2xl p-6 max-w-sm w-full relative flex flex-col items-center gap-6 shadow-2xl">
                 <button 
@@ -705,7 +708,8 @@ export default function LoginPage() {
                   <input type="file" accept="image/*" className="hidden" onChange={handlePfpUpload} disabled={isUploadingPfp} />
                 </label>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
       </div>
     );

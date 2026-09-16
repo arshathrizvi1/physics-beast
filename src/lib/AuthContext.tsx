@@ -1210,30 +1210,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const pendingStudyMinutesRef = useRef(0);
+  const isCapacitorRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      isCapacitorRef.current = !!(window as any).Capacitor?.isNativePlatform?.();
+      // Set user UID in native plugin for background sync
+      if (isCapacitorRef.current && user?.uid) {
+        try {
+          (window as any).Capacitor.Plugins.StudyTime?.setUserId({ uid: user.uid });
+        } catch {}
+      }
+    }
+  }, [user?.uid]);
 
   const recordStudyMinute = useCallback(() => {
     if (!user) return;
     
+    // Always update local React state for instant UI feedback
     setUser(prev => {
       if (!prev) return prev;
       
       const newMins = (prev.totalStudyTimeMins || 0) + 1;
       const todayMins = (prev as any).todayStudyTimeMins || 0;
-      const newTotalXp = (prev.totalXp || 0) + 1; // Assuming XP_PER_STUDY_MINUTE = 1, as per xp.ts
+      const newTotalXp = (prev.totalXp || 0) + 1;
       
       return {
         ...prev,
         totalStudyTimeMins: newMins,
         todayStudyTimeMins: todayMins + 1,
         totalXp: newTotalXp,
-        xpLevel: Math.max(1, Math.floor(newTotalXp / 500) + 1) // XP_PER_LEVEL = 500
+        xpLevel: Math.max(1, Math.floor(newTotalXp / 500) + 1)
       };
     });
 
-    pendingStudyMinutesRef.current += 1;
+    if (isCapacitorRef.current) {
+      // In Android app: save to SharedPreferences via native plugin (survives kills/reboots)
+      try {
+        (window as any).Capacitor.Plugins.StudyTime?.recordMinute();
+      } catch {}
+    } else {
+      // On web: buffer in memory
+      pendingStudyMinutesRef.current += 1;
+    }
   }, [user]);
 
   const syncStudyTimeNow = useCallback(async () => {
+    if (isCapacitorRef.current) {
+      // In Android app: trigger native WorkManager sync
+      try {
+        (window as any).Capacitor.Plugins.StudyTime?.syncNow();
+      } catch {}
+      return;
+    }
+
+    // Web: sync from browser memory to Firestore
     if (!user || pendingStudyMinutesRef.current === 0) return;
     
     const minutesToSync = pendingStudyMinutesRef.current;
@@ -1260,9 +1291,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    // In Capacitor: native WorkManager handles the 3-hour sync.
+    // On web: use 5-minute interval sync.
+    const interval = isCapacitorRef.current ? null : setInterval(() => {
       syncStudyTimeNow();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -1278,7 +1311,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       syncStudyTimeNow();

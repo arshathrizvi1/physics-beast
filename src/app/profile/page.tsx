@@ -18,9 +18,9 @@ export default function StudentProfilePage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('pfp') === 'true') {
+      if (typeof window !== 'undefined' && window.location.hash === '#pfp') {
         setIsPfpModalOpen(true);
-        window.history.replaceState({}, '', window.location.pathname);
+        window.history.replaceState({}, '', window.location.pathname + window.location.search);
       }
     }
   }, []);

@@ -17,6 +17,7 @@ import { PasskeyShim } from "@/components/PasskeyShim";
 import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import PermissionGate from "@/components/PermissionGate";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -55,6 +56,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <PermissionGate>
             <NotificationProvider>
               <LenisProvider>
                 <CustomToastProvider />
@@ -76,6 +78,7 @@ export default function RootLayout({
                 <MobileBottomNav />
               </LenisProvider>
             </NotificationProvider>
+            </PermissionGate>
           </AuthProvider>
           <SpeedInsights />
           <ThemeToggle />

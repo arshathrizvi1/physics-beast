@@ -8,10 +8,16 @@ import android.view.WindowManager;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 import com.getcapacitor.BridgeActivity;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "MainActivity";
+    private static final String PERIODIC_SYNC_WORK_NAME = "study_time_periodic_sync";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -22,12 +28,68 @@ public class MainActivity extends BridgeActivity {
         );
 
         registerPlugin(BackgroundPermissionPlugin.class);
+        registerPlugin(StudyTimePlugin.class);
         super.onCreate(savedInstanceState);
 
         // Only clean up stale service worker files — do NOT clearCache
         cleanServiceWorkerFiles();
 
         hideSystemUI();
+
+        // Schedule the periodic 3-hour study time sync
+        schedulePeriodicSync();
+    }
+
+    /**
+     * Schedules a periodic WorkManager job to sync study time every 3 hours.
+     * Uses KEEP policy so it won't replace an existing schedule.
+     */
+    private void schedulePeriodicSync() {
+        try {
+            PeriodicWorkRequest periodicSync =
+                new PeriodicWorkRequest.Builder(StudySyncWorker.class, 3, TimeUnit.HOURS)
+                    .build();
+            WorkManager.getInstance(this)
+                .enqueueUniquePeriodicWork(
+                    PERIODIC_SYNC_WORK_NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    periodicSync
+                );
+            Log.d(TAG, "Periodic study sync scheduled (every 3 hours).");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to schedule periodic sync", e);
+        }
+    }
+
+    /**
+     * Trigger an immediate sync when the app is going to background or being destroyed.
+     */
+    @Override
+    protected void onStop() {
+        super.onStop();
+        triggerImmediateSync();
+    }
+
+    @Override
+    protected void onDestroy() {
+        triggerImmediateSync();
+        super.onDestroy();
+    }
+
+    private void triggerImmediateSync() {
+        try {
+            android.content.SharedPreferences prefs = 
+                getSharedPreferences("study_time_prefs", MODE_PRIVATE);
+            int pending = prefs.getInt("pending_study_minutes", 0);
+            if (pending > 0) {
+                Log.d(TAG, "App closing with " + pending + " pending minutes. Syncing now.");
+                OneTimeWorkRequest syncWork =
+                    new OneTimeWorkRequest.Builder(StudySyncWorker.class).build();
+                WorkManager.getInstance(this).enqueue(syncWork);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to trigger immediate sync", e);
+        }
     }
 
     /**
