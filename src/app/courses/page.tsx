@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlayCircle, BookOpen, GraduationCap, Play, LayoutGrid, List } from "lucide-react";
+import { PlayCircle, BookOpen, GraduationCap, Play, LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
@@ -137,6 +137,7 @@ function CoursesContent() {
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(false);
   const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
+  const [localSearch, setLocalSearch] = useState("");
 
   // Sync state with URL params on client-side navigation
   useEffect(() => {
@@ -156,12 +157,13 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
         );
 
-        const [querySnapshot, teachersSnap, subjectsSnap, foldersSnap] = await Promise.race([
+        const [querySnapshot, teachersSnap, subjectsSnap, foldersSnap, videosSnap] = await Promise.race([
           Promise.all([
             getDocs(collection(db, "courses")),
             getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
             getDocs(collection(db, "subjects")),
-            getDocs(collection(db, "folders"))
+            getDocs(collection(db, "folders")),
+            getDocs(collection(db, "videos"))
           ]),
           timeoutPromise
         ]);
@@ -188,6 +190,12 @@ function CoursesContent() {
           ...doc.data() as any
         }));
         setFolders(fetchedFolders);
+
+        const fetchedVideos = videosSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data() as any
+        }));
+        setVideos(fetchedVideos);
         
         if (user && user.role === 'student') {
           const batchesSnap = await Promise.race([
@@ -222,11 +230,15 @@ function CoursesContent() {
   }, [user]);
 
   const displayedCourses = courses.filter(c => {
-    // text search
-    if (searchQuery) {
-      const matchName = c.name?.toLowerCase().includes(searchQuery);
-      const matchDesc = c.description?.toLowerCase().includes(searchQuery);
-      if (!matchName && !matchDesc) return false;
+    // deep text search
+    const activeSearchQuery = (localSearch || searchQuery).toLowerCase();
+    if (activeSearchQuery) {
+      const matchName = c.name?.toLowerCase().includes(activeSearchQuery);
+      const matchDesc = c.description?.toLowerCase().includes(activeSearchQuery);
+      const matchFolder = folders.some(f => f.courseId === c.id && f.name?.toLowerCase().includes(activeSearchQuery));
+      const matchVideo = videos.some(v => v.courseId === c.id && v.title?.toLowerCase().includes(activeSearchQuery));
+      
+      if (!matchName && !matchDesc && !matchFolder && !matchVideo) return false;
     }
     
     // teacher filter
@@ -378,13 +390,25 @@ function CoursesContent() {
             <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--gold)]">
               <PlayCircle className="w-6 h-6" /> Premium Live Classes & Active Courses
             </h3>
-            <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
-              <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
-                <List className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="Search courses, units, videos..." 
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 text-sm bg-secondary/20 border border-secondary/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-64"
+                />
+              </div>
+              <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
+                <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
@@ -496,7 +520,7 @@ function CoursesContent() {
         </div>
       ) : loading ? (
         <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
-      ) : !isViewMode ? null : displayedCourses.length === 0 ? (
+      ) : (!isViewMode && !localSearch) ? null : displayedCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
           <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
           <h3 className="text-xl font-bold">No Courses Available</h3>
@@ -515,17 +539,29 @@ function CoursesContent() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
               Available Courses
             </h3>
-            <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30">
-              <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
-                <List className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="Search courses, units, videos..." 
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="pl-9 pr-4 py-1.5 text-sm bg-secondary/20 border border-secondary/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-64"
+                />
+              </div>
+              <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
+                <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
           

@@ -768,6 +768,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   return (
     <>
+      <div className={checkoutFolder ? "hidden" : "block"}>
       {course.isMonthly && !selectedMonthlyFolderId ? (
         <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1686,13 +1687,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       </div>
     </div>
     )}
+    </div> {/* Close course content wrapper */}
 
-      {/* Checkout Modal */}
+      {/* Checkout View (Inline instead of Modal to push footer down) */}
       {checkoutFolder && (
-        <div className="fixed inset-0 z-[100] bg-black/80 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
-            <div className="w-full max-w-md my-8">
-              <Card className="bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col">
+        <div className="container mx-auto px-4 py-12 sm:py-20 flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in zoom-in-95 duration-300">
+          <div className="w-full max-w-md">
+            <Card className="bg-background border-primary/20 shadow-2xl overflow-hidden flex flex-col">
               <CardHeader className="bg-primary/5 border-b border-primary/10 flex-none pb-4">
                 <div className="flex justify-between items-start">
                   <div>
@@ -1857,10 +1858,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               </CardContent>
             </div>
           </Card>
-          </div>
         </div>
-        </div>
-      )}
-    </>
+      </div>
+    )}
+  </>
   );
 }
