@@ -97,6 +97,9 @@ export default function AdminDashboard() {
   // Bulk Access State
   const [bulkStudentIds, setBulkStudentIds] = useState("");
   const [bulkFolderId, setBulkFolderId] = useState("");
+  
+  // Sort State
+  const [studentSort, setStudentSort] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
   const [studentFilterBatch, setStudentFilterBatch] = useState("All");
   const [studentFilterStatus, setStudentFilterStatus] = useState("All");
@@ -567,6 +570,31 @@ export default function AdminDashboard() {
       (s.nicNumber?.includes(studentSearchTerm));
     return matchBatch && matchStatus && matchSearch;
   });
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (!studentSort) return 0;
+    const { key, direction } = studentSort;
+    let valA = a[key] || '';
+    let valB = b[key] || '';
+
+    if (key === 'studentId' || key === 'graduationYear') {
+       // Numeric/Alphanumeric sorting for IDs and Batches
+       valA = valA.toString().toLowerCase();
+       valB = valB.toString().toLowerCase();
+    }
+    
+    if (valA < valB) return direction === 'asc' ? -1 : 1;
+    if (valA > valB) return direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const requestStudentSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (studentSort && studentSort.key === key && studentSort.direction === 'asc') {
+      direction = 'desc';
+    }
+    setStudentSort({ key, direction });
+  };
 
   const handleSaveStudentAccess = async () => {
     if (!selectedStudentForAccess) return;
@@ -2129,18 +2157,28 @@ export default function AdminDashboard() {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">ID</th>
-                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Name</th>
-                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Batch</th>
-                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Avg Daily</th>
+                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-primary transition-colors select-none" onClick={() => requestStudentSort('studentId')}>
+                        ID {studentSort?.key === 'studentId' && (studentSort.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-primary transition-colors select-none" onClick={() => requestStudentSort('name')}>
+                        Name {studentSort?.key === 'name' && (studentSort.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-primary transition-colors select-none" onClick={() => requestStudentSort('graduationYear')}>
+                        Batch {studentSort?.key === 'graduationYear' && (studentSort.direction === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-primary transition-colors select-none" onClick={() => requestStudentSort('totalStudyTimeMins')}>
+                        Avg Daily {studentSort?.key === 'totalStudyTimeMins' && (studentSort.direction === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Phone</th>
                       <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Parent</th>
-                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Status</th>
+                      <th className="p-3 font-bold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-primary transition-colors select-none" onClick={() => requestStudentSort('isApproved')}>
+                        Status {studentSort?.key === 'isApproved' && (studentSort.direction === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th className="p-3 font-bold text-muted-foreground whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map(student => (
+                    {sortedStudents.map(student => (
                       <tr key={student.id} className="border-b hover:bg-secondary/10 transition-colors text-sm">
                         <td className="p-3 font-mono text-primary whitespace-nowrap">{student.studentId || 'N/A'}</td>
                         <td className="p-3 font-medium min-w-[150px]">{student.name || student.email}</td>
