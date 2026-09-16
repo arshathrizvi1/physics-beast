@@ -7,60 +7,71 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { calculateXpLevel } from "@/lib/xp";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function LeaderboardPage() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [examResults, setExamResults] = useState<any[]>([]);
-  const [uniqueExams, setUniqueExams] = useState<any[]>([]);
+  const [allExams, setAllExams] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   
-  const [selectedExamId, setSelectedExamId] = useState<string>("overall");
+  const [selectedMetric, setSelectedMetric] = useState<string>("overall");
+  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   const [dbError, setDbError] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+
     const fetchLeaderboardData = async () => {
       try {
         setLoading(true);
         setDbError(false);
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 5000)
-        );
+        
+        // Parallel fetch for all required collections
+        const [usersSnap, resultsSnap, examsSnap, subjectsSnap, batchesSnap] = await Promise.all([
+          getDocs(query(collection(db, 'users'), where('role', '==', 'student'))),
+          getDocs(collection(db, 'examResults')),
+          getDocs(collection(db, 'exams')),
+          getDocs(collection(db, 'subjects')),
+          getDocs(collection(db, 'batches'))
+        ]);
 
-        // 1. Fetch all students
-        const qUsers = query(collection(db, 'users'), where('role', '==', 'student'));
-        const usersSnap = await Promise.race([getDocs(qUsers), timeoutPromise]) as any;
         const usersData = usersSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         setUsers(usersData);
 
-        // 2. Fetch all exam results
-        const resultsSnap = await Promise.race([getDocs(collection(db, 'examResults')), timeoutPromise]) as any;
         const resultsData = resultsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         setExamResults(resultsData);
+        
+        const examsData = examsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        setAllExams(examsData);
+        
+        const subjectsData = subjectsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        setSubjects(subjectsData);
+        
+        const batchesData = batchesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        setBatches(batchesData);
 
-        // Extract unique exams
-        const examsMap = new Map();
-        resultsData.forEach((res: any) => {
-          if (res.examId && res.examTitle) {
-            examsMap.set(res.examId, res.examTitle);
-          }
-        });
-        const examsList = Array.from(examsMap.entries()).map(([id, title]) => ({ id, title }));
-        setUniqueExams(examsList);
+        // Set initial batch based on role
+        if (user.role === 'student' && user.graduationYear) {
+          setSelectedBatchId(user.graduationYear);
+        } else if (user.role !== 'student' && batchesData.length > 0) {
+          // Default to the first batch or 'all' if preferred. Let's default to the first one available
+          setSelectedBatchId(batchesData[0].year || batchesData[0].id);
+        }
 
       } catch (err: any) {
-        if (err.message === "FIRESTORE_TIMEOUT") {
-          console.log("Database timeout - likely quota exceeded.");
-        } else {
-          console.error("Failed to fetch leaderboard data:", err);
-        }
+        console.error("Failed to fetch leaderboard data:", err);
         setDbError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchLeaderboardData();
-  }, []);
+  }, [user]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -69,11 +80,16 @@ export default function LeaderboardPage() {
   };
 
   // Compute displayed leaderboard based on selection
+  const batchFilteredUsers = users.filter(u => {
+    if (selectedBatchId === "all") return true;
+    return u.graduationYear === selectedBatchId || u.batchId === selectedBatchId;
+  });
+
   let displayBoard: any[] = [];
   
-  if (selectedExamId === "overall") {
+  if (selectedMetric === "overall") {
     // Rank by Total XP (or Average Grade if XP is tied)
-    displayBoard = users.map(u => {
+    displayBoard = batchFilteredUsers.map(u => {
       const xp = u.totalXp || 0;
       return {
         name: u.name || u.email?.split('@')[0] || "Unknown Student",
@@ -86,19 +102,30 @@ export default function LeaderboardPage() {
       };
     }).sort((a, b) => b.score - a.score);
   } else {
-    // Rank by Exam Score, then Time (ascending)
-    const specificResults = examResults.filter(r => r.examId === selectedExamId);
-    displayBoard = specificResults.map(r => {
-      const student = users.find(u => u.id === r.userId) || { name: "Unknown Student", photoUrl: null, id: r.userId };
+    // Subject-wise Rank
+    const subjectExams = allExams.filter(e => e.course === selectedMetric || e.category === selectedMetric);
+    const subjectExamIds = new Set(subjectExams.map(e => e.id));
+
+    displayBoard = batchFilteredUsers.map(u => {
+      const userSubjectResults = examResults.filter(r => r.userId === u.id && subjectExamIds.has(r.examId));
+      let totalScore = 0;
+      let totalTime = 0;
+
+      userSubjectResults.forEach(r => {
+        totalScore += (r.score || r.rawScore || 0);
+        totalTime += (r.timeSeconds || r.timeTakenSeconds || 0);
+      });
+
       return {
-        name: student.name || student.email?.split('@')[0] || "Unknown Student",
-        score: r.score || 0,
-        time: r.timeSeconds || r.timeTakenSeconds || 0,
-        avatar: student.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${student.id}&backgroundColor=d4af37`,
+        name: u.name || u.email?.split('@')[0] || "Unknown Student",
+        score: totalScore,
+        time: totalTime,
+        avatar: u.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${u.id}&backgroundColor=d4af37`,
         isOverall: false
       };
     }).sort((a, b) => {
       if (b.score === a.score) {
+        if (a.score === 0) return 0; // if both have 0, they tie
         return a.time - b.time; // Lower time is better if scores are tied
       }
       return b.score - a.score;
@@ -114,24 +141,40 @@ export default function LeaderboardPage() {
           <Trophy className="w-10 h-10" />
         </h1>
         
-        {/* Dropdown to select Exam or Overall */}
-        <div className="flex justify-center mt-4">
+        {/* Dropdowns */}
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-4">
+          
+          {/* Batch Selection (Only for Admin/Teacher) */}
+          {(user?.role === 'admin' || user?.role === 'teacher') && (
+            <select 
+              className="flex h-12 w-full sm:max-w-[200px] items-center justify-between rounded-md border-2 border-primary/50 bg-background/50 px-4 py-2 text-lg font-bold text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={selectedBatchId}
+              onChange={(e) => setSelectedBatchId(e.target.value)}
+            >
+              <option value="all">All Batches</option>
+              {batches.map(b => (
+                <option key={b.id} value={b.year || b.id}>{b.year ? `Batch ${b.year}` : b.name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Metric Selection (Overall vs Subject) */}
           <select 
             className="flex h-12 w-full max-w-sm items-center justify-between rounded-md border-2 border-primary/50 bg-background/50 px-4 py-2 text-lg font-bold text-center ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={selectedExamId}
-            onChange={(e) => setSelectedExamId(e.target.value)}
+            value={selectedMetric}
+            onChange={(e) => setSelectedMetric(e.target.value)}
           >
-            <option value="overall">🏆 Overall Global Ranking (Total XP)</option>
-            {uniqueExams.map(ex => (
-              <option key={ex.id} value={ex.id}>📄 Exam: {ex.title}</option>
+            <option value="overall">🌟 Overall Ranking</option>
+            {subjects.map(s => (
+              <option key={s.id} value={s.name}>📚 Subject: {s.name}</option>
             ))}
           </select>
         </div>
         
         <p className="text-sm text-primary/80 mt-2">
-          {selectedExamId === "overall" 
+          {selectedMetric === "overall" 
             ? "Ranked by overall student XP level and dedication."
-            : "Ranked by Highest Score, then Quickest Completion Time."}
+            : "Ranked by total marks scored in exams for this subject."}
         </p>
       </div>
 
@@ -149,10 +192,18 @@ export default function LeaderboardPage() {
             </div>
             <div className="bg-primary/10 border border-primary/30 p-4 rounded-xl text-center min-w-[120px]">
               <div className="text-2xl font-bold text-primary">
-                {selectedExamId === "overall" ? (users.reduce((acc, u) => acc + (u.examsDone || 0), 0)) : (displayBoard.filter(d => d.score >= 50).length)}
+                {selectedMetric === "overall" ? (batchFilteredUsers.reduce((acc, u) => acc + (u.examsDone || 0), 0)) : (displayBoard.filter(d => d.score >= 50).length)}
               </div>
               <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                {selectedExamId === "overall" ? "Total Exams Taken" : "Passed (>50%)"}
+                {selectedMetric === "overall" ? "Total Exams Taken" : "Passed (>50%)"}
+              </div>
+            </div>
+            <div className="bg-secondary/20 border border-secondary p-4 rounded-xl text-center min-w-[120px] hidden sm:block">
+              <div className="text-2xl font-bold text-primary">
+                {selectedMetric === "overall" ? (batchFilteredUsers.reduce((acc, u) => acc + (u.totalStudyTimeMins ? Math.floor(u.totalStudyTimeMins/60) : 0), 0)) : (displayBoard.length > 0 ? Math.round(displayBoard.reduce((a,b)=>a+b.score,0)/displayBoard.length) : 0)}
+              </div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                {selectedMetric === "overall" ? "Hours Studied" : "Avg Score"}
               </div>
             </div>
           </div>
@@ -162,8 +213,8 @@ export default function LeaderboardPage() {
               <div className="grid grid-cols-12 gap-1 md:gap-4 text-xs md:text-sm font-bold text-muted-foreground px-1 md:px-4">
                 <div className="col-span-2 md:col-span-1 text-center md:text-left">Rank</div>
                 <div className="col-span-5 md:col-span-7">Student</div>
-                <div className="col-span-3 md:col-span-2 text-center">{selectedExamId === "overall" ? "Total XP" : "Score"}</div>
-                <div className="col-span-2 md:col-span-2 text-right">{selectedExamId === "overall" ? "Grade" : "Time"}</div>
+                <div className="col-span-3 md:col-span-2 text-center">{selectedMetric === "overall" ? "Total XP" : "Score"}</div>
+                <div className="col-span-2 md:col-span-2 text-right">{selectedMetric === "overall" ? "Grade" : "Time"}</div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
