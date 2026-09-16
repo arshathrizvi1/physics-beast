@@ -231,8 +231,8 @@ function CoursesContent() {
             {topMonthlyCourses.map((course) => (
               <Link key={course.id} href={`/course/${course.id}`}>
                 <Card className="overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex flex-col h-full group shadow-lg hover:shadow-[var(--gold)]/20 relative">
-                  <div className="absolute top-0 right-0 p-2">
-                    <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider">Premium Live</span>
+                  <div className="absolute top-0 right-0 p-2 z-20">
+                    <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
                   </div>
                   <div className="aspect-video relative overflow-hidden bg-black flex items-center justify-center border-b border-[var(--gold)]/20">
                     {course.image || course.thumbnailUrl ? (
