@@ -240,8 +240,8 @@ export default function Home() {
         </div>
 
         {/* Hero Section */}
-        <section className="relative z-10 container mx-auto px-6 pt-16 pb-24 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-12">
-          <div className="flex-1 space-y-8 w-full">
+        <section className="relative z-10 container mx-auto px-6 pt-10 pb-12 lg:pt-24 lg:pb-32 flex flex-col lg:flex-row items-center lg:items-start gap-8 lg:gap-12">
+          <div className="flex-1 space-y-6 lg:space-y-8 w-full">
             {/* 5-Star Rating Hero Badge */}
             <motion.div 
               initial={{ opacity: 0, y: 15 }}
@@ -552,14 +552,14 @@ export default function Home() {
         {/* 13. About Section Animation */}
         <section className="py-12 md:py-24 relative z-10 overflow-hidden">
           <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row items-center gap-16 bg-card border border-border rounded-[2.5rem] p-8 lg:p-16">
+            <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16 bg-card border border-border rounded-[2.5rem] p-6 lg:p-16">
               
               <motion.div 
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8 }}
-                className="flex-1 space-y-8"
+                className="flex-1 space-y-6 lg:space-y-8"
               >
                 <h2 className="text-4xl lg:text-5xl font-bold text-foreground">
                   Why Choose <span className="text-[#d4af37]">Brilliant Academy?</span>
@@ -794,14 +794,14 @@ export default function Home() {
           </section>
 
           {/* Student Reviews Section */}
-        <section className="py-24 bg-background relative z-10 overflow-hidden">
+        <section className="py-12 md:py-24 bg-background relative z-10 overflow-hidden">
           {/* background gold glow blob */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#d4af37]/5 rounded-full blur-[80px] pointer-events-none" />
 
-          <div className="container mx-auto px-6 text-center mb-14 relative z-10">
+          <div className="container mx-auto px-6 text-center mb-8 md:mb-14 relative z-10">
             {/* Animated gold star row */}
             <motion.div
-              className="flex justify-center gap-2.5 mb-6"
+              className="flex justify-center gap-2.5 mb-4 md:mb-6"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -844,16 +844,16 @@ export default function Home() {
             </motion.h2>
           </div>
 
-          {/* Slider â€” only if we have reviews */}
+          {/* Slider — only if we have reviews */}
           {topReviews.length > 0 ? (
-            <div className="relative w-full overflow-hidden mb-14">
+            <div className="relative w-full overflow-hidden mb-8 md:mb-14">
               <div
-                className="flex gap-6 w-max pl-6 animate-[marquee_15s_linear_infinite]"
+                className="flex gap-4 md:gap-6 w-max pl-6 animate-[marquee_15s_linear_infinite]"
               >
                 {[...topReviews, ...topReviews].map((r: any, i: number) => (
-                  <div key={`${r.id}-${i}`} className="w-[360px] bg-card border border-border rounded-2xl p-7 shrink-0 flex flex-col justify-between">
+                  <div key={`${r.id}-${i}`} className="w-[300px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7 shrink-0 flex flex-col justify-between">
                     <div>
-                      <div className="flex gap-0.5 mb-4">
+                      <div className="flex gap-0.5 mb-3 md:mb-4">
                         {[1, 2, 3, 4, 5].map(s => (
                           <Star key={s} className={`w-4 h-4 ${s <= r.rating ? "fill-[#d4af37] text-[#d4af37]" : "text-zinc-700"}`} />
                         ))}
@@ -873,8 +873,8 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="absolute top-0 bottom-0 left-0 w-20 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
-              <div className="absolute top-0 bottom-0 right-0 w-20 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 bottom-0 left-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+              <div className="absolute top-0 bottom-0 right-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
             </div>
           ) : (
             <div className="text-center py-10 mb-10">
@@ -910,13 +910,13 @@ export default function Home() {
           </div>
 
           {/* Spacing & Contact Details Panel */}
-          <div className="mt-16 pt-10 border-t border-white/5">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-2">Get in Touch with Us</h3>
-              <p className="text-muted-foreground text-sm">Reach out to Brilliant Academy anytime</p>
+          <div className="mt-12 md:mt-16 pt-8 md:pt-10 border-t border-white/5 px-6">
+            <div className="text-center mb-6 md:mb-8">
+              <h3 className="text-xl md:text-2xl font-bold text-foreground mb-1 md:mb-2">Get in Touch with Us</h3>
+              <p className="text-muted-foreground text-xs md:text-sm">Reach out to Brilliant Academy anytime</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto mb-6 md:mb-10">
               <a href={`mailto:${aboutContact.email || "contact@brilliantacademy.com"}`} className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-[#d4af37]/10 flex items-center justify-center shrink-0">
                   <Mail className="w-5 h-5 text-[#d4af37]" />
