@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import CourseManagerModal from "@/components/CourseManagerModal";
+import FolderManagerModal from "@/components/FolderManagerModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -167,6 +169,9 @@ export default function AdminDashboard() {
   const [contentBrowseCourseId, setContentBrowseCourseId] = useState<string | null>(null);
   const [contentBrowseFolderId, setContentBrowseFolderId] = useState<string | null>(null);
 
+    const [isCourseManagerOpen, setIsCourseManagerOpen] = useState(false);
+  const [isFolderManagerOpen, setIsFolderManagerOpen] = useState(false);
+  const [activeCourseForFolder, setActiveCourseForFolder] = useState<any>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isEditingStudent, setIsEditingStudent] = useState(false);
@@ -2636,7 +2641,16 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-primary">Library & Curriculum</h2>
+                    <p className="text-sm text-muted-foreground">Select a Batch and Subject to manage courses.</p>
+                  </div>
+                  <Button onClick={() => { setSelectedBatchId(null); setSelectedSubjectId(null); setIsCourseManagerOpen(true); }} className="gap-2">
+                    <FolderOpen className="w-4 h-4" /> Manage All Courses
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* BATCHES COLUMN */}
                   <div className="border border-border/50 rounded-lg p-4 space-y-4">
                     <h3 className="font-bold text-lg border-b pb-2">1. Batches (Years)</h3>
@@ -2704,7 +2718,7 @@ export default function AdminDashboard() {
                       {subjects.map(s => (
                         <div 
                           key={s.id} 
-                          onClick={() => { setSelectedSubjectId(s.id); setSelectedCourseId(null); }}
+                          onClick={() => { setSelectedSubjectId(s.id); setIsCourseManagerOpen(true); }}
                           className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedSubjectId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
                         >
                           <p className="font-bold text-sm">{s.name}</p>
@@ -2737,201 +2751,6 @@ export default function AdminDashboard() {
                     </form>
                   </div>
 
-                  {/* COURSES COLUMN */}
-                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${(!selectedBatchId || !selectedSubjectId) ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <h3 className="font-bold text-lg">2. Courses</h3>
-                      {courseTeacherFilter !== "all" && (
-                        <span className="text-[11px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                          Filtered by Teacher
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {courses.filter(c => {
-                        const matchBatch = c.batchId === selectedBatchId || (!c.batchId && selectedBatchId === 'all');
-                        const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
-                        const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId; // show unassigned courses too
-                        return matchBatch && matchTeacher && matchSubject;
-                      }).map(c => (
-                        <div
-                          key={c.id}
-                          className={`p-3 rounded-md flex items-center gap-2 transition-colors ${selectedCourseId === c.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
-                        >
-                          {editingCourseId === c.id ? (
-                            <div className="flex-1 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                              <Input
-                                value={editCourseName}
-                                onChange={e => setEditCourseName(e.target.value)}
-                                className="h-7 text-sm bg-background text-foreground"
-                                autoFocus
-                                onKeyDown={e => { if (e.key === 'Enter') handleSaveCourse(c.id); if (e.key === 'Escape') setEditingCourseId(null); }}
-                              />
-                              <Textarea
-                                placeholder="Course Description (Optional)"
-                                value={editCourseDescription}
-                                onChange={e => setEditCourseDescription(e.target.value)}
-                                className="h-16 text-xs bg-background text-foreground resize-none"
-                              />
-                              <select
-                                className="flex h-7 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-                                value={editCourseTeacherId !== "" ? editCourseTeacherId : (c.teacherId || "")}
-                                onChange={e => setEditCourseTeacherId(e.target.value)}
-                              >
-                                <option value="">-- No Teacher Assigned --</option>
-                                {teamMembers.filter(tm => tm.role === 'teacher').map(tm => (
-                                  <option key={tm.id} value={tm.id}>
-                                    {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="flex gap-1 justify-end">
-                                <button onClick={() => handleSaveCourse(c.id)} className="px-2 py-0.5 bg-green-600 hover:bg-green-700 text-foreground rounded text-xs flex items-center gap-1">
-                                  <Save className="w-3 h-3" /> Save
-                                </button>
-                                <button onClick={() => setEditingCourseId(null)} className="px-2 py-0.5 hover:bg-secondary/60 rounded text-xs">
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex-1 cursor-pointer" onClick={() => setSelectedCourseId(c.id)}>
-                                <p className="font-bold">{c.name}</p>
-                                {c.description && <p className="text-[10px] opacity-70 line-clamp-1 mt-0.5">{c.description}</p>}
-                                {c.teacherName && (
-                                  <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${selectedCourseId === c.id ? 'text-primary-foreground/90' : 'text-primary'}`}>
-                                    <GraduationCap className="w-3 h-3" />
-                                    <span>{c.teacherName}</span>
-                                    {c.teacherSubject && <span className="opacity-75">({c.teacherSubject})</span>}
-                                  </p>
-                                )}
-                              </div>
-                              <button onClick={(e) => { e.stopPropagation(); setEditingCourseId(c.id); setEditCourseName(c.name); setEditCourseDescription(c.description || ""); setEditCourseTeacherId(c.teacherId || ""); }} className={`p-1 hover:bg-secondary/50 rounded-md shrink-0 ${selectedCourseId === c.id ? 'text-primary-foreground/80' : 'text-primary'}`}>
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleDeleteCourse(c.id); }} className={`p-1 hover:bg-destructive/20 rounded-md text-destructive shrink-0`}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                      {selectedBatchId && courses.filter(c => {
-                        const matchBatch = c.batchId === selectedBatchId || (!c.batchId && selectedBatchId === 'all');
-                        const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
-                        const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId;
-                        return matchBatch && matchTeacher && matchSubject;
-                      }).length === 0 && (
-                        <p className="text-sm text-muted-foreground italic">
-                          {courseTeacherFilter !== 'all' ? 'No courses for this teacher in this batch.' : 'No courses in this batch.'}
-                        </p>
-                      )}
-                      {!selectedBatchId && <p className="text-sm text-muted-foreground italic">Select a batch first.</p>}
-                    </div>
-                    <div className="pt-2 border-t space-y-3">
-                      {/* New course */}
-                      <form onSubmit={handleCreateCourse} className="space-y-2">
-                        <Input placeholder="Course Name (e.g. Mechanics)" value={newCourseName} onChange={e => setNewCourseName(e.target.value)} required />
-                        <Textarea placeholder="Course Description (Optional)" value={newCourseDescription} onChange={e => setNewCourseDescription(e.target.value)} className="h-16 text-xs resize-none" />
-                        <label className="flex items-center gap-2 text-xs font-semibold text-primary cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={newCourseIsMonthly} 
-                            onChange={e => setNewCourseIsMonthly(e.target.checked)} 
-                          />
-                          Is Monthly Live Classes Course
-                        </label>
-                        <select
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs"
-                          value={newCourseTeacherId}
-                          onChange={e => setNewCourseTeacherId(e.target.value)}
-                        >
-                          <option value="">-- Assign Teacher (Optional) --</option>
-                          {teamMembers.filter(tm => tm.role === 'teacher').map(tm => (
-                            <option key={tm.id} value={tm.id}>
-                              {tm.name || tm.email?.split('@')[0]} {tm.subject ? `(${tm.subject})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <Input type="file" accept="image/*" onChange={e => setNewCourseImage(e.target.files?.[0] || null)} className="text-xs file:h-full file:bg-transparent file:border-0 file:text-foreground" title="Course Thumbnail (Optional)" />
-                        <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add New Course</Button>
-                      </form>
-
-                      {/* Copy from another batch */}
-                      {selectedBatchId && (() => {
-                        const otherCourses = courses.filter(c => c.batchId !== selectedBatchId);
-                        const alreadyInBatch = new Set(courses.filter(c => c.batchId === selectedBatchId).map(c => c.name));
-                        const copyable = otherCourses.filter(c => !alreadyInBatch.has(c.name));
-                        if (copyable.length === 0) return null;
-                        return (
-                          <div className="space-y-1.5">
-                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Or copy from another batch</p>
-                            <div className="max-h-[120px] overflow-y-auto space-y-1">
-                              {copyable.map(c => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() => handleCopyCourseDeep(c)}
-                                  className="w-full text-left px-3 py-1.5 text-sm rounded-md bg-secondary/20 hover:bg-primary/10 hover:text-primary border border-transparent hover:border-primary/30 transition-colors flex items-center justify-between group"
-                                >
-                                  <span className="font-medium">{c.name}</span>
-                                  <span className="text-xs text-muted-foreground group-hover:text-primary/70 flex items-center gap-1">
-                                    <Plus className="w-3 h-3" /> Copy
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* FOLDERS COLUMN */}
-                  <div className={`border border-border/50 rounded-lg p-4 space-y-4 transition-opacity ${!selectedCourseId ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <h3 className="font-bold text-lg border-b pb-2">3. Folders</h3>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {folders.filter(f => f.courseId === selectedCourseId).map(f => (
-                        <div key={f.id} className="p-3 rounded-md flex justify-between items-center bg-secondary/20">
-                          {editingFolderId === f.id ? (
-                            <div className="flex-1 space-y-2 mr-2">
-                              <Input value={editFolderName} onChange={e => setEditFolderName(e.target.value)} placeholder="Folder Name" className="h-8" />
-                              <Input type="number" value={editFolderPrice} onChange={e => setEditFolderPrice(e.target.value)} placeholder="Price" className="h-8" />
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => handleSaveFolder(f.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save</Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingFolderId(null)} className="h-7">Cancel</Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div>
-                                <p className="font-bold">{f.name}</p>
-                                {f.price !== undefined && (
-                                  <p className="text-xs text-green-600 font-bold bg-green-500/10 inline-block px-1.5 py-0.5 rounded mt-1">Rs. {f.price}</p>
-                                )}
-                              </div>
-                              <div className="flex gap-1">
-                                <button onClick={() => handleEditFolder(f)} className="p-1 hover:bg-secondary/50 rounded-md text-primary">
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => handleDeleteFolder(f.id)} className="p-1 hover:bg-destructive/20 rounded-md text-destructive">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                      {selectedCourseId && folders.filter(f => f.courseId === selectedCourseId).length === 0 && <p className="text-sm text-muted-foreground italic">No folders in this course.</p>}
-                      {!selectedCourseId && <p className="text-sm text-muted-foreground italic">Select a course first.</p>}
-                    </div>
-                    <form onSubmit={handleCreateFolder} className="pt-2 border-t space-y-2">
-                      <Input placeholder="Folder Name (e.g. Week 1)" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} required />
-                      <Input type="number" placeholder="Price (Rs.)" value={newFolderPrice} onChange={e => setNewFolderPrice(e.target.value)} />
-                      <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Folder</Button>
-                    </form>
-                  </div>
                 </div>
               </CardContent>
           </Card>
