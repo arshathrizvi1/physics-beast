@@ -158,7 +158,7 @@ export function FolderSelectModal({
                           onSelect(folder.id); 
                           onClose(); 
                         }} 
-                        className={p-3 text-left rounded-lg border transition-all text-sm font-medium flex items-center justify-between hover:scale-[1.02] }
+                        className={`p-3 text-left rounded-lg border transition-all text-sm font-medium flex items-center justify-between hover:scale-[1.02] ${selectedFolderId === folder.id ? "bg-primary text-primary-foreground border-primary" : "bg-card text-card-foreground border-border hover:border-primary/50"}`}
                       >
                         <span className="truncate mr-2" title={folder.name}>{folder.name}</span>
                         {selectedFolderId === folder.id && <CheckCircle2 className="w-4 h-4 shrink-0" />}
@@ -174,4 +174,5 @@ export function FolderSelectModal({
     </div>
   );
 }
+
 
