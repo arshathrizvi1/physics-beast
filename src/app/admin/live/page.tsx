@@ -36,6 +36,7 @@ export default function AdminLiveStudio() {
     direct: { enabled: false, link: "" }
   });
   const [scheduledFor, setScheduledFor] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [courseId, setCourseId] = useState("all");
   const [batchId, setBatchId] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
