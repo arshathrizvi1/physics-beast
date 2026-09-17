@@ -208,7 +208,13 @@ export default function PremiumNavbar() {
               {user ? (
                 <div className="flex items-center gap-3">
                   <NotificationBell />
-                  <Link href={pathname === "/login" ? "?pfp=true" : (user.role === "admin" || user.role === "teacher") ? "/admin#myprofile" : "/login"}>
+                  <Link href={pathname === "/login" ? "#" : (user.role === "admin" || user.role === "teacher") ? "/admin#myprofile" : "/login"}
+                      onClick={(e) => {
+                        if (pathname === "/login") {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('open-pfp-modal'));
+                        }
+                      }}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}

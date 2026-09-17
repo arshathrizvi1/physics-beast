@@ -24,6 +24,10 @@ function StudentProfilePageContent() {
       setIsPfpModalOpen(true);
       window.history.replaceState({}, '', window.location.pathname);
     }
+    
+    const handleOpenModal = () => setIsPfpModalOpen(true);
+    window.addEventListener('open-pfp-modal', handleOpenModal);
+    return () => window.removeEventListener('open-pfp-modal', handleOpenModal);
   }, [searchParams]);
 
   const [profileName, setProfileName] = useState("");
