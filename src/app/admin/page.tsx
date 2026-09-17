@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import CourseManagerModal from "@/components/CourseManagerModal";
 import FolderManagerModal from "@/components/FolderManagerModal";
+import SubjectManagerModal from "@/components/SubjectManagerModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -171,6 +172,8 @@ export default function AdminDashboard() {
 
     const [isCourseManagerOpen, setIsCourseManagerOpen] = useState(false);
   const [isFolderManagerOpen, setIsFolderManagerOpen] = useState(false);
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [subjectToEdit, setSubjectToEdit] = useState<any>(null);
   const [activeCourseForFolder, setActiveCourseForFolder] = useState<any>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -2712,9 +2715,12 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* SUBJECTS COLUMN */}
-                  <div className="border border-border/50 rounded-lg p-4 space-y-4">
-                    <h3 className="font-bold text-lg border-b pb-2">Subjects</h3>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  <div className="border border-border/50 rounded-lg p-4 space-y-4 flex flex-col h-full">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <h3 className="font-bold text-lg">Subjects</h3>
+                      <Button size="sm" onClick={() => { setSubjectToEdit(null); setIsSubjectModalOpen(true); }}><Plus className="w-4 h-4 mr-1"/> Add</Button>
+                    </div>
+                    <div className="space-y-2 flex-1 overflow-y-auto">
                       {subjects.map(s => (
                         <div 
                           key={s.id} 
@@ -2722,33 +2728,15 @@ export default function AdminDashboard() {
                           className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedSubjectId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
                         >
                           <p className="font-bold text-sm">{s.name}</p>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteSubject(s.id); }} className={`p-1 rounded-md transition-colors ${selectedSubjectId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-destructive/20 text-destructive'}`}>
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex gap-1">
+                            <button onClick={(e) => { e.stopPropagation(); setSubjectToEdit(s); setIsSubjectModalOpen(true); }} className={`p-1.5 rounded-md transition-colors ${selectedSubjectId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-secondary/60 text-primary'}`}>
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                       {subjects.length === 0 && <p className="text-sm text-muted-foreground italic">No subjects yet.</p>}
                     </div>
-                    <form onSubmit={handleCreateSubject} className="pt-2 border-t space-y-2">
-                      <Input placeholder="Subject Name (e.g. Physics)" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} required />
-                      <div className="max-h-24 overflow-y-auto space-y-1 bg-secondary/10 p-2 rounded-md">
-                        <p className="text-xs font-semibold mb-1">Select Streams:</p>
-                        {streams.map(s => (
-                          <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={newSubjectStreamIds.includes(s.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) setNewSubjectStreamIds(prev => [...prev, s.id]);
-                                else setNewSubjectStreamIds(prev => prev.filter(id => id !== s.id));
-                              }}
-                            />
-                            {s.name}
-                          </label>
-                        ))}
-                      </div>
-                      <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Subject</Button>
-                    </form>
                   </div>
 
                 </div>
@@ -5975,6 +5963,14 @@ export default function AdminDashboard() {
         </div>
       )}
 
+
+      <SubjectManagerModal
+        isOpen={isSubjectModalOpen}
+        onClose={() => setIsSubjectModalOpen(false)}
+        editSubject={subjectToEdit}
+        streams={streams}
+        courses={courses}
+      />
       <CourseManagerModal 
         isOpen={isCourseManagerOpen} 
         onClose={() => setIsCourseManagerOpen(false)}
