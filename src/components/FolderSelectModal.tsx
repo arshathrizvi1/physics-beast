@@ -116,7 +116,7 @@ export function FolderSelectModal({
                   onSelect("none"); 
                   onClose(); 
                 }} 
-                className={w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] }
+                className={`w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] ${selectedFolderId === "none" ? "bg-destructive/10 border-destructive text-destructive shadow-sm" : "bg-destructive/5 border-destructive/20 hover:border-destructive text-destructive"}`}
               >
                 <span className="truncate mr-2">Don't save automatically</span>
                 {selectedFolderId === "none" && <CheckCircle2 className="w-5 h-5 shrink-0" />}
@@ -174,3 +174,4 @@ export function FolderSelectModal({
     </div>
   );
 }
+
