@@ -208,7 +208,7 @@ export default function PremiumNavbar() {
               {user ? (
                 <div className="flex items-center gap-3">
                   <NotificationBell />
-                  <Link href={pathname === "/login" ? "#pfp" : (user.role === "admin" || user.role === "teacher") ? "/admin#myprofile" : "/login"}>
+                  <Link href={pathname === "/login" ? "?pfp=true" : (user.role === "admin" || user.role === "teacher") ? "/admin#myprofile" : "/login"}>
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}

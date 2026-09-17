@@ -22,17 +22,13 @@ import Portal from "@/components/Portal";
 function LoginPageContent() {
   const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup, loginWithCustomToken } = useAuth();
   const router = useRouter();
+    const searchParams = useSearchParams();
   useEffect(() => {
-    const checkHash = () => {
-      if (typeof window !== 'undefined' && window.location.hash === '#pfp') {
-        setIsPfpModalOpen(true);
-        window.history.replaceState({}, '', window.location.pathname + window.location.search);
-      }
-    };
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, []);
+    if (searchParams.get('pfp') === 'true') {
+      setIsPfpModalOpen(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
