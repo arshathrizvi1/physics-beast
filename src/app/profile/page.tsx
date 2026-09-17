@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from 'react';
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,20 +11,20 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { Camera, CheckCircle2, Save, GraduationCap, MapPin, Phone } from "lucide-react";
 import PasskeySettings from "@/components/PasskeySettings";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Portal from "@/components/Portal";
+import { XCircle, Loader2, Edit2 } from "lucide-react";
 
-export default function StudentProfilePage() {
+function StudentProfilePageContent() {
   const { user, loading, updateProfileName, updateProfilePicture } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (typeof window !== 'undefined' && window.location.hash === '#pfp') {
-        setIsPfpModalOpen(true);
-        window.history.replaceState({}, '', window.location.pathname + window.location.search);
-      }
+    if (searchParams.get('pfp') === 'true') {
+      setIsPfpModalOpen(true);
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [searchParams]);
 
   const [profileName, setProfileName] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
@@ -235,3 +236,11 @@ export default function StudentProfilePage() {
 
 
 
+
+export default function StudentProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <StudentProfilePageContent />
+    </Suspense>
+  );
+}

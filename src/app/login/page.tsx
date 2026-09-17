@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from 'react';
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, CheckCircle2, XCircle, Edit2, Check, FileText, Sparkles, Zap, Timer, ShieldAlert, Eye, EyeOff, Loader2, Fingerprint } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
@@ -16,8 +17,9 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { formatSeconds, calculateXpLevel } from "@/lib/xp";
 import ReportIssueModal from "@/components/ReportIssueModal";
 import PasskeySettings from "@/components/PasskeySettings";
+import Portal from "@/components/Portal";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { user, loading, login, signup, updateProfilePicture, updateProfileName, resetPassword, logout, googleSignIn, completeGoogleSignup, loginWithCustomToken } = useAuth();
   const router = useRouter();
   useEffect(() => {
@@ -1023,3 +1025,12 @@ export default function LoginPage() {
 
 
 
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
