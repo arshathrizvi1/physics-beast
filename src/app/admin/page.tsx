@@ -5974,6 +5974,33 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <CourseManagerModal 
+        isOpen={isCourseManagerOpen} 
+        onClose={() => setIsCourseManagerOpen(false)}
+        defaultBatchId={selectedBatchId}
+        defaultSubjectId={selectedSubjectId}
+        batches={batches}
+        subjects={subjects}
+        courses={courses}
+        teachers={teamMembers.filter(m => m.role === "teacher" || m.role === "admin")} /* Fixed below */
+        folders={folders}
+        videos={videos}
+        onManageFolders={(courseId) => {
+          const c = courses.find(x => x.id === courseId);
+          if (c) {
+            setActiveCourseForFolder(c);
+            setIsFolderManagerOpen(true);
+          }
+        }}
+      />
+      <FolderManagerModal 
+        isOpen={isFolderManagerOpen} 
+        onClose={() => setIsFolderManagerOpen(false)}
+        course={activeCourseForFolder}
+        folders={folders}
+        videos={videos}
+      />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, User, Image as ImageIcon, Video, Edit2, FolderOpen, Trash2 } from "lucide-react";
@@ -11,20 +10,14 @@ import { db } from "@/lib/firebase";
 interface CourseManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // If provided, the modal acts as a context-specific manager.
-  // The user won't be able to change these filters.
   defaultBatchId?: string | null;
   defaultSubjectId?: string | null;
-  
-  // Data from parent
   batches: any[];
   subjects: any[];
   courses: any[];
-  teachers: any[]; // Team members with role === 'teacher'
-  folders: any[]; // For deletion logic
-  videos: any[]; // For deletion logic
-  
-  // To open the folder manager
+  teachers: any[];
+  folders: any[];
+  videos: any[];
   onManageFolders: (courseId: string) => void;
 }
 
@@ -41,27 +34,21 @@ export default function CourseManagerModal({
   videos,
   onManageFolders
 }: CourseManagerModalProps) {
-  
-  // Filters
   const [filterBatchId, setFilterBatchId] = useState<string>("all");
   const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
   const [filterTeacherId, setFilterTeacherId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Reset filters when opened with specific context
   useEffect(() => {
     if (isOpen) {
       if (defaultBatchId) setFilterBatchId(defaultBatchId);
       else setFilterBatchId("all");
-      
       if (defaultSubjectId) setFilterSubjectId(defaultSubjectId);
       else setFilterSubjectId("all");
     }
   }, [isOpen, defaultBatchId, defaultSubjectId]);
 
-  // Form State
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
-  
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formBatchId, setFormBatchId] = useState("");
@@ -69,11 +56,9 @@ export default function CourseManagerModal({
   const [formTeacherId, setFormTeacherId] = useState("");
   const [formIsMonthly, setFormIsMonthly] = useState(false);
   const [formImage, setFormImage] = useState<File | null>(null);
-  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  // Filtered Courses
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
       if (filterBatchId !== "all" && c.batchId !== filterBatchId) return false;
@@ -107,18 +92,15 @@ export default function CourseManagerModal({
     setFormSubjectId(course.subjectId || "");
     setFormTeacherId(course.teacherId || "");
     setFormIsMonthly(course.isMonthly || false);
-    setFormImage(null); // We don't load the existing image into the File object
+    setFormImage(null);
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this course and ALL its folders/videos?")) {
-      // Find dependent folders
       const courseFolders = folders.filter(f => f.courseId === id);
       const batchOp = writeBatch(db);
-      
       batchOp.delete(doc(db, 'courses', id));
-      
       for (const folder of courseFolders) {
         batchOp.delete(doc(db, 'folders', folder.id));
         const folderVideos = videos.filter(v => v.folderId === folder.id);
@@ -126,7 +108,6 @@ export default function CourseManagerModal({
           batchOp.delete(doc(db, 'videos', vid.id));
         }
       }
-      
       await batchOp.commit();
     }
   };
@@ -135,7 +116,6 @@ export default function CourseManagerModal({
     e.preventDefault();
     if (!formName || !formBatchId || !formSubjectId) return;
     setIsSubmitting(true);
-    
     try {
       let thumbnailUrl = "";
       if (formImage) {
@@ -165,10 +145,8 @@ export default function CourseManagerModal({
           reader.readAsDataURL(formImage);
         });
       }
-
       const assignedTeacher = teachers.find(m => m.id === formTeacherId);
       const subject = subjects.find(s => s.id === formSubjectId);
-      
       const payload: any = {
         name: formName,
         description: formDescription,
@@ -180,11 +158,7 @@ export default function CourseManagerModal({
         teacherName: assignedTeacher ? (assignedTeacher.name || assignedTeacher.email?.split('@')[0]) : null,
         teacherSubject: assignedTeacher?.subject || null,
       };
-
-      if (thumbnailUrl) {
-        payload.image = thumbnailUrl;
-      }
-
+      if (thumbnailUrl) payload.image = thumbnailUrl;
       if (editingCourseId) {
         await updateDoc(doc(db, 'courses', editingCourseId), payload);
       } else {
@@ -192,7 +166,6 @@ export default function CourseManagerModal({
         const ref = doc(collection(db, 'courses'));
         await setDoc(ref, payload);
       }
-      
       setShowForm(false);
     } catch (err) {
       console.error(err);
@@ -202,17 +175,22 @@ export default function CourseManagerModal({
     }
   };
 
+  const handleClose = () => {
+    setShowForm(false);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        setShowForm(false);
-        onClose();
-      }
-    }}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-card p-6">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Course Manager</DialogTitle>
-        </DialogHeader>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={handleClose}>
+      <div className="bg-card border border-border/80 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-200 p-6 relative" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-4">
+          <h2 className="text-2xl font-bold text-foreground">Course Manager</h2>
+          <button onClick={handleClose} className="p-2 hover:bg-secondary rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
 
         {showForm ? (
           <div className="bg-secondary/10 p-6 rounded-xl border border-secondary/20">
@@ -288,7 +266,6 @@ export default function CourseManagerModal({
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Action Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <div className="relative">
@@ -331,7 +308,6 @@ export default function CourseManagerModal({
               <Button onClick={openCreateForm} className="shrink-0"><Plus className="w-4 h-4 mr-2" /> Create Course</Button>
             </div>
 
-            {/* Course List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredCourses.length === 0 ? (
                 <div className="col-span-full py-12 text-center text-muted-foreground">
@@ -379,7 +355,7 @@ export default function CourseManagerModal({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

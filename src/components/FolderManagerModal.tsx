@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Edit2, Trash2, Folder, Users, DollarSign } from "lucide-react";
@@ -23,7 +22,6 @@ export default function FolderManagerModal({
   folders,
   videos
 }: FolderManagerModalProps) {
-  
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
@@ -37,14 +35,12 @@ export default function FolderManagerModal({
     return folders.filter(f => f.courseId === course.id).sort((a, b) => a.createdAt - b.createdAt);
   }, [course, folders]);
 
-  // Fetch purchase counts
   useEffect(() => {
     if (isOpen && courseFolders.length > 0) {
       const fetchStats = async () => {
         const stats: Record<string, number> = {};
         for (const f of courseFolders) {
           try {
-            // Count approved payments for this folder
             const q = query(collection(db, 'payments'), where("folderId", "==", f.id), where("status", "==", "approved"));
             const snapshot = await getCountFromServer(q);
             stats[f.id] = snapshot.data().count;
@@ -77,13 +73,10 @@ export default function FolderManagerModal({
     if (confirm("Are you sure you want to delete this folder and ALL its videos?")) {
       const folderVideos = videos.filter(v => v.folderId === id);
       const batchOp = writeBatch(db);
-      
       batchOp.delete(doc(db, 'folders', id));
-      
       for (const vid of folderVideos) {
         batchOp.delete(doc(db, 'videos', vid.id));
       }
-      
       await batchOp.commit();
     }
   };
@@ -92,7 +85,6 @@ export default function FolderManagerModal({
     e.preventDefault();
     if (!formName || !course) return;
     setIsSubmitting(true);
-    
     try {
       const payload: any = {
         name: formName,
@@ -100,7 +92,6 @@ export default function FolderManagerModal({
         courseId: course.id,
         batchId: course.batchId
       };
-
       if (editingFolderId) {
         await updateDoc(doc(db, 'folders', editingFolderId), payload);
       } else {
@@ -108,7 +99,6 @@ export default function FolderManagerModal({
         const ref = doc(collection(db, 'folders'));
         await setDoc(ref, payload);
       }
-      
       setShowForm(false);
     } catch (err) {
       console.error(err);
@@ -118,22 +108,25 @@ export default function FolderManagerModal({
     }
   };
 
-  if (!course) return null;
+  const handleClose = () => {
+    setShowForm(false);
+    onClose();
+  };
+
+  if (!isOpen || !course) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        setShowForm(false);
-        onClose();
-      }
-    }}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card p-6">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={handleClose}>
+      <div className="bg-card border border-border/80 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-200 p-6 relative" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-4">
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Folder className="w-6 h-6 text-primary" /> 
             Manage Folders: <span className="text-muted-foreground font-medium">{course.name}</span>
-          </DialogTitle>
-        </DialogHeader>
+          </h2>
+          <button onClick={handleClose} className="p-2 hover:bg-secondary rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
 
         {showForm ? (
           <div className="bg-secondary/10 p-6 rounded-xl border border-secondary/20 mt-4">
@@ -205,7 +198,7 @@ export default function FolderManagerModal({
             </div>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
