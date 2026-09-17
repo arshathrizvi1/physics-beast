@@ -97,6 +97,10 @@ export default function AdminDashboard() {
   // Bulk Access State
   const [bulkStudentIds, setBulkStudentIds] = useState("");
   const [bulkFolderId, setBulkFolderId] = useState("");
+  const [isBulkFolderModalOpen, setIsBulkFolderModalOpen] = useState(false);
+  const [bulkFolderFilterYear, setBulkFolderFilterYear] = useState("all");
+  const [bulkFolderFilterTeacher, setBulkFolderFilterTeacher] = useState("all");
+  const [bulkFolderSearch, setBulkFolderSearch] = useState("");
   
   // Sort State
   const [studentSort, setStudentSort] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
@@ -2252,20 +2256,140 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <Label>Select Folder</Label>
-                    <select 
-                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={bulkFolderId}
-                      onChange={e => setBulkFolderId(e.target.value)}
+                    <button 
+                      type="button"
+                      onClick={() => setIsBulkFolderModalOpen(true)}
+                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
                     >
-                      <option value="" disabled>Select a folder...</option>
-                      {courses.map(course => (
-                        <optgroup key={course.id} label={course.name}>
-                          {folders.filter(f => f.courseId === course.id).map(folder => (
-                            <option key={folder.id} value={folder.id}>{folder.name}</option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                      <span className="truncate text-foreground font-medium">
+                        {bulkFolderId ? folders.find(f => f.id === bulkFolderId)?.name || 'Unknown Folder' : 'Select a folder...'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                    </button>
+
+                    {isBulkFolderModalOpen && (
+                      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+                          <div className="p-4 sm:p-5 border-b flex items-center justify-between bg-primary/5 rounded-t-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-primary/20 text-primary rounded-lg hidden sm:block">
+                                <Folder className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h2 className="text-lg font-bold text-foreground">Select a Folder</h2>
+                                <p className="text-xs text-muted-foreground hidden sm:block">Filter by year or teacher to find the right folder</p>
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setIsBulkFolderModalOpen(false)} className="rounded-full">
+                              <XCircle className="w-6 h-6 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                          </div>
+
+                          <div className="p-4 border-b bg-secondary/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Batch / Year</Label>
+                              <select 
+                                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={bulkFolderFilterYear}
+                                onChange={e => setBulkFolderFilterYear(e.target.value)}
+                              >
+                                <option value="all">All Batches</option>
+                                {batches.map(b => (
+                                  <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Teacher</Label>
+                              <select 
+                                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                value={bulkFolderFilterTeacher}
+                                onChange={e => setBulkFolderFilterTeacher(e.target.value)}
+                              >
+                                <option value="all">All Teachers</option>
+                                {teamMembers.filter(t => t.role === 'teacher').map(t => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Search</Label>
+                              <div className="relative">
+                                <Search className="w-4 h-4 absolute left-3 top-3 opacity-50" />
+                                <Input 
+                                  placeholder="Search folder..." 
+                                  className="pl-9 h-10"
+                                  value={bulkFolderSearch}
+                                  onChange={e => setBulkFolderSearch(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 flex-1 overflow-y-auto space-y-6 bg-background/50 relative">
+                            {(() => {
+                              const filteredCourses = courses.filter(c => {
+                                const matchYear = bulkFolderFilterYear === "all" || c.batchId === bulkFolderFilterYear;
+                                const matchTeacher = bulkFolderFilterTeacher === "all" || c.teacherId === bulkFolderFilterTeacher;
+                                const matchSearch = !bulkFolderSearch || 
+                                  c.name.toLowerCase().includes(bulkFolderSearch.toLowerCase()) || 
+                                  folders.filter(f => f.courseId === c.id).some(f => f.name.toLowerCase().includes(bulkFolderSearch.toLowerCase()));
+                                return matchYear && matchTeacher && matchSearch;
+                              });
+
+                              if (filteredCourses.length === 0) {
+                                return (
+                                  <div className="text-center p-8 text-muted-foreground">
+                                    <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                    <p>No courses or folders match your filters.</p>
+                                  </div>
+                                );
+                              }
+
+                              return filteredCourses.map(course => {
+                                const courseFolders = folders.filter(f => f.courseId === course.id && 
+                                  (!bulkFolderSearch || 
+                                   course.name.toLowerCase().includes(bulkFolderSearch.toLowerCase()) || 
+                                   f.name.toLowerCase().includes(bulkFolderSearch.toLowerCase())));
+                                
+                                if (courseFolders.length === 0) return null;
+
+                                const teacherName = teamMembers.find(t => t.id === course.teacherId)?.name || 'Unknown';
+                                const batchName = batches.find(b => b.id === course.batchId)?.name || 'Unknown';
+
+                                return (
+                                  <div key={course.id} className="border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm">
+                                    <div className="bg-secondary/10 px-4 py-3 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-2 sticky top-0 backdrop-blur-md z-10">
+                                      <h3 className="font-bold text-foreground text-sm">{course.name}</h3>
+                                      <div className="flex gap-2 flex-wrap">
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">{teacherName}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">{batchName}</span>
+                                      </div>
+                                    </div>
+                                    <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {courseFolders.map(folder => (
+                                        <button 
+                                          key={folder.id}
+                                          type="button"
+                                          onClick={() => { 
+                                            setBulkFolderId(folder.id); 
+                                            setIsBulkFolderModalOpen(false); 
+                                          }} 
+                                          className={`p-3 text-left rounded-lg border transition-all text-sm font-medium flex items-center justify-between hover:scale-[1.02] ${bulkFolderId === folder.id ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'bg-secondary/5 border-border hover:border-primary/50 text-foreground'}`}
+                                        >
+                                          <span className="truncate mr-2" title={folder.name}>{folder.name}</span>
+                                          {bulkFolderId === folder.id && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <Button className="w-full mt-4" onClick={handleBulkAccessFiltered} disabled={filteredStudents.length === 0 || !bulkFolderId} variant="secondary">
                       Grant to ALL {filteredStudents.length} Filtered Students
                     </Button>
@@ -5990,6 +6114,7 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
 
 
 
