@@ -20,23 +20,28 @@ interface FolderSelectModalProps {
   batches: Batch[];
   title?: string;
   allowNone?: boolean;
+  defaultBatchId?: string;
 }
 
 export function FolderSelectModal({
   isOpen, onClose, onSelect, selectedFolderId, courses, folders, batches, title = "Select a Folder", allowNone = false
+, defaultBatchId = "all"
 }: FolderSelectModalProps) {
-  const [filterYear, setFilterYear] = useState("all");
+  const [filterYear, setFilterYear] = useState(defaultBatchId);
   const [filterTeacher, setFilterTeacher] = useState("all");
   const [search, setSearch] = useState("");
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isOpen && teamMembers.length === 0) {
+    if (isOpen) {
+      setFilterYear(defaultBatchId);
+      if (teamMembers.length === 0) {
       getDocs(collection(db, 'team')).then(snap => {
         setTeamMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, defaultBatchId]);
 
   if (!isOpen) return null;
 
@@ -174,5 +179,6 @@ export function FolderSelectModal({
     </div>
   );
 }
+
 
 

@@ -3107,6 +3107,7 @@ export default function AdminDashboard() {
                       courses={videoBatchId && videoBatchId !== 'all' ? courses.filter(c => c.batchId === videoBatchId) : courses}
                       batches={batches}
                       title="Select a Course"
+                      defaultBatchId={videoBatchId || "all"}
                     />
                   </div>
                   <div className="space-y-2">
@@ -3138,6 +3139,7 @@ export default function AdminDashboard() {
                           folders={folders.filter(f => f.courseId === videoCourseId)}
                           batches={batches}
                           title="Select a Folder"
+                          defaultBatchId={videoBatchId || "all"}
                         />
                       </>
                     )}
@@ -6146,6 +6148,8 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
 
 
 

@@ -975,6 +975,7 @@ export default function AdminLiveStudio() {
         batches={batches}
         title="Select Target Folder"
         allowNone={true}
+        defaultBatchId={batchId || "all"}
       />
 
       <FolderSelectModal
@@ -987,8 +988,10 @@ export default function AdminLiveStudio() {
         batches={batches}
         title="Select Target Folder"
         allowNone={true}
+        defaultBatchId={batchId || "all"}
       />
     </div>
   );
 
 }
+
