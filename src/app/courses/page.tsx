@@ -254,7 +254,7 @@ function CoursesContent() {
     };
 
     fetchCourses();
-  }, [user]);
+  }, []);
 
   const displayedCourses = courses.filter(c => {
     // deep text search
