@@ -722,7 +722,7 @@ export default function AdminLiveStudio() {
                     )}
                     
                     {(cls.platform === 'rtmp' || cls.multiStreams?.rtmp?.enabled) && (cls.status === 'live' || cls.status === 'scheduled') && (
-                      <div className="bg-zinc-900 p-3 rounded-lg border border-primary/20 text-xs text-muted-foreground w-full mt-2 space-y-1.5">
+                      <div className="bg-zinc-100 dark:bg-zinc-900 p-3 rounded-lg border border-primary/20 text-xs text-muted-foreground w-full mt-2 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate"><strong className="text-foreground">RTMP URL:</strong> {process.env.NEXT_PUBLIC_RTMP_SERVER_URL || `rtmp://${process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || "13.60.252.104"}:1935/live`}</span>
                           <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 hover:text-foreground" onClick={() => navigator.clipboard.writeText(process.env.NEXT_PUBLIC_RTMP_SERVER_URL || `rtmp://${process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || "13.60.252.104"}:1935/live`)}>
