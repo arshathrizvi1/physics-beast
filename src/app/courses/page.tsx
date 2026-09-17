@@ -235,7 +235,7 @@ function CoursesContent() {
           });
 
           fetchedCourses = fetchedCourses.filter(c => {
-            if (c.batchId === 'all') return true;
+            if (!c.batchId || c.batchId === 'all') return true;
             return batchesMap[c.batchId] === user.graduationYear;
           });
         }
