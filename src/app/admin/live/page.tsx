@@ -648,8 +648,8 @@ export default function AdminLiveStudio() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-lg leading-tight">{cls.title}</h3>
                       <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${
-                        cls.status === 'live' ? 'bg-red-500 text-foreground animate-pulse' : 
-                        cls.status === 'scheduled' ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-800 text-muted-foreground'
+                        cls.status === 'live' ? 'bg-red-500 text-white animate-pulse' : 
+                        cls.status === 'scheduled' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'bg-zinc-800 text-white'
                       }`}>
                         {cls.status}
                       </span>
