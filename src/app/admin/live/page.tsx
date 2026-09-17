@@ -518,7 +518,7 @@ export default function AdminLiveStudio() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-[11px] text-muted-foreground font-medium mb-0.5">RTMP Server URL</div>
-                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://13.60.252.104:1935/live'}</code>
+                        <code className="text-xs text-green-700 dark:text-green-400 font-bold font-mono bg-green-500/20 dark:bg-black/30 px-2 py-1 rounded">{rtmpServerUrl || 'rtmp://13.60.252.104:1935/live'}</code>
                       </div>
                       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
                         onClick={() => { navigator.clipboard.writeText(rtmpServerUrl); }}
@@ -527,7 +527,7 @@ export default function AdminLiveStudio() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-[11px] text-muted-foreground font-medium mb-0.5">Stream Key</div>
-                        <code className="text-xs text-green-400 font-mono bg-black/30 px-2 py-1 rounded">{rtmpStreamKey}</code>
+                        <code className="text-xs text-green-700 dark:text-green-400 font-bold font-mono bg-green-500/20 dark:bg-black/30 px-2 py-1 rounded">{rtmpStreamKey}</code>
                       </div>
                       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
                         onClick={() => { navigator.clipboard.writeText(rtmpStreamKey); }}
