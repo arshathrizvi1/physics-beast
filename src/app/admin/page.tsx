@@ -573,7 +573,8 @@ export default function AdminDashboard() {
       (s.name?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
       (s.studentId?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
       (s.phone?.includes(studentSearchTerm)) ||
-      (s.nicNumber?.includes(studentSearchTerm));
+      (s.nicNumber?.includes(studentSearchTerm)) ||
+      (s.email?.toLowerCase().includes(studentSearchTerm.toLowerCase()));
     return matchBatch && matchStatus && matchSearch;
   });
 
@@ -2134,7 +2135,7 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row gap-4 mb-6">
                 <Input 
-                  placeholder="Search by ID, Name, Phone, NIC..." 
+                  placeholder="Search by ID, Name, Email, Phone, NIC..." 
                   value={studentSearchTerm}
                   onChange={(e) => setStudentSearchTerm(e.target.value)}
                   className="max-w-xs"
