@@ -2802,27 +2802,27 @@ export default function AdminDashboard() {
         {/* DASHBOARD TAB */}
         <TabsContent value="dashboard" className="space-y-6">
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <Card 
               className="border-secondary/50 shadow-sm bg-background cursor-pointer hover:bg-secondary/10 transition-colors"
               onClick={() => setActiveAnalyticsList({ title: "Studying Right Now", students: liveStudyingStudents })}
             >
-              <CardContent className="p-4 flex flex-col justify-center items-center text-center">
-                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Studying Right Now</p>
-                <p className="text-3xl font-black text-green-500">{liveStudyingCount}</p>
+              <CardContent className="p-4 flex flex-col justify-center items-center text-center h-full">
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Studying Right Now</p>
+                <p className="text-2xl sm:text-3xl font-black text-green-500">{liveStudyingCount}</p>
               </CardContent>
             </Card>
             <Card 
               className="border-secondary/50 shadow-sm bg-background cursor-pointer hover:bg-secondary/10 transition-colors"
               onClick={() => setActiveAnalyticsList({ title: "Studied Today", students: studiedTodayStudents })}
             >
-              <CardContent className="p-4 flex flex-col justify-center items-center text-center">
-                <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Studied Today</p>
-                <p className="text-3xl font-black text-primary">{studiedTodayCount}</p>
+              <CardContent className="p-4 flex flex-col justify-center items-center text-center h-full">
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Studied Today</p>
+                <p className="text-2xl sm:text-3xl font-black text-primary">{studiedTodayCount}</p>
               </CardContent>
             </Card>
-            <Card className="border-secondary/50 shadow-sm bg-background">
-              <CardContent className="p-4 flex flex-col justify-center items-center text-center">
+            <Card className="col-span-2 sm:col-span-1 border-secondary/50 shadow-sm bg-background">
+              <CardContent className="p-4 flex flex-col justify-center items-center text-center h-full">
                 <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Avg Today's Study Time</p>
                 <p className="text-3xl font-black">{Math.floor(avgStudyTime / 60)}h {avgStudyTime % 60}m</p>
               </CardContent>
