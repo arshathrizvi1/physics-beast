@@ -23,8 +23,7 @@ interface CourseSelectModalProps {
 }
 
 export function CourseSelectModal({
-  isOpen, onClose, onSelect, selectedCourseId, courses, batches, title = "Select a Course", allowNone = false
-, defaultBatchId = "all"
+  isOpen, onClose, onSelect, selectedCourseId, courses, batches, title = "Select a Course", allowNone = false, noneLabel = "None (Clear Selection)", defaultBatchId = "all"
 }: CourseSelectModalProps) {
   const [filterYear, setFilterYear] = useState(defaultBatchId);
   const [filterTeacher, setFilterTeacher] = useState("all");
@@ -165,6 +164,7 @@ export function CourseSelectModal({
     </div>
   );
 }
+
 
 
 
