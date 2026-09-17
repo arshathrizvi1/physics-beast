@@ -119,6 +119,20 @@ export default function AdminLiveStudio() {
           setTitle(draft.title || "");
           setDescription(draft.description || "");
           setPlatform(draft.platform || "zoom");
+            if (draft.platform === 'rtmp') {
+              if (draft.streamKey) {
+                setRtmpStreamKey(draft.streamKey);
+              } else {
+                const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                let key = 'ba_';
+                for (let i = 0; i < 24; i++) key += chars[Math.floor(Math.random() * chars.length)];
+                setRtmpStreamKey(key);
+                const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+                const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
+                setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
+                setLink(`http://${serverHost}:${serverPort}/live/${key}/index.m3u8`);
+              }
+            }
           setLink(draft.link || "");
           if (draft.multiStreams) {
             setMultiStreams(draft.multiStreams);
@@ -153,19 +167,7 @@ export default function AdminLiveStudio() {
     return key;
   };
 
-  // Auto-generate RTMP credentials when platform changes to 'rtmp'
-  useEffect(() => {
-    if (multiStreams.rtmp.enabled && !rtmpStreamKey) {
-      const key = generateStreamKey();
-      setRtmpStreamKey(key);
-      const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
-      const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
-      setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
-      // Auto-set the HLS link for students
-      setLink(`http://${serverHost}:${serverPort}/live/${key}/index.m3u8`);
-      setMultiStreams(prev => ({ ...prev, rtmp: { ...prev.rtmp, link: `http://${serverHost}:${serverPort}/live/${key}/index.m3u8` } }));
-    }
-  }, [multiStreams.rtmp.enabled]);
+  
 
     const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,38 +175,25 @@ export default function AdminLiveStudio() {
     
     setIsSubmitting(true);
     try {
+      const classData = {
+        title,
+        description,
+        platform,
+        link,
+        scheduledFor: new Date(scheduledFor).getTime(),
+        courseId: courseId === "all" ? null : courseId,
+        batchId: batchId === "all" ? null : batchId,
+        targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+        allowDirectJoin,
+        ...(platform === 'rtmp' ? { streamKey: rtmpStreamKey } : {}),
+        status: 'scheduled'
+      };
+
       if (editingClass?.status === 'draft') {
-        // We are publishing a draft!
-        await updateDoc(doc(db, 'live_classes', editingClass.id), {
-          title,
-          description,
-          platform: multiStreams.youtube.enabled ? 'youtube' : (multiStreams.zoom.enabled ? 'zoom' : (multiStreams.rtmp.enabled ? 'rtmp' : 'direct')),
-          link: multiStreams.youtube.enabled ? multiStreams.youtube.link : (multiStreams.zoom.enabled ? multiStreams.zoom.link : (multiStreams.rtmp.enabled ? multiStreams.rtmp.link : multiStreams.direct.link)),
-          multiStreams,
-          scheduledFor: new Date(scheduledFor).getTime(),
-          courseId: courseId === "all" ? null : courseId,
-          batchId: batchId === "all" ? null : batchId,
-          targetFolderId: targetFolderId === "none" ? null : targetFolderId,
-          allowDirectJoin: allowDirectJoin,
-          status: 'scheduled',
-        });
+        await updateDoc(doc(db, 'live_classes', editingClass.id), classData);
         setEditingClass(null);
       } else {
-        await addDoc(collection(db, 'live_classes'), {
-          title,
-          description,
-          platform: multiStreams.youtube.enabled ? 'youtube' : (multiStreams.zoom.enabled ? 'zoom' : (multiStreams.rtmp.enabled ? 'rtmp' : 'direct')),
-          link: multiStreams.youtube.enabled ? multiStreams.youtube.link : (multiStreams.zoom.enabled ? multiStreams.zoom.link : (multiStreams.rtmp.enabled ? multiStreams.rtmp.link : multiStreams.direct.link)),
-          multiStreams,
-          scheduledFor: new Date(scheduledFor).getTime(),
-          courseId: courseId === "all" ? null : courseId,
-          batchId: batchId === "all" ? null : batchId,
-          targetFolderId: targetFolderId === "none" ? null : targetFolderId,
-          allowDirectJoin: allowDirectJoin,
-          ...(multiStreams.rtmp.enabled ? { streamKey: rtmpStreamKey } : {}),
-          status: 'scheduled',
-          createdAt: serverTimestamp()
-        });
+        await addDoc(collection(db, 'live_classes'), { ...classData, createdAt: serverTimestamp() });
       }
       
       setTitle("");
@@ -236,20 +225,10 @@ export default function AdminLiveStudio() {
 
     setIsUpdating(true);
     try {
-      const isYoutube = editMultiStreams?.youtube?.enabled;
-      const isZoom = editMultiStreams?.zoom?.enabled;
-      const isRtmp = editMultiStreams?.rtmp?.enabled;
-      const isDirect = editMultiStreams?.direct?.enabled;
-      
-      const newPlatform = isYoutube ? 'youtube' : (isZoom ? 'zoom' : (isRtmp ? 'rtmp' : (isDirect ? 'direct' : editingClass.platform)));
-      const newLink = isYoutube ? editMultiStreams.youtube.link : (isZoom ? editMultiStreams.zoom.link : (isRtmp ? editMultiStreams.rtmp.link : editMultiStreams.direct.link));
-
       await updateDoc(doc(db, 'live_classes', editingClass.id), {
         title: editTitle,
         description: editDescription,
-        platform: newPlatform,
-        link: newLink,
-        multiStreams: editMultiStreams || editingClass.multiStreams || null,
+        link: editLink,
         targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId,
         allowDirectJoin: editAllowDirectJoin
       });
@@ -475,7 +454,19 @@ export default function AdminLiveStudio() {
                 
                 <div className="space-y-2">
                   <Label>Platform</Label>
-                  <Select value={platform} onValueChange={(val: any) => setPlatform(val as any)} disabled={editingClass?.status === 'draft'}>
+                  <Select value={platform} onValueChange={(val: any) => {
+                      setPlatform(val as any);
+                      if (val === 'rtmp' && !rtmpStreamKey) {
+                        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+                        let key = 'ba_';
+                        for (let i = 0; i < 24; i++) key += chars[Math.floor(Math.random() * chars.length)];
+                        setRtmpStreamKey(key);
+                        const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+                        const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
+                        setRtmpServerUrl(`rtmp://${serverHost}:1935/live`);
+                        setLink(`http://${serverHost}:${serverPort}/live/${key}/index.m3u8`);
+                      }
+                    }} disabled={editingClass?.status === 'draft'}>
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
@@ -729,7 +720,7 @@ export default function AdminLiveStudio() {
                       </div>
                     )}
                     
-                    {cls.platform === 'rtmp' && (cls.status === 'live' || cls.status === 'scheduled') && (
+                    {(cls.platform === 'rtmp' || cls.multiStreams?.rtmp?.enabled) && (cls.status === 'live' || cls.status === 'scheduled') && (
                       <div className="bg-zinc-900 p-3 rounded-lg border border-primary/20 text-xs text-muted-foreground w-full mt-2 space-y-1.5">
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate"><strong className="text-foreground">RTMP URL:</strong> {process.env.NEXT_PUBLIC_RTMP_SERVER_URL || `rtmp://${process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || "13.60.252.104"}:1935/live`}</span>
@@ -738,7 +729,7 @@ export default function AdminLiveStudio() {
                           </Button>
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate"><strong className="text-foreground">Stream Key:</strong> {cls.streamKey}</span>
+                          <span className="truncate"><strong className="text-foreground">Stream Key:</strong> {cls.streamKey || <span className="text-destructive font-bold">Not Generated</span>}</span>
                           <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0 hover:text-foreground" onClick={() => navigator.clipboard.writeText(cls.streamKey)}>
                             <Copy className="w-3 h-3" />
                           </Button>
