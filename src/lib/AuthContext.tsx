@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // STRICT 2-SECOND TIMEOUT: If Firestore WebSockets are blocked or slow, don't leave the user hanging!
           const timeoutPromise = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 2000)
+            setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
           );
           
           const docSnap = await Promise.race([
@@ -551,7 +551,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userDocRef = doc(db, 'users', userCred.user.uid);
       
       const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 2000)
+        setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
       );
       
       const userDoc = await Promise.race([
@@ -617,7 +617,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const usersRef = collection(db, 'users');
       
       const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 5000)
+        setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 15000)
       );
 
       // 1. Check if NIC number already exists (duplicate check)

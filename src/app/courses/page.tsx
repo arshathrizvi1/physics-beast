@@ -181,7 +181,7 @@ function CoursesContent() {
     const fetchCourses = async () => {
       try {
         const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 3000)
+          setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
         );
 
         const [querySnapshot, teachersSnap, subjectsSnap, foldersSnap, videosSnap] = await Promise.race([
@@ -547,7 +547,7 @@ function CoursesContent() {
         </div>
       ) : loading ? (
         <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
-      ) : (!isViewMode && !localSearch) ? null : displayedCourses.length === 0 ? (
+      ) : (!isViewMode && !localSearch && (!selectedSubjectId || selectedSubjectId === "all" || (selectedTeacherId === "all" && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1))) ? null : displayedCourses.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
           <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
           <h3 className="text-xl font-bold">No Courses Available</h3>
