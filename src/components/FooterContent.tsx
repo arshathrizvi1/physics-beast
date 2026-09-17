@@ -35,7 +35,7 @@ export default function FooterContent() {
 
   return (
     <div className="container mx-auto px-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4 md:gap-8 mb-6 md:mb-8">
         <div>
           <h3 className="font-bold text-lg text-primary mb-3">Brilliant Academy</h3>
           <p className="text-sm text-muted-foreground">{footer.tagline}</p>
@@ -65,7 +65,7 @@ export default function FooterContent() {
           <p className="text-sm text-muted-foreground">{footer.contactEmail}</p>
         </div>
       </div>
-      <div className="relative pt-6 mt-8">
+      <div className="relative pt-4 mt-6 md:pt-6 md:mt-8">
         <motion.div 
           className="absolute top-0 left-0 h-px bg-[#d4af37]"
           initial={{ width: "0%" }}

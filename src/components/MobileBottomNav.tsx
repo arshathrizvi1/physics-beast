@@ -42,11 +42,13 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 pointer-events-auto">
-      <div className="bg-black border border-[#C0C0C0]/20 shadow-[0_8px_32px_rgba(0,0,0,0.9)] rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
-        {links.map((link) => {
-          const isActive = link.isActive;
-          return (
+    <>
+      <div className="h-24 md:hidden pointer-events-none" />
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 pointer-events-auto">
+        <div className="bg-black border border-[#C0C0C0]/20 shadow-[0_8px_32px_rgba(0,0,0,0.9)] rounded-[32px] flex items-center justify-between px-2 py-1.5 h-16 max-w-md mx-auto">
+          {links.map((link) => {
+            const isActive = link.isActive;
+            return (
             <Link 
               key={link.name} 
               href={link.href}
@@ -71,6 +73,7 @@ export function MobileBottomNav() {
         })}
       </div>
     </div>
+    </>
   );
 }
 
