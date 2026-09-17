@@ -646,24 +646,29 @@ export default function AdminLiveStudio() {
         </Card>
 
         {/* Classes List */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between border-b pb-2">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Calendar className="w-5 h-5" /> Managed Sessions
-            </h2>
-              {liveClasses.length > 0 && (
-                <Button size="sm" variant="destructive" onClick={() => setShowDeleteAllModal(true)} className="h-8 text-xs font-bold text-white bg-red-600 hover:bg-red-700">
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2 gap-3">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Calendar className="w-5 h-5" /> Managed Sessions
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setShowOldRecordsModal(true)} className="h-8 text-xs font-bold">
+                  <Clock className="w-3.5 h-3.5 mr-1" /> Old Records
                 </Button>
-              )}
-          </div>
-          
-          {liveClasses.length === 0 ? (
-            <div className="p-12 border-2 border-dashed border-secondary rounded-xl text-center text-muted-foreground">
-              No live classes scheduled yet.
+                {recentClasses.length > 0 && (
+                  <Button size="sm" variant="destructive" onClick={() => setShowDeleteAllModal(true)} className="h-8 text-xs font-bold text-white bg-red-600 hover:bg-red-700">
+                    <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
+                  </Button>
+                )}
+              </div>
             </div>
-          ) : (
-            liveClasses.map(cls => (
+            
+            {recentClasses.length === 0 ? (
+              <div className="p-12 border-2 border-dashed border-secondary rounded-xl text-center text-muted-foreground">
+                No active or recent live classes.
+              </div>
+            ) : (
+              recentClasses.map(cls => (
               <Card key={cls.id} className={`overflow-hidden transition-all ${cls.status === 'live' ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-secondary/30'}`}>
                 <div className={`h-1.5 w-full ${
                   cls.status === 'live' ? 'bg-red-500 animate-pulse' : 
@@ -875,6 +880,64 @@ export default function AdminLiveStudio() {
                 <Button type="submit" disabled={isUpdating}>{isUpdating ? "Saving..." : "Save Changes"}</Button>
               </CardFooter>
             </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Old Records Modal */}
+      {showOldRecordsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-3xl shadow-2xl border-primary/20 max-h-[85vh] flex flex-col">
+            <CardHeader className="border-b pb-4 shrink-0">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" /> Past Broadcasts
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowOldRecordsModal(false)}>
+                  Close
+                </Button>
+              </div>
+              <div className="mt-4">
+                <Input 
+                  placeholder="Search past classes..." 
+                  value={oldRecordsSearch}
+                  onChange={(e) => setOldRecordsSearch(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-y-auto p-0 flex-1">
+              {filteredArchivedClasses.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  No past broadcasts found.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {filteredArchivedClasses.map(cls => (
+                    <div key={cls.id} className="p-4 hover:bg-secondary/10 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h4 className="font-bold text-foreground">{cls.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ended: {cls.endedAt ? new Date(cls.endedAt).toLocaleString() : new Date(cls.scheduledFor).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button size="sm" onClick={() => updateStatus(cls.id, 'scheduled')} variant="secondary">
+                          <RefreshCw className="w-3.5 h-3.5 mr-2" /> Re-schedule
+                        </Button>
+                        <Button size="icon" variant="destructive" onClick={async () => {
+                           if(confirm('Delete this record permanently?')) {
+                             await deleteDoc(doc(db, 'live_classes', cls.id));
+                           }
+                        }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
           </Card>
         </div>
       )}

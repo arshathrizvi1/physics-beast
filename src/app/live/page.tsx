@@ -19,6 +19,9 @@ export default function StudentLivePortal() {
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
   const [fetchingClasses, setFetchingClasses] = useState(true);
+  
+  const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
+  const [oldRecordsSearch, setOldRecordsSearch] = useState("");
 
   // Video Player States
   const [playing, setPlaying] = useState(true);
@@ -244,6 +247,26 @@ export default function StudentLivePortal() {
     return <div className="flex h-[50vh] items-center justify-center"><p className="animate-pulse text-primary font-bold text-xl">Loading Broadcasts...</p></div>;
   }
 
+  const ONE_HOUR = 60 * 60 * 1000;
+  const now = Date.now();
+  
+  const recentClasses = liveClasses.filter(c => {
+    if (c.status !== 'ended') return true;
+    if (!c.endedAt) return false;
+    return now - c.endedAt <= ONE_HOUR;
+  });
+
+  const archivedClasses = liveClasses.filter(c => {
+    if (c.status !== 'ended') return false;
+    if (!c.endedAt) return true;
+    return now - c.endedAt > ONE_HOUR;
+  });
+
+  const filteredArchivedClasses = archivedClasses.filter(c => 
+    c.title?.toLowerCase().includes(oldRecordsSearch.toLowerCase()) || 
+    (c.description || "").toLowerCase().includes(oldRecordsSearch.toLowerCase())
+  );
+
   if (!user) {
     return (
       <div className="flex h-[50vh] items-center justify-center flex-col gap-4">
@@ -254,17 +277,25 @@ export default function StudentLivePortal() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="bg-primary/5 p-6 rounded-2xl border border-primary/20 text-center">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="bg-primary/5 p-6 rounded-2xl border border-primary/20 text-center relative">
         <h1 className="text-3xl md:text-4xl font-black tracking-tight text-primary flex items-center justify-center gap-3">
           <Video className="w-10 h-10" /> Live Broadcasts
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+        <p className="text-muted-foreground mt-2 max-w-2xl mx-auto mb-4">
           Join ongoing live classes directly from your browser, or see upcoming scheduled sessions.
         </p>
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          onClick={() => setShowOldRecordsModal(true)} 
+          className="md:absolute md:bottom-4 md:right-4 mt-2 md:mt-0 font-bold"
+        >
+          <Clock className="w-4 h-4 mr-2" /> Past Broadcasts
+        </Button>
       </div>
 
-      {liveClasses.length === 0 ? (
+      {recentClasses.length === 0 ? (
         <div className="p-16 border-2 border-dashed border-border/50 rounded-2xl text-center flex flex-col items-center justify-center">
           <Clock className="w-16 h-16 text-muted-foreground/30 mb-4" />
           <h2 className="text-2xl font-bold mb-2">No Live Classes Currently Scheduled</h2>
@@ -272,28 +303,32 @@ export default function StudentLivePortal() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {liveClasses.map(cls => (
+          {recentClasses.map(cls => (
             <Card key={cls.id} className={`overflow-hidden border-2 transition-all ${cls.status === 'live' ? 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)]' : 'border-primary/20'}`}>
               
               {/* Card Header Section */}
-              <div className={`p-4 md:p-6 ${cls.status === 'live' ? 'bg-red-500/10' : 'bg-secondary/5'} border-b border-border/30`}>
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+              <div className={`p-3 md:p-4 ${cls.status === 'live' ? 'bg-red-500/10' : 'bg-secondary/5'} border-b border-border/30`}>
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-1">
                       {cls.status === 'live' ? (
-                        <span className="bg-red-500 text-foreground text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full animate-pulse shadow-lg flex items-center gap-1.5">
+                        <span className="bg-red-500 text-white text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full animate-pulse shadow-lg flex items-center gap-1.5">
                           <span className="w-2 h-2 bg-white rounded-full"></span> LIVE NOW
                         </span>
+                      ) : cls.status === 'ended' ? (
+                        <span className="bg-zinc-800 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-zinc-700">
+                          Ended
+                        </span>
                       ) : (
-                        <span className="bg-blue-500/20 text-blue-500 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-blue-500/20">
+                        <span className="bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-blue-500/20">
                           Scheduled
                         </span>
                       )}
-                      <h2 className="text-2xl font-bold">{cls.title}</h2>
+                      <h2 className="text-xl font-bold">{cls.title}</h2>
                     </div>
-                    {cls.description && <p className="text-muted-foreground">{cls.description}</p>}
+                    {cls.description && <p className="text-sm text-muted-foreground line-clamp-2">{cls.description}</p>}
                     
-                    <div className="flex items-center gap-2 mt-4 text-sm font-medium">
+                    <div className="flex items-center gap-2 mt-2 text-sm font-medium">
                       <Calendar className="w-4 h-4 text-primary" />
                       <span className={cls.status === 'live' ? 'text-foreground' : 'text-primary'}>
                         {new Date(cls.scheduledFor).toLocaleString(undefined, { 
@@ -324,9 +359,9 @@ export default function StudentLivePortal() {
                     )
                   )}
                   {cls.status === 'scheduled' && (
-                     <div className="shrink-0 p-4 bg-background rounded-xl border border-border shadow-inner text-center">
-                       <Clock className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                       <p className="text-sm font-bold">Waiting for host to start...</p>
+                     <div className="shrink-0 px-4 py-3 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2">
+                       <Clock className="w-4 h-4 text-muted-foreground" />
+                       <p className="text-sm font-bold text-muted-foreground">Waiting for host...</p>
                      </div>
                   )}
                 </div>
@@ -571,6 +606,64 @@ export default function StudentLivePortal() {
               )}
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Old Records Modal */}
+      {showOldRecordsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-2xl shadow-2xl border-primary/20 max-h-[85vh] flex flex-col">
+            <CardHeader className="border-b pb-4 shrink-0">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" /> Past Broadcasts
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setShowOldRecordsModal(false)}>
+                  Close
+                </Button>
+              </div>
+              <div className="mt-4">
+                <input 
+                  type="text"
+                  placeholder="Search past classes by title or description..." 
+                  value={oldRecordsSearch}
+                  onChange={(e) => setOldRecordsSearch(e.target.value)}
+                  className="w-full p-2 border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="overflow-y-auto p-0 flex-1">
+              {filteredArchivedClasses.length === 0 ? (
+                <div className="p-12 text-center text-muted-foreground">
+                  No past broadcasts found.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {filteredArchivedClasses.map(cls => (
+                    <div key={cls.id} className="p-4 hover:bg-secondary/10 transition-colors cursor-pointer group">
+                      <div className="flex justify-between items-start gap-4">
+                        <div>
+                          <h4 className="font-bold text-foreground group-hover:text-primary transition-colors">{cls.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                             <Calendar className="w-3 h-3" />
+                             Ended: {cls.endedAt ? new Date(cls.endedAt).toLocaleString() : new Date(cls.scheduledFor).toLocaleString()}
+                          </p>
+                        </div>
+                        <span className="bg-secondary px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-secondary-foreground shrink-0">
+                           {cls.courseId === 'all' ? 'Global' : 'Course specific'}
+                        </span>
+                      </div>
+                      {cls.description && (
+                         <div className="mt-3 p-3 bg-secondary/5 border border-border/50 rounded text-sm text-muted-foreground">
+                            {cls.description}
+                         </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
