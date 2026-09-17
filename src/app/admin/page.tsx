@@ -1432,7 +1432,8 @@ export default function AdminDashboard() {
                isReady: false,
                processingStatus: 'downloading',
                createdAt: Date.now(),
-               views: 0
+               views: 0,
+               originalYoutubeUrl: isYoutube ? videoUrl : null
              });
 
              // 2. Add to folder immediately
@@ -6148,6 +6149,8 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
 
 
 
