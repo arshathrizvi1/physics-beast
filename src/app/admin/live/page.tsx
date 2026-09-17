@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw, Copy } from "lucide-react";
+import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw, Copy, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
@@ -563,20 +563,16 @@ export default function AdminLiveStudio() {
                   <span>Save Recorded Video to Folder</span>
                   <span className="text-[11px] text-muted-foreground font-normal">Auto-saves when ended</span>
                 </Label>
-                <Select value={targetFolderId} onValueChange={(val: any) => setTargetFolderId(val)}>
-                  <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Don't save automatically</SelectItem>
-                    {folders.filter(f => courseId === "all" || f.courseId === courseId).map(f => {
-                      const c = courses.find(c => c.id === f.courseId);
-                      return (
-                        <SelectItem key={f.id} value={f.id}>
-                          📁 {f.name} {c ? `(${c.name})` : ''}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                <button 
+                  type="button"
+                  onClick={() => setIsTargetFolderModalOpen(true)}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
+                >
+                  <span className="truncate text-foreground font-medium">
+                    {targetFolderId === "none" ? "Don't save automatically" : (folders.find(f => f.id === targetFolderId)?.name || 'Select a folder...')}
+                  </span>
+                  <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                </button>
               </div>
 
               <div className="space-y-2">
@@ -808,20 +804,16 @@ export default function AdminLiveStudio() {
                 </div>
                 <div className="space-y-2">
                   <Label>Save Recorded Video to Folder</Label>
-                  <Select value={editTargetFolderId} onValueChange={(val: any) => setEditTargetFolderId(val)}>
-                    <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Don't save automatically</SelectItem>
-                      {folders.map(f => {
-                        const c = courses.find(c => c.id === f.courseId);
-                        return (
-                          <SelectItem key={f.id} value={f.id}>
-                            📁 {f.name} {c ? `(${c.name})` : ''}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditTargetFolderModalOpen(true)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
+                  >
+                    <span className="truncate text-foreground font-medium">
+                      {editTargetFolderId === "none" ? "Don't save automatically" : (folders.find(f => f.id === editTargetFolderId)?.name || 'Select a folder...')}
+                    </span>
+                    <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                  </button>
                 </div>
 
                 {editingClass.platform === 'zoom' && (
@@ -861,33 +853,52 @@ export default function AdminLiveStudio() {
         </div>
       )}
 
-      {/* Delete All Modal */}
+      {/* Delete All Modal (Top Notification Style) */}
       {showDeleteAllModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md border-red-500/20 shadow-2xl animate-in zoom-in-95">
-            <CardHeader>
-              <CardTitle className="text-red-500 flex items-center gap-2">
-                <Trash2 className="w-6 h-6" />
-                Confirm Deletion
-              </CardTitle>
-              <CardDescription className="text-base mt-2">
-                WARNING: Are you absolutely sure you want to <strong>DELETE ALL</strong> live sessions? This cannot be undone.
-              </CardDescription>
-            </CardHeader>
-            <CardFooter className="flex justify-end gap-3 mt-4">
-              <Button variant="outline" onClick={() => setShowDeleteAllModal(false)}>
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-top-10 fade-in duration-300 w-[90%] max-w-lg">
+          <div className="bg-red-600 text-white px-5 py-4 rounded-xl shadow-2xl border border-red-400 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <Trash2 className="w-6 h-6 shrink-0" />
+              <div className="text-sm">
+                <p className="font-bold text-base">Confirm Deletion</p>
+                <p className="opacity-90 leading-tight mt-0.5">Are you sure you want to DELETE ALL live sessions?</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" variant="outline" className="bg-transparent border-white/30 text-white hover:bg-white/10 hover:text-white" onClick={() => setShowDeleteAllModal(false)}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={executeDeleteAll} className="bg-red-600 text-white hover:bg-red-700">
-                Yes, Delete All
+              <Button size="sm" className="bg-white text-red-600 hover:bg-red-50 font-bold shadow-sm" onClick={executeDeleteAll}>
+                Yes, Delete
               </Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
+
+      <FolderSelectModal
+        isOpen={isTargetFolderModalOpen}
+        onClose={() => setIsTargetFolderModalOpen(false)}
+        onSelect={(folderId) => setTargetFolderId(folderId)}
+        selectedFolderId={targetFolderId}
+        courses={courses}
+        folders={folders}
+        batches={batches}
+        title="Select Target Folder"
+        allowNone={true}
+      />
+
+      <FolderSelectModal
+        isOpen={isEditTargetFolderModalOpen}
+        onClose={() => setIsEditTargetFolderModalOpen(false)}
+        onSelect={(folderId) => setEditTargetFolderId(folderId)}
+        selectedFolderId={editTargetFolderId}
+        courses={courses}
+        folders={folders}
+        batches={batches}
+        title="Select Target Folder"
+        allowNone={true}
+      />
     </div>
   );
 }
-
-
-
