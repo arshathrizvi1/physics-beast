@@ -180,7 +180,42 @@ export default function CourseManagerModal({
     onClose();
   };
 
+
+  const availableTeachersForFilter = useMemo(() => {
+    return filterSubjectId === 'all' 
+      ? teachers 
+      : teachers.filter(t => {
+          const subj = subjects.find(s => s.id === filterSubjectId);
+          return !subj || t.subject === subj.name || !t.subject;
+        });
+  }, [filterSubjectId, teachers, subjects]);
+
+  const availableTeachersForForm = useMemo(() => {
+    return !formSubjectId
+      ? teachers
+      : teachers.filter(t => {
+          const subj = subjects.find(s => s.id === formSubjectId);
+          return !subj || t.subject === subj.name || !t.subject;
+        });
+  }, [formSubjectId, teachers, subjects]);
+
+
+  useEffect(() => {
+    if (filterTeacherId !== 'all' && filterTeacherId !== '') {
+      const isStillAvailable = availableTeachersForFilter.some(t => t.id === filterTeacherId);
+      if (!isStillAvailable) setFilterTeacherId('all');
+    }
+  }, [availableTeachersForFilter, filterTeacherId]);
+
+  useEffect(() => {
+    if (formTeacherId !== '') {
+      const isStillAvailable = availableTeachersForForm.some(t => t.id === formTeacherId);
+      if (!isStillAvailable) setFormTeacherId('');
+    }
+  }, [availableTeachersForForm, formTeacherId]);
+
   if (!isOpen) return null;
+
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={handleClose}>
@@ -244,7 +279,7 @@ export default function CourseManagerModal({
                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     <option value="">-- No Teacher --</option>
-                    {teachers.map(t => (
+                    {availableTeachersForForm.map(t => (
                       <option key={t.id} value={t.id}>{t.name || t.email}</option>
                     ))}
                   </select>
@@ -302,7 +337,7 @@ export default function CourseManagerModal({
                 >
                   <option value="all">All Teachers</option>
                   <option value="">No Teacher</option>
-                  {teachers.map(t => <option key={t.id} value={t.id}>{t.name || t.email}</option>)}
+                  {availableTeachersForFilter.map(t => <option key={t.id} value={t.id}>{t.name || t.email}</option>)}
                 </select>
               </div>
               <Button onClick={openCreateForm} className="shrink-0"><Plus className="w-4 h-4 mr-2" /> Create Course</Button>
