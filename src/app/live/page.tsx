@@ -39,8 +39,8 @@ export default function StudentLivePortal() {
   useEffect(() => {
     let x = 10 + Math.random() * 60;
     let y = 10 + Math.random() * 60;
-    let dx = (Math.random() > 0.5 ? 1 : -1) * (0.05 + Math.random() * 0.05);
-    let dy = (Math.random() > 0.5 ? 1 : -1) * (0.04 + Math.random() * 0.04);
+    let dx = (Math.random() > 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.02);
+    let dy = (Math.random() > 0.5 ? 1 : -1) * (0.015 + Math.random() * 0.015);
     let animationFrameId: number;
 
     const animate = () => {
@@ -519,19 +519,16 @@ export default function StudentLivePortal() {
                         }}
                       >
                         <div className="flex flex-col items-center opacity-40">
-                          <span className="text-sm md:text-base font-black text-white whitespace-nowrap drop-shadow-md"
+                          <span className="text-xs md:text-sm font-black text-white whitespace-nowrap drop-shadow-md"
                             style={{ textShadow: '0 2px 5px rgba(0,0,0,1)' }}>
                             {user.email}
                           </span>
                           {user.phone && (
-                            <span className="text-sm md:text-base font-black text-white whitespace-nowrap drop-shadow-md mt-1"
+                            <span className="text-xs md:text-sm font-black text-white whitespace-nowrap drop-shadow-md mt-1"
                               style={{ textShadow: '0 2px 5px rgba(0,0,0,1)' }}>
                               {user.phone}
                             </span>
                           )}
-                          <span className="text-[10px] text-white/90 font-bold bg-black/60 px-2 rounded-full mt-1">
-                            Tracking ID: {user.uid?.substring(0, 8)}
-                          </span>
                         </div>
                       </div>
 
