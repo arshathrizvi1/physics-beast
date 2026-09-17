@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'public/Brilliant-Academy.apk'
   workflow_dispatch:
 
 permissions:
@@ -34,16 +36,41 @@ jobs:
           npm install
           npx @capacitor/cli sync android
 
-      - name: Build Android Debug APK
+      - name: Build Android Release APK
         run: |
           cd android-app/android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --info
+          ./gradlew assembleRelease
 
-      - name: Upload Debug APK Artifact
+      - name: Sign APK and Move to Public
+        run: |
+          cd android-app/android/app/build/outputs/apk/release
+          # Generate a one-time release keystore (in production you would save this as a GitHub Secret)
+          keytool -genkey -v -keystore release.keystore -alias brilliant -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Brilliant Academy, OU=IT, O=Brilliant Academy, L=City, ST=State, C=US" -storepass "brilliant123" -keypass "brilliant123"
+          
+          # Find build tools path for apksigner and zipalign
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
+          
+          # Align APK
+          $BUILD_TOOLS/zipalign -v -p 4 app-release-unsigned.apk Brilliant-Academy-aligned.apk
+          
+          # Sign APK
+          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:brilliant123 --ks-key-alias brilliant --key-pass pass:brilliant123 --out Brilliant-Academy.apk Brilliant-Academy-aligned.apk
+          
+          # Copy to public folder
+          cp Brilliant-Academy.apk ../../../../../../../public/Brilliant-Academy.apk
+
+      - name: Commit and Push APK to Website
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/Brilliant-Academy.apk
+          git commit -m "chore: upload latest release APK to website for download" || echo "No changes"
+          git push
+
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PhysicsBeast-App
-          path: android-app/android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: Brilliant-Academy-App
+          path: public/Brilliant-Academy.apk
           retention-days: 30
