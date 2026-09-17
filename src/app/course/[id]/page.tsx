@@ -1005,7 +1005,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Floating Email Watermark - Enhanced for Anti-Piracy */}
                 <div
                   ref={wmRef}
-                  className="absolute z-[11] pointer-events-none select-none mix-blend-overlay"
+                  className="absolute z-[60] pointer-events-none select-none drop-shadow-lg"
                   style={{
                     left: `20%`,
                     top: `20%`,
@@ -1016,7 +1016,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}>
                       {user.email}
                     </span>
-                    <span className="text-[10px] md:text-xs text-white/80 font-bold bg-black/40 px-2 rounded-full mt-1">
+                    {user.phone && (
+                      <span className="text-lg md:text-xl font-black text-white whitespace-nowrap drop-shadow-md mt-1"
+                        style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}>
+                        {user.phone}
+                      </span>
+                    )}
+                    <span className="text-[10px] md:text-xs text-white/90 font-bold bg-black/60 px-2 rounded-full mt-1">
                       Tracking ID: {user.uid?.substring(0, 8)}
                     </span>
                   </div>

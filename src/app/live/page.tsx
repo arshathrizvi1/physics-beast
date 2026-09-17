@@ -512,16 +512,27 @@ export default function StudentLivePortal() {
                       {/* Floating Email Watermark */}
                       <div
                         ref={wmRef}
-                        className="absolute z-[11] pointer-events-none select-none"
+                        className="absolute z-[60] pointer-events-none select-none drop-shadow-lg"
                         style={{
                           left: `20%`,
                           top: `20%`,
                         }}
                       >
-                        <span className="text-xs font-semibold text-foreground/25 bg-black/10 px-2 py-1 rounded whitespace-nowrap"
-                          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                          {user.email}
-                        </span>
+                        <div className="flex flex-col items-center opacity-40">
+                          <span className="text-sm md:text-base font-black text-white whitespace-nowrap drop-shadow-md"
+                            style={{ textShadow: '0 2px 5px rgba(0,0,0,1)' }}>
+                            {user.email}
+                          </span>
+                          {user.phone && (
+                            <span className="text-sm md:text-base font-black text-white whitespace-nowrap drop-shadow-md mt-1"
+                              style={{ textShadow: '0 2px 5px rgba(0,0,0,1)' }}>
+                              {user.phone}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-white/90 font-bold bg-black/60 px-2 rounded-full mt-1">
+                            Tracking ID: {user.uid?.substring(0, 8)}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Custom Controls Overlay */}
