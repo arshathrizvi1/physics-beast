@@ -704,7 +704,7 @@ export default function AdminLiveStudio() {
                       </Link>
                     )}
                     {cls.status === 'scheduled' && (
-                      <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-foreground w-full">
+                      <Button size="sm" onClick={() => updateStatus(cls.id, 'live')} className="bg-red-600 hover:bg-red-700 text-white w-full">
                         <PlayCircle className="w-4 h-4 mr-2" /> GO LIVE
                       </Button>
                     )}

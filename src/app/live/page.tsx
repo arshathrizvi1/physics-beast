@@ -375,7 +375,7 @@ export default function StudentLivePortal() {
                   {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && (
                     cls.allowDirectJoin !== false ? (
                       <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
-                        <Button size="lg" className="bg-red-600 hover:bg-red-700 text-foreground font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">
+                        <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">
                           <PlayCircle className="w-6 h-6 mr-2" /> JOIN {cls.platform.toUpperCase()} MEETING
                         </Button>
                       </a>
@@ -566,7 +566,7 @@ export default function StudentLivePortal() {
 
                       {/* Custom Controls Overlay */}
                       <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
-                        <div className="flex items-center justify-between text-foreground mt-1">
+                        <div className="flex items-center justify-between text-white mt-1">
                           <div className="flex items-center gap-5">
                             {cls.platform !== 'rtmp' && (
                               <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
