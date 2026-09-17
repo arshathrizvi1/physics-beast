@@ -946,15 +946,23 @@ export default function AdminDashboard() {
         const oldVideos = videos.filter(v => v.folderId === oldFolder.id);
         for (const oldVideo of oldVideos) {
           const newVideoRef = doc(collection(db, 'videos'));
-          batchOp.set(newVideoRef, {
-            title: oldVideo.title,
-            vimeoUrl: oldVideo.vimeoUrl,
-            description: oldVideo.description || "",
+          const { id, folderId, courseId, batchId, createdAt, ...rest } = oldVideo;
+          
+          const newVideoData: any = {
+            ...rest,
             folderId: newFolderRef.id,
             courseId: newCourseRef.id,
             batchId: selectedBatchId,
             createdAt: Date.now()
+          };
+
+          Object.keys(newVideoData).forEach(key => {
+            if (newVideoData[key] === undefined) {
+              delete newVideoData[key];
+            }
           });
+
+          batchOp.set(newVideoRef, newVideoData);
         }
       }
       
