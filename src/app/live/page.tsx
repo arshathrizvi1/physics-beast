@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize } from "lucide-react";
+import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, Settings } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
@@ -30,10 +30,42 @@ export default function StudentLivePortal() {
   const [showControls, setShowControls] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+    const [quality, setQuality] = useState('auto');
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (!playerRef.current) return;
+      try {
+        const internalHls = playerRef.current.getInternalPlayer('hls');
+        const internalPlayer = playerRef.current.getInternalPlayer();
+        
+        if (internalHls && internalHls.levels) {
+          if (quality === 'auto') {
+            internalHls.currentLevel = -1;
+          } else {
+            const h = parseInt(quality);
+            // find closest level or fallback
+            let bestIdx = -1;
+            let minDiff = 9999;
+            internalHls.levels.forEach((l: any, idx: number) => {
+              if (Math.abs(l.height - h) < minDiff) {
+                minDiff = Math.abs(l.height - h);
+                bestIdx = idx;
+              }
+            });
+            if (bestIdx !== -1) internalHls.currentLevel = bestIdx;
+          }
+        } else if (internalPlayer && typeof internalPlayer.setPlaybackQuality === 'function') {
+          const map: any = { auto: 'default', '1080': 'hd1080', '720': 'hd720', '480': 'large', '360': 'medium' };
+          internalPlayer.setPlaybackQuality(map[quality] || 'default');
+        }
+      } catch (e) {
+        console.error("Failed to set quality", e);
+      }
+    }, [quality]);
 
   // DVD-style bouncing watermark — covers full player
   useEffect(() => {
