@@ -466,17 +466,10 @@ export default function AdminLiveStudio() {
                       className="flex h-10 flex-1 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
                     >
                       <span className="truncate text-foreground font-medium">
-                        {courseId === "all" ? "Global (All Courses)" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
+                        {batchId === "all" ? "Global (All Batches)" : batchId} • {courseId === "all" || courseId === "none" ? "All Courses" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
                       </span>
                       <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
                     </button>
-                    <Select value={batchId} onValueChange={(val: any) => setBatchId(val)}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select Batch" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Global (All Batches)</SelectItem>
-                        {batches.map(b => <SelectItem key={b.id} value={b.year}>{b.year}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
                 
@@ -999,7 +992,13 @@ export default function AdminLiveStudio() {
       <CourseSelectModal
         isOpen={isCourseModalOpen}
         onClose={() => setIsCourseModalOpen(false)}
-        onSelect={(id) => setCourseId(id)}
+        onSelect={(id, bId) => {
+          setCourseId(id);
+          if (bId) {
+            const bYear = bId === "all" ? "all" : (batches.find(b => b.id === bId)?.year || "all");
+            setBatchId(bYear);
+          }
+        }}
         selectedCourseId={courseId}
         courses={courses}
         batches={batches}
@@ -1012,5 +1011,6 @@ export default function AdminLiveStudio() {
   );
 
 }
+
 
 

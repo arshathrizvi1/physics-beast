@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, Folder, FolderOpen, XCircle, CheckCircle2 } from "lucide-react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Course { id: string; name: string; batchId?: string; teacherId?: string; }
@@ -36,7 +36,7 @@ export function FolderSelectModal({
     if (isOpen) {
       setFilterYear(defaultBatchId);
       if (teamMembers.length === 0) {
-      getDocs(collection(db, 'team')).then(snap => {
+      getDocs(query(collection(db, 'users'), where('role', 'in', ['admin', 'teacher']))).then(snap => {
         setTeamMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
       }
@@ -179,6 +179,7 @@ export function FolderSelectModal({
     </div>
   );
 }
+
 
 
 

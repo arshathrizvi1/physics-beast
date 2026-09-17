@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Search, BookOpen, XCircle, CheckCircle2 } from "lucide-react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Course { id: string; name: string; batchId?: string; teacherId?: string; isMonthly?: boolean; }
@@ -12,7 +12,7 @@ interface Batch { id: string; name: string; }
 interface CourseSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (courseId: string) => void;
+  onSelect: (courseId: string, batchId?: string) => void;
   selectedCourseId: string;
   courses: Course[];
   batches: Batch[];
@@ -24,6 +24,7 @@ interface CourseSelectModalProps {
 
 export function CourseSelectModal({
   isOpen, onClose, onSelect, selectedCourseId, courses, batches, title = "Select a Course", allowNone = false, noneLabel = "None (Clear Selection)", defaultBatchId = "all"
+, onBatchChange
 }: CourseSelectModalProps) {
   const [filterYear, setFilterYear] = useState(defaultBatchId);
   const [filterTeacher, setFilterTeacher] = useState("all");
@@ -34,7 +35,7 @@ export function CourseSelectModal({
     if (isOpen) {
       setFilterYear(defaultBatchId);
       if (teamMembers.length === 0) {
-      getDocs(collection(db, 'team')).then(snap => {
+      getDocs(query(collection(db, 'users'), where('role', 'in', ['admin', 'teacher']))).then(snap => {
         setTeamMembers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       });
       }
@@ -43,6 +44,7 @@ export function CourseSelectModal({
 
   if (!isOpen) return null;
 
+  const teachers = teamMembers.filter(t => t.role === 'teacher');
   const filteredCourses = courses.filter(c => {
     const matchYear = filterYear === "all" || c.batchId === filterYear;
     const matchTeacher = filterTeacher === "all" || c.teacherId === filterTeacher;
@@ -68,13 +70,13 @@ export function CourseSelectModal({
           </Button>
         </div>
 
-        <div className="p-4 border-b bg-secondary/10 grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+        <div className={`p-4 border-b bg-secondary/10 grid grid-cols-1 ${teachers.length > 0 ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-3 shrink-0`}>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Batch / Year</Label>
             <select 
               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={filterYear}
-              onChange={e => setFilterYear(e.target.value)}
+              onChange={e => { setFilterYear(e.target.value); if (onBatchChange) onBatchChange(e.target.value); }}
             >
               <option value="all">All Batches</option>
               {batches.map(b => (
@@ -90,7 +92,7 @@ export function CourseSelectModal({
               onChange={e => setFilterTeacher(e.target.value)}
             >
               <option value="all">All Teachers</option>
-              {teamMembers.filter(t => t.role === 'teacher').map(t => (
+              {teachers.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
@@ -114,7 +116,7 @@ export function CourseSelectModal({
              <button 
                 type="button"
                 onClick={() => { 
-                  onSelect("none"); 
+                  onSelect("none", filterYear); 
                   onClose(); 
                 }} 
                 className={`w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] ${selectedCourseId === "none" ? "bg-destructive/10 border-destructive text-destructive shadow-sm" : "bg-destructive/5 border-destructive/20 hover:border-destructive text-destructive"}`}
@@ -140,7 +142,7 @@ export function CourseSelectModal({
                     key={course.id}
                     type="button"
                     onClick={() => { 
-                      onSelect(course.id); 
+                      onSelect(course.id, filterYear); 
                       onClose(); 
                     }} 
                     className={`p-4 text-left rounded-xl border transition-all flex flex-col justify-between hover:scale-[1.02] ${selectedCourseId === course.id ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card text-card-foreground border-border hover:border-primary/50"}`}
@@ -164,6 +166,11 @@ export function CourseSelectModal({
     </div>
   );
 }
+
+
+
+
+
 
 
 
