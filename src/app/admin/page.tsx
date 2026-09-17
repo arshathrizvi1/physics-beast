@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, UserPlus, CreditCard, Activity, Video, FileText, FileQuestion, Upload, CheckCircle2, AlertCircle, Plus, Save, Edit, Edit2, Trash2, Eye, EyeOff, X, ExternalLink, Folder, FolderOpen, ChevronUp, ChevronDown, GraduationCap, BookOpen, UserCheck, Sparkles, RotateCcw, ShieldCheck, Camera, Globe, Printer, Info, Check, UserX, Clock, ListFilter, Trophy, LogOut, Smartphone, Search, ShieldAlert, StopCircle, TrendingUp, XCircle } from "lucide-react";
+import { CourseSelectModal } from "@/components/CourseSelectModal";
 import { useAuth } from "@/lib/AuthContext";
 import { db, storage } from "@/lib/firebase";
 import Link from "next/link";
@@ -1039,6 +1040,8 @@ export default function AdminDashboard() {
   const [videoUrl, setVideoUrl] = useState("");
   const [zoomPassword, setZoomPassword] = useState("");
   const [videoPlatform, setVideoPlatform] = useState("bunny");
+  const [isVideoCourseModalOpen, setIsVideoCourseModalOpen] = useState(false);
+  const [isVideoFolderModalOpen, setIsVideoFolderModalOpen] = useState(false);
   const [videoBatchId, setVideoBatchId] = useState("");
   const [videoCourseId, setVideoCourseId] = useState("");
   const [videoFolderId, setVideoFolderId] = useState("");
@@ -3080,16 +3083,30 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label>Course</Label>
-                    <select 
-                      className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={videoCourseId} 
-                      onChange={(e) => { setVideoCourseId(e.target.value); setVideoFolderId(""); }}
+                    <button 
+                      type="button"
+                      onClick={() => setIsVideoCourseModalOpen(true)}
+                      className={`flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm text-left transition-colors ${!videoBatchId ? 'bg-secondary/20 cursor-not-allowed opacity-70' : 'bg-background hover:bg-secondary/10'}`}
                       disabled={!videoBatchId}
-                      required
                     >
-                      <option value="" disabled>Select Course</option>
-                      {courses.filter(c => videoBatchId === 'all' || c.batchId === videoBatchId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                      <span className="truncate text-foreground font-medium">
+                        {videoCourseId ? courses.find(c => c.id === videoCourseId)?.name || 'Unknown Course' : 'Select Course...'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                    </button>
+
+                    <CourseSelectModal
+                      isOpen={isVideoCourseModalOpen}
+                      onClose={() => setIsVideoCourseModalOpen(false)}
+                      onSelect={(courseId) => {
+                        setVideoCourseId(courseId);
+                        setVideoFolderId("");
+                      }}
+                      selectedCourseId={videoCourseId}
+                      courses={videoBatchId && videoBatchId !== 'all' ? courses.filter(c => c.batchId === videoBatchId) : courses}
+                      batches={batches}
+                      title="Select a Course"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Folder</Label>
@@ -3098,16 +3115,30 @@ export default function AdminDashboard() {
                         Auto-assigned to current month ({new Date().toLocaleString('default', { month: 'long', year: 'numeric' })})
                       </div>
                     ) : (
-                      <select 
-                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={videoFolderId} 
-                        onChange={(e) => setVideoFolderId(e.target.value)}
-                        disabled={!videoCourseId}
-                        required
-                      >
-                        <option value="" disabled>Select Folder</option>
-                        {folders.filter(f => f.courseId === videoCourseId).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                      </select>
+                      <>
+                        <button 
+                          type="button"
+                          onClick={() => setIsVideoFolderModalOpen(true)}
+                          className={`flex h-10 w-full items-center justify-between rounded-md border border-input px-3 py-2 text-sm text-left transition-colors ${!videoCourseId ? 'bg-secondary/20 cursor-not-allowed opacity-70' : 'bg-background hover:bg-secondary/10'}`}
+                          disabled={!videoCourseId}
+                        >
+                          <span className="truncate text-foreground font-medium">
+                            {videoFolderId ? folders.find(f => f.id === videoFolderId)?.name || 'Unknown Folder' : 'Select Folder...'}
+                          </span>
+                          <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                        </button>
+
+                        <FolderSelectModal
+                          isOpen={isVideoFolderModalOpen}
+                          onClose={() => setIsVideoFolderModalOpen(false)}
+                          onSelect={(folderId) => setVideoFolderId(folderId)}
+                          selectedFolderId={videoFolderId}
+                          courses={courses.filter(c => c.id === videoCourseId)}
+                          folders={folders.filter(f => f.courseId === videoCourseId)}
+                          batches={batches}
+                          title="Select a Folder"
+                        />
+                      </>
                     )}
                   </div>
                 </div>
@@ -6114,6 +6145,8 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
 
 
 
