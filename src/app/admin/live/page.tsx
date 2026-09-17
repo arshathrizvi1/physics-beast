@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
 import { FolderSelectModal } from "@/components/FolderSelectModal";
+import { CourseSelectModal } from "@/components/CourseSelectModal";
 
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();
@@ -63,6 +64,7 @@ export default function AdminLiveStudio() {
   const [editAllowDirectJoin, setEditAllowDirectJoin] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isTargetFolderModalOpen, setIsTargetFolderModalOpen] = useState(false);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isEditTargetFolderModalOpen, setIsEditTargetFolderModalOpen] = useState(false);
 
   useEffect(() => {
@@ -458,13 +460,16 @@ export default function AdminLiveStudio() {
               <div className="space-y-2">
                   <Label>Target Audience</Label>
                   <div className="flex gap-2">
-                    <Select value={courseId} onValueChange={(val: any) => setCourseId(val)}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Select Course" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Global (All Courses)</SelectItem>
-                        {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <button 
+                      type="button"
+                      onClick={() => setIsCourseModalOpen(true)}
+                      className="flex h-10 flex-1 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
+                    >
+                      <span className="truncate text-foreground font-medium">
+                        {courseId === "all" ? "Global (All Courses)" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
+                      </span>
+                      <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
+                    </button>
                     <Select value={batchId} onValueChange={(val: any) => setBatchId(val)}>
                       <SelectTrigger className="flex-1"><SelectValue placeholder="Select Batch" /></SelectTrigger>
                       <SelectContent>
@@ -975,7 +980,7 @@ export default function AdminLiveStudio() {
         batches={batches}
         title="Select Target Folder"
         allowNone={true}
-        defaultBatchId={batchId || "all"}
+        defaultBatchId={batchId === "all" ? "all" : (batches.find(b => b.year === batchId)?.id || "all")}
       />
 
       <FolderSelectModal
@@ -988,10 +993,24 @@ export default function AdminLiveStudio() {
         batches={batches}
         title="Select Target Folder"
         allowNone={true}
-        defaultBatchId={batchId || "all"}
+        defaultBatchId={batchId === "all" ? "all" : (batches.find(b => b.year === batchId)?.id || "all")}
+      />
+
+      <CourseSelectModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onSelect={(id) => setCourseId(id)}
+        selectedCourseId={courseId}
+        courses={courses}
+        batches={batches}
+        title="Select Target Course"
+        allowNone={true}
+        noneLabel="Global (All Courses)"
+        defaultBatchId={batchId === "all" ? "all" : (batches.find(b => b.year === batchId)?.id || "all")}
       />
     </div>
   );
 
 }
+
 

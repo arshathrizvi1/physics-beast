@@ -18,6 +18,7 @@ interface CourseSelectModalProps {
   batches: Batch[];
   title?: string;
   allowNone?: boolean;
+  noneLabel?: string;
   defaultBatchId?: string;
 }
 
@@ -119,7 +120,7 @@ export function CourseSelectModal({
                 }} 
                 className={`w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] ${selectedCourseId === "none" ? "bg-destructive/10 border-destructive text-destructive shadow-sm" : "bg-destructive/5 border-destructive/20 hover:border-destructive text-destructive"}`}
               >
-                <span className="truncate mr-2">None (Clear Selection)</span>
+                <span className="truncate mr-2">{noneLabel}</span>
                 {selectedCourseId === "none" && <CheckCircle2 className="w-5 h-5 shrink-0" />}
               </button>
           )}
@@ -164,6 +165,8 @@ export function CourseSelectModal({
     </div>
   );
 }
+
+
 
 
 
