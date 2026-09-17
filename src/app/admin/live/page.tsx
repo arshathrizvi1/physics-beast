@@ -50,6 +50,8 @@ export default function AdminLiveStudio() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
+  const [oldRecordsSearch, setOldRecordsSearch] = useState("");
 
   // Edit State
   const [editingClass, setEditingClass] = useState<any>(null);
@@ -259,7 +261,11 @@ export default function AdminLiveStudio() {
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
-      await updateDoc(doc(db, 'live_classes', id), { status: newStatus });
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'ended') {
+        updateData.endedAt = Date.now();
+      }
+      await updateDoc(doc(db, 'live_classes', id), updateData);
 
       if (newStatus === 'live') {
         const cls = liveClasses.find(c => c.id === id);
@@ -390,6 +396,26 @@ export default function AdminLiveStudio() {
       alert("Failed to delete all. " + e);
     }
   };
+
+  const ONE_HOUR = 60 * 60 * 1000;
+  const now = Date.now();
+  
+  const recentClasses = liveClasses.filter(c => {
+    if (c.status !== 'ended') return true;
+    if (!c.endedAt) return false;
+    return now - c.endedAt <= ONE_HOUR;
+  });
+
+  const archivedClasses = liveClasses.filter(c => {
+    if (c.status !== 'ended') return false;
+    if (!c.endedAt) return true;
+    return now - c.endedAt > ONE_HOUR;
+  });
+
+  const filteredArchivedClasses = archivedClasses.filter(c => 
+    c.title?.toLowerCase().includes(oldRecordsSearch.toLowerCase()) || 
+    (c.description || "").toLowerCase().includes(oldRecordsSearch.toLowerCase())
+  );
 
   if (loading || !user || (user.role !== "admin" && user.role !== "teacher")) {
     return <div className="flex h-[50vh] items-center justify-center"><p className="animate-pulse text-primary font-bold">Loading...</p></div>;

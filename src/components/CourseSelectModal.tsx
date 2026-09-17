@@ -112,7 +112,7 @@ export function CourseSelectModal({
                   onSelect("none"); 
                   onClose(); 
                 }} 
-                className={w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] }
+                className={`w-full p-4 mb-2 text-left rounded-xl border transition-all text-sm font-bold flex items-center justify-between hover:scale-[1.01] ${selectedCourseId === "none" ? "bg-destructive/10 border-destructive text-destructive shadow-sm" : "bg-destructive/5 border-destructive/20 hover:border-destructive text-destructive"}`}
               >
                 <span className="truncate mr-2">None (Clear Selection)</span>
                 {selectedCourseId === "none" && <CheckCircle2 className="w-5 h-5 shrink-0" />}
@@ -138,7 +138,7 @@ export function CourseSelectModal({
                       onSelect(course.id); 
                       onClose(); 
                     }} 
-                    className={p-4 text-left rounded-xl border transition-all flex flex-col justify-between hover:scale-[1.02] }
+                    className={`p-4 text-left rounded-xl border transition-all flex flex-col justify-between hover:scale-[1.02] ${selectedCourseId === course.id ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card text-card-foreground border-border hover:border-primary/50"}`}
                   >
                     <div className="flex w-full items-start justify-between gap-2 mb-3">
                       <span className="font-bold text-sm truncate" title={course.name}>{course.name}</span>
@@ -159,3 +159,5 @@ export function CourseSelectModal({
     </div>
   );
 }
+
+
