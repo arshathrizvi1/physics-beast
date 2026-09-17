@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
+import { FolderSelectModal } from "@/components/FolderSelectModal";
 
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();
@@ -48,6 +49,7 @@ export default function AdminLiveStudio() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   // Edit State
   const [editingClass, setEditingClass] = useState<any>(null);
@@ -58,6 +60,8 @@ export default function AdminLiveStudio() {
   const [editTargetFolderId, setEditTargetFolderId] = useState("none");
   const [editAllowDirectJoin, setEditAllowDirectJoin] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isTargetFolderModalOpen, setIsTargetFolderModalOpen] = useState(false);
+  const [isEditTargetFolderModalOpen, setIsEditTargetFolderModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!user || (user.role !== "admin" && user.role !== "teacher"))) {
@@ -374,14 +378,14 @@ export default function AdminLiveStudio() {
     } catch (e) { }
   };
 
-  const handleDeleteAll = async () => {
-    if (!confirm("WARNING: Are you absolutely sure you want to DELETE ALL live sessions? This cannot be undone.")) return;
+  const executeDeleteAll = async () => {
     try {
       const batch = writeBatch(db);
       liveClasses.forEach(cls => {
         batch.delete(doc(db, 'live_classes', cls.id));
       });
       await batch.commit();
+      setShowDeleteAllModal(false);
     } catch (e) {
       alert("Failed to delete all. " + e);
     }
@@ -625,11 +629,11 @@ export default function AdminLiveStudio() {
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Calendar className="w-5 h-5" /> Managed Sessions
             </h2>
-            {liveClasses.length > 0 && (
-              <Button size="sm" variant="destructive" onClick={handleDeleteAll} className="h-8 text-xs font-bold bg-red-600 hover:bg-red-700">
-                <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
-              </Button>
-            )}
+              {liveClasses.length > 0 && (
+                <Button size="sm" variant="destructive" onClick={() => setShowDeleteAllModal(true)} className="h-8 text-xs font-bold text-white bg-red-600 hover:bg-red-700">
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete All
+                </Button>
+              )}
           </div>
           
           {liveClasses.length === 0 ? (
@@ -856,8 +860,34 @@ export default function AdminLiveStudio() {
           </Card>
         </div>
       )}
+
+      {/* Delete All Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md border-red-500/20 shadow-2xl animate-in zoom-in-95">
+            <CardHeader>
+              <CardTitle className="text-red-500 flex items-center gap-2">
+                <Trash2 className="w-6 h-6" />
+                Confirm Deletion
+              </CardTitle>
+              <CardDescription className="text-base mt-2">
+                WARNING: Are you absolutely sure you want to <strong>DELETE ALL</strong> live sessions? This cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="flex justify-end gap-3 mt-4">
+              <Button variant="outline" onClick={() => setShowDeleteAllModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={executeDeleteAll} className="bg-red-600 text-white hover:bg-red-700">
+                Yes, Delete All
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
+
 
 
