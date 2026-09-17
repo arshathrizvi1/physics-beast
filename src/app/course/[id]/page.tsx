@@ -835,30 +835,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
-                  {activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? (
-                    <div className="absolute inset-0 w-full h-full z-[50]">
-                      <ReactPlayer
-                        url={activeVideo.originalYoutubeUrl}
-                        width="100%"
-                        height="100%"
-                        playing={true}
-                        controls={true}
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      {activeVideo.platform === 'bunny' && (
-                        <iframe 
-                          src={bunnyEmbedUrl || activeVideo.url} 
-                          className="w-full h-full border-0 relative z-[50]"
-                          allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                          allowFullScreen={true}
-                        />
-                      )}
-                      <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
-                        <ReactPlayer
-                          ref={playerRef}
-                      url={activeVideo.url}
+                      <>
+                        {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
+                          <iframe 
+                            src={bunnyEmbedUrl || activeVideo.url} 
+                            className="w-full h-full border-0 relative z-[50]"
+                            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                            allowFullScreen={true}
+                          />
+                        )}
+                        <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                          <ReactPlayer
+                            ref={playerRef}
+                        url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
                       width="100%"
                       height="100%"
                       playing={playing}
@@ -957,7 +946,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     />
                   </div>
                     </>
-                  )}
 
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && (
@@ -971,7 +959,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 )}
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
-                <div className={`absolute inset-0 z-10 cursor-pointer flex ${activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                <div className={`absolute inset-0 z-10 cursor-pointer flex ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
                   <div 
                     className="w-1/2 h-full"
                     onClick={(e) => {
@@ -1035,7 +1023,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
