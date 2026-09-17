@@ -245,7 +245,9 @@ async function uploadToBunny(filePath, streamKey) {
   const stats = fs.statSync(filePath);
   
   try {
-    const fileStream = fs.createReadStream(filePath);
+    const { Readable } = require('stream');
+      const fileStream = fs.createReadStream(filePath);
+      const webStream = Readable.toWeb(fileStream);
     const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
       method: 'PUT',
       headers: {
@@ -253,7 +255,7 @@ async function uploadToBunny(filePath, streamKey) {
         'Content-Type': 'application/octet-stream',
         'Content-Length': stats.size.toString()
       },
-      body: fileStream,
+      body: webStream,
       duplex: 'half'
     });
     
@@ -577,7 +579,7 @@ app.post('/api/generic-download', (req, res) => {
               'Content-Type': 'application/octet-stream',
               'Content-Length': fileStats.size.toString()
             },
-            body: fileStream,
+            body: webStream,
             duplex: 'half'
           });
           uploadOk = uploadRes.ok;

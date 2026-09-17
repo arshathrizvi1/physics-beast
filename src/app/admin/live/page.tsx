@@ -323,8 +323,8 @@ export default function AdminLiveStudio() {
             }).catch(e => console.error("Auto background download failed to start:", e));
             
             // We do NOT add the raw link to the folder. The webhook will handle adding it!
-          } else {
-            // Old fallback: Just add the raw link to the folder directly (e.g., if it's already a Bunny link or custom)
+          } else if (cls.platform !== 'rtmp') {
+              // Old fallback: Just add the raw link to the folder directly (e.g., if it's already a Bunny link or custom)
             const folderRef = doc(db, 'folders', cls.targetFolderId);
             const folderSnap = await getDoc(folderRef);
             
