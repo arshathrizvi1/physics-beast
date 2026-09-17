@@ -2749,7 +2749,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {courses.filter(c => {
-                        const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
+                        const matchBatch = c.batchId === selectedBatchId;
                         const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
                         const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId; // show unassigned courses too
                         return matchBatch && matchTeacher && matchSubject;
@@ -2818,7 +2818,7 @@ export default function AdminDashboard() {
                         </div>
                       ))}
                       {selectedBatchId && courses.filter(c => {
-                        const matchBatch = selectedBatchId === 'all' || c.batchId === selectedBatchId;
+                        const matchBatch = c.batchId === selectedBatchId;
                         const matchTeacher = courseTeacherFilter === 'all' || c.teacherId === courseTeacherFilter;
                         const matchSubject = !selectedSubjectId || c.subjectId === selectedSubjectId || !c.subjectId;
                         return matchBatch && matchTeacher && matchSubject;
