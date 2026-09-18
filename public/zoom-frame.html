@@ -59,7 +59,7 @@
         <div>Connecting to Full Zoom Experience...</div>
     </div>
 
-        <!-- Spoof Desktop User Agent to prevent Zoom 4003 Mobile Browser Blocking -->
+    <!-- Spoof Desktop User Agent to prevent Zoom 4003 Mobile Browser Blocking -->
     <script>
         try { Object.defineProperty(navigator, 'userAgent', {
             get: function () {
@@ -92,7 +92,7 @@
                 window.ZoomMtg.preLoadWasm();
                 window.ZoomMtg.prepareWebSDK();
 
-                const response = await fetch("/api/zoom/signature", {
+                const response = await fetch("/api/zoom/signature?t=" + new Date().getTime(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ meetingNumber, role }),
@@ -114,7 +114,7 @@
                     disableCallOut: true,
                     disableRecord: true,
                     showMeetingHeader: false,
-                     meetingInfo: [], 
+                    isSupportGalleryView: false,
                     success: function () {
                         window.ZoomMtg.join({
                             sdkKey: sdkKey,
@@ -128,7 +128,14 @@
                             },
                             error: function (res) {
                                 console.error('Join error', res);
-                                alert("Failed to join meeting: " + JSON.stringify(res));
+                                if (res.errorCode === 4003 || res.errorCode === 1) {
+                                    const fallbackUrl = 'zoomus://zoom.us/join?action=join&confno=' + meetingNumber + '&pwd=' + password + '&uname=' + encodeURIComponent(userName);
+                                    document.getElementById('zmmtg-root').style.display = 'none';
+                                    document.getElementById('loading').style.display = 'flex';
+                                    document.getElementById('loading').innerHTML = '<div style="color: #f87171; text-align: center; padding: 20px;"><h3 style="margin-bottom: 8px;">Zoom App Required</h3><p style="margin-bottom: 16px; font-size: 14px;">Your mobile device is blocking the web player.</p><a href="' + fallbackUrl + '" style="background-color: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Join via Zoom App</a></div>';
+                                } else {
+                                    alert("Failed to join meeting: " + JSON.stringify(res));
+                                }
                             }
                         });
                     },
@@ -140,31 +147,17 @@
 
             } catch (error) {
                 console.error("Zoom initialization failed:", error);
-                document.getElementById('loading').innerHTML = `
-                    <div style="color: #f87171; text-align: center;">
-                        <h3 style="margin-bottom: 8px;">Connection Error</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('loading').innerHTML = '<div style="color: #f87171; text-align: center;"><h3 style="margin-bottom: 8px;">Connection Error</h3><p>' + error.message + '</p></div>';
             }
         }
 
         window.addEventListener('load', initZoom);
         
-        // Brute force DOM destruction of all meeting info UI
         setInterval(() => {
-            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label=\"Meeting Info\"]');
+            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"]');
             elements.forEach(el => el.remove());
         }, 500);
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
