@@ -79,8 +79,8 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = /zoom-frame.html?v=15& + params.toString();
-  const nativeAppUrl = zoomus://zoom.us/join?action=join&confno= + meetingNumber + &pwd= + password + &uname= + encodeURIComponent(userName);
+  const iframeSrc = "/zoom-frame.html?v=15&" + params.toString();
+  const nativeAppUrl = "zoomus://zoom.us/join?action=join&confno=" + meetingNumber + "&pwd=" + password + "&uname=" + encodeURIComponent(userName);
 
   if (isNative) {
     return (
