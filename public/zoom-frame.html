@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom Meeting</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #18181b; /* zinc-900 */
+            color: white;
+            font-family: sans-serif;
+        }
+        #zmmtg-root {
+            width: 100%;
+            height: 100%;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #ffffff;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Connecting to Zoom Meeting...</div>
+    </div>
+    
+    <div id="zmmtg-root"></div>
+
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js"></script>
+
+    <script>
+        async function initZoom() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const meetingNumber = params.get('mn');
+                const userName = params.get('name') || 'Student';
+                const userEmail = params.get('email') || '';
+                const password = params.get('pwd') || '';
+                const role = parseInt(params.get('role') || '0', 10);
+
+                if (!meetingNumber) {
+                    throw new Error("Meeting Number is missing");
+                }
+
+                // Fetch signature from parent window's API
+                const response = await fetch("/api/zoom/signature", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ meetingNumber, role }),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to get signature");
+                }
+
+                const { signature, sdkKey } = data;
+
+                const client = window.ZoomMtgEmbedded.createClient();
+
+                await client.init({
+                    zoomAppRoot: document.getElementById('zmmtg-root'),
+                    language: 'en-US',
+                    customize: {
+                        video: {
+                            isResizable: true,
+                            viewSizes: {
+                                default: { width: '100%', height: '100%' },
+                            },
+                        },
+                        meetingInfo: {
+                            showMeetingId: false,
+                            showPasscode: false,
+                        },
+                    },
+                });
+
+                document.getElementById('loading').style.display = 'none';
+
+                await client.join({
+                    sdkKey: sdkKey,
+                    signature: signature,
+                    meetingNumber: meetingNumber,
+                    password: password,
+                    userName: userName,
+                    userEmail: userEmail,
+                });
+
+            } catch (error) {
+                console.error("Zoom initialization failed:", error);
+                document.getElementById('loading').innerHTML = `
+                    <div style="color: #f87171; text-align: center;">
+                        <h3 style="margin-bottom: 8px;">Connection Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize once scripts are ready
+        window.addEventListener('load', () => {
+            initZoom();
+        });
+    </script>
+</body>
+</html>

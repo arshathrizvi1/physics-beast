@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 interface ZoomPlayerProps {
@@ -18,120 +18,33 @@ export default function ZoomPlayer({
   password = "",
   role = 0,
 }: ZoomPlayerProps) {
-  const meetingContainerRef = useRef<HTMLDivElement>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
 
-  useEffect(() => {
-    let client: any = null;
-    let isMounted = true;
+  // Construct URL with query parameters
+  const params = new URLSearchParams({
+    mn: meetingNumber,
+    name: userName,
+    email: userEmail,
+    pwd: password,
+    role: role.toString(),
+  });
 
-    const initZoom = async () => {
-      try {
-        setLoading(true);
-
-        // Fix React 19 compatibility for Zoom SDK
-        if (!(React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
-            (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
-                ReactCurrentOwner: { current: null },
-                ReactCurrentDispatcher: { current: null }
-            };
-        } else if (!(React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner) {
-            (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner = { current: null };
-        }
-
-        // Dynamically import the SDK only after mocking React internals
-        const mod = await import("@zoom/meetingsdk/embedded");
-        const ZoomMtgEmbedded = mod.default;
-
-        const response = await fetch("/api/zoom/signature", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meetingNumber, role }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to get signature");
-        }
-
-        const { signature, sdkKey } = data;
-
-        client = ZoomMtgEmbedded.createClient();
-
-        await client.init({
-          zoomAppRoot: meetingContainerRef.current!,
-          language: "en-US",
-          customize: {
-            video: {
-              isResizable: true,
-              viewSizes: {
-                default: { width: "100%", height: "100%" },
-              },
-            },
-            meetingInfo: {
-              showMeetingId: false,
-              showPasscode: false,
-            },
-          },
-        });
-
-        await client.join({
-          sdkKey: sdkKey,
-          signature: signature,
-          meetingNumber: meetingNumber,
-          password: password,
-          userName: userName,
-          userEmail: userEmail,
-        });
-
-        if (isMounted) setLoading(false);
-      } catch (err: any) {
-        console.error("Zoom Init Error:", err);
-        if (isMounted) {
-            setError(err.message || "Failed to initialize Zoom");
-            setLoading(false);
-        }
-      }
-    };
-
-    if (meetingContainerRef.current) {
-        initZoom();
-    }
-
-    return () => {
-      isMounted = false;
-      if (client) {
-        try {
-          client.leaveMeeting();
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-  }, [meetingNumber, userName, userEmail, password, role]);
+  const iframeSrc = `/zoom-frame.html?${params.toString()}`;
 
   return (
     <div className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
-      {loading && !error && (
+      {!iframeLoaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>Connecting to Zoom Meeting...</p>
+          <p>Preparing Meeting Environment...</p>
         </div>
       )}
 
-      {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-red-400 p-8 text-center">
-          <p className="font-bold text-lg mb-2">Connection Error</p>
-          <p>{error}</p>
-        </div>
-      )}
-
-      <div
-        ref={meetingContainerRef}
-        className="w-full h-full min-h-[500px]"
-        id="zoom-meeting-container"
+      <iframe
+        src={iframeSrc}
+        className="w-full h-full border-0 absolute inset-0 z-0"
+        allow="camera; microphone; display-capture"
+        onLoad={() => setIframeLoaded(true)}
       />
     </div>
   );
