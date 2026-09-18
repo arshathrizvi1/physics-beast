@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zoom Mobile Web Player</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #meetingSDKElement {
+            width: 100vw;
+            height: 100vh;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 16px;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Connecting securely...</div>
+    <div id="meetingSDKElement"></div>
+
+    <!-- Official Component View self-contained bundle (NO external React needed) -->
+    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+
+    <script>
+        async function startMeeting() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const meetingNumber = params.get('mn');
+                const userName = params.get('name') || 'Student';
+                const userEmail = params.get('email') || '';
+                const password = params.get('pwd') || '';
+                const role = parseInt(params.get('role') || '0', 10);
+
+                if (!meetingNumber) throw new Error("Meeting Number missing");
+
+                // Get signature
+                const sigRes = await fetch("/api/zoom/signature", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ meetingNumber, role }),
+                });
+                const sigData = await sigRes.json();
+                if (!sigRes.ok) throw new Error(sigData.error || "Signature failed");
+
+                const client = window.ZoomMtgEmbedded.createClient();
+                const container = document.getElementById('meetingSDKElement');
+
+                // Initialize exactly as per Zoom's minimal spec
+                await client.init({
+                    zoomAppRoot: container,
+                    language: 'en-US',
+                    customize: {
+                        meetingInfo: {
+                            showMeetingId: false,
+                            showPasscode: false,
+                            showInviteLink: false
+                        },
+                        toolbar: {
+                            buttons: [
+                                { text: 'Audio', className: 'Microphone', visible: true },
+                                { text: 'Video', className: 'Camera', visible: true },
+                                { text: 'Leave', className: 'Leave', visible: true },
+                                // Exclude Participants to disable renaming!
+                                { text: 'Participants', className: 'Participants', visible: false },
+                                { text: 'Chat', className: 'Chat', visible: false },
+                                { text: 'Share', className: 'Share', visible: false }
+                            ]
+                        }
+                    }
+                });
+
+                document.getElementById('loading').style.display = 'none';
+
+                // Join the meeting
+                await client.join({
+                    sdkKey: sigData.sdkKey,
+                    signature: sigData.signature,
+                    meetingNumber: meetingNumber,
+                    password: password,
+                    userName: userName,
+                    userEmail: userEmail
+                });
+
+                console.log("Successfully connected!");
+
+                // Handle Leave
+                client.on('connection-change', (payload) => {
+                    if (payload.state === 'Closed') {
+                        window.location.href = '/zoom-ended.html';
+                    }
+                });
+
+            } catch (err) {
+                console.error("Zoom Error:", err);
+                if (err && err.reason && err.reason.includes("duplicate join")) {
+                    console.log("Ignored duplicate join");
+                } else {
+                    document.getElementById('loading').innerText = "Error connecting.";
+                }
+            }
+        }
+
+        window.addEventListener('load', startMeeting);
+    </script>
+</body>
+</html>
