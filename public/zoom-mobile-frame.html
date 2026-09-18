@@ -48,40 +48,16 @@
             background: #000000;
         }
 
-        /* AGGRESSIVE CSS TO PERFECTLY SIMULATE NATIVE FULLSCREEN APP */
-        
-        /* 1. Force the video container to be completely black and fill the screen */
-        .zoom-video-render, .zm-component-video-container, .video-avatar__avatar-wrapper {
-            background-color: #000000 !important;
-        }
-
-        /* 2. Hide the Meeting Info Header (Up Bar) completely */
+        /* Minimal CSS to hide specific UI elements without breaking video canvas */
         .zm-component-header, [class*="meeting-header"], [class*="meeting-info"] {
             display: none !important;
-            opacity: 0 !important;
             visibility: hidden !important;
+            opacity: 0 !important;
             pointer-events: none !important;
-            height: 0 !important;
-            overflow: hidden !important;
         }
-
-        /* 3. Disable Rename by hiding the Participants button and Rename options */
-        [aria-label="Participants"], .zm-btn__participants, [class*="rename-btn"] {
-            display: none !important;
-        }
-
-        /* 4. Remove draggability and weird borders from Component View */
-        .zm-component-video-inner {
-            border: none !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-        }
-        
-        /* 5. Force the ribbon/video to fill available space */
-        .video-canvas, .zoom-video-render canvas {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
+        /* Make background black but do NOT touch canvas directly */
+        .zm-component-video-container {
+            background-color: #000000 !important;
         }
     </style>
 </head>
@@ -93,7 +69,7 @@
     
     <div id="zoom-root"></div>
 
-        <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
@@ -134,6 +110,9 @@
                 
                 const client = ZoomMtgEmbedded.createClient();
                 const zoomRoot = document.getElementById('zoom-root');
+                
+                const getW = () => Math.max(window.innerWidth || 800, 320);
+                const getH = () => Math.max(window.innerHeight || 600, 320);
 
                 client.init({
                     zoomAppRoot: zoomRoot,
@@ -142,14 +121,8 @@
                         video: {
                             isResizable: false,
                             viewSizes: {
-                                default: {
-                                    width: Math.max(window.innerWidth || 800, 320),
-                                    height: Math.max(window.innerHeight || 600, 320)
-                                },
-                                ribbon: {
-                                    width: Math.max(window.innerWidth || 800, 320),
-                                    height: Math.max(window.innerHeight || 600, 320)
-                                }
+                                default: { width: getW(), height: getH() },
+                                ribbon: { width: getW(), height: getH() }
                             }
                         },
                         chat: { poppable: false },
@@ -157,6 +130,16 @@
                             showMeetingId: false,
                             showPasscode: false,
                             showInviteLink: false
+                        },
+                        toolbar: {
+                            buttons: [
+                                { text: 'Audio', className: 'Microphone', visible: true },
+                                { text: 'Video', className: 'Camera', visible: true },
+                                { text: 'Share', className: 'Share', visible: false },
+                                { text: 'Chat', className: 'Chat', visible: false },
+                                { text: 'Participants', className: 'Participants', visible: false },
+                                { text: 'Leave', className: 'Leave', visible: true }
+                            ]
                         }
                     }
                 }).then(() => {
@@ -174,26 +157,33 @@
                             if (payload.state === 'Closed') { window.location.href = '/zoom-ended.html'; }
                         });
                     }).catch((error) => {
-                        console.error(error);
-                        if (error && error.reason && error.reason.includes('duplicate join')) { console.log('Duplicate join ignored'); } else { console.error('Join Error:', error); }
+                        if (error && error.reason && error.reason.includes('duplicate join')) { 
+                            console.log('Duplicate join ignored'); 
+                        } else { 
+                            console.error('Join Error:', error); 
+                        }
                     });
                 }).catch((error) => {
-                    console.error(error);
                     console.error('Init Error:', error);
                 });
 
-                // Auto resize on rotation
+                // Auto resize dynamically to catch iframe dimension changes
+                setInterval(() => {
+                    try {
+                        client.updateVideoViewSizes({
+                            default: { width: getW(), height: getH() },
+                            ribbon: { width: getW(), height: getH() }
+                        });
+                    } catch(e) {}
+                }, 2000);
+                
                 window.addEventListener('resize', () => {
-                    client.updateVideoViewSizes({
-                        default: {
-                            width: Math.max(window.innerWidth || 800, 320),
-                            height: Math.max(window.innerHeight || 600, 320)
-                        },
-                        ribbon: {
-                            width: Math.max(window.innerWidth || 800, 320),
-                            height: Math.max(window.innerHeight || 600, 320)
-                        }
-                    });
+                    try {
+                        client.updateVideoViewSizes({
+                            default: { width: getW(), height: getH() },
+                            ribbon: { width: getW(), height: getH() }
+                        });
+                    } catch(e) {}
                 });
 
             } catch (error) {
@@ -203,15 +193,6 @@
         }
 
         window.addEventListener('load', initZoom);
-
-        
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
