@@ -43,6 +43,14 @@
         #zmmtg-root {
             display: none;
         }
+    
+        /* Force hide the Zoom Meeting Header and Info Buttons */
+        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
     </style>
 </head>
 <body>
@@ -97,7 +105,7 @@
                     disableInvite: true,
                     disableCallOut: true,
                     disableRecord: true,
-                    showMeetingHeader: false, 
+                    showMeetingHeader: false, meetingInfo: [], 
                     success: function () {
                         window.ZoomMtg.join({
                             sdkKey: sdkKey,
@@ -136,4 +144,6 @@
     </script>
 </body>
 </html>
+
+
 
