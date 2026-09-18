@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ZoomMtgEmbedded from "@zoom/meetingsdk/embedded";
 import { Loader2 } from "lucide-react";
 
 interface ZoomPlayerProps {
@@ -26,9 +25,23 @@ export default function ZoomPlayer({
   useEffect(() => {
     let client: any = null;
 
+    const loadZoomScript = () => {
+      return new Promise<any>((resolve, reject) => {
+        if ((window as any).ZoomMtgEmbedded) return resolve((window as any).ZoomMtgEmbedded);
+        const script = document.createElement("script");
+        script.src = "https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js";
+        script.async = true;
+        script.onload = () => resolve((window as any).ZoomMtgEmbedded);
+        script.onerror = () => reject(new Error("Failed to load Zoom SDK"));
+        document.body.appendChild(script);
+      });
+    };
+
     const initZoom = async () => {
       try {
         setLoading(true);
+
+        const ZoomMtgEmbedded = await loadZoomScript();
 
         // Fetch signature from our secure backend API
         const response = await fetch("/api/zoom/signature", {
