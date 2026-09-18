@@ -26,8 +26,9 @@ export default function ZoomPlayer({
   useEffect(() => {
     // Detect if we are running inside the Capacitor Android/iOS App
     if (typeof window !== "undefined") {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const isCap = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative;
-      setIsNative(isCap);
+      setIsNative(isMobile || isCap);
     }
   }, []);
 
@@ -135,3 +136,4 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
