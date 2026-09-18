@@ -40,6 +40,9 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #zmmtg-root {
+            display: none;
+        }
     
         /* Force hide the Zoom Meeting Header and Info Buttons */
         #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
@@ -95,6 +98,7 @@
                 const { signature, sdkKey } = data;
 
                 document.getElementById('loading').style.display = 'none';
+                document.getElementById('zmmtg-root').style.display = 'block';
 
                 window.ZoomMtg.init({
                     leaveUrl: window.location.origin + '/zoom-ended.html',
@@ -102,7 +106,7 @@
                     disableCallOut: true,
                     disableRecord: true,
                     showMeetingHeader: false,
-                    isSupportGalleryView: false,
+                     meetingInfo: [], 
                     success: function () {
                         window.ZoomMtg.join({
                             sdkKey: sdkKey,
@@ -128,7 +132,6 @@
 
             } catch (error) {
                 console.error("Zoom initialization failed:", error);
-                document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = `
                     <div style="color: #f87171; text-align: center;">
                         <h3 style="margin-bottom: 8px;">Connection Error</h3>
@@ -139,10 +142,15 @@
         }
 
         window.addEventListener('load', initZoom);
+        
+        // Brute force DOM destruction of all meeting info UI
+        setInterval(() => {
+            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label=\"Meeting Info\"]');
+            elements.forEach(el => el.remove());
+        }, 500);
     </script>
 </body>
 </html>
-
 
 
 

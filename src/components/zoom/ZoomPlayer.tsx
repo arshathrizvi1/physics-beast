@@ -89,8 +89,9 @@ export default function ZoomPlayer({
         {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
       </button>
 
-      <iframe src={iframeSrc} className="w-full h-full border-0 absolute inset-0 z-0" allow="camera; microphone; display-capture; fullscreen; cross-origin-isolated" allowFullScreen={true} onLoad={() => setIframeLoaded(true)} />
+      <iframe src={iframeSrc} className="w-full h-full border-0 absolute inset-0 z-0" allow="camera; microphone; display-capture; fullscreen" allowFullScreen={true} onLoad={() => setIframeLoaded(true)} />
     </div>
   );
 }
+
 
