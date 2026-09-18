@@ -55,7 +55,13 @@ export async function POST(request: Request) {
     classesSnapshot.forEach(doc => {
       const data = doc.data();
       if (data.link && data.link.includes(meetingId)) {
-        matchingClassDoc = doc;
+        if (!matchingClassDoc) {
+          matchingClassDoc = doc;
+        } else if (data.status === 'live') {
+          matchingClassDoc = doc;
+        } else if (data.status === 'scheduled' && matchingClassDoc.data().status !== 'live') {
+          matchingClassDoc = doc;
+        }
       }
     });
 
