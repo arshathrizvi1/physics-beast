@@ -59,10 +59,7 @@ export default function JitsiPlayer({
               'tileview', 'videobackgroundblur', 'mute-everyone',
               'security'
             ] : [
-              'camera', 'desktop', 'fullscreen',
-              'hangup', 'profile', 'chat',
-              'settings', 'raisehand', 'videoquality', 'filmstrip', 
-              'tileview', 'videobackgroundblur'
+              'fullscreen'
             ], // Removed 'microphone' for students!
           }
         };
