@@ -13,7 +13,6 @@ import { useRef } from 'react';
 
 const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
-const JitsiPlayer = dynamic(() => import('@/components/jitsi/JitsiPlayer'), { ssr: false });
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
@@ -374,7 +373,7 @@ export default function StudentLivePortal() {
                   </div>
                   
                   {/* Action Buttons for non-youtube links */}
-                  {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && cls.platform !== 'jitsi' && (
+                  {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && (
                     cls.allowDirectJoin !== false ? (
                       <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
                         <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">
@@ -400,22 +399,6 @@ export default function StudentLivePortal() {
                   )}
                 </div>
               </div>
-
-                            {/* Jitsi Embedded Player Section */}
-              {getActiveStream(cls).id === 'jitsi' && cls.status === 'live' && (
-                <div className="w-full relative border-t border-border/30">
-                  <div className="w-full min-h-[600px] relative z-10 bg-zinc-900 flex items-center justify-center">
-                    <JitsiPlayer 
-                      roomName={cls.id} 
-                      userName={user?.name || user?.displayName || user?.email?.split("@")[0] || "Student"} 
-                      userEmail={user?.email} 
-                      isAdmin={user?.role === 'admin' || user?.role === 'teacher'}
-                      liveClassId={cls.id}
-                      userId={user?.uid}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Zoom Embedded Player Section */}
               {getActiveStream(cls).id === 'zoom' && cls.status === 'live' && (

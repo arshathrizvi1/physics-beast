@@ -13,8 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw, Copy, ChevronDown, Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-const JitsiPlayer = dynamic(() => import("@/components/jitsi/JitsiPlayer"), { ssr: false });
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
 import { FolderSelectModal } from "@/components/FolderSelectModal";
@@ -34,7 +32,6 @@ export default function AdminLiveStudio() {
   const [multiStreams, setMultiStreams] = useState({
     youtube: { enabled: false, link: "" },
     zoom: { enabled: false, link: "" },
-          jitsi: { enabled: false, link: "" },
     rtmp: { enabled: false, link: "" },
     direct: { enabled: false, link: "" }
   });
@@ -476,7 +473,6 @@ export default function AdminLiveStudio() {
                     <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
                     <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
-                    <SelectItem value="jitsi">Jitsi Meet (Free Talkback)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -779,7 +775,6 @@ export default function AdminLiveStudio() {
                           setEditMultiStreams({
                             youtube: { enabled: cls.platform === 'youtube', link: cls.platform === 'youtube' ? cls.link : '' },
                             zoom: { enabled: cls.platform === 'zoom', link: cls.platform === 'zoom' ? cls.link : '' },
-                              jitsi: { enabled: cls.platform === 'jitsi', link: cls.platform === 'jitsi' ? cls.link : '' },
                             rtmp: { enabled: cls.platform === 'rtmp', link: cls.platform === 'rtmp' ? cls.link : '' },
                             direct: { enabled: cls.platform === 'direct', link: cls.platform === 'direct' ? cls.link : '' }
                           });
@@ -797,12 +792,7 @@ export default function AdminLiveStudio() {
                 </CardContent>
                 {cls.status === 'live' && (
                   <div className="px-5 pb-5 pt-0">
-                    {cls.platform === 'jitsi' && (
-                         <div className="w-full min-h-[600px] mb-4 mt-4 border border-primary/30 rounded-lg overflow-hidden relative">
-                            <JitsiPlayer roomName={cls.id} userName="Teacher (Admin)" userEmail="admin@brilliant.com" isAdmin={true} liveClassId={cls.id} userId="admin" />
-                         </div>
-                      )}
-                      <LiveAdminMonitor liveClassId={cls.id} />
+                    <LiveAdminMonitor liveClassId={cls.id} />
                   </div>
                 )}
               </Card>
