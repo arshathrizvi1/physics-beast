@@ -71,7 +71,7 @@ export default function ZoomPlayer({
     // The ONLY solution is Component View, configured as a top-level fullscreen redirect
     // with aggressive CSS to hide the header and participant list (rename button), and 
     // force a pitch black background so it looks exactly like the native app.
-    const customMobileUrl = "/zoom-mobile-frame.html?mn=" + meetingNumber + "&pwd=" + password + "&name=" + encodeURIComponent(userName) + "&email=" + encodeURIComponent(userEmail) + "&role=" + role;
+    const customMobileUrl = "/zoom-mobile-frame.html?v=3&mn=" + meetingNumber + "&pwd=" + password + "&name=" + encodeURIComponent(userName) + "&email=" + encodeURIComponent(userEmail) + "&role=" + role;
     window.location.href = customMobileUrl;
   };
 
@@ -132,3 +132,4 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
