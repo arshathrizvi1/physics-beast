@@ -4,6 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Zoom Mobile Web Player</title>
+    <script>
+        try {
+            const fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            Object.defineProperty(navigator, 'userAgent', { get: () => fakeUserAgent, configurable: true });
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32', configurable: true });
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
+            if (navigator.userAgentData) {
+                Object.defineProperty(navigator, 'userAgentData', {
+                    get: () => ({ brands: [{brand: "Google Chrome", version: "120"}], mobile: false, platform: "Windows" }),
+                    configurable: true
+                });
+            }
+            window.ontouchstart = undefined;
+            window.TouchEvent = undefined;
+            const spoofWebGL = (context) => {
+                if (context && context.prototype && context.prototype.getParameter) {
+                    const originalGetParameter = context.prototype.getParameter;
+                    context.prototype.getParameter = function(parameter) {
+                        if (parameter === 37445) return 'Google Inc. (NVIDIA)';
+                        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return originalGetParameter.apply(this, arguments);
+                    };
+                }
+            };
+            spoofWebGL(window.WebGLRenderingContext);
+            spoofWebGL(window.WebGL2RenderingContext);
+        } catch (e) {}
+    </script>
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.1.6/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.1.6/css/react-select.css" />
     <style>
         body, html {
             margin: 0;
@@ -14,10 +44,7 @@
             overflow: hidden;
             font-family: sans-serif;
         }
-        #meetingSDKElement {
-            width: 100vw;
-            height: 100vh;
-        }
+        #zmmtg-root { display: none; }
         #loading {
             position: absolute;
             top: 50%;
@@ -27,14 +54,26 @@
             font-size: 16px;
             z-index: 50;
         }
+        
+        /* RESTRICT ALL UNWANTED FEATURES */
+        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        [aria-label="Participants"], .zm-btn__participants, .rename-btn {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
     <div id="loading">Connecting securely...</div>
-    <div id="meetingSDKElement"></div>
 
-    <!-- Official Component View self-contained bundle (NO external React needed) -->
-    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+    <script src="https://source.zoom.us/3.1.6/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.1.6/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/3.1.6/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.1.6/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/3.1.6/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-3.1.6.min.js"></script>
 
     <script>
         async function startMeeting() {
@@ -48,6 +87,10 @@
 
                 if (!meetingNumber) throw new Error("Meeting Number missing");
 
+                window.ZoomMtg.setZoomJSLib('https://source.zoom.us/3.1.6/lib', '/av');
+                window.ZoomMtg.preLoadWasm();
+                window.ZoomMtg.prepareWebSDK();
+
                 // Get signature
                 const sigRes = await fetch("/api/zoom/signature", {
                     method: "POST",
@@ -57,61 +100,43 @@
                 const sigData = await sigRes.json();
                 if (!sigRes.ok) throw new Error(sigData.error || "Signature failed");
 
-                const client = window.ZoomMtgEmbedded.createClient();
-                const container = document.getElementById('meetingSDKElement');
-
-                // Initialize exactly as per Zoom's minimal spec
-                await client.init({
-                    zoomAppRoot: container,
-                    language: 'en-US',
-                    customize: {
-                        meetingInfo: {
-                            showMeetingId: false,
-                            showPasscode: false,
-                            showInviteLink: false
-                        },
-                        toolbar: {
-                            buttons: [
-                                { text: 'Audio', className: 'Microphone', visible: true },
-                                { text: 'Video', className: 'Camera', visible: true },
-                                { text: 'Leave', className: 'Leave', visible: true },
-                                // Exclude Participants to disable renaming!
-                                { text: 'Participants', className: 'Participants', visible: false },
-                                { text: 'Chat', className: 'Chat', visible: false },
-                                { text: 'Share', className: 'Share', visible: false }
-                            ]
-                        }
-                    }
-                });
-
                 document.getElementById('loading').style.display = 'none';
+                document.getElementById('zmmtg-root').style.display = 'block';
 
-                // Join the meeting
-                await client.join({
-                    sdkKey: sigData.sdkKey,
-                    signature: sigData.signature,
-                    meetingNumber: meetingNumber,
-                    password: password,
-                    userName: userName,
-                    userEmail: userEmail
-                });
-
-                console.log("Successfully connected!");
-
-                // Handle Leave
-                client.on('connection-change', (payload) => {
-                    if (payload.state === 'Closed') {
-                        window.location.href = '/zoom-ended.html';
+                window.ZoomMtg.init({
+                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    disableInvite: true,
+                    disableCallOut: true,
+                    disableRecord: true,
+                    showMeetingHeader: false,
+                    meetingInfo: [], 
+                    success: function () {
+                        window.ZoomMtg.join({
+                            sdkKey: sigData.sdkKey,
+                            signature: sigData.signature,
+                            meetingNumber: meetingNumber,
+                            passWord: password,
+                            userName: userName,
+                            userEmail: userEmail,
+                            success: function (res) {
+                                console.log("Joined");
+                            },
+                            error: function (res) {
+                                console.error('Join error', res);
+                                document.getElementById('loading').style.display = 'block';
+                                document.getElementById('loading').innerText = "Join Error: " + (res.reason || "Unknown");
+                            }
+                        });
+                    },
+                    error: function (res) {
+                        console.error('Init error', res);
                     }
                 });
-
+                
             } catch (err) {
                 console.error("Zoom Error:", err);
-                if (err && err.reason && err.reason.includes("duplicate join")) {
-                    console.log("Ignored duplicate join");
-                } else {
-                    document.getElementById('loading').innerText = "Error connecting.";
-                }
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('loading').innerText = "Error connecting: " + err.message;
             }
         }
 
@@ -119,3 +144,4 @@
     </script>
 </body>
 </html>
+

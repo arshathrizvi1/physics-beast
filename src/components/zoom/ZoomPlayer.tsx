@@ -88,7 +88,7 @@ export default function ZoomPlayer({
   // Mobile MUST use Component View because Client View strictly throws 4003 on WebView engines
   // despite any UserAgent spoofing. We embed it inside the iframe so it doesn't open in a new window.
   const iframeSrc = isMobile 
-    ? "/zoom-mobile.html?v=1&" + params.toString()
+    ? "/zoom-mobile.html?v=2&" + params.toString()
     : "/zoom-frame.html?v=120&" + params.toString();
 
   return (
@@ -120,6 +120,7 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
 
 
 
