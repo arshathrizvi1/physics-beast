@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import Script from "next/script";
 
 interface ZoomPlayerProps {
   meetingNumber: string;
   userName: string;
   userEmail: string;
   password?: string;
-  role?: number; // 0 for attendee, 1 for host
+  role?: number;
 }
 
 export default function ZoomPlayer({
@@ -21,41 +22,23 @@ export default function ZoomPlayer({
   const meetingContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
+    if (!scriptLoaded || !meetingContainerRef.current) return;
+    
     let client: any = null;
-
-    const loadZoomScript = () => {
-      return new Promise<any>((resolve, reject) => {
-        if ((window as any).ZoomMtgEmbedded) return resolve((window as any).ZoomMtgEmbedded);
-        
-        const oldDefine = (window as any).define;
-        const oldExports = (window as any).exports;
-        const oldModule = (window as any).module;
-        (window as any).define = undefined;
-        (window as any).exports = undefined;
-        (window as any).module = undefined;
-        const script = document.createElement("script");
-        script.src = "https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js";
-        script.async = true;
-        script.onload = () => {
-          (window as any).define = oldDefine;
-          (window as any).exports = oldExports;
-          (window as any).module = oldModule;
-          resolve((window as any).ZoomMtgEmbedded);
-        };
-        script.onerror = () => reject(new Error("Failed to load Zoom SDK"));
-        document.body.appendChild(script);
-      });
-    };
+    let isMounted = true;
 
     const initZoom = async () => {
       try {
         setLoading(true);
 
-        const ZoomMtgEmbedded = await loadZoomScript();
+        const ZoomMtgEmbedded = (window as any).ZoomMtgEmbedded;
+        if (!ZoomMtgEmbedded) {
+            throw new Error("Zoom SDK failed to attach to window.");
+        }
 
-        // Fetch signature from our secure backend API
         const response = await fetch("/api/zoom/signature", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -70,7 +53,6 @@ export default function ZoomPlayer({
 
         const { signature, sdkKey } = data;
 
-        // Initialize Zoom Client
         client = ZoomMtgEmbedded.createClient();
 
         await client.init({
@@ -99,19 +81,20 @@ export default function ZoomPlayer({
           userEmail: userEmail,
         });
 
-        setLoading(false);
+        if (isMounted) setLoading(false);
       } catch (err: any) {
         console.error("Zoom Init Error:", err);
-        setError(err.message || "Failed to initialize Zoom");
-        setLoading(false);
+        if (isMounted) {
+            setError(err.message || "Failed to initialize Zoom");
+            setLoading(false);
+        }
       }
     };
 
-    if (meetingContainerRef.current) {
-      initZoom();
-    }
+    initZoom();
 
     return () => {
+      isMounted = false;
       if (client) {
         try {
           client.leaveMeeting();
@@ -120,10 +103,17 @@ export default function ZoomPlayer({
         }
       }
     };
-  }, [meetingNumber, userName, userEmail, password, role]);
+  }, [scriptLoaded, meetingNumber, userName, userEmail, password, role]);
 
   return (
     <div className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
+      <Script 
+        src="https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js" 
+        strategy="afterInteractive"
+        onLoad={() => setScriptLoaded(true)}
+        onError={() => setError("Failed to load Zoom SDK Script")}
+      />
+
       {loading && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -146,3 +136,4 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
