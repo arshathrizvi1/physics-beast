@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { KJUR } from 'jsrsasign';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function POST(req: Request) {
   try {
@@ -9,8 +10,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'meetingNumber is required' }, { status: 400 });
     }
 
-    const sdkKey = process.env.ZOOM_SDK_KEY;
-    const sdkSecret = process.env.ZOOM_SDK_SECRET;
+    let sdkKey = process.env.ZOOM_SDK_KEY;
+    let sdkSecret = process.env.ZOOM_SDK_SECRET;
+
+    // Fetch from Firebase settings
+    try {
+      const settingsDoc = await adminDb.collection('settings').doc('zoom').get();
+      if (settingsDoc.exists) {
+        const data = settingsDoc.data();
+        if (data?.sdkKey && data?.sdkSecret) {
+          sdkKey = data.sdkKey;
+          sdkSecret = data.sdkSecret;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch zoom keys from Firebase:", e);
+    }
 
     if (!sdkKey || !sdkSecret) {
       console.warn("ZOOM_SDK_KEY or ZOOM_SDK_SECRET is missing.");
