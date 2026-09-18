@@ -12,9 +12,17 @@ export async function POST(request: Request) {
     const signature = request.headers.get('x-zm-signature');
     const timestamp = request.headers.get('x-zm-request-timestamp');
     
-    // You'll set this inside Vercel Environment Variables later
-    // ZOOM_WEBHOOK_SECRET_TOKEN=your_token_here
-    const secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "f7GsL3bNQS2T9x4U45Zltw";
+    let secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "f7GsL3bNQS2T9x4U45Zltw";
+
+    // Try to fetch from Firebase settings
+    try {
+      const settingsDoc = await adminDb.collection('settings').doc('zoom').get();
+      if (settingsDoc.exists && settingsDoc.data()?.webhookToken) {
+        secretToken = settingsDoc.data().webhookToken;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch zoom webhook token from Firebase");
+    }
 
     // 1. Zoom Endpoint Verification (Mandatory for Zoom Setup)
     if (body.event === 'endpoint.url_validation') {
@@ -36,24 +44,38 @@ export async function POST(request: Request) {
     }
 
     // 3. Process Zoom Events
-    if (body.event === 'meeting.created' || body.event === 'meeting.started') {
-      const meeting = body.payload.object;
-      const meetingId = meeting.id.toString();
-      const topic = meeting.topic || "Zoom Live Class";
-      const joinUrl = meeting.join_url;
-      const startTime = meeting.start_time ? new Date(meeting.start_time).getTime() : Date.now();
+    const meetingId = body.payload?.object?.id?.toString();
+    
+    if (!meetingId) return NextResponse.json({ success: true, message: "No meeting ID found" });
 
-      // Check if we already drafted this meeting
-      const existing = await adminDb.collection('live_classes').where('zoomMeetingId', '==', meetingId).get();
-      
-      if (existing.empty) {
-        // Create an auto-draft live class
+    // Find if we have a scheduled class matching this Zoom link
+    const classesSnapshot = await adminDb.collection('live_classes').where('platform', '==', 'zoom').get();
+    let matchingClassDoc = null;
+    
+    classesSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.link && data.link.includes(meetingId)) {
+        matchingClassDoc = doc;
+      }
+    });
+
+    if (body.event === 'meeting.started') {
+      if (matchingClassDoc) {
+        // Automatically start the class
+        await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
+          status: 'live'
+        });
+        console.log(`Auto-started live class: ${matchingClassDoc.id}`);
+      } else {
+        // Fallback: Create draft if they never scheduled it
+        const topic = body.payload.object.topic || "Zoom Live Class";
+        const joinUrl = body.payload.object.join_url;
+        const startTime = body.payload.object.start_time ? new Date(body.payload.object.start_time).getTime() : Date.now();
         const docRef = await adminDb.collection('live_classes').add({
           title: topic,
           description: 'Auto-detected Zoom Meeting',
           platform: 'zoom',
           link: joinUrl,
-          zoomMeetingId: meetingId,
           scheduledFor: startTime,
           status: 'draft',
           courseId: null,
@@ -62,10 +84,9 @@ export async function POST(request: Request) {
           allowDirectJoin: true,
           createdAt: adminDb.FieldValue.serverTimestamp()
         });
-
-        // Fire a Notification to Admins to configure it!
+        // Notify admin
         await adminDb.collection('notifications').add({
-          title: "🎥 New Zoom Meeting Detected!",
+          title: "?? New Zoom Meeting Detected!",
           message: `Your Zoom meeting "${topic}" has started. Click here to assign it to a folder and go live for students!`,
           type: "admin_alert",
           target: "admin",
@@ -74,9 +95,14 @@ export async function POST(request: Request) {
           createdAt: Date.now(),
           readBy: []
         });
-        console.log("Successfully drafted Zoom meeting and notified admins:", topic);
-      } else {
-        console.log("Zoom meeting already exists in database:", topic);
+      }
+    } else if (body.event === 'meeting.ended') {
+      if (matchingClassDoc) {
+        // Automatically end the class
+        await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
+          status: 'ended'
+        });
+        console.log(`Auto-ended live class: ${matchingClassDoc.id}`);
       }
     }
 
