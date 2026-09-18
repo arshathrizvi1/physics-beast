@@ -141,10 +141,12 @@
                     }
                 });
 
-            } catch (err) {
+                        } catch (err) {
                 console.error("Zoom Error:", err);
-                if (err && err.reason && err.reason.includes("duplicate join")) {
+                const reason = (err.reason || err.message || "").toLowerCase();
+                if (reason.includes("duplicate")) {
                     console.log("Ignored duplicate join");
+                    document.getElementById('loading').style.display = 'none';
                 } else {
                     document.getElementById('loading').style.display = 'block';
                     document.getElementById('loading').innerText = "Join Error: " + (err.reason || err.message || "Unknown error");
@@ -156,3 +158,4 @@
     </script>
 </body>
 </html>
+
