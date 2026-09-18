@@ -101,7 +101,11 @@
     <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
 
     <script>
+        let isJoining = false;
         async function initZoom() {
+            if (isJoining) return;
+            isJoining = true;
+            try { sessionStorage.clear(); } catch(e) {}
             try {
                 const params = new URLSearchParams(window.location.search);
                 const meetingNumber = params.get('mn');
@@ -171,7 +175,7 @@
                         });
                     }).catch((error) => {
                         console.error(error);
-                        alert("Join Error: " + JSON.stringify(error));
+                        if (error && error.reason && error.reason.includes('duplicate join')) { console.log('Duplicate join ignored'); } else { alert('Join Error: ' + JSON.stringify(error)); }
                     });
                 }).catch((error) => {
                     console.error(error);
@@ -211,5 +215,7 @@
     </script>
 </body>
 </html>
+
+
 
 
