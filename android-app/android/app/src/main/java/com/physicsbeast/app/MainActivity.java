@@ -5,6 +5,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.content.pm.PackageManager;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -29,10 +32,20 @@ public class MainActivity extends BridgeActivity {
 
         registerPlugin(BackgroundPermissionPlugin.class);
         registerPlugin(StudyTimePlugin.class);
-        super.onCreate(savedInstanceState);
-
-        // Only clean up stale service worker files — do NOT clearCache
+        super.onCreate(savedInstanceState);        // Only clean up stale service worker files - do NOT clearCache
         cleanServiceWorkerFiles();
+
+        // Prompt for Camera/Mic permissions for Zoom Web SDK WebRTC
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{
+                    android.Manifest.permission.CAMERA,
+                    android.Manifest.permission.RECORD_AUDIO,
+                    android.Manifest.permission.MODIFY_AUDIO_SETTINGS
+                }, 101);
+            }
+        }
 
         hideSystemUI();
 
@@ -65,13 +78,13 @@ public class MainActivity extends BridgeActivity {
      * Trigger an immediate sync when the app is going to background or being destroyed.
      */
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         triggerImmediateSync();
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         triggerImmediateSync();
         super.onDestroy();
     }
@@ -94,7 +107,7 @@ public class MainActivity extends BridgeActivity {
 
     /**
      * Removes only the on-disk Service Worker storage directories.
-     * Does NOT call clearCache — that was causing the "page is loading" error
+     * Does NOT call clearCache - that was causing the "page is loading" error
      * by forcing a full re-download of the entire app on every cold start.
      */
     private void cleanServiceWorkerFiles() {
@@ -146,3 +159,4 @@ public class MainActivity extends BridgeActivity {
         }
     }
 }
+
