@@ -79,7 +79,7 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = (isNative ? "/zoom-frame-mobile.html?v=17&" : "/zoom-frame.html?v=17&") + params.toString();
+  const iframeSrc = (isNative ? "/zoom-frame-mobile.html?v=18&" : "/zoom-frame.html?v=18&") + params.toString();
   const nativeAppUrl = "zoomus://zoom.us/join?action=join&confno=" + meetingNumber + "&pwd=" + password + "&uname=" + encodeURIComponent(userName);
 
   return (
@@ -104,5 +104,6 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
 
 
