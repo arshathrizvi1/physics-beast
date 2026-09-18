@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import Script from "next/script";
 
 interface ZoomPlayerProps {
   meetingNumber: string;
@@ -22,11 +21,8 @@ export default function ZoomPlayer({
   const meetingContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
-    if (!scriptLoaded || !meetingContainerRef.current) return;
-    
     let client: any = null;
     let isMounted = true;
 
@@ -34,10 +30,19 @@ export default function ZoomPlayer({
       try {
         setLoading(true);
 
-        const ZoomMtgEmbedded = (window as any).ZoomMtgEmbedded;
-        if (!ZoomMtgEmbedded) {
-            throw new Error("Zoom SDK failed to attach to window.");
+        // Fix React 19 compatibility for Zoom SDK
+        if (!(React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
+            (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
+                ReactCurrentOwner: { current: null },
+                ReactCurrentDispatcher: { current: null }
+            };
+        } else if (!(React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner) {
+            (React as any).__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner = { current: null };
         }
+
+        // Dynamically import the SDK only after mocking React internals
+        const mod = await import("@zoom/meetingsdk/embedded");
+        const ZoomMtgEmbedded = mod.default;
 
         const response = await fetch("/api/zoom/signature", {
           method: "POST",
@@ -91,7 +96,9 @@ export default function ZoomPlayer({
       }
     };
 
-    initZoom();
+    if (meetingContainerRef.current) {
+        initZoom();
+    }
 
     return () => {
       isMounted = false;
@@ -103,17 +110,10 @@ export default function ZoomPlayer({
         }
       }
     };
-  }, [scriptLoaded, meetingNumber, userName, userEmail, password, role]);
+  }, [meetingNumber, userName, userEmail, password, role]);
 
   return (
     <div className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
-      <Script 
-        src="https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js" 
-        strategy="afterInteractive"
-        onLoad={() => setScriptLoaded(true)}
-        onError={() => setError("Failed to load Zoom SDK Script")}
-      />
-
       {loading && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
@@ -136,4 +136,3 @@ export default function ZoomPlayer({
     </div>
   );
 }
-
