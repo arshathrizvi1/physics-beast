@@ -17,6 +17,7 @@ import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
 import { FolderSelectModal } from "@/components/FolderSelectModal";
 import { CourseSelectModal } from "@/components/CourseSelectModal";
+import { ZoomSettingsModal } from "@/components/ZoomSettingsModal";
 
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();
