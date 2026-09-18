@@ -96,6 +96,45 @@ export async function POST(request: Request) {
           readBy: []
         });
       }
+    } else if (body.event === 'recording.completed') {
+      const recordingFiles = body.payload?.object?.recording_files || [];
+      const downloadToken = body.payload?.download_token;
+      
+      const mp4File = recordingFiles.find((f) => f.file_extension === 'MP4' || f.file_type === 'MP4');
+      
+      if (mp4File && mp4File.download_url) {
+        const fetchUrl = downloadToken ? `${mp4File.download_url}?access_token=${downloadToken}` : mp4File.download_url;
+        const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
+        const apiKey = process.env.BUNNY_STREAM_API_KEY;
+        
+        if (libraryId && apiKey) {
+          try {
+            const createRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
+              method: 'POST',
+              headers: { 'AccessKey': apiKey, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: body.payload.object.topic || 'Zoom Cloud Recording' })
+            });
+            const videoData = await createRes.json();
+            const videoId = videoData.guid;
+
+            await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}/fetch`, {
+              method: 'POST',
+              headers: { 'AccessKey': apiKey, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: fetchUrl })
+            });
+
+            if (matchingClassDoc) {
+               await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
+                 bunnyVideoId: videoId,
+                 recordingStatus: 'processing'
+               });
+            }
+            console.log(`Auto-Downloading Zoom Recording via BunnyCDN: ${videoId}`);
+          } catch (e) {
+            console.error('Bunny Fetch Error for Zoom Recording:', e);
+          }
+        }
+      }
     } else if (body.event === 'meeting.ended') {
       if (matchingClassDoc) {
         // Automatically end the class
