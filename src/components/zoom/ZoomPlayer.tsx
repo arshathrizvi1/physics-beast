@@ -21,14 +21,15 @@ export default function ZoomPlayer({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Attempt to grab permissions natively if on Capacitor WebView
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isCap = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative;
-    
-    if (isMobile || isCap) {
+    const mobileCheck = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const capCheck = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative;
+    setIsMobile(mobileCheck || capCheck);
+
+    if (mobileCheck || capCheck) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         .then(stream => {
           stream.getTracks().forEach(track => track.stop());
@@ -84,10 +85,11 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
   
-  // Use the exact same Client View iframe for both PC and Mobile.
-  // The Mobile APK has a Native User-Agent spoof to pretend it is Desktop Chrome.
-  // This bypasses the 4003 block and allows the standard web player to load in the iframe.
-  const iframeSrc = "/zoom-frame.html?v=105&" + params.toString();
+  // Mobile MUST use Component View because Client View strictly throws 4003 on WebView engines
+  // despite any UserAgent spoofing. We embed it inside the iframe so it doesn't open in a new window.
+  const iframeSrc = isMobile 
+    ? "/zoom-mobile-frame.html?v=110&" + params.toString()
+    : "/zoom-frame.html?v=110&" + params.toString();
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
@@ -118,3 +120,4 @@ export default function ZoomPlayer({
     </div>
   );
 }
+

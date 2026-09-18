@@ -175,11 +175,11 @@
                         });
                     }).catch((error) => {
                         console.error(error);
-                        if (error && error.reason && error.reason.includes('duplicate join')) { console.log('Duplicate join ignored'); } else { alert('Join Error: ' + JSON.stringify(error)); }
+                        if (error && error.reason && error.reason.includes('duplicate join')) { console.log('Duplicate join ignored'); } else { console.error('Join Error:', error); }
                     });
                 }).catch((error) => {
                     console.error(error);
-                    alert("Init Error: " + JSON.stringify(error));
+                    console.error('Init Error:', error);
                 });
 
                 // Auto resize on rotation
@@ -215,6 +215,7 @@
     </script>
 </body>
 </html>
+
 
 
 
