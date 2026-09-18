@@ -4,6 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoom Meeting</title>
+    <!-- ULTIMATE NATIVE ENVIRONMENT SPOOFER to bypass Zoom 4003 Browser Restrictions -->
+    <script>
+        try {
+            const fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            
+            // 1. Spoof UserAgent
+            Object.defineProperty(navigator, 'userAgent', { get: () => fakeUserAgent, configurable: true });
+            
+            // 2. Spoof Platform
+            Object.defineProperty(navigator, 'platform', { get: () => 'Win32', configurable: true });
+            
+            // 3. Spoof Touch Points (Zoom checks this to detect mobile devices)
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
+            
+            // 4. Spoof UserAgentData Client Hints (Modern detection method)
+            if (navigator.userAgentData) {
+                Object.defineProperty(navigator, 'userAgentData', {
+                    get: () => ({
+                        brands: [{brand: "Google Chrome", version: "120"}, {brand: "Chromium", version: "120"}],
+                        mobile: false,
+                        platform: "Windows"
+                    }),
+                    configurable: true
+                });
+            }
+            
+            // 5. Hide Touch Events
+            window.ontouchstart = undefined;
+            window.TouchEvent = undefined;
+            
+        } catch (e) {
+            console.error("Environment spoofing failed:", e);
+        }
+    </script>
     <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
     <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
     <style>
@@ -151,6 +185,7 @@
     </script>
 </body>
 </html>
+
 
 
 
