@@ -68,11 +68,11 @@ export default function RootLayout({
                 <MobilePermissionPrompt />
                 <PremiumNavbar />
 
-                <main className="flex-1">
+                <main className="flex-1 min-h-[calc(100vh-10rem)]">
                   {children}
                 </main>
 
-                <footer className="border-t border-border/50 py-8 bg-zinc-100 dark:bg-[#070707] print:hidden">
+                <footer className="border-t border-border/50 py-4 bg-zinc-100 dark:bg-[#070707] print:hidden mt-auto">
                   <FooterContent />
                 </footer>
                 <MobileBottomNav />
@@ -87,5 +87,6 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
