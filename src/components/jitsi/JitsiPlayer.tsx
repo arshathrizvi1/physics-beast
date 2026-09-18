@@ -49,6 +49,7 @@ export default function JitsiPlayer({
             startWithAudioMuted: !isAdmin,
             startWithVideoMuted: !isAdmin,
             prejoinPageEnabled: false,
+            prejoinConfig: { enabled: false },
             disableDeepLinking: true,
           },
           interfaceConfigOverwrite: {

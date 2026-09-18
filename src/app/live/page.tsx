@@ -407,7 +407,7 @@ export default function StudentLivePortal() {
                   <div className="w-full min-h-[600px] relative z-10 bg-zinc-900 flex items-center justify-center">
                     <JitsiPlayer 
                       roomName={cls.id} 
-                      userName={user?.displayName || user?.email || "Student"} 
+                      userName={user?.name || user?.displayName || user?.email?.split("@")[0] || "Student"} 
                       userEmail={user?.email} 
                       isAdmin={user?.role === 'admin' || user?.role === 'teacher'}
                       liveClassId={cls.id}
