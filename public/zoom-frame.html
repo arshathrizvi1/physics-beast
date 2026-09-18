@@ -60,11 +60,11 @@
 
     <!-- Spoof Desktop User Agent to prevent Zoom 4003 Mobile Browser Blocking -->
     <script>
-        Object.defineProperty(navigator, 'userAgent', {
+        try { Object.defineProperty(navigator, 'userAgent', {
             get: function () {
                 return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
             }
-        });
+        }); } catch (e) { console.warn('Could not spoof UA:', e); }
     </script>
     <!-- Required by Zoom 2.x -->
     <div id="zmmtg-root"></div>
@@ -143,12 +143,10 @@
             } catch (error) {
                 console.error("Zoom initialization failed:", error);
                 document.getElementById('loading').style.display = 'flex';
-                document.getElementById('loading').innerHTML = 
-                    <div style="color: #f87171; text-align: center;">
+                document.getElementById('loading').innerHTML = `<div style="color: #f87171; text-align: center;">
                         <h3 style="margin-bottom: 8px;">Connection Error</h3>
-                        <p> + error.message + </p>
-                    </div>
-                ;
+                        <p>` + error.message + `</p>
+                    </div>`;
             }
         }
 
@@ -156,4 +154,6 @@
     </script>
 </body>
 </html>
+
+
 
