@@ -141,9 +141,16 @@
         }
 
         window.addEventListener('load', initZoom);
+        
+        // Brute force DOM destruction of all meeting info UI
+        setInterval(() => {
+            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label=\"Meeting Info\"]');
+            elements.forEach(el => el.remove());
+        }, 500);
     </script>
 </body>
 </html>
+
 
 
 
