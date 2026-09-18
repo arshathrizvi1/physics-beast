@@ -60,7 +60,7 @@ export default function JitsiPlayer({
               'tileview', 'videobackgroundblur', 'mute-everyone',
               'security'
             ] : [
-              'fullscreen'
+              'fullscreen', 'raisehand', 'chat'
             ], // Removed 'microphone' for students!
           }
         };
