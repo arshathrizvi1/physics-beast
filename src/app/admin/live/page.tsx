@@ -154,6 +154,12 @@ export default function AdminLiveStudio() {
             // Format for datetime-local input: YYYY-MM-DDThh:mm
             const formatted = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,16);
             setScheduledFor(formatted);
+          if (draft.endTime) {
+            const edate = new Date(draft.endTime);
+            setEndTime(new Date(edate.getTime() - edate.getTimezoneOffset() * 60000).toISOString().slice(0,16));
+          } else {
+            setEndTime("");
+          }
           }
         }
       }
@@ -183,6 +189,7 @@ export default function AdminLiveStudio() {
         platform,
         link,
         scheduledFor: new Date(scheduledFor).getTime(),
+          endTime: endTime ? new Date(endTime).getTime() : null,
         courseId: courseId === "all" ? null : courseId,
         batchId: batchId === "all" ? null : batchId,
         targetFolderId: targetFolderId === "none" ? null : targetFolderId,
@@ -209,6 +216,7 @@ export default function AdminLiveStudio() {
         direct: { enabled: false, link: "" }
       });
       setScheduledFor("");
+        setEndTime("");
       setTargetFolderId("none");
       setAllowDirectJoin(true);
       setRtmpStreamKey("");
@@ -593,9 +601,15 @@ export default function AdminLiveStudio() {
                 </button>
               </div>
 
-              <div className="space-y-2">
-                <Label>Date & Time *</Label>
-                <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Start Time *</Label>
+                  <Input value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} required type="datetime-local" />
+                </div>
+                <div className="space-y-2">
+                  <Label>End Time (Optional)</Label>
+                  <Input value={endTime} onChange={e => setEndTime(e.target.value)} type="datetime-local" />
+                </div>
               </div>
 
               {platform === "zoom" && (
@@ -1005,6 +1019,12 @@ export default function AdminLiveStudio() {
   );
 
 }
+
+
+
+
+
+
 
 
 
