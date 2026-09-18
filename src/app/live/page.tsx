@@ -599,9 +599,34 @@ export default function StudentLivePortal() {
                           </div>
                           
                           <div className="flex items-center gap-4">
-                            <button 
-                              onClick={() => {
-                                if (!document.fullscreenElement) {
+                                                          {/* Quality Settings */}
+                              <div className="relative flex items-center">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); setShowQualityMenu(!showQualityMenu); }}
+                                  className={`hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2 ${showQualityMenu ? 'text-primary opacity-100' : ''}`}
+                                >
+                                  <Settings className="w-5 h-5" />
+                                </button>
+                                
+                                {showQualityMenu && (
+                                  <div className="absolute bottom-10 right-0 bg-zinc-900/95 border border-white/10 rounded-lg shadow-xl overflow-hidden min-w-[150px] flex flex-col z-50 text-white backdrop-blur-sm">
+                                    <div className="px-3 py-2 text-xs font-bold text-white/50 uppercase border-b border-white/10">Quality</div>
+                                    {['auto', '1080', '720', '480', '360'].map(q => (
+                                      <button
+                                        key={q}
+                                        onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
+                                        className={`px-4 py-3 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold' : ''}`}
+                                      >
+                                        {q === 'auto' ? 'Auto (Low Latency)' : `${q}p`}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+<button 
+                                onClick={() => {
+                                  if (!document.fullscreenElement) {
                                   playerContainerRef.current?.requestFullscreen();
                                 } else {
                                   document.exitFullscreen();
