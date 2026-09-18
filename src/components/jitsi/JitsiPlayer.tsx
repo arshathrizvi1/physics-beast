@@ -52,34 +52,35 @@ export default function JitsiPlayer({
             disableDeepLinking: true,
           },
           interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-              'microphone', 'camera', 'closedcaptions', 'desktop', 'fullscreen',
-              'fodeviceselection', 'hangup', 'profile', 'chat', 'recording',
-              'livestreaming', 'etherpad', 'sharedvideo', 'settings', 'raisehand',
-              'videoquality', 'filmstrip', 'feedback', 'stats', 'shortcuts',
-              'tileview', 'videobackgroundblur', 'download', 'help', 'mute-everyone',
+            TOOLBAR_BUTTONS: isAdmin ? [
+              'microphone', 'camera', 'desktop', 'fullscreen',
+              'fodeviceselection', 'hangup', 'profile', 'chat',
+              'settings', 'raisehand', 'videoquality', 'filmstrip', 
+              'tileview', 'videobackgroundblur', 'mute-everyone',
               'security'
-            ],
+            ] : [
+              'camera', 'desktop', 'fullscreen',
+              'hangup', 'profile', 'chat',
+              'settings', 'raisehand', 'videoquality', 'filmstrip', 
+              'tileview', 'videobackgroundblur'
+            ], // Removed 'microphone' for students!
           }
         };
 
         const api = new window.JitsiMeetExternalAPI(domain, options);
         setApiRef(api);
-        
-        // Example: Admins could theoretically listen to events here
-        api.addEventListener('videoConferenceJoined', () => {
-          console.log("Joined Jitsi room:", roomName);
-        });
-
-        return () => {
-          api.dispose();
-        };
       }
     };
 
     document.body.appendChild(script);
 
-    
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, [roomName, userName, userEmail, isAdmin]);
+
   useEffect(() => {
     if (isAdmin || !liveClassId || !userId) return;
     
@@ -89,10 +90,9 @@ export default function JitsiPlayer({
         const data = snap.data();
         setMicAllowed(!!data.micAllowed);
         
-        // If mic permission is revoked by teacher
         if (data.micAllowed === false && apiRef) {
            try {
-             apiRef.executeCommand('muteEveryone', 'audio'); // They can't mute everyone if not admin, but they can mute themselves
+             apiRef.executeCommand('muteEveryone', 'audio');
            } catch (e) {}
         }
       }
@@ -100,29 +100,14 @@ export default function JitsiPlayer({
     return () => unsub();
   }, [isAdmin, liveClassId, userId, apiRef]);
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, [roomName, userName, userEmail, isAdmin]);
-
   return (
-    <div className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
-      {loading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
-          <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>Connecting to Jitsi Classroom...</p>
-        </div>
-      )}
-      
+    <div className="w-full min-h-[600px] relative z-10 bg-zinc-900 flex items-center justify-center">
       {micAllowed && !isAdmin && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce">
           <button 
             onClick={() => {
               if (apiRef) {
                 apiRef.executeCommand('toggleAudio');
-                // Auto lower hand
                 setDoc(doc(db, 'presence', `live_${liveClassId}_${userId}`), { handRaised: false, micAllowed: false }, { merge: true });
               }
             }}
@@ -132,15 +117,20 @@ export default function JitsiPlayer({
           </button>
         </div>
       )}
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
+          <Loader2 className="w-8 h-8 animate-spin mb-4" />
+          <p>Connecting to Jitsi Classroom...</p>
+        </div>
+      )}
       <div
         ref={containerRef}
-        className="w-full h-full min-h-[500px] absolute inset-0 z-0"
+        className="w-full h-full min-h-[600px] absolute inset-0 z-0"
       />
     </div>
   );
 }
 
-// Add global type for Jitsi
 declare global {
   interface Window {
     JitsiMeetExternalAPI: any;
