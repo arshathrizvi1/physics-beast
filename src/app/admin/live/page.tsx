@@ -474,6 +474,7 @@ export default function AdminLiveStudio() {
                     <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
                     <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
+                    <SelectItem value="jitsi">Jitsi Meet (Free Talkback)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
