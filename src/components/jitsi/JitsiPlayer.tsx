@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface JitsiPlayerProps {
   roomName: string;
+  liveClassId?: string;
+  userId?: string;
   userName: string;
   userEmail: string;
   isAdmin: boolean;
@@ -14,10 +18,14 @@ export default function JitsiPlayer({
   roomName,
   userName,
   userEmail,
-  isAdmin
+  isAdmin,
+  liveClassId,
+  userId
 }: JitsiPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
+  const [micAllowed, setMicAllowed] = useState(false);
+  const [apiRef, setApiRef] = useState<any>(null);
 
   useEffect(() => {
     // Load the Jitsi external API script
@@ -56,6 +64,7 @@ export default function JitsiPlayer({
         };
 
         const api = new window.JitsiMeetExternalAPI(domain, options);
+        setApiRef(api);
         
         // Example: Admins could theoretically listen to events here
         api.addEventListener('videoConferenceJoined', () => {
@@ -70,6 +79,27 @@ export default function JitsiPlayer({
 
     document.body.appendChild(script);
 
+    
+  useEffect(() => {
+    if (isAdmin || !liveClassId || !userId) return;
+    
+    const presenceRef = doc(db, 'presence', `live_${liveClassId}_${userId}`);
+    const unsub = onSnapshot(presenceRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setMicAllowed(!!data.micAllowed);
+        
+        // If mic permission is revoked by teacher
+        if (data.micAllowed === false && apiRef) {
+           try {
+             apiRef.executeCommand('muteEveryone', 'audio'); // They can't mute everyone if not admin, but they can mute themselves
+           } catch (e) {}
+        }
+      }
+    });
+    return () => unsub();
+  }, [isAdmin, liveClassId, userId, apiRef]);
+
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
@@ -83,6 +113,23 @@ export default function JitsiPlayer({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
           <p>Connecting to Jitsi Classroom...</p>
+        </div>
+      )}
+      
+      {micAllowed && !isAdmin && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+          <button 
+            onClick={() => {
+              if (apiRef) {
+                apiRef.executeCommand('toggleAudio');
+                // Auto lower hand
+                setDoc(doc(db, 'presence', `live_${liveClassId}_${userId}`), { handRaised: false, micAllowed: false }, { merge: true });
+              }
+            }}
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(34,197,94,0.6)] flex items-center gap-2"
+          >
+            <Mic className="w-5 h-5" /> Teacher allowed Mic! Click to Unmute
+          </button>
         </div>
       )}
       <div
