@@ -678,12 +678,12 @@ export default function StudentLivePortal() {
       {/* Old Records Modal */}
       {showOldRecordsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-2xl shadow-2xl border-primary/20 max-h-[85vh] flex flex-col">
-            <CardHeader className="border-b pb-4 shrink-0">
+          <div className="w-full max-w-2xl bg-background rounded-2xl shadow-2xl border border-border/50 max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="border-b border-border/50 p-6 shrink-0 bg-background">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <h2 className="text-xl font-bold flex items-center gap-2">
                   <Clock className="w-5 h-5 text-primary" /> Past Broadcasts
-                </CardTitle>
+                </h2>
                 <Button variant="ghost" size="sm" onClick={() => setShowOldRecordsModal(false)}>
                   Close
                 </Button>
@@ -694,11 +694,11 @@ export default function StudentLivePortal() {
                   placeholder="Search past classes by title or description..." 
                   value={oldRecordsSearch}
                   onChange={(e) => setOldRecordsSearch(e.target.value)}
-                  className="w-full p-2 border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full p-2.5 border border-border/50 rounded-lg bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
-            </CardHeader>
-            <CardContent className="overflow-y-auto p-0 flex-1">
+            </div>
+            <div className="overflow-y-auto p-0 flex-1 custom-scrollbar">
               {filteredArchivedClasses.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   No past broadcasts found.
@@ -728,13 +728,17 @@ export default function StudentLivePortal() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+            </div>
         </div>
       )}
     </div>
   );
 }
+
+
+
+
 
 
 
