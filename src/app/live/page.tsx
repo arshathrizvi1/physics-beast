@@ -31,6 +31,7 @@ export default function StudentLivePortal() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
     const [quality, setQuality] = useState('auto');
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
