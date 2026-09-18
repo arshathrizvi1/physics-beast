@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Maximize, Minimize, ExternalLink } from "lucide-react";
+import { Loader2, Maximize, Minimize } from "lucide-react";
 
 interface ZoomPlayerProps {
   meetingNumber: string;
@@ -21,10 +21,10 @@ export default function ZoomPlayer({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isNative, setIsNative] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Detect if we are running inside the Capacitor Android/iOS App
     if (typeof window !== "undefined") {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const isCap = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative;
@@ -32,16 +32,30 @@ export default function ZoomPlayer({
     }
   }, []);
 
-  // Prevent background scrolling when fullscreen is active (especially on Android WebViews in landscape)
+  // Aggressively request Camera/Mic permissions on Android/iOS before loading the iframe
+  // This solves the issue where the WebView silently denies permissions, crashing Zoom with 4003.
+  useEffect(() => {
+    if (isNative) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+          setPermissionsGranted(true);
+        })
+        .catch(err => {
+          console.warn("User or OS denied media permissions.", err);
+          // Proceed anyway to let Zoom show the specific error
+          setPermissionsGranted(true);
+        });
+    } else {
+      setPermissionsGranted(true);
+    }
+  }, [isNative]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
       setIsFullscreen(isFull);
-      if (isFull) {
-        document.body.style.overflow = "hidden";
-      } else {
-        document.body.style.overflow = "";
-      }
+      document.body.style.overflow = isFull ? "hidden" : "";
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
@@ -70,7 +84,6 @@ export default function ZoomPlayer({
     }
   };
 
-  // Construct URL with query parameters
   const params = new URLSearchParams({
     mn: meetingNumber,
     name: userName,
@@ -79,19 +92,17 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = (isNative ? "/zoom-frame-mobile.html?v=19&" : "/zoom-frame.html?v=19&") + params.toString();
-  const nativeAppUrl = "zoomus://zoom.us/join?action=join&confno=" + meetingNumber + "&pwd=" + password + "&uname=" + encodeURIComponent(userName);
+  const iframeSrc = (isNative ? "/zoom-frame-mobile.html?v=60&" : "/zoom-frame.html?v=60&") + params.toString();
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
-      {!iframeLoaded && (
+      {(!iframeLoaded || !permissionsGranted) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>Preparing Meeting Environment...</p>
+          <p>{permissionsGranted ? "Preparing Meeting Environment..." : "Requesting Camera & Mic Permissions..."}</p>
         </div>
       )}
 
-      {/* Custom Fullscreen Button for Mobile App / Browsers without native Zoom button */}
       <button 
         onClick={toggleFullscreen}
         className="absolute top-4 right-4 z-20 bg-black/70 text-white p-2.5 rounded-full hover:bg-black transition-colors border border-white/10 shadow-lg flex items-center justify-center"
@@ -100,15 +111,15 @@ export default function ZoomPlayer({
         {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
       </button>
 
-      <iframe src={iframeSrc} className="w-full h-full border-0 absolute inset-0 z-0" allow="camera; microphone; display-capture; fullscreen" allowFullScreen={true} onLoad={() => setIframeLoaded(true)} />
+      {permissionsGranted && (
+        <iframe 
+          src={iframeSrc} 
+          className="w-full h-full border-0 absolute inset-0 z-0" 
+          allow="camera; microphone; display-capture; fullscreen; autoplay" 
+          allowFullScreen={true} 
+          onLoad={() => setIframeLoaded(true)} 
+        />
+      )}
     </div>
   );
 }
-
-
-
-
-
-// Rebuild trigger
-
-// Rebuild trigger

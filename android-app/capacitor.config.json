@@ -1,43 +1,44 @@
 {
-  "appId": "com.physicsbeast.app",
-  "appName": "Brilliant Academy",
-  "webDir": "www",
-  "bundledWebRuntime": false,
-  "server": {
-    "url": "https://brilliantacademy.vercel.app",
-    "cleartext": true,
-    "errorPath": "error.html",
-    "allowNavigation": [
-      "brilliantacademy.vercel.app",
-      "*.vercel.app",
-      "physics-beastsl.firebaseapp.com",
-      "*.firebaseapp.com",
-      "accounts.google.com",
-      "*.google.com",
-      "*.googleapis.com",
-      "*.amazonaws.com",
-      "*.b-cdn.net",
-      "*.bunnycdn.com",
-      "*.bunny.net",
-      "vz-1a9a023a-0e6.b-cdn.net"
-    ]
-  },
-  "plugins": {
-    "FirebaseAuthentication": {
-      "skipNativeAuth": false,
-      "providers": [
-        "google.com"
-      ]
-    },
-    "PrivacyScreen": {
-      "enable": true
-    },
-    "CapacitorPasskey": {
-      "origin": "https://brilliantacademy.vercel.app",
-      "autoShim": true,
-      "domains": [
-        "brilliantacademy.vercel.app"
-      ]
-    }
-  }
+    "appId":  "com.physicsbeast.app",
+    "appName":  "Brilliant Academy",
+    "webDir":  "www",
+    "bundledWebRuntime":  false,
+    "server":  {
+                   "url":  "https://brilliantacademy.vercel.app",
+                   "cleartext":  true,
+                   "errorPath":  "error.html",
+                   "allowNavigation":  [
+                                           "brilliantacademy.vercel.app",
+                                           "*.vercel.app",
+                                           "physics-beastsl.firebaseapp.com",
+                                           "*.firebaseapp.com",
+                                           "accounts.google.com",
+                                           "*.google.com",
+                                           "*.googleapis.com",
+                                           "*.amazonaws.com",
+                                           "*.b-cdn.net",
+                                           "*.bunnycdn.com",
+                                           "*.bunny.net",
+                                           "vz-1a9a023a-0e6.b-cdn.net"
+                                       ],
+                   "overrideUserAgent":  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+               },
+    "plugins":  {
+                    "FirebaseAuthentication":  {
+                                                   "skipNativeAuth":  false,
+                                                   "providers":  [
+                                                                     "google.com"
+                                                                 ]
+                                               },
+                    "PrivacyScreen":  {
+                                          "enable":  true
+                                      },
+                    "CapacitorPasskey":  {
+                                             "origin":  "https://brilliantacademy.vercel.app",
+                                             "autoShim":  true,
+                                             "domains":  [
+                                                             "brilliantacademy.vercel.app"
+                                                         ]
+                                         }
+                }
 }
