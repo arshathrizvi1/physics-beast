@@ -220,6 +220,8 @@ async function handleStreamEnded(streamKey) {
 // ─── Bunny CDN Upload ──────────────────────────────────────────
 
 async function uploadToBunny(filePath, streamKey) {
+  const https = require('https');
+  const fs = require('fs');
   // 1. Create video entry in Bunny
   const createRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos`, {
     method: 'POST',
@@ -241,50 +243,37 @@ async function uploadToBunny(filePath, streamKey) {
   
   console.log(`[Bunny] Created video: ${videoId}. Starting upload...`);
   
-  // 2. Upload the file (support Stream with fallback to Buffer)
+  // 2. Upload the file using native HTTPS to stream safely without OOM
   const stats = fs.statSync(filePath);
   
-  try {
-    const { Readable } = require('stream');
-      const fileStream = fs.createReadStream(filePath);
-      const webStream = Readable.toWeb(fileStream);
-    const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+  await new Promise((resolve, reject) => {
+    const fileStream = fs.createReadStream(filePath);
+    
+    const req = https.request(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
       method: 'PUT',
       headers: {
         'AccessKey': BUNNY_API_KEY,
         'Content-Type': 'application/octet-stream',
-        'Content-Length': stats.size.toString()
-      },
-      body: webStream,
-      duplex: 'half'
+        'Content-Length': stats.size
+      }
+    }, (res) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        console.log(`[Bunny] ✅ Upload complete for video: ${videoId}`);
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${res.statusCode}`));
+      }
     });
-    
-    if (uploadRes.ok) {
-      console.log(`[Bunny] ✅ Upload complete for video: ${videoId}`);
-      return videoId;
-    }
-  } catch (streamErr) {
-    console.warn(`[Bunny] Stream upload error, retrying with buffer fallback:`, streamErr.message);
-  }
 
-  // Buffer Fallback
-  const fileBuffer = fs.readFileSync(filePath);
-  const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
-    method: 'PUT',
-    headers: {
-      'AccessKey': BUNNY_API_KEY,
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': fileBuffer.length.toString()
-    },
-    body: fileBuffer
+    req.on('error', (err) => {
+      console.error('[Bunny] Upload Request Error:', err);
+      reject(err);
+    });
+
+    // Pipe the file directly to the network request to save memory
+    fileStream.pipe(req);
   });
 
-  if (!uploadRes.ok) {
-    const errText = await uploadRes.text();
-    throw new Error(`Bunny upload failed: ${errText}`);
-  }
-
-  console.log(`[Bunny] ✅ Upload complete (via buffer) for video: ${videoId}`);
   return videoId;
 }
 
