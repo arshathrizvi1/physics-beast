@@ -107,32 +107,64 @@ export async function POST(request: Request) {
         const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
         const apiKey = process.env.BUNNY_STREAM_API_KEY;
         
-        if (libraryId && apiKey) {
-          try {
-            const createRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
-              method: 'POST',
-              headers: { 'AccessKey': apiKey, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: body.payload.object.topic || 'Zoom Cloud Recording' })
-            });
-            const videoData = await createRes.json();
-            const videoId = videoData.guid;
+        try {
+          const title = body.payload.object.topic || 'Zoom Cloud Recording';
+          const videoDocId = adminDb.collection('videos').doc().id;
+          const targetFolderId = matchingClassDoc ? (matchingClassDoc.data().targetFolderId || 'none') : 'none';
+          const courseId = matchingClassDoc ? (matchingClassDoc.data().courseId || 'none') : 'none';
+          
+          await adminDb.collection('videos').doc(videoDocId).set({
+              id: videoDocId,
+              title: title,
+              description: 'Auto-recorded Zoom class',
+              platform: 'bunny',
+              courseId: courseId === 'none' ? null : courseId,
+              folderId: targetFolderId,
+              type: 'video',
+              isReady: false,
+              processingStatus: 'downloading_on_aws',
+              createdAt: adminDb.FieldValue.serverTimestamp(),
+              updatedAt: Date.now()
+          });
 
-            await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}/fetch`, {
-              method: 'POST',
-              headers: { 'AccessKey': apiKey, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: fetchUrl })
-            });
-
-            if (matchingClassDoc) {
-               await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
-                 bunnyVideoId: videoId,
-                 recordingStatus: 'processing'
-               });
-            }
-            console.log(`Auto-Downloading Zoom Recording via BunnyCDN: ${videoId}`);
-          } catch (e) {
-            console.error('Bunny Fetch Error for Zoom Recording:', e);
+          if (matchingClassDoc) {
+             await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
+               bunnyVideoId: videoDocId,
+               recordingStatus: 'downloading_on_aws'
+             });
           }
+
+          const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+          const serverPort = process.env.RTMP_HTTP_PORT || '8000';
+          const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
+          const websiteUrl = process.env.WEBSITE_URL || 'https://brilliantacademy.vercel.app';
+          const webhookUrl = `${websiteUrl}/api/bunny/aws-webhook`;
+
+          const res = await fetch(`http://${serverHost}:${serverPort}/api/generic-download`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ 
+                 url: fetchUrl, 
+                 password: "", 
+                 title: title, 
+                 metadata: { 
+                     videoDocId: videoDocId,
+                     videoTitle: title,
+                     selectedFolderId: targetFolderId,
+                     videoCourseId: courseId
+                 }, 
+                 webhookUrl, 
+                 secret: callbackSecret 
+             })
+          });
+          
+          if (!res.ok) {
+              console.error('AWS EC2 Failed to accept download request:', await res.text());
+          } else {
+              console.log('Successfully triggered AWS EC2 download for Zoom Recording: ', videoDocId);
+          }
+        } catch (e) {
+          console.error('Error triggering AWS EC2 for Zoom Recording:', e);
         }
       }
     } else if (body.event === 'meeting.ended') {
