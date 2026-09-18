@@ -13,6 +13,7 @@ import { useRef } from 'react';
 
 const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
+const JitsiPlayer = dynamic(() => import('@/components/jitsi/JitsiPlayer'), { ssr: false });
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();

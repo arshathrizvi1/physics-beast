@@ -32,6 +32,7 @@ export default function AdminLiveStudio() {
   const [multiStreams, setMultiStreams] = useState({
     youtube: { enabled: false, link: "" },
     zoom: { enabled: false, link: "" },
+          jitsi: { enabled: false, link: "" },
     rtmp: { enabled: false, link: "" },
     direct: { enabled: false, link: "" }
   });
@@ -775,6 +776,7 @@ export default function AdminLiveStudio() {
                           setEditMultiStreams({
                             youtube: { enabled: cls.platform === 'youtube', link: cls.platform === 'youtube' ? cls.link : '' },
                             zoom: { enabled: cls.platform === 'zoom', link: cls.platform === 'zoom' ? cls.link : '' },
+                              jitsi: { enabled: cls.platform === 'jitsi', link: cls.platform === 'jitsi' ? cls.link : '' },
                             rtmp: { enabled: cls.platform === 'rtmp', link: cls.platform === 'rtmp' ? cls.link : '' },
                             direct: { enabled: cls.platform === 'direct', link: cls.platform === 'direct' ? cls.link : '' }
                           });
