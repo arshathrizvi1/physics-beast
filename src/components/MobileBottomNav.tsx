@@ -70,15 +70,19 @@ export function MobileBottomNav() {
               className="flex-1 flex justify-center items-center h-full relative"
             >
               <div 
-                className={elative flex flex-col items-center justify-center w-[72px] h-[58px] rounded-[24px] transition-all duration-300 \}
+                className={`relative flex flex-col items-center justify-center w-[72px] h-[58px] rounded-[24px] transition-all duration-300 ${
+                  isActive 
+                    ? "bg-gradient-to-tr from-[#FFD700] to-[#FDB931] text-black shadow-[0_0_20px_rgba(255,215,0,0.4)]" 
+                    : "text-[#C0C0C0] hover:text-white"
+                }`}
               >
                 {link.showLiveIndicator && (
                   <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)] z-10" />
                 )}
                 <link.icon 
-                  className={w-5 h-5 mb-1 \} 
+                  className={`w-5 h-5 mb-1 ${isActive ? "fill-black/10 stroke-[2.5px]" : "stroke-[2px]"}`} 
                 />
-                <span className={	ext-[10px] \}>
+                <span className={`text-[10px] ${isActive ? "font-bold text-black" : "font-medium"}`}>
                   {link.name}
                 </span>
               </div>
