@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Loader2, X } from "lucide-react";
+import { Settings, Loader2, X, ExternalLink } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -55,6 +55,10 @@ export function ZoomSettingsModal() {
     setSaving(false);
   };
 
+  const authLink = sdkKey.trim() 
+    ? 'https://zoom.us/oauth/authorize?response_type=code&client_id=' + sdkKey.trim() + '&redirect_uri=https://brilliantacademy.vercel.app'
+    : '#';
+
   return (
     <>
       <Button variant="outline" className="gap-2" onClick={() => setOpen(true)}>
@@ -97,6 +101,25 @@ export function ZoomSettingsModal() {
                       placeholder="Paste Client Secret here" 
                     />
                   </div>
+                  
+                  {sdkKey.trim() && (
+                    <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-md mt-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold text-blue-400">Connect Zoom Account</h4>
+                        <p className="text-xs text-muted-foreground">Authorize this app with your Zoom account to enable API features.</p>
+                      </div>
+                      <a 
+                        href={authLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2 px-3 rounded-md flex items-center gap-2 shrink-0 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Authorize App
+                      </a>
+                    </div>
+                  )}
+
                   <div className="space-y-2 pt-2 border-t border-border/50 mt-2">
                     <Label>Webhook Secret Token (Optional - For Auto-Start)</Label>
                     <p className="text-xs text-muted-foreground mb-2">If you want classes to automatically change to "Live" when the teacher starts them on Zoom, create a Webhook in Zoom and paste the Secret Token here.</p>
@@ -107,7 +130,8 @@ export function ZoomSettingsModal() {
                       placeholder="Paste Webhook Secret Token" 
                     />
                   </div>
-                  <div className="flex justify-end pt-4">
+                  <div className="flex justify-end pt-4 gap-2">
+                    <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
                     <Button onClick={handleSave} disabled={saving}>
                       {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       Save Settings
