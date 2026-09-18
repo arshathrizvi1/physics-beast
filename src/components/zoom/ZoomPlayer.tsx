@@ -69,7 +69,7 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = `/zoom-frame.html?v=10&${params.toString()}`;
+  const iframeSrc = `/zoom-frame.html?v=11&${params.toString()}`;
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
@@ -93,6 +93,7 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
 
 
 
