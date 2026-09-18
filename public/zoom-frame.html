@@ -93,7 +93,11 @@
                 document.getElementById('zmmtg-root').style.display = 'block';
 
                 window.ZoomMtg.init({
-                    leaveUrl: window.location.origin + "/live", 
+                    leaveUrl: window.location.origin + '/live',
+                    disableInvite: true,
+                    disableCallOut: true,
+                    disableRecord: true,
+                    showMeetingHeader: false, 
                     success: function () {
                         window.ZoomMtg.join({
                             sdkKey: sdkKey,
@@ -132,3 +136,4 @@
     </script>
 </body>
 </html>
+
