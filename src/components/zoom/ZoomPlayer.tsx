@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 interface ZoomPlayerProps {
@@ -19,6 +19,24 @@ export default function ZoomPlayer({
   role = 0,
 }: ZoomPlayerProps) {
   const [iframeLoaded, setIframeLoaded] = useState(false);
+
+  // Prevent background scrolling when fullscreen is active (especially on Android WebViews in landscape)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "";
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   // Construct URL with query parameters
   const params = new URLSearchParams({
@@ -40,15 +58,14 @@ export default function ZoomPlayer({
         </div>
       )}
 
-      <iframe
-        src={iframeSrc}
-        className="w-full h-full border-0 absolute inset-0 z-0"
-        allow="camera; microphone; display-capture"
-        onLoad={() => setIframeLoaded(true)}
-      />
+      <iframe src={iframeSrc} className="w-full h-full border-0 absolute inset-0 z-0" allow="camera; microphone; display-capture; fullscreen" allowFullScreen={true} onLoad={() => setIframeLoaded(true)} />
     </div>
   );
 }
+
+
+
+
 
 
 
