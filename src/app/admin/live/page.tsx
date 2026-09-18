@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Settings, Video, Trash2, ExternalLink, Calendar, PlayCircle, StopCircle, RefreshCw, Copy, ChevronDown, Clock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+const JitsiPlayer = dynamic(() => import("@/components/jitsi/JitsiPlayer"), { ssr: false });
 import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
 import { FolderSelectModal } from "@/components/FolderSelectModal";
@@ -795,7 +797,12 @@ export default function AdminLiveStudio() {
                 </CardContent>
                 {cls.status === 'live' && (
                   <div className="px-5 pb-5 pt-0">
-                    <LiveAdminMonitor liveClassId={cls.id} />
+                    {cls.platform === 'jitsi' && (
+                         <div className="w-full min-h-[600px] mb-4 mt-4 border border-primary/30 rounded-lg overflow-hidden relative">
+                            <JitsiPlayer roomName={cls.id} userName="Teacher (Admin)" userEmail="admin@brilliant.com" isAdmin={true} liveClassId={cls.id} userId="admin" />
+                         </div>
+                      )}
+                      <LiveAdminMonitor liveClassId={cls.id} />
                   </div>
                 )}
               </Card>
