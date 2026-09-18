@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoom Meeting</title>
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.18.2/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.18.2/css/react-select.css" />
     <style>
         body, html {
             margin: 0;
@@ -40,9 +40,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        #zmmtg-root {
-            display: none;
-        }
     
         /* Force hide the Zoom Meeting Header and Info Buttons */
         #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
@@ -51,6 +48,8 @@
             opacity: 0 !important;
             pointer-events: none !important;
         }
+
+        #zmmtg-root { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
     </style>
 </head>
 <body>
@@ -59,12 +58,15 @@
         <div>Connecting to Full Zoom Experience...</div>
     </div>
 
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
+    <!-- Required by Zoom 2.x -->
+    <div id="zmmtg-root"></div>
+
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-2.18.2.min.js"></script>
 
     <script>
         async function initZoom() {
@@ -80,11 +82,11 @@
                     throw new Error("Meeting Number is missing");
                 }
 
-                window.ZoomMtg.setZoomJSLib('https://source.zoom.us/3.8.0/lib', '/av');
+                window.ZoomMtg.setZoomJSLib('https://source.zoom.us/2.18.2/lib', '/av');
                 window.ZoomMtg.preLoadWasm();
                 window.ZoomMtg.prepareWebSDK();
 
-                const response = await fetch("/api/zoom/signature", {
+                const response = await fetch("/api/zoom/signature?t=" + new Date().getTime(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ meetingNumber, role }),
@@ -106,7 +108,6 @@
                     disableCallOut: true,
                     disableRecord: true,
                     showMeetingHeader: false,
-                     meetingInfo: [], 
                     success: function () {
                         window.ZoomMtg.join({
                             sdkKey: sdkKey,
@@ -132,29 +133,17 @@
 
             } catch (error) {
                 console.error("Zoom initialization failed:", error);
-                document.getElementById('loading').innerHTML = `
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('loading').innerHTML = 
                     <div style="color: #f87171; text-align: center;">
                         <h3 style="margin-bottom: 8px;">Connection Error</h3>
-                        <p>${error.message}</p>
+                        <p> + error.message + </p>
                     </div>
-                `;
+                ;
             }
         }
 
         window.addEventListener('load', initZoom);
-        
-        // Brute force DOM destruction of all meeting info UI
-        setInterval(() => {
-            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label=\"Meeting Info\"]');
-            elements.forEach(el => el.remove());
-        }, 500);
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
