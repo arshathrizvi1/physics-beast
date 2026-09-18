@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Loader2, Maximize, Minimize } from "lucide-react";
+import { Loader2, Maximize, Minimize, Video } from "lucide-react";
 
 interface ZoomPlayerProps {
   meetingNumber: string;
@@ -32,8 +32,6 @@ export default function ZoomPlayer({
     }
   }, []);
 
-  // Aggressively request Camera/Mic permissions on Android/iOS before loading the iframe
-  // This solves the issue where the WebView silently denies permissions, crashing Zoom with 4003.
   useEffect(() => {
     if (isNative) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -43,7 +41,6 @@ export default function ZoomPlayer({
         })
         .catch(err => {
           console.warn("User or OS denied media permissions.", err);
-          // Proceed anyway to let Zoom show the specific error
           setPermissionsGranted(true);
         });
     } else {
@@ -92,7 +89,35 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = (isNative ? "/zoom-frame-mobile.html?v=60&" : "/zoom-frame.html?v=60&") + params.toString();
+  // On PC, we use the embedded iframe.
+  const iframeSrc = "/zoom-frame.html?v=99&" + params.toString();
+  // On Mobile, we launch a top-level page to satisfy Cross-Origin Isolation (SharedArrayBuffer) requirements
+  const fullscreenUrl = "/zoom-fullscreen.html?v=99&" + params.toString();
+
+  const handleLaunchMobile = () => {
+    window.location.href = fullscreenUrl;
+  };
+
+  if (isNative && permissionsGranted) {
+    return (
+      <div className="w-full h-full min-h-[500px] relative bg-zinc-900 rounded-lg flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
+          <Video className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-2xl font-bold text-white mb-2">Live Class is Ready</h3>
+        <p className="text-zinc-400 mb-8 max-w-sm">
+          Tap the button below to enter the full-screen cinematic classroom experience.
+        </p>
+        <button 
+          onClick={handleLaunchMobile}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-4 px-10 rounded-full transition-all transform hover:scale-105 active:scale-95 shadow-lg flex items-center gap-3"
+        >
+          <Video className="w-5 h-5" />
+          Join Class Now
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
