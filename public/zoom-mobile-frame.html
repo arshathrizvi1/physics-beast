@@ -143,12 +143,12 @@
                             isResizable: false,
                             viewSizes: {
                                 default: {
-                                    width: window.innerWidth,
-                                    height: window.innerHeight
+                                    width: Math.max(window.innerWidth || 800, 320),
+                                    height: Math.max(window.innerHeight || 600, 320)
                                 },
                                 ribbon: {
-                                    width: window.innerWidth,
-                                    height: window.innerHeight
+                                    width: Math.max(window.innerWidth || 800, 320),
+                                    height: Math.max(window.innerHeight || 600, 320)
                                 }
                             }
                         },
@@ -186,12 +186,12 @@
                 window.addEventListener('resize', () => {
                     client.updateVideoViewSizes({
                         default: {
-                            width: window.innerWidth,
-                            height: window.innerHeight
+                            width: Math.max(window.innerWidth || 800, 320),
+                            height: Math.max(window.innerHeight || 600, 320)
                         },
                         ribbon: {
-                            width: window.innerWidth,
-                            height: window.innerHeight
+                            width: Math.max(window.innerWidth || 800, 320),
+                            height: Math.max(window.innerHeight || 600, 320)
                         }
                     });
                 });
@@ -204,17 +204,12 @@
 
         window.addEventListener('load', initZoom);
 
-        // Aggressively remove header elements every second just in case Zoom injects them dynamically
-        setInterval(() => {
-            const header = document.querySelector('.zm-component-header');
-            if (header) header.remove();
-            
-            const pBtn = document.querySelector('[aria-label="Participants"]');
-            if (pBtn) pBtn.remove();
-        }, 1000);
+        
     </script>
 </body>
 </html>
+
+
 
 
 
