@@ -678,8 +678,8 @@ export default function StudentLivePortal() {
       {/* Old Records Modal */}
       {showOldRecordsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-background rounded-2xl shadow-2xl border border-border/50 max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="border-b border-border/50 p-6 shrink-0 bg-background">
+          <div className="w-full max-w-2xl bg-background rounded-2xl shadow-2xl border border-border/50 overflow-hidden relative">
+            <div className="border-b border-border/50 p-6 bg-background relative z-10">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <Clock className="w-5 h-5 text-primary" /> Past Broadcasts
@@ -698,7 +698,7 @@ export default function StudentLivePortal() {
                 />
               </div>
             </div>
-            <div className="overflow-y-auto p-0 flex-1 custom-scrollbar">
+            <div className="overflow-y-auto p-0 max-h-[60vh] custom-scrollbar relative z-0">
               {filteredArchivedClasses.length === 0 ? (
                 <div className="p-12 text-center text-muted-foreground">
                   No past broadcasts found.
@@ -735,6 +735,7 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+
 
 
 
