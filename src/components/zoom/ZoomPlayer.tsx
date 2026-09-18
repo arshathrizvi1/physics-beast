@@ -28,10 +28,22 @@ export default function ZoomPlayer({
     const loadZoomScript = () => {
       return new Promise<any>((resolve, reject) => {
         if ((window as any).ZoomMtgEmbedded) return resolve((window as any).ZoomMtgEmbedded);
+        
+        const oldDefine = (window as any).define;
+        const oldExports = (window as any).exports;
+        const oldModule = (window as any).module;
+        (window as any).define = undefined;
+        (window as any).exports = undefined;
+        (window as any).module = undefined;
         const script = document.createElement("script");
         script.src = "https://source.zoom.us/zoom-meeting-embedded-3.8.0.min.js";
         script.async = true;
-        script.onload = () => resolve((window as any).ZoomMtgEmbedded);
+        script.onload = () => {
+          (window as any).define = oldDefine;
+          (window as any).exports = oldExports;
+          (window as any).module = oldModule;
+          resolve((window as any).ZoomMtgEmbedded);
+        };
         script.onerror = () => reject(new Error("Failed to load Zoom SDK"));
         document.body.appendChild(script);
       });
