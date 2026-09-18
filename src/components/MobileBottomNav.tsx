@@ -1,13 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Home, BookOpen, FileText, Video } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 export function MobileBottomNav() {
   const { user, loading } = useAuth();
   const pathname = usePathname();
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    const q = query(collection(db, 'live_classes'), where('status', '==', 'live'));
+    const unsub = onSnapshot(q, (snap) => {
+      setIsLive(!snap.empty);
+    }, (err) => {
+      console.log("Could not fetch live status for mobile nav", err);
+    });
+    return () => unsub();
+  }, []);
 
   // Hide on admin routes or auth routes
   if (pathname.startsWith('/admin') || pathname === '/login' || pathname === '/signup' || pathname === '/teacher-signup') {
@@ -37,7 +51,8 @@ export function MobileBottomNav() {
       name: "Live", 
       href: "/live", 
       icon: Video,
-      isActive: pathname.startsWith("/live") 
+      isActive: pathname.startsWith("/live"),
+      showLiveIndicator: isLive
     },
   ];
 
@@ -52,19 +67,18 @@ export function MobileBottomNav() {
             <Link 
               key={link.name} 
               href={link.href}
-              className="flex-1 flex justify-center items-center h-full"
+              className="flex-1 flex justify-center items-center h-full relative"
             >
               <div 
-                className={`flex flex-col items-center justify-center w-[72px] h-[58px] rounded-[24px] transition-all duration-300 ${
-                  isActive 
-                    ? "bg-gradient-to-tr from-[#FFD700] to-[#FDB931] text-black shadow-[0_0_20px_rgba(255,215,0,0.4)]" 
-                    : "text-[#C0C0C0] hover:text-white"
-                }`}
+                className={elative flex flex-col items-center justify-center w-[72px] h-[58px] rounded-[24px] transition-all duration-300 \}
               >
+                {link.showLiveIndicator && (
+                  <span className="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,1)] z-10" />
+                )}
                 <link.icon 
-                  className={`w-5 h-5 mb-1 ${isActive ? "fill-black/10 stroke-[2.5px]" : "stroke-[2px]"}`} 
+                  className={w-5 h-5 mb-1 \} 
                 />
-                <span className={`text-[10px] ${isActive ? "font-bold text-black" : "font-medium"}`}>
+                <span className={	ext-[10px] \}>
                   {link.name}
                 </span>
               </div>
@@ -76,4 +90,3 @@ export function MobileBottomNav() {
     </>
   );
 }
-
