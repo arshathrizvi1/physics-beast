@@ -65,8 +65,14 @@ export default function ZoomPlayer({
   };
 
   const handleLaunchMobile = () => {
-    const pwaUrl = "https://zoom.us/wc/" + meetingNumber + "/join?pwd=" + password + "&uname=" + encodeURIComponent(userName);
-    window.location.href = pwaUrl;
+    // The user wants total control: auto-fill name, hide top bar, and disable renaming.
+    // The official Zoom PWA (zoom.us) DOES NOT ALLOW hiding the top bar or disabling rename.
+    // Client View SDK crashes on WebCodecs on Mobile.
+    // The ONLY solution is Component View, configured as a top-level fullscreen redirect
+    // with aggressive CSS to hide the header and participant list (rename button), and 
+    // force a pitch black background so it looks exactly like the native app.
+    const customMobileUrl = "/zoom-mobile-frame.html?mn=" + meetingNumber + "&pwd=" + password + "&name=" + encodeURIComponent(userName) + "&email=" + encodeURIComponent(userEmail) + "&role=" + role;
+    window.location.href = customMobileUrl;
   };
 
   if (isNative) {
@@ -97,7 +103,7 @@ export default function ZoomPlayer({
     pwd: password,
     role: role.toString(),
   });
-  const iframeSrc = "/zoom-frame.html?v=100&" + params.toString();
+  const iframeSrc = "/zoom-frame.html?v=101&" + params.toString();
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">

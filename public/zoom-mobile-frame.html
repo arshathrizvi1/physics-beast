@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zoom Mobile Player</title>
+    <!-- Component View CSS -->
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 50;
+            color: white;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #ffffff;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #zoom-root {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #000000;
+        }
+
+        /* AGGRESSIVE CSS TO PERFECTLY SIMULATE NATIVE FULLSCREEN APP */
+        
+        /* 1. Force the video container to be completely black and fill the screen */
+        .zoom-video-render, .zm-component-video-container, .video-avatar__avatar-wrapper {
+            background-color: #000000 !important;
+        }
+
+        /* 2. Hide the Meeting Info Header (Up Bar) completely */
+        .zm-component-header, [class*="meeting-header"], [class*="meeting-info"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* 3. Disable Rename by hiding the Participants button and Rename options */
+        [aria-label="Participants"], .zm-btn__participants, [class*="rename-btn"] {
+            display: none !important;
+        }
+
+        /* 4. Remove draggability and weird borders from Component View */
+        .zm-component-video-inner {
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+        
+        /* 5. Force the ribbon/video to fill available space */
+        .video-canvas, .zoom-video-render canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <div>Connecting to Zoom Engine...</div>
+    </div>
+    
+    <div id="zoom-root"></div>
+
+    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+
+    <script>
+        async function initZoom() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const meetingNumber = params.get('mn');
+                const userName = params.get('name') || 'Student';
+                const userEmail = params.get('email') || '';
+                const password = params.get('pwd') || '';
+                const role = parseInt(params.get('role') || '0', 10);
+
+                if (!meetingNumber) {
+                    throw new Error("Meeting Number is missing");
+                }
+
+                // Get signature from our backend
+                const response = await fetch("/api/zoom/signature?t=" + new Date().getTime(), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ meetingNumber: meetingNumber, role: role }),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to get signature");
+                }
+
+                const { signature, sdkKey } = data;
+                
+                const client = ZoomMtgEmbedded.createClient();
+                const zoomRoot = document.getElementById('zoom-root');
+
+                client.init({
+                    zoomAppRoot: zoomRoot,
+                    language: 'en-US',
+                    customize: {
+                        video: {
+                            isResizable: false,
+                            viewSizes: {
+                                default: {
+                                    width: window.innerWidth,
+                                    height: window.innerHeight
+                                },
+                                ribbon: {
+                                    width: window.innerWidth,
+                                    height: window.innerHeight
+                                }
+                            }
+                        },
+                        chat: { poppable: false },
+                        meetingInfo: {
+                            showMeetingId: false,
+                            showPasscode: false,
+                            showInviteLink: false
+                        }
+                    }
+                }).then(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    client.join({
+                        sdkKey: sdkKey,
+                        signature: signature,
+                        meetingNumber: meetingNumber,
+                        password: password,
+                        userName: userName,
+                        userEmail: userEmail
+                    }).then(() => {
+                        console.log("Successfully joined via Component View");
+                        client.on('connection-change', function(payload) {
+                            if (payload.state === 'Closed') { window.location.href = '/zoom-ended.html'; }
+                        });
+                    }).catch((error) => {
+                        console.error(error);
+                        alert("Join Error: " + JSON.stringify(error));
+                    });
+                }).catch((error) => {
+                    console.error(error);
+                    alert("Init Error: " + JSON.stringify(error));
+                });
+
+                // Auto resize on rotation
+                window.addEventListener('resize', () => {
+                    client.updateVideoViewSizes({
+                        default: {
+                            width: window.innerWidth,
+                            height: window.innerHeight
+                        },
+                        ribbon: {
+                            width: window.innerWidth,
+                            height: window.innerHeight
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                document.getElementById('loading').innerHTML = '<div style="color: #f87171;">Connection Error: ' + error.message + '</div>';
+            }
+        }
+
+        window.addEventListener('load', initZoom);
+
+        // Aggressively remove header elements every second just in case Zoom injects them dynamically
+        setInterval(() => {
+            const header = document.querySelector('.zm-component-header');
+            if (header) header.remove();
+            
+            const pBtn = document.querySelector('[aria-label="Participants"]');
+            if (pBtn) pBtn.remove();
+        }, 1000);
+    </script>
+</body>
+</html>
+
