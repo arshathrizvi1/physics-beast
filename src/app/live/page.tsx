@@ -408,7 +408,7 @@ export default function StudentLivePortal() {
                       <ZoomPlayer 
                         meetingNumber={getZoomDetails(getActiveStream(cls).link)!.meetingId} 
                         password={getZoomDetails(getActiveStream(cls).link)!.pwd}
-                        userName={user.displayName || user.email || "Student"}
+                        userName={user?.name || user?.displayName || user?.email || "Student"}
                         userEmail={user.email}
                         role={0} 
                       />
@@ -735,6 +735,7 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+
 
 
 
