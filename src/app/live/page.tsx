@@ -667,7 +667,7 @@ export default function StudentLivePortal() {
               )}
               
               {/* Secret Chat Box for Live Classes */}
-              {cls.status === 'live' && (
+              {cls.status === 'live' && getActiveStream(cls).id !== 'zoom' && (
                  <LiveChat liveClassId={cls.id} />
               )}
             </Card>
@@ -735,5 +735,6 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+
 
 
