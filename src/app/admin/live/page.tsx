@@ -415,7 +415,8 @@ export default function AdminLiveStudio() {
         </div>
         <Link href="/admin">
           <Button variant="outline"><Settings className="w-4 h-4 mr-2" /> Back to Dashboard</Button>
-        </Link>
+          </Link>
+          <ZoomSettingsModal />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
