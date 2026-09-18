@@ -59,14 +59,7 @@
         <div>Connecting to Full Zoom Experience...</div>
     </div>
 
-    <!-- Spoof Desktop User Agent to prevent Zoom 4003 Mobile Browser Blocking -->
-    <script>
-        try { Object.defineProperty(navigator, 'userAgent', {
-            get: function () {
-                return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-            }
-        }); } catch (e) { console.warn('Could not spoof UA:', e); }
-    </script>
+    
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
@@ -161,3 +154,4 @@
     </script>
 </body>
 </html>
+
