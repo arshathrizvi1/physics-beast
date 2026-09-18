@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zoom Meeting Component View</title>
+    <title>Zoom Meeting Mobile</title>
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.18.2/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/2.18.2/css/react-select.css" />
     <style>
         body, html {
             margin: 0;
@@ -38,22 +40,38 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        #meetingSDKElement {
-            width: 100%;
-            height: 100%;
-            display: none;
+        #zmmtg-root { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* Force hide the Zoom Meeting Header and Info Buttons */
+        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
     </style>
 </head>
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div>Connecting to Mobile Zoom Experience...</div>
+        <div>Connecting to Zoom Web Player...</div>
     </div>
 
-    <div id="meetingSDKElement"></div>
+    <!-- Spoof Desktop User Agent just in case 2.18.2 checks it -->
+    <script>
+        try { Object.defineProperty(navigator, 'userAgent', {
+            get: function () { return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; }
+        }); } catch (e) { }
+    </script>
 
-    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+    <div id="zmmtg-root"></div>
+
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/2.18.2/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-2.18.2.min.js"></script>
 
     <script>
         async function initZoom() {
@@ -69,10 +87,14 @@
                     throw new Error("Meeting Number is missing");
                 }
 
+                window.ZoomMtg.setZoomJSLib('https://source.zoom.us/2.18.2/lib', '/av');
+                window.ZoomMtg.preLoadWasm();
+                window.ZoomMtg.prepareWebSDK();
+
                 const response = await fetch("/api/zoom/signature?t=" + new Date().getTime(), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ meetingNumber, role }),
+                    body: JSON.stringify({ meetingNumber: meetingNumber, role: role }),
                 });
 
                 const data = await response.json();
@@ -83,43 +105,36 @@
                 const { signature, sdkKey } = data;
 
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('meetingSDKElement').style.display = 'block';
+                document.getElementById('zmmtg-root').style.display = 'block';
 
-                const client = ZoomMtgEmbedded.createClient();
-
-                let initOptions = {
-                    zoomAppRoot: document.getElementById('meetingSDKElement'),
-                    language: 'en-US',
-                    customize: {
-                        meetingInfo: ["topic", "host", "mn", "pwd", "telPwd", "invite", "participant", "dc", "enctype"],
-                        toolbar: {
-                            buttons: [
-                                {
-                                    text: 'Leave',
-                                    className: 'CustomButton',
-                                    onClick: () => {
-                                        window.location.href = window.location.origin + '/zoom-ended.html';
-                                    }
-                                }
-                            ]
-                        }
+                window.ZoomMtg.init({
+                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    disableInvite: true,
+                    disableCallOut: true,
+                    disableRecord: true,
+                    showMeetingHeader: false,
+                    success: function () {
+                        window.ZoomMtg.join({
+                            sdkKey: sdkKey,
+                            
+                            signature: signature,
+                            meetingNumber: meetingNumber,
+                            passWord: password,
+                            userName: userName,
+                            userEmail: userEmail,
+                            success: function (res) {
+                                console.log('Successfully joined Zoom meeting');
+                            },
+                            error: function (res) {
+                                console.error('Join error', res);
+                                alert("Failed to join meeting (2.18.2): " + JSON.stringify(res));
+                            }
+                        });
+                    },
+                    error: function (res) {
+                        console.error('Init error', res);
+                        alert("Failed to initialize Zoom: " + JSON.stringify(res));
                     }
-                };
-
-                client.init(initOptions);
-
-                client.join({
-                    sdkKey: sdkKey,
-                    signature: signature,
-                    meetingNumber: meetingNumber,
-                    password: password,
-                    userName: userName,
-                    userEmail: userEmail
-                }).then(() => {
-                    console.log('Successfully joined Zoom meeting (Component View)');
-                }).catch((error) => {
-                    console.error('Join error', error);
-                    alert("Failed to join meeting: " + JSON.stringify(error));
                 });
 
             } catch (error) {
@@ -130,6 +145,11 @@
         }
 
         window.addEventListener('load', initZoom);
+        
+        setInterval(() => {
+            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"]');
+            elements.forEach(el => el.remove());
+        }, 500);
     </script>
 </body>
 </html>
