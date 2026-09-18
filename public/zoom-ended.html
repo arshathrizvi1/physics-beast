@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Ended</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #18181b;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+        }
+        h2 { margin-bottom: 8px; color: #f87171; }
+        p { color: #a1a1aa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Meeting Ended</h2>
+        <p>The host has ended this live class.</p>
+        <p>Please wait for the page to refresh or return to the dashboard.</p>
+    </div>
+    <script>
+        // Tell parent window to refresh or handle it
+        window.parent.postMessage({ type: 'ZOOM_MEETING_ENDED' }, '*');
+    </script>
+</body>
+</html>
