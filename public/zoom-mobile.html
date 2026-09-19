@@ -216,7 +216,7 @@
 </script>
 
 <script>
-    // Ultimate Mobile Layout Engine V5
+    // Ultimate Mobile Layout Engine V6 (Escape CSS Traps)
     setInterval(function() {
         var canvases = document.querySelectorAll('canvas');
         var shareCanvas = null;
@@ -237,6 +237,18 @@
         }
 
         if (shareCanvas) {
+            // Strip CSS traps from all ancestors so position: fixed escapes to the absolute viewport edges
+            var curr = shareCanvas.parentElement;
+            while (curr && curr !== document.body && curr.nodeName !== 'HTML') {
+                curr.style.setProperty('transform', 'none', 'important');
+                curr.style.setProperty('perspective', 'none', 'important');
+                curr.style.setProperty('filter', 'none', 'important');
+                curr.style.setProperty('will-change', 'auto', 'important');
+                curr.style.setProperty('contain', 'none', 'important');
+                curr = curr.parentElement;
+            }
+            
+            // Force the canvas to the absolute edges
             shareCanvas.style.setProperty('width', '100vw', 'important');
             shareCanvas.style.setProperty('height', '100vh', 'important');
             shareCanvas.style.setProperty('object-fit', 'contain', 'important');
@@ -244,21 +256,13 @@
             shareCanvas.style.setProperty('position', 'fixed', 'important');
             shareCanvas.style.setProperty('top', '0', 'important');
             shareCanvas.style.setProperty('left', '0', 'important');
-            shareCanvas.style.setProperty('z-index', '10', 'important');
-            
-            var p = shareCanvas.parentElement;
-            if (p) {
-                p.style.setProperty('width', '100vw', 'important');
-                p.style.setProperty('height', '100vh', 'important');
-                p.style.setProperty('transform', 'none', 'important');
-                p.style.setProperty('position', 'fixed', 'important');
-                p.style.setProperty('top', '0', 'important');
-                p.style.setProperty('left', '0', 'important');
-                p.style.setProperty('z-index', '10', 'important');
-            }
+            shareCanvas.style.setProperty('z-index', '9998', 'important');
+            shareCanvas.style.setProperty('margin', '0', 'important');
+            shareCanvas.style.setProperty('padding', '0', 'important');
         }
         
         if (hostCanvas && shareCanvas) {
+            // Mini popup for host
             hostCanvas.style.setProperty('width', '150px', 'important');
             hostCanvas.style.setProperty('height', '100px', 'important');
             hostCanvas.style.setProperty('object-fit', 'cover', 'important');
@@ -268,7 +272,7 @@
             hostCanvas.style.setProperty('right', '20px', 'important');
             hostCanvas.style.setProperty('left', 'auto', 'important');
             hostCanvas.style.setProperty('bottom', 'auto', 'important');
-            hostCanvas.style.setProperty('z-index', '50', 'important');
+            hostCanvas.style.setProperty('z-index', '9999', 'important');
             hostCanvas.style.setProperty('border-radius', '8px', 'important');
             
             var hp = hostCanvas.parentElement;
@@ -281,12 +285,22 @@
                 hp.style.setProperty('right', '20px', 'important');
                 hp.style.setProperty('left', 'auto', 'important');
                 hp.style.setProperty('bottom', 'auto', 'important');
-                hp.style.setProperty('z-index', '50', 'important');
+                hp.style.setProperty('z-index', '9999', 'important');
                 hp.style.setProperty('border-radius', '8px', 'important');
                 hp.style.setProperty('overflow', 'hidden', 'important');
                 hp.style.setProperty('background', '#000', 'important');
             }
         } else if (hostCanvas && !shareCanvas) {
+            // Fullscreen host
+            var curr = hostCanvas.parentElement;
+            while (curr && curr !== document.body && curr.nodeName !== 'HTML') {
+                curr.style.setProperty('transform', 'none', 'important');
+                curr.style.setProperty('perspective', 'none', 'important');
+                curr.style.setProperty('filter', 'none', 'important');
+                curr.style.setProperty('will-change', 'auto', 'important');
+                curr.style.setProperty('contain', 'none', 'important');
+                curr = curr.parentElement;
+            }
             hostCanvas.style.setProperty('width', '100vw', 'important');
             hostCanvas.style.setProperty('height', '100vh', 'important');
             hostCanvas.style.setProperty('object-fit', 'contain', 'important');
@@ -294,18 +308,7 @@
             hostCanvas.style.setProperty('position', 'fixed', 'important');
             hostCanvas.style.setProperty('top', '0', 'important');
             hostCanvas.style.setProperty('left', '0', 'important');
-            hostCanvas.style.setProperty('z-index', '10', 'important');
-            
-            var hp = hostCanvas.parentElement;
-            if (hp) {
-                hp.style.setProperty('width', '100vw', 'important');
-                hp.style.setProperty('height', '100vh', 'important');
-                hp.style.setProperty('transform', 'none', 'important');
-                hp.style.setProperty('position', 'fixed', 'important');
-                hp.style.setProperty('top', '0', 'important');
-                hp.style.setProperty('left', '0', 'important');
-                hp.style.setProperty('z-index', '10', 'important');
-            }
+            hostCanvas.style.setProperty('z-index', '9998', 'important');
         }
     }, 200);
 </script>
