@@ -394,14 +394,14 @@ export default function StudentLivePortal() {
                   )}
 
                   {/* Zoom Join Button */}
-                  {(cls.status === 'scheduled' || cls.status === 'live') && getActiveStream(cls).id === 'zoom' && (
+                  {cls.status === 'live' && getActiveStream(cls).id === 'zoom' && (
                     !joinedClasses.includes(cls.id) ? (
                       <Button 
                         onClick={() => setJoinedClasses(prev => [...prev, cls.id])}
-                        className="shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg flex items-center gap-2"
+                        className="shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg flex items-center gap-2 animate-pulse"
                       >
                         <PlayCircle className="w-5 h-5" />
-                        {cls.status === 'live' ? 'Join Live Class' : 'Enter Waiting Room'}
+                        Join Live Class
                       </Button>
                     ) : (
                       <Button 
@@ -414,8 +414,8 @@ export default function StudentLivePortal() {
                     )
                   )}
 
-                  {/* Fallback for non-zoom scheduled classes */}
-                  {cls.status === 'scheduled' && getActiveStream(cls).id !== 'zoom' && (
+                  {/* Fallback for scheduled classes */}
+                  {cls.status === 'scheduled' && (
                      <div className="shrink-0 px-4 py-3 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2">
                        <Clock className="w-4 h-4 text-muted-foreground" />
                        <p className="text-sm font-bold text-muted-foreground">Waiting for host...</p>
