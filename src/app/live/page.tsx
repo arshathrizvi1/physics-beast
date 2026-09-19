@@ -19,6 +19,7 @@ export default function StudentLivePortal() {
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
   const [fetchingClasses, setFetchingClasses] = useState(true);
+  const [earlyJoinedClasses, setEarlyJoinedClasses] = useState<string[]>([]);
   
   const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
   const [oldRecordsSearch, setOldRecordsSearch] = useState("");
@@ -391,17 +392,26 @@ export default function StudentLivePortal() {
                       </div>
                     )
                   )}
-                  {cls.status === 'scheduled' && (
+                  {cls.status === 'scheduled' && getActiveStream(cls).id === 'zoom' ? (
+                     <Button 
+                       variant="outline"
+                       onClick={() => setEarlyJoinedClasses(prev => [...prev, cls.id])}
+                       className="shrink-0 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                     >
+                       <Clock className="w-4 h-4" />
+                       <span className="text-sm font-bold">Join Waiting Room</span>
+                     </Button>
+                  ) : cls.status === 'scheduled' ? (
                      <div className="shrink-0 px-4 py-3 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2">
                        <Clock className="w-4 h-4 text-muted-foreground" />
                        <p className="text-sm font-bold text-muted-foreground">Waiting for host...</p>
                      </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
               {/* Zoom Embedded Player Section */}
-              {getActiveStream(cls).id === 'zoom' && cls.status === 'live' && (
+              {getActiveStream(cls).id === 'zoom' && (cls.status === 'live' || earlyJoinedClasses.includes(cls.id)) && (
                 <div className="w-full relative border-t border-border/30">
                   {cls.allowDirectJoin !== false ? (
                     getZoomDetails(getActiveStream(cls).link) ? (
