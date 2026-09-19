@@ -188,5 +188,31 @@
             });
         }, 500);
     </script>
+<script>
+    // Custom Toolbar Auto-Hide for Spoofed Mobile Environment
+    var toolbarTimeout = null;
+    function wakeToolbar() {
+        var bars = document.querySelectorAll('.footer, .footer-wrapper, .zm-layout-viewer-bottom, [class*="footer"], .header, .meeting-header, .zm-layout-viewer-header');
+        bars.forEach(function(bar) {
+            bar.style.opacity = '1';
+            bar.style.pointerEvents = 'all';
+            bar.style.transition = 'all 0.4s ease';
+        });
+        clearTimeout(toolbarTimeout);
+        toolbarTimeout = setTimeout(hideToolbar, 3500);
+    }
+    function hideToolbar() {
+        var bars = document.querySelectorAll('.footer, .footer-wrapper, .zm-layout-viewer-bottom, [class*="footer"], .header, .meeting-header, .zm-layout-viewer-header');
+        bars.forEach(function(bar) {
+            bar.style.opacity = '0';
+            bar.style.pointerEvents = 'none';
+            bar.style.transition = 'all 0.4s ease';
+        });
+    }
+    document.addEventListener('touchstart', wakeToolbar, {passive: true});
+    document.addEventListener('mousemove', wakeToolbar, {passive: true});
+    document.addEventListener('click', wakeToolbar, {passive: true});
+    toolbarTimeout = setTimeout(hideToolbar, 4000);
+</script>
 </body>
 </html>
