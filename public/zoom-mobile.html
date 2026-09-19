@@ -214,68 +214,34 @@
     document.addEventListener('click', wakeToolbar, {passive: true});
     toolbarTimeout = setTimeout(hideToolbar, 2000);
 </script>
+
 <script>
-    // Ultimate Mobile Layout Engine V3
+    // Automated View Options Configurator
     setInterval(function() {
-        // 1. Find the active main canvas (either screenshare or main speaker)
-        var shareCanvas = document.querySelector('.share-canvas, canvas#share-canvas, .share-container canvas');
-        var mainVideo = document.querySelector('#sv-active-video, .speaker-view-video canvas, .main-video-container canvas');
-        
-        var targetCanvas = shareCanvas || mainVideo;
-        
-        if (targetCanvas) {
-            targetCanvas.style.setProperty('width', '100vw', 'important');
-            targetCanvas.style.setProperty('height', '100vh', 'important');
-            targetCanvas.style.setProperty('object-fit', 'contain', 'important');
-            targetCanvas.style.setProperty('position', 'fixed', 'important');
-            targetCanvas.style.setProperty('top', '0', 'important');
-            targetCanvas.style.setProperty('left', '0', 'important');
-            targetCanvas.style.setProperty('z-index', '10', 'important');
-            targetCanvas.style.setProperty('margin', '0', 'important');
-            targetCanvas.style.setProperty('padding', '0', 'important');
-            
-            var p = targetCanvas.parentElement;
-            if (p) {
-                p.style.setProperty('width', '100vw', 'important');
-                p.style.setProperty('height', '100vh', 'important');
-                p.style.setProperty('position', 'fixed', 'important');
-                p.style.setProperty('top', '0', 'important');
-                p.style.setProperty('left', '0', 'important');
-                p.style.setProperty('transform', 'none', 'important');
-                p.style.setProperty('margin', '0', 'important');
-                p.style.setProperty('padding', '0', 'important');
-                p.style.setProperty('z-index', '10', 'important');
+        var viewOptionsBtn = Array.from(document.querySelectorAll('button, span, div, a')).find(el => el.textContent && el.textContent.trim() === 'View Options');
+        if (viewOptionsBtn) {
+            if (!window.hasConfiguredZoomView) {
+                // Open the dropdown
+                viewOptionsBtn.click();
+                
+                setTimeout(function() {
+                    var items = document.querySelectorAll('.zm-dropdown-menu-item, li, span, a');
+                    var fit = Array.from(items).find(el => el.textContent && el.textContent.trim() === 'Fit to Window');
+                    var standard = Array.from(items).find(el => el.textContent && el.textContent.trim() === 'Standard');
+                    
+                    if (fit) fit.click();
+                    if (standard) standard.click();
+                    
+                    window.hasConfiguredZoomView = true;
+                    
+                    // Close the dropdown by clicking somewhere safe
+                    document.body.click();
+                }, 300);
             }
+        } else {
+            window.hasConfiguredZoomView = false;
         }
-        
-        // 2. Fix the floating host profile (remove any 100vw we accidentally set previously)
-        var allCanvases = document.querySelectorAll('canvas');
-        allCanvases.forEach(function(c) {
-            if (c !== targetCanvas) {
-                c.style.removeProperty('width');
-                c.style.removeProperty('height');
-                c.style.removeProperty('object-fit');
-                c.style.removeProperty('position');
-                c.style.removeProperty('top');
-                c.style.removeProperty('left');
-                c.style.removeProperty('z-index');
-                if (c.parentElement && c.parentElement !== (targetCanvas ? targetCanvas.parentElement : null)) {
-                    c.parentElement.style.removeProperty('position');
-                    c.parentElement.style.removeProperty('width');
-                    c.parentElement.style.removeProperty('height');
-                }
-            }
-        });
-        
-        // 3. Make sure the floating host profile is on top of our fixed canvas
-        var floatingBoxes = document.querySelectorAll('.video-avatar-container, .speaker-active-video, .gallery-video-container');
-        floatingBoxes.forEach(function(box) {
-            if (shareCanvas) {
-                box.style.setProperty('z-index', '50', 'important');
-            }
-        });
-        
-    }, 500);
+    }, 2000);
 </script>
 </body>
 </html>
