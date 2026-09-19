@@ -27,18 +27,20 @@ export default function ZoomPlayer({
   useEffect(() => {
     const mobileCheck = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const capCheck = (window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative;
-    setIsMobile(mobileCheck || capCheck);
+    const isMobileDevice = mobileCheck || capCheck;
+    setIsMobile(isMobileDevice);
 
-    if (mobileCheck || capCheck) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-          stream.getTracks().forEach(track => track.stop());
-          setPermissionsGranted(true);
-        })
-        .catch(err => {
-          console.warn("User or OS denied media permissions.", err);
-          setPermissionsGranted(true);
-        });
+    if (isMobileDevice) {
+      // CRITICAL FIX: Zoom WASM cannot initialize inside a nested iframe on Android WebView.
+      // Navigate the full window directly to the standalone zoom-mobile page instead.
+      const p = new URLSearchParams({
+        mn: meetingNumber,
+        name: userName,
+        email: userEmail,
+        pwd: password,
+        role: role.toString(),
+      });
+      window.location.href = "/zoom-mobile.html?v=23&" + p.toString();
     } else {
       setPermissionsGranted(true);
     }
@@ -120,6 +122,7 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
 
 
 
