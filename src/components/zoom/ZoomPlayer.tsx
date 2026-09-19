@@ -38,13 +38,7 @@ export default function ZoomPlayer({
     const isMobileDevice = mobileCheck || capCheck;
     setIsMobile(isMobileDevice);
 
-    if (isMobileDevice) {
-      // Direct full window navigation for mobile.
-      // This allows the mobile browser's native <meta viewport> to perfectly scale the 950px desktop UI.
-      window.location.href = "/zoom-mobile.html?v=54&" + params.toString();
-    } else {
-      setPermissionsGranted(true);
-    }
+    if (capCheck) { window.location.href = "/zoom-mobile-frame.html?v=140&" + params.toString(); } else if (mobileCheck) { window.location.href = "/zoom-mobile.html?v=55&" + params.toString(); } else { setPermissionsGranted(true); }
   }, []);
 
   useEffect(() => {
