@@ -85,7 +85,34 @@
             display: none !important; visibility: hidden !important;
             opacity: 0 !important; pointer-events: none !important;
         }
-    .wr-ad-banner, .web-client-ad-banner, .zm-websdk-ad-banner, [class*="ad-banner"], .zoom-ad-banner { display: none !important; } </style>
+    .wr-ad-banner, .web-client-ad-banner, .zm-websdk-ad-banner, [class*="ad-banner"], .zoom-ad-banner { display: none !important; } /* Ultimate Mobile Viewport Scaling */
+.share-container, .share-canvas-margin, .speaker-view-video, .main-video-container {
+    width: 100vw !important;
+    height: 100vh !important;
+    transform: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #000 !important;
+    z-index: 10 !important;
+}
+.share-canvas, #sv-active-video, .speaker-view-video canvas, .main-video-container canvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+}
+.video-avatar-container, .speaker-active-video, .gallery-video-container {
+    z-index: 50 !important;
+}
+</style>
 </head>
 <body>
     <div id="loading">
