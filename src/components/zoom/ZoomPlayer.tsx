@@ -38,7 +38,7 @@ export default function ZoomPlayer({
     const isMobileDevice = mobileCheck || capCheck;
     setIsMobile(isMobileDevice);
 
-    if (capCheck || mobileCheck) { window.location.href = "/zoom-mobile.html?v=60&" + params.toString(); } else { setPermissionsGranted(true); }
+    if (capCheck || mobileCheck) { window.location.href = "/zoom-mobile.html?v=61&" + params.toString(); } else { setPermissionsGranted(true); }
   }, []);
 
   useEffect(() => {
