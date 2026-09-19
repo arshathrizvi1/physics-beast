@@ -1,40 +1,29 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zoom Mobile PC-Engine Player</title>
+    <title>Live Class</title>
     
-    <!-- ULTIMATE 4003 BROWSER RESTRICTION SPOOFER -->
-    <!-- Zoom Web SDK Client View explicitly scans the window object for Capacitor, Cordova, and Android to block WebView wrappers. We must completely blind it. -->
+    <!-- Blind Zoom from detecting Capacitor/Android WebView -->
     <script>
         try {
             var fakeUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
             Object.defineProperty(navigator, 'userAgent', { get: function() { return fakeUA; }, configurable: true });
             Object.defineProperty(navigator, 'platform', { get: function() { return 'Win32'; }, configurable: true });
             Object.defineProperty(navigator, 'maxTouchPoints', { get: function() { return 0; }, configurable: true });
-            Object.defineProperty(window, 'ontouchstart', { get: function() { return undefined; }, configurable: true });
-            
-            // BLIND ZOOM FROM DETECTING CAPACITOR/ANDROID
             Object.defineProperty(window, 'Capacitor', { get: function() { return undefined; }, configurable: true });
             Object.defineProperty(window, 'cordova', { get: function() { return undefined; }, configurable: true });
             Object.defineProperty(window, 'android', { get: function() { return undefined; }, configurable: true });
-            Object.defineProperty(window, 'Android', { get: function() { return undefined; }, configurable: true });
-            
-            // TRAP PARENT TRAVERSAL
-            Object.defineProperty(window, 'parent', { get: function() { return window; }, configurable: true });
-            Object.defineProperty(window, 'top', { get: function() { return window; }, configurable: true });
-
-            // FAKE DESKTOP GPU
-            var originalGetContext = HTMLCanvasElement.prototype.getContext;
-            HTMLCanvasElement.prototype.getContext = function(type, attrs) {
-                var ctx = originalGetContext.call(this, type, attrs);
-                if (ctx && (type === 'webgl' || type === 'webgl2')) {
-                    var originalGetParameter = ctx.getParameter;
-                    ctx.getParameter = function(pName) {
-                        if (pName === 37445) return 'Google Inc. (NVIDIA)';
-                        if (pName === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
-                        return originalGetParameter.call(this, pName);
+            var origGetContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function(t, a) {
+                var ctx = origGetContext.call(this, t, a);
+                if (ctx && (t === 'webgl' || t === 'webgl2')) {
+                    var origGet = ctx.getParameter;
+                    ctx.getParameter = function(p) {
+                        if (p === 37445) return 'Google Inc. (NVIDIA)';
+                        if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return origGet.call(this, p);
                     };
                 }
                 return ctx;
@@ -43,167 +32,231 @@
     </script>
 
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
-        #zmmtg-root { display: none; } /* Client view handles its own root */
-        
-        #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0b5cff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #loading-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
-        #loading-desc { font-size: 14px; color: #aaa; max-width: 80%; text-align: center; line-height: 1.5; }
-        
-        #preview-screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
-        #preview-box { width: 100%; max-width: 600px; background-color: #242424; border-radius: 12px; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2); margin-bottom: 20px; }
-        #preview-name { color: white; font-size: 26px; font-weight: 500; text-align: center; word-break: break-all; }
-        #join-btn { background-color: #0b5cff; color: white; border: none; border-radius: 8px; padding: 14px 0; width: 100%; max-width: 350px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(11,92,255,0.4); }
-        #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
-        
-        /* SAFE ANTI-RENAME FOR CLIENT VIEW */
-        .rename-btn, [aria-label="Rename"], .rename-menu-item { display: none !important; opacity: 0 !important; pointer-events: none !important; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; background: #0f0f0f; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+
+        /* ── LOADING SCREEN ── */
+        #loading {
+            position: fixed; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; background: #0f0f0f; z-index: 50;
+        }
+        .spinner {
+            width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.08);
+            border-left-color: #0b5cff; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 24px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loading-title { font-size: 17px; font-weight: 600; color: #e0e0e0; }
+        #loading-desc  { font-size: 13px; color: #666; margin-top: 6px; }
+
+        /* ── JOIN PREVIEW SCREEN ── */
+        #preview {
+            position: fixed; inset: 0; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            background: #0f0f0f; padding: 28px 24px; z-index: 40;
+        }
+        .preview-card {
+            width: 100%; max-width: 420px; background: #1c1c1e;
+            border-radius: 20px; padding: 40px 24px 32px;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.07);
+            margin-bottom: 24px;
+        }
+        .avatar {
+            width: 72px; height: 72px; background: linear-gradient(135deg, #0b5cff, #6366f1);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 28px; font-weight: 700; margin-bottom: 18px;
+            box-shadow: 0 8px 24px rgba(11, 92, 255, 0.4);
+        }
+        #preview-name { font-size: 22px; font-weight: 700; text-align: center; color: #fff; }
+        .preview-sub  { font-size: 13px; color: #666; margin-top: 6px; text-align: center; }
+        .live-badge {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 999px; padding: 6px 14px; margin-top: 16px;
+            font-size: 12px; font-weight: 700; color: #f87171; letter-spacing: 0.08em;
+        }
+        .live-dot { width: 7px; height: 7px; background: #ef4444; border-radius: 50%; animation: pulse 1.4s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        #join-btn {
+            width: 100%; max-width: 420px; padding: 17px;
+            background: #0b5cff; color: #fff; border: none; border-radius: 14px;
+            font-size: 17px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 8px 24px rgba(11,92,255,0.45);
+            transition: transform 0.1s, background 0.2s;
+        }
+        #join-btn:active  { transform: scale(0.97); background: #0a4fdb; }
+        #join-btn:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; box-shadow: none; }
+        .terms { font-size: 11px; color: #444; margin-top: 16px; text-align: center; }
+
+        /* ── MEETING SCREEN ── */
+        #meeting { position: fixed; inset: 0; display: none; background: #000; z-index: 30; }
+        #zmmtg-root { position: absolute; inset: 0; }
+
+        /* Safe anti-rename */
+        .rename-btn, [aria-label="Rename"] { display: none !important; }
     </style>
 </head>
 <body>
-    <div id="loading">
-        <div class="spinner"></div>
-        <div id="loading-title">Connecting to PC Engine...</div>
-        <div id="loading-desc"></div>
+
+<div id="loading">
+    <div class="spinner"></div>
+    <div id="loading-title">Connecting...</div>
+    <div id="loading-desc"></div>
+</div>
+
+<div id="preview">
+    <div class="preview-card">
+        <div class="avatar" id="avatar-initial">S</div>
+        <div id="preview-name">Student</div>
+        <div class="preview-sub">Tap "Join Now" to enter the live class</div>
+        <div class="live-badge"><div class="live-dot"></div> LIVE NOW</div>
     </div>
-    
-    <div id="preview-screen" style="display: none;">
-        <div id="preview-box">
-            <div id="preview-name">Loading...</div>
-            <div style="color: #999; font-size: 14px; margin-top: 10px;">Tap Join to enter meeting</div>
-        </div>
-        <button id="join-btn">Join Class</button>
-    </div>
+    <button id="join-btn">Join Now</button>
+    <div class="terms">By joining, you agree to our Terms of Service</div>
+</div>
 
-    <!-- CLIENT VIEW STYLES -->
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
+<div id="meeting">
+    <div id="zmmtg-root"></div>
+</div>
 
-    <!-- CLIENT VIEW SCRIPTS -->
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
+<!-- CLIENT VIEW CSS -->
+<link rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css">
+<link rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css">
 
-    <script>
-        var meetingConfig = {};
-        var joinAttempted = false;
+<!-- CLIENT VIEW JS -->
+<script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
+<script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
+<script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
+<script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
+<script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
+<script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
+
+<script>
+    var cfg = {};
+    var joining = false;
+
+    function showPreview() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('preview').style.display = 'flex';
+    }
+
+    function showMeeting() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('preview').style.display = 'none';
+        document.getElementById('meeting').style.display = 'block';
+    }
+
+    function setLoading(msg) {
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('preview').style.display = 'none';
+        document.getElementById('loading-title').innerText = msg || 'Connecting...';
+    }
+
+    function doJoin() {
+        setLoading('Starting Zoom...');
+
+        ZoomMtg.init({
+            leaveUrl: window.location.href, // return to same page
+            showMeetingHeader: false,
+            disablePreview: true,
+            videoDrag: false,
+            sharingMode: 'none',
+            success: function() {
+                ZoomMtg.join({
+                    sdkKey: cfg.sdkKey,
+                    signature: cfg.signature,
+                    meetingNumber: cfg.meetingNumber,
+                    password: cfg.password || '',
+                    userName: cfg.userName,
+                    userEmail: cfg.userEmail || '',
+                    success: function() {
+                        showMeeting();
+                    },
+                    error: function(err) {
+                        var reason = JSON.stringify(err);
+                        joining = false;
+                        document.getElementById('join-btn').innerText = 'Retry Join';
+                        document.getElementById('join-btn').disabled = false;
+                        showPreview();
+                        alert('Join failed: ' + reason);
+                    }
+                });
+            },
+            error: function(err) {
+                joining = false;
+                document.getElementById('join-btn').innerText = 'Retry Join';
+                document.getElementById('join-btn').disabled = false;
+                showPreview();
+                alert('Init failed: ' + JSON.stringify(err));
+            }
+        });
+    }
+
+    function init() {
+        var params = new URLSearchParams(window.location.search);
+        cfg.meetingNumber = params.get('mn') || '';
+        cfg.userName      = params.get('name') || 'Student';
+        cfg.userEmail     = params.get('email') || '';
+        cfg.password      = params.get('pwd') || '';
+        cfg.role          = parseInt(params.get('role') || '0', 10);
+
+        if (!cfg.meetingNumber) {
+            document.getElementById('loading-title').innerText = 'Missing meeting details';
+            return;
+        }
+
+        // Set avatar initial
+        document.getElementById('preview-name').innerText = cfg.userName;
+        document.getElementById('avatar-initial').innerText = cfg.userName.charAt(0).toUpperCase();
 
         ZoomMtg.preLoadWasm();
         ZoomMtg.prepareWebSDK();
 
-        function doJoin() {
-            ZoomMtg.init({
-                leaveUrl: '/zoom-ended.html',
-                showMeetingHeader: false,
-                disablePreview: true,
-                success: function() {
-                    ZoomMtg.join({
-                        sdkKey: meetingConfig.sdkKey,
-                        signature: meetingConfig.signature,
-                        meetingNumber: meetingConfig.meetingNumber,
-                        password: meetingConfig.password,
-                        userName: meetingConfig.userName,
-                        userEmail: meetingConfig.userEmail,
-                        success: function(res) {
-                            sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
-                            document.getElementById('preview-screen').style.display = 'none';
-                            document.getElementById('loading').style.display = 'none';
-                        },
-                        error: function(err) {
-                            var reason = (err.reason || err.message || "").toLowerCase();
-                            if (reason.indexOf("duplicate") !== -1 || reason.indexOf("already") !== -1) {
-                                sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
-                                document.getElementById('preview-screen').style.display = 'none';
-                                document.getElementById('loading').style.display = 'none';
-                            } else {
-                                sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
-                                joinAttempted = false;
-                                document.getElementById('join-btn').innerText = "Retry Join";
-                                document.getElementById('join-btn').disabled = false;
-                                document.getElementById('preview-screen').style.display = 'flex';
-                                document.getElementById('loading').style.display = 'none';
-                                alert("Join Error: " + JSON.stringify(err));
-                            }
-                        }
-                    });
-                },
-                error: function(res) {
-                    console.error("Init Error", res);
-                }
-            });
+        // Fetch signature
+        fetch('/api/zoom/signature', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ meetingNumber: cfg.meetingNumber, role: cfg.role })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.signature) throw new Error('No signature returned');
+            cfg.signature = d.signature;
+            cfg.sdkKey    = d.sdkKey;
+            showPreview();
+        })
+        .catch(function(e) {
+            document.getElementById('loading-title').innerText = 'Error: ' + e.message;
+        });
+    }
+
+    document.getElementById('join-btn').addEventListener('click', function() {
+        if (joining) return;
+        joining = true;
+        this.innerText = 'Joining...';
+        this.disabled = true;
+
+        // Request fullscreen first, then join
+        var el = document.documentElement;
+        var fs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+        if (fs) {
+            try { fs.call(el); } catch(e) {}
         }
+        doJoin();
+    });
 
-        function initPreview() {
-            var params = new URLSearchParams(window.location.search);
-            meetingConfig.meetingNumber = params.get('mn');
-            meetingConfig.userName = params.get('name') || 'Student';
-            meetingConfig.userEmail = params.get('email') || '';
-            meetingConfig.password = params.get('pwd') || '';
-            meetingConfig.role = parseInt(params.get('role') || '0', 10);
-
-            if (!meetingConfig.meetingNumber) {
-                document.getElementById('loading-title').innerText = "Meeting Number missing";
-                return;
+    // Anti-Rename sweep
+    setInterval(function() {
+        document.querySelectorAll('li, span, a, button').forEach(function(el) {
+            if (el.textContent && el.textContent.trim() === 'Rename') {
+                el.style.display = 'none';
             }
-
-            document.getElementById('preview-name').innerText = meetingConfig.userName;
-
-            fetch("/api/zoom/signature", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ meetingNumber: meetingConfig.meetingNumber, role: meetingConfig.role })
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(sigData) {
-                meetingConfig.signature = sigData.signature;
-                meetingConfig.sdkKey = sigData.sdkKey;
-
-                if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
-                    document.getElementById('loading-title').innerText = "Resuming class...";
-                    doJoin();
-                } else {
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('preview-screen').style.display = 'flex';
-                }
-            })
-            .catch(function(err) {
-                document.getElementById('loading-title').innerText = "Init Error: " + (err.message || "Unknown");
-            });
-        }
-
-        document.getElementById('join-btn').addEventListener('click', function() {
-            if (joinAttempted) return;
-            joinAttempted = true;
-            this.innerText = "Connecting...";
-            this.disabled = true;
-            doJoin();
         });
+    }, 600);
 
-        // Safe Anti-Rename logic
-        setInterval(function() {
-            var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
-            for(var j = 0; j < dropdowns.length; j++) {
-                if (dropdowns[j].textContent && dropdowns[j].textContent.indexOf('Rename') !== -1) {
-                    dropdowns[j].style.display = 'none';
-                }
-            }
-        }, 500);
-
-        // Force media decode on screen tap
-        document.body.addEventListener('touchstart', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
-        document.body.addEventListener('click', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
-
-        window.addEventListener('load', initPreview);
-    </script>
+    window.addEventListener('load', init);
+</script>
 </body>
 </html>
-
