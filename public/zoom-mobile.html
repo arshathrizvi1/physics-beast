@@ -7,12 +7,26 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
         
-        /* zmmtg-root MUST NOT use vw/vh or it corrupts WebGL canvas context on mobile! */
-        #zmmtg-root { position: absolute; top: 0; left: 0; z-index: 1; }
+        /* CUSTOM ACTIVE MEETING HEADER */
+        #custom-header {
+            position: absolute; top: 0; left: 0; width: 100%; height: 60px; background-color: #242424;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
+            z-index: 500; border-bottom: 1px solid #333; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: none;
+        }
+        #custom-title { color: white; font-size: 16px; font-weight: 600; }
+        #custom-status { color: #4ade80; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+        .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+
+        /* NATIVE ZOOM RESPONSIVE ROOT */
+        #zmmtg-root { 
+            position: absolute; top: 60px; left: 0; 
+            width: 100%; height: calc(100% - 60px); 
+            z-index: 1; background-color: transparent; 
+        }
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0b5cff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #loading-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
         #loading-desc { font-size: 14px; color: #aaa; max-width: 80%; text-align: center; line-height: 1.5; }
         
@@ -38,8 +52,14 @@
             <div id="preview-desc">Ready to join meeting</div>
         </div>
         <div class="terms-text">By clicking "Join", you agree to our Terms of Service.</div>
-        <button id="join-btn">Join</button>
+        <button id="join-btn">Join Class</button>
         <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
+    </div>
+
+    <!-- CUSTOM HEADER TO PROVE CONNECTION IS ACTIVE -->
+    <div id="custom-header">
+        <div id="custom-title">Live Class</div>
+        <div id="custom-status"><div class="pulse-dot"></div> Connected</div>
     </div>
 
     <!-- MAIN ZOOM CONTAINER -->
@@ -50,22 +70,12 @@
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <!-- USING COMPONENT VIEW TO BYPASS 4003 -->
     <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
 
     <script>
         var client;
         var meetingConfig = {};
         var joinAttempted = false;
-
-        function setExactCanvasDimensions() {
-            var w = window.innerWidth;
-            var h = window.innerHeight;
-            var root = document.getElementById('zmmtg-root');
-            root.style.width = w + 'px';
-            root.style.height = h + 'px';
-            return { w: w, h: h };
-        }
 
         async function doJoin() {
             try {
@@ -79,21 +89,12 @@
                 });
                 
                 sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                
+                // Show Custom Header to prove we are fully logged in
+                document.getElementById('custom-header').style.display = 'flex';
                 document.getElementById('preview-screen').style.display = 'none';
                 document.getElementById('loading').style.display = 'none';
                 
-                window.addEventListener('resize', function() {
-                    if (client) {
-                        try {
-                            var dims = setExactCanvasDimensions();
-                            client.updateVideoViewSizes({
-                                default: { width: dims.w, height: dims.h },
-                                ribbon: { width: dims.w, height: dims.h }
-                            });
-                        } catch(e) {}
-                    }
-                });
-
                 client.on('connection-change', function(payload) {
                     if (payload.state === 'Closed') { 
                         sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
@@ -105,6 +106,7 @@
                 var reason = (err.reason || err.message || "").toLowerCase();
                 if (reason.indexOf("duplicate") !== -1) {
                     sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                    document.getElementById('custom-header').style.display = 'flex';
                     document.getElementById('preview-screen').style.display = 'none';
                     document.getElementById('loading').style.display = 'none';
                 } else {
@@ -145,16 +147,12 @@
 
                 client = window.ZoomMtgEmbedded.createClient();
                 var container = document.getElementById('zmmtg-root');
-                var dims = setExactCanvasDimensions();
 
+                // Let Zoom automatically handle responsive sizing (no explicit viewSizes passed)
                 await client.init({
                     zoomAppRoot: container,
                     language: 'en-US',
                     customize: {
-                        video: {
-                            isResizable: true,
-                            viewSizes: { default: { width: dims.w, height: dims.h }, ribbon: { width: dims.w, height: dims.h } }
-                        },
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
                         toolbar: {
                             buttons: [
@@ -210,14 +208,6 @@
                 }
             }
         }, 500);
-
-        // Force native video decoding on screen tap to cure black screen OS locks
-        document.body.addEventListener('touchstart', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
-        document.body.addEventListener('click', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
 
         window.addEventListener('load', initPreview);
     </script>
