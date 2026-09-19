@@ -174,7 +174,7 @@
             if (!document.getElementById('anti-rename-style')) {
                 var style = document.createElement('style');
                 style.id = 'anti-rename-style';
-                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper {  display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; } .share-container, .share-canvas-margin, .zm-layout-viewer-content, .speaker-view-video { width: 100% !important; height: 100% !important; } canvas { width: 100% !important; height: 100% !important; object-fit: contain !important; }';
+                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper {  display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
                 document.head.appendChild(style);
             }
             var elements = document.querySelectorAll('.meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
@@ -213,6 +213,43 @@
     document.addEventListener('mousemove', wakeToolbar, {passive: true});
     document.addEventListener('click', wakeToolbar, {passive: true});
     toolbarTimeout = setTimeout(hideToolbar, 2000);
+</script>
+<script>
+    // Ultimate Mobile Layout Engine
+    setInterval(function() {
+        var shareCanvas = document.querySelector('.share-canvas, canvas#share-canvas, .share-container canvas');
+        var speakerVideo = document.querySelector('.speaker-view-video, .zm-layout-viewer-video-container, .main-video-container, .video-avatar-container');
+        
+        if (shareCanvas && shareCanvas.style.display !== 'none') {
+            if (speakerVideo) speakerVideo.style.setProperty('display', 'none', 'important');
+            
+            var p = shareCanvas.parentElement;
+            if (p) {
+                p.style.setProperty('width', '100vw', 'important');
+                p.style.setProperty('height', '100vh', 'important');
+                p.style.setProperty('transform', 'none', 'important');
+                p.style.setProperty('left', '0', 'important');
+                p.style.setProperty('top', '0', 'important');
+            }
+            shareCanvas.style.setProperty('width', '100vw', 'important');
+            shareCanvas.style.setProperty('height', '100vh', 'important');
+            shareCanvas.style.setProperty('object-fit', 'contain', 'important');
+        } else if (speakerVideo) {
+            speakerVideo.style.setProperty('display', 'block', 'important');
+            speakerVideo.style.setProperty('width', '100vw', 'important');
+            speakerVideo.style.setProperty('height', '100vh', 'important');
+            speakerVideo.style.setProperty('transform', 'none', 'important');
+            speakerVideo.style.setProperty('left', '0', 'important');
+            speakerVideo.style.setProperty('top', '0', 'important');
+            
+            var vidCanvas = speakerVideo.querySelector('canvas');
+            if (vidCanvas) {
+                vidCanvas.style.setProperty('width', '100vw', 'important');
+                vidCanvas.style.setProperty('height', '100vh', 'important');
+                vidCanvas.style.setProperty('object-fit', 'contain', 'important');
+            }
+        }
+    }, 500);
 </script>
 </body>
 </html>
