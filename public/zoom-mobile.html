@@ -7,7 +7,6 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
         
-        /* CUSTOM ACTIVE MEETING HEADER */
         #custom-header {
             position: absolute; top: 0; left: 0; width: 100%; height: 60px; background-color: #242424;
             display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
@@ -18,11 +17,9 @@
         .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
 
-        /* NATIVE ZOOM RESPONSIVE ROOT */
+        /* The root will be dynamically scaled via JS */
         #zmmtg-root { 
-            position: absolute; top: 60px; left: 0; 
-            width: 100%; height: calc(100% - 60px); 
-            z-index: 1; background-color: transparent; 
+            position: absolute; z-index: 1; background-color: transparent; 
         }
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
@@ -56,7 +53,7 @@
         <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
     </div>
 
-    <!-- CUSTOM HEADER TO PROVE CONNECTION IS ACTIVE -->
+    <!-- CUSTOM HEADER -->
     <div id="custom-header">
         <div id="custom-title">Live Class</div>
         <div id="custom-status"><div class="pulse-dot"></div> Connected</div>
@@ -76,6 +73,35 @@
         var client;
         var meetingConfig = {};
         var joinAttempted = false;
+        
+        // VIRTUAL DESKTOP RESOLUTION TO BYPASS ZOOM'S 600px MINIMUM WIDTH RESTRICTION
+        var VIRTUAL_WIDTH = 1280;
+        var VIRTUAL_HEIGHT = 720;
+
+        function scaleZoomToFitScreen() {
+            var screenW = window.innerWidth;
+            var screenH = window.innerHeight - 60; // Subtract 60px for custom header
+            
+            // Calculate scale to fit entirely within the screen (letterbox)
+            var scale = Math.min(screenW / VIRTUAL_WIDTH, screenH / VIRTUAL_HEIGHT);
+            
+            var root = document.getElementById('zmmtg-root');
+            root.style.width = VIRTUAL_WIDTH + 'px';
+            root.style.height = VIRTUAL_HEIGHT + 'px';
+            root.style.transformOrigin = 'top left';
+            root.style.transform = 'scale(' + scale + ')';
+            
+            // Center the virtual canvas horizontally and vertically
+            var scaledW = VIRTUAL_WIDTH * scale;
+            var scaledH = VIRTUAL_HEIGHT * scale;
+            var offsetX = (screenW - scaledW) / 2;
+            var offsetY = ((screenH - scaledH) / 2) + 60;
+            
+            root.style.left = offsetX + 'px';
+            root.style.top = offsetY + 'px';
+        }
+
+        window.addEventListener('resize', scaleZoomToFitScreen);
 
         async function doJoin() {
             try {
@@ -90,7 +116,6 @@
                 
                 sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
                 
-                // Show Custom Header to prove we are fully logged in
                 document.getElementById('custom-header').style.display = 'flex';
                 document.getElementById('preview-screen').style.display = 'none';
                 document.getElementById('loading').style.display = 'none';
@@ -101,6 +126,11 @@
                         window.location.href = '/zoom-ended.html'; 
                     }
                 });
+
+                // Auto-trigger video decoder bypass
+                setTimeout(function() {
+                    document.querySelectorAll('video, audio, canvas').forEach(function(el) { try{ el.play(); }catch(e){} });
+                }, 2000);
 
             } catch (err) {
                 var reason = (err.reason || err.message || "").toLowerCase();
@@ -147,12 +177,21 @@
 
                 client = window.ZoomMtgEmbedded.createClient();
                 var container = document.getElementById('zmmtg-root');
+                
+                scaleZoomToFitScreen();
 
-                // Let Zoom automatically handle responsive sizing (no explicit viewSizes passed)
+                // WE MUST PASS viewSizes OR COMPONENT VIEW CRASHES ON INIT!
                 await client.init({
                     zoomAppRoot: container,
                     language: 'en-US',
                     customize: {
+                        video: {
+                            isResizable: false,
+                            viewSizes: {
+                                default: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
+                                ribbon: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }
+                            }
+                        },
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
                         toolbar: {
                             buttons: [
@@ -192,7 +231,7 @@
             doJoin();
         });
 
-        // Anti-Rename and Anti-Participants enforcement
+        // Anti-Rename logic
         setInterval(function() {
             if (!document.getElementById('anti-rename-style')) {
                 var style = document.createElement('style');
@@ -208,6 +247,14 @@
                 }
             }
         }, 500);
+
+        // Force media decode on screen tap
+        document.body.addEventListener('touchstart', function() {
+            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
+        });
+        document.body.addEventListener('click', function() {
+            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
+        });
 
         window.addEventListener('load', initPreview);
     </script>
