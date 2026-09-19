@@ -216,55 +216,98 @@
 </script>
 
 <script>
-    // Ultimate Mobile Layout Engine V4
+    // Ultimate Mobile Layout Engine V5
     setInterval(function() {
         var canvases = document.querySelectorAll('canvas');
+        var shareCanvas = null;
+        var hostCanvas = null;
+        
         canvases.forEach(function(c) {
-            // Only target large canvases to avoid breaking the tiny floating host profile (which is usually < 200px)
-            if (c.width > 200 || c.height > 200) {
-                c.style.setProperty('width', '100vw', 'important');
-                c.style.setProperty('height', '100vh', 'important');
-                c.style.setProperty('object-fit', 'contain', 'important');
-                c.style.setProperty('transform', 'none', 'important'); // CRITICAL: Strip Zoom's secret zoom scale multiplier
-                c.style.setProperty('position', 'fixed', 'important');
-                c.style.setProperty('top', '0', 'important');
-                c.style.setProperty('left', '0', 'important');
-                c.style.setProperty('z-index', '10', 'important');
-                c.style.setProperty('margin', '0', 'important');
-                c.style.setProperty('padding', '0', 'important');
-                
-                var p = c.parentElement;
-                if (p) {
-                    p.style.setProperty('transform', 'none', 'important');
-                    p.style.setProperty('position', 'fixed', 'important');
-                    p.style.setProperty('top', '0', 'important');
-                    p.style.setProperty('left', '0', 'important');
-                    p.style.setProperty('width', '100vw', 'important');
-                    p.style.setProperty('height', '100vh', 'important');
-                    p.style.setProperty('margin', '0', 'important');
-                    p.style.setProperty('padding', '0', 'important');
-                }
+            var str = (c.className + " " + c.id + " " + (c.parentElement ? c.parentElement.className + " " + c.parentElement.id : "")).toLowerCase();
+            if (str.includes('share')) {
+                shareCanvas = c;
             } else {
-                // This is the tiny floating host profile
-                var p = c.parentElement;
-                if (p) {
-                    p.style.setProperty('z-index', '50', 'important');
-                }
+                hostCanvas = c;
             }
         });
         
-        // Hide the side-by-side gray speaker box if screensharing is active
-        var isSharing = false;
-        canvases.forEach(function(c) {
-            if (c.width > 200 && (c.className.includes('share') || (c.parentElement && c.parentElement.className.includes('share')))) {
-                isSharing = true;
-            }
-        });
-        if (isSharing) {
-            var sv = document.querySelectorAll('.speaker-view-video, .zm-layout-viewer-video-container');
-            sv.forEach(function(el) { el.style.setProperty('display', 'none', 'important'); });
+        if (canvases.length === 1) {
+            shareCanvas = canvases[0];
+            hostCanvas = null;
         }
-    }, 500);
+
+        if (shareCanvas) {
+            shareCanvas.style.setProperty('width', '100vw', 'important');
+            shareCanvas.style.setProperty('height', '100vh', 'important');
+            shareCanvas.style.setProperty('object-fit', 'contain', 'important');
+            shareCanvas.style.setProperty('transform', 'none', 'important'); 
+            shareCanvas.style.setProperty('position', 'fixed', 'important');
+            shareCanvas.style.setProperty('top', '0', 'important');
+            shareCanvas.style.setProperty('left', '0', 'important');
+            shareCanvas.style.setProperty('z-index', '10', 'important');
+            
+            var p = shareCanvas.parentElement;
+            if (p) {
+                p.style.setProperty('width', '100vw', 'important');
+                p.style.setProperty('height', '100vh', 'important');
+                p.style.setProperty('transform', 'none', 'important');
+                p.style.setProperty('position', 'fixed', 'important');
+                p.style.setProperty('top', '0', 'important');
+                p.style.setProperty('left', '0', 'important');
+                p.style.setProperty('z-index', '10', 'important');
+            }
+        }
+        
+        if (hostCanvas && shareCanvas) {
+            hostCanvas.style.setProperty('width', '150px', 'important');
+            hostCanvas.style.setProperty('height', '100px', 'important');
+            hostCanvas.style.setProperty('object-fit', 'cover', 'important');
+            hostCanvas.style.setProperty('transform', 'none', 'important');
+            hostCanvas.style.setProperty('position', 'fixed', 'important');
+            hostCanvas.style.setProperty('top', '20px', 'important');
+            hostCanvas.style.setProperty('right', '20px', 'important');
+            hostCanvas.style.setProperty('left', 'auto', 'important');
+            hostCanvas.style.setProperty('bottom', 'auto', 'important');
+            hostCanvas.style.setProperty('z-index', '50', 'important');
+            hostCanvas.style.setProperty('border-radius', '8px', 'important');
+            
+            var hp = hostCanvas.parentElement;
+            if (hp) {
+                hp.style.setProperty('width', '150px', 'important');
+                hp.style.setProperty('height', '100px', 'important');
+                hp.style.setProperty('transform', 'none', 'important');
+                hp.style.setProperty('position', 'fixed', 'important');
+                hp.style.setProperty('top', '20px', 'important');
+                hp.style.setProperty('right', '20px', 'important');
+                hp.style.setProperty('left', 'auto', 'important');
+                hp.style.setProperty('bottom', 'auto', 'important');
+                hp.style.setProperty('z-index', '50', 'important');
+                hp.style.setProperty('border-radius', '8px', 'important');
+                hp.style.setProperty('overflow', 'hidden', 'important');
+                hp.style.setProperty('background', '#000', 'important');
+            }
+        } else if (hostCanvas && !shareCanvas) {
+            hostCanvas.style.setProperty('width', '100vw', 'important');
+            hostCanvas.style.setProperty('height', '100vh', 'important');
+            hostCanvas.style.setProperty('object-fit', 'contain', 'important');
+            hostCanvas.style.setProperty('transform', 'none', 'important'); 
+            hostCanvas.style.setProperty('position', 'fixed', 'important');
+            hostCanvas.style.setProperty('top', '0', 'important');
+            hostCanvas.style.setProperty('left', '0', 'important');
+            hostCanvas.style.setProperty('z-index', '10', 'important');
+            
+            var hp = hostCanvas.parentElement;
+            if (hp) {
+                hp.style.setProperty('width', '100vw', 'important');
+                hp.style.setProperty('height', '100vh', 'important');
+                hp.style.setProperty('transform', 'none', 'important');
+                hp.style.setProperty('position', 'fixed', 'important');
+                hp.style.setProperty('top', '0', 'important');
+                hp.style.setProperty('left', '0', 'important');
+                hp.style.setProperty('z-index', '10', 'important');
+            }
+        }
+    }, 200);
 </script>
 </body>
 </html>
