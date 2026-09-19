@@ -91,7 +91,7 @@
         
     
         /* Force hide the Zoom Meeting Header and Info Buttons */
-        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'], [aria-label='Participants'], .zm-btn__participants, .rename-btn, [aria-label='Rename'] {
+        .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'], [aria-label='Participants'], .zm-btn__participants, .rename-btn, [aria-label='Rename'] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -197,7 +197,7 @@
                 style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper {  display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
                 document.head.appendChild(style);
             }
-            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
+            const elements = document.querySelectorAll('.meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
             elements.forEach(el => el.remove());
             const dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
             dropdowns.forEach(el => {
