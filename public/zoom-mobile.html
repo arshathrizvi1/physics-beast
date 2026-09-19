@@ -3,123 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zoom Mobile Web Player</title>
+    <title>Zoom Mobile Player</title>
     
-    <script>
-        try {
-            const fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-            Object.defineProperty(navigator, 'userAgent', { get: () => fakeUserAgent, configurable: true });
-            Object.defineProperty(navigator, 'platform', { get: () => 'Win32', configurable: true });
-            Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
-            if (navigator.userAgentData) {
-                Object.defineProperty(navigator, 'userAgentData', {
-                    get: () => ({ brands: [{brand: "Google Chrome", version: "120"}], mobile: false, platform: "Windows" }),
-                    configurable: true
-                });
-            }
-            window.ontouchstart = undefined;
-            window.TouchEvent = undefined;
-            const spoofWebGL = (context) => {
-                if (context && context.prototype && context.prototype.getParameter) {
-                    const originalGetParameter = context.prototype.getParameter;
-                    context.prototype.getParameter = function(parameter) {
-                        if (parameter === 37445) return 'Google Inc. (NVIDIA)';
-                        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
-                        return originalGetParameter.apply(this, arguments);
-                    };
-                }
-            };
-            spoofWebGL(window.WebGLRenderingContext);
-            spoofWebGL(window.WebGL2RenderingContext);
-        } catch (e) {}
-    </script>
-    
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
-        #zmmtg-root { display: none; }
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 50; width: 80%; text-align: center; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #ffffff; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        #zmmtg-root { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0b5cff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #loading-text { margin-bottom: 8px; font-weight: 500; font-size: 16px; }
-        #loading-subtext { font-size: 13px; color: #aaa; }
-        .progress-bar { width: 100%; max-width: 250px; height: 4px; background: #333; border-radius: 2px; margin-top: 15px; overflow: hidden; }
-        #progress-fill { width: 0%; height: 100%; background: #0b5cff; transition: width 0.3s; }
+        #loading-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        #loading-desc { font-size: 14px; color: #aaa; max-width: 80%; text-align: center; line-height: 1.5; }
+        #error-box { display: none; background: #3f1010; border: 1px solid #ff4d4f; padding: 20px; border-radius: 8px; max-width: 80%; text-align: center; margin-top: 20px; }
+        
+        /* HIDDEN UI FOR PC PARITY */
         #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] { display: none !important; visibility: hidden !important; }
         [aria-label="Participants"], .zm-btn__participants, .rename-btn { display: none !important; }
     </style>
+
+    <!-- FAKE PC SIGNATURE (MUST BE VERY CAREFUL NOT TO CRASH OLD WEBVIEWS) -->
+    <script>
+        window.onerror = function(msg, url, line) {
+            document.getElementById('loading-title').innerText = "System Crash";
+            document.getElementById('loading-desc').innerText = "Error on line " + line + ": " + msg;
+            document.getElementById('loading-desc').style.color = "#ff4d4f";
+        };
+
+        try {
+            var fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            if (Object.defineProperty) {
+                Object.defineProperty(navigator, 'userAgent', { get: function() { return fakeUserAgent; }, configurable: true });
+                Object.defineProperty(navigator, 'platform', { get: function() { return 'Win32'; }, configurable: true });
+            }
+        } catch(e) {}
+    </script>
 </head>
 <body>
     <div id="loading">
-        <div class="spinner" id="spinner-icon"></div>
-        <div id="loading-text">Preparing Application...</div>
-        <div id="loading-subtext">Initializing setup...</div>
-        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <div class="spinner"></div>
+        <div id="loading-title">System Booting...</div>
+        <div id="loading-desc">Downloading 10MB Video Engine. Please leave the app open for up to 30 seconds.</div>
+        <div id="error-box"></div>
     </div>
-    
+
     <div id="zmmtg-root"></div>
 
+    <!-- LOAD SCRIPTS SYNCHRONOUSLY SO BROWSER HANDLES IT NATIVELY -->
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/3.8.0/zoom-meeting-3.8.0.min.js"></script>
+
     <script>
-        function updateStatus(main, sub, percent) {
-            document.getElementById('loading-text').innerText = main;
-            if (sub) document.getElementById('loading-subtext').innerText = sub;
-            if (percent !== undefined) document.getElementById('progress-fill').style.width = percent + "%";
+        function showError(msg) {
+            var el = document.getElementById('error-box');
+            el.style.display = 'block';
+            el.innerHTML = '<b style="color:#ff4d4f">Error:</b><br/>' + msg;
+            document.getElementById('loading-title').innerText = "Connection Failed";
         }
 
-        async function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = resolve;
-                script.onerror = () => reject(new Error("Failed to load: " + src));
-                document.body.appendChild(script);
-            });
-        }
-
-        async function bootstrap() {
+        async function initApp() {
             try {
-                updateStatus("Downloading PC Engine (1/2)", "Please wait, downloading core libraries...", 10);
-                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/react.min.js");
-                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js");
-                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/redux.min.js");
-                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js");
-                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js");
-                
-                updateStatus("Downloading PC Engine (2/2)", "Downloading main Zoom engine (approx. 10MB)...", 40);
-                await loadScript("https://source.zoom.us/3.8.0/zoom-meeting-3.8.0.min.js");
-
-                updateStatus("Reading configuration...", "Validating meeting details", 60);
-                const params = new URLSearchParams(window.location.search);
-                const meetingNumber = params.get('mn');
-                const userName = params.get('name') || 'Student';
-                const userEmail = params.get('email') || '';
-                const password = params.get('pwd') || '';
-                const role = parseInt(params.get('role') || '0', 10);
-
-                if (!meetingNumber) throw new Error("Meeting Number missing from URL.");
+                document.getElementById('loading-title').innerText = "Authenticating...";
+                document.getElementById('loading-desc').innerText = "Verifying secure class credentials.";
 
                 if (!window.ZoomMtg) {
-                    throw new Error("Zoom engine failed to initialize correctly.");
+                    throw new Error("Zoom Video Engine failed to download. Check your internet connection.");
                 }
 
-                updateStatus("Preloading HD Video Engine", "Unpacking WebAssembly components...", 70);
+                var params = new URLSearchParams(window.location.search);
+                var meetingNumber = params.get('mn');
+                var userName = params.get('name') || 'Student';
+                var userEmail = params.get('email') || '';
+                var password = params.get('pwd') || '';
+                var role = parseInt(params.get('role') || '0', 10);
+
+                if (!meetingNumber) throw new Error("Missing Class ID.");
+
                 window.ZoomMtg.setZoomJSLib('https://source.zoom.us/3.8.0/lib', '/av');
                 window.ZoomMtg.preLoadWasm();
                 window.ZoomMtg.prepareWebSDK();
 
-                updateStatus("Authenticating...", "Fetching secure signature from server...", 80);
-                const sigRes = await fetch("/api/zoom/signature", {
+                var res = await fetch("/api/zoom/signature", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ meetingNumber, role }),
+                    body: JSON.stringify({ meetingNumber: meetingNumber, role: role }),
                 });
-                const sigData = await sigRes.json();
-                if (!sigRes.ok) throw new Error(sigData.error || "Signature failed");
+                var sigData = await res.json();
+                if (!res.ok) throw new Error(sigData.error || "Signature validation failed.");
 
-                updateStatus("Starting Class...", "Entering the meeting room", 95);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('zmmtg-root').style.display = 'block';
+                document.getElementById('loading-title').innerText = "Entering Class...";
+                document.getElementById('loading-desc').innerText = "Starting video decoder.";
 
                 window.ZoomMtg.init({
                     leaveUrl: window.location.origin + '/zoom-ended.html',
@@ -136,42 +111,37 @@
                             passWord: password,
                             userName: userName,
                             userEmail: userEmail,
-                            success: function (res) {
-                                console.log('Successfully joined Zoom meeting');
+                            success: function () {
+                                document.getElementById('loading').style.display = 'none';
+                                document.getElementById('zmmtg-root').style.display = 'block';
                             },
-                            error: function (res) {
-                                console.error('Join error', res);
-                                alert("Failed to join meeting: " + JSON.stringify(res));
+                            error: function (e) {
+                                var reason = (e.reason || e.message || "").toLowerCase();
+                                if (reason.indexOf("duplicate") !== -1) {
+                                    document.getElementById('loading').style.display = 'none';
+                                    document.getElementById('zmmtg-root').style.display = 'block';
+                                } else {
+                                    showError("Join rejected by server: " + JSON.stringify(e));
+                                }
                             }
                         });
                     },
-                    error: function (res) {
-                        console.error('Init error', res);
-                        alert("Failed to initialize Zoom: " + JSON.stringify(res));
+                    error: function (e) {
+                        showError("Video Engine failed to start: " + JSON.stringify(e));
                     }
                 });
 
-            } catch (error) {
-                console.error("Bootstrap failed:", error);
-                document.getElementById('spinner-icon').style.display = 'none';
-                document.getElementById('loading-subtext').style.display = 'none';
-                document.querySelector('.progress-bar').style.display = 'none';
-                document.getElementById('loading-text').innerHTML = 
-                    <div style="color: #f87171; text-align: center; background: #2a0000; padding: 20px; border-radius: 8px;">
-                        <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 18px;">Network Error</h3>
-                        <p style="font-size: 14px; margin: 0; color: #ffb3b3;"></p>
-                        <p style="font-size: 12px; margin-top: 15px; color: #888;">Please check your internet connection or reload the app.</p>
-                    </div>
-                ;
+            } catch(err) {
+                showError(err.message);
             }
         }
 
-        // Start the dynamic script loading sequence
-        bootstrap();
+        // Fire instantly when scripts are done loading
+        initApp();
         
-        setInterval(() => {
-            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn');
-            elements.forEach(el => el.remove());
+        setInterval(function() {
+            var els = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn');
+            for(var i = 0; i < els.length; i++) els[i].remove();
         }, 500);
     </script>
 </body>
