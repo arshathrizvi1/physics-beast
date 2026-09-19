@@ -139,10 +139,25 @@
         // Fire instantly when scripts are done loading
         initApp();
         
-        setInterval(function() {
+                setInterval(function() {
+            if (!document.getElementById('anti-rename-style')) {
+                var style = document.createElement('style');
+                style.id = 'anti-rename-style';
+                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper, .zm-layout-viewer-right-content { display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
+                document.head.appendChild(style);
+            }
             var els = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn');
             for(var i = 0; i < els.length; i++) els[i].remove();
+            
+            var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
+            for(var j = 0; j < dropdowns.length; j++) {
+                if (dropdowns[j].textContent && dropdowns[j].textContent.indexOf('Rename') !== -1) {
+                    dropdowns[j].style.display = 'none';
+                    dropdowns[j].remove();
+                }
+            }
         }, 500);
     </script>
 </body>
 </html>
+

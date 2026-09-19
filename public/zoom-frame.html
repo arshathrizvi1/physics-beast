@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zoom Meeting</title>
     <!-- ULTIMATE NATIVE ENVIRONMENT SPOOFER to bypass Zoom 4003 Browser Restrictions -->
-    <script>
+        <script>
         try {
             const fakeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
             
@@ -18,7 +18,7 @@
             // 3. Spoof Touch Points (Zoom checks this to detect mobile devices)
             Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
             
-            // 4. Spoof UserAgentData Client Hints (Modern detection method)
+            // 4. Spoof UserAgentData Client Hints
             if (navigator.userAgentData) {
                 Object.defineProperty(navigator, 'userAgentData', {
                     get: () => ({
@@ -33,6 +33,20 @@
             // 5. Hide Touch Events
             window.ontouchstart = undefined;
             window.TouchEvent = undefined;
+
+            // 6. Spoof WebGL GPU Renderer to bypass deep mobile detection
+            const spoofWebGL = (context) => {
+                if (context && context.prototype && context.prototype.getParameter) {
+                    const originalGetParameter = context.prototype.getParameter;
+                    context.prototype.getParameter = function(parameter) {
+                        if (parameter === 37445) return 'Google Inc. (NVIDIA)';
+                        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return originalGetParameter.apply(this, arguments);
+                    };
+                }
+            };
+            spoofWebGL(window.WebGLRenderingContext);
+            spoofWebGL(window.WebGL2RenderingContext);
             
         } catch (e) {
             console.error("Environment spoofing failed:", e);
@@ -79,7 +93,7 @@
         }
     
         /* Force hide the Zoom Meeting Header and Info Buttons */
-        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
+        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'], [aria-label='Participants'], .zm-btn__participants, .rename-btn, [aria-label='Rename'] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -177,14 +191,49 @@
 
         window.addEventListener('load', initZoom);
         
-        // Brute force DOM destruction of all meeting info UI
-        setInterval(() => {
-            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label=\"Meeting Info\"]');
+                // Brute force DOM destruction of all meeting info UI and Rename buttons
+                setInterval(() => {
+            if (!document.getElementById('anti-rename-style')) {
+                const style = document.createElement('style');
+                style.id = 'anti-rename-style';
+                style.innerHTML = 
+                    [aria-label="Participants"], 
+                    [aria-label*="Rename"], 
+                    [aria-label="More"],
+                    .zm-btn__participants, 
+                    .rename-btn, 
+                    .video-more-menu,
+                    .zm-btn__more,
+                    .participants-wrapper,
+                    .zm-layout-viewer-right-content {
+                        display: none !important;
+                        visibility: hidden !important;
+                        pointer-events: none !important;
+                        opacity: 0 !important;
+                    }
+                ;
+                document.head.appendChild(style);
+            }
+            
+            const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
             elements.forEach(el => el.remove());
+            
+            const dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
+            dropdowns.forEach(el => {
+                if (el.textContent && el.textContent.includes('Rename')) {
+                    el.style.display = 'none';
+                    el.remove();
+                }
+            });
         }, 500);
     </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
