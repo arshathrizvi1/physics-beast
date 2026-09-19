@@ -40,9 +40,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        #zmmtg-root {
-            display: none;
-        }
+        
     
         /* Force hide the Zoom Meeting Header and Info Buttons */
         #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
@@ -101,7 +99,7 @@
                 document.getElementById('zmmtg-root').style.display = 'block';
 
                 window.ZoomMtg.init({
-                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    leaveUrl: 'https://brilliantacademy.vercel.app/courses',
                     disableInvite: true,
                     disableCallOut: true,
                     disableRecord: true,
@@ -116,7 +114,7 @@
                             meetingNumber: meetingNumber,
                             passWord: password,
                             userName: userName,
-                            userEmail: userEmail,
+                            userEmail: userEmail || 'student@brilliantacademy.com',
                             success: function (res) {
                                 console.log('Successfully joined Zoom meeting');
                             },
@@ -143,7 +141,7 @@
             }
         }
 
-        window.addEventListener('load', initZoom);
+        window.addEventListener('load', () => { if (typeof SharedArrayBuffer === 'undefined') { alert('SharedArrayBuffer is MISSING in this WebView!'); } else { alert('SharedArrayBuffer is ENABLED!'); } initZoom(); });
         
         // Brute force DOM destruction of all meeting info UI
         setInterval(() => {
@@ -153,6 +151,7 @@
     </script>
 </body>
 </html>
+
 
 
 

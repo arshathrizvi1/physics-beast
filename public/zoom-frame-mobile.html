@@ -108,7 +108,7 @@
                 document.getElementById('zmmtg-root').style.display = 'block';
 
                 window.ZoomMtg.init({
-                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    leaveUrl: 'https://brilliantacademy.vercel.app/courses',
                     disableInvite: true,
                     disableCallOut: true,
                     disableRecord: true,
@@ -121,7 +121,7 @@
                             meetingNumber: meetingNumber,
                             passWord: password,
                             userName: userName,
-                            userEmail: userEmail,
+                            userEmail: userEmail || 'student@brilliantacademy.com',
                             success: function (res) {
                                 console.log('Successfully joined Zoom meeting');
                             },

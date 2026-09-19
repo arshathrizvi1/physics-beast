@@ -74,11 +74,7 @@
         }
         @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
         
-        #zmmtg-root { 
-            display: none; 
-            width: 100% !important; 
-            height: 100% !important; 
-        }
+        #zmmtg-root { width: 100% !important; height: 100% !important; }
 
         /* Anti-rename */
         .rename-btn, [aria-label='Rename'] {
@@ -133,7 +129,7 @@
                 document.getElementById('zmmtg-root').style.display = 'block';
 
                 window.ZoomMtg.init({
-                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    leaveUrl: 'https://brilliantacademy.vercel.app/courses',
                     disableInvite: true,
                     disableCallOut: true,
                     disableRecord: true,
@@ -146,7 +142,7 @@
                             meetingNumber: meetingNumber,
                             passWord: password,
                             userName: userName,
-                            userEmail: userEmail,
+                            userEmail: userEmail || 'student@brilliantacademy.com',
                             success: function() {
                                 console.log('Successfully joined Zoom meeting');
                             },

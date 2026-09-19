@@ -41,7 +41,7 @@ export default function ZoomPlayer({
     if (isMobileDevice) {
       // Direct full window navigation for mobile.
       // This allows the mobile browser's native <meta viewport> to perfectly scale the 950px desktop UI.
-      window.location.href = "/zoom-mobile.html?v=50&" + params.toString();
+      window.location.href = "/zoom-mobile.html?v=51&" + params.toString();
     } else {
       setPermissionsGranted(true);
     }
@@ -82,7 +82,7 @@ export default function ZoomPlayer({
     }
   };
 
-  const iframeSrc = "/zoom-frame.html?v=120&" + params.toString();
+  const iframeSrc = "/zoom-frame.html?v=121&" + params.toString();
 
   // If mobile, we are redirecting, so show a cleaner loading state
   if (isMobile) {
