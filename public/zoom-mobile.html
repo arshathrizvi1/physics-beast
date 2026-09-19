@@ -14,14 +14,58 @@
             overflow: hidden;
             font-family: system-ui, -apple-system, sans-serif;
         }
+        
+        /* CUSTOM ACTIVE MEETING HEADER */
+        #custom-header {
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            height: 60px;
+            background-color: #242424;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 500;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: none; /* Hidden until joined */
+        }
+        #custom-title {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        #custom-status {
+            color: #4ade80; /* Green */
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pulse-dot {
+            width: 8px; height: 8px;
+            background-color: #4ade80;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+
         #zmmtg-root {
             width: 100vw;
             height: 100vh;
             position: absolute;
-            top: 0;
+            top: 60px; /* Push down below custom header */
             left: 0;
+            height: calc(100vh - 60px);
             z-index: 1;
+            background-color: #1a1a1a;
         }
+        
         #loading {
             position: absolute;
             top: 50%;
@@ -39,7 +83,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 100;
+            z-index: 1000;
             padding: 20px;
         }
         #preview-box {
@@ -84,13 +128,7 @@
         }
         #join-btn:active { background-color: #094dd6; }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
-        .terms-text {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-            margin-bottom: 20px;
-            max-width: 400px;
-        }
+        .terms-text { font-size: 12px; color: #666; text-align: center; margin-bottom: 20px; max-width: 400px; }
     </style>
 </head>
 <body>
@@ -106,6 +144,13 @@
         <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
     </div>
 
+    <!-- CUSTOM HEADER TO PROVE CONNECTION IS ACTIVE -->
+    <div id="custom-header">
+        <div id="custom-title">Live Class</div>
+        <div id="custom-status"><div class="pulse-dot"></div> Connected</div>
+    </div>
+
+    <!-- MAIN ZOOM CONTAINER -->
     <div id="zmmtg-root"></div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
@@ -132,6 +177,10 @@
                 });
                 
                 sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                
+                // Show Custom Header to prove it is open
+                document.getElementById('custom-header').style.display = 'flex';
+                
                 document.getElementById('preview-screen').style.display = 'none';
                 document.getElementById('loading').style.display = 'none';
                 
@@ -139,7 +188,7 @@
                     if (client) {
                         try {
                             const newW = window.innerWidth > 0 ? window.innerWidth : 800;
-                            const newH = window.innerHeight > 0 ? window.innerHeight : 600;
+                            const newH = window.innerHeight > 0 ? (window.innerHeight - 60) : 540;
                             client.updateVideoViewSizes({
                                 default: { width: newW, height: newH },
                                 ribbon: { width: newW, height: newH }
@@ -160,6 +209,7 @@
                 if (reason.includes("duplicate")) {
                     console.log("Ignored duplicate join, resuming session.");
                     sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                    document.getElementById('custom-header').style.display = 'flex';
                     document.getElementById('preview-screen').style.display = 'none';
                     document.getElementById('loading').style.display = 'none';
                 } else {
@@ -202,7 +252,7 @@
                 const container = document.getElementById('zmmtg-root');
                 
                 let w = window.innerWidth > 0 ? window.innerWidth : 800;
-                let h = window.innerHeight > 0 ? window.innerHeight : 600;
+                let h = window.innerHeight > 0 ? (window.innerHeight - 60) : 540;
 
                 await client.init({
                     zoomAppRoot: container,
@@ -212,6 +262,7 @@
                             isResizable: true,
                             viewSizes: { default: { width: w, height: h }, ribbon: { width: w, height: h } }
                         },
+                        // We hide the native meeting info header because we built our own custom top bar!
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
                         toolbar: {
                             buttons: [
@@ -231,7 +282,6 @@
                 window.addEventListener('pagehide', cleanup);
                 window.addEventListener('unload', cleanup);
 
-                // Seamless Auto-Join if refreshed
                 if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
                     document.getElementById('loading').innerText = "Resuming class...";
                     doJoin();
