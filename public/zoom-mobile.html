@@ -215,125 +215,67 @@
     toolbarTimeout = setTimeout(hideToolbar, 2000);
 </script>
 <script>
-    // Ultimate Mobile Layout Engine V2
+    // Ultimate Mobile Layout Engine V3
     setInterval(function() {
-        var canvases = document.querySelectorAll('canvas');
-        canvases.forEach(function(c) {
-            c.style.setProperty('width', '100vw', 'important');
-            c.style.setProperty('height', '100vh', 'important');
-            c.style.setProperty('object-fit', 'contain', 'important');
-            c.style.setProperty('position', 'absolute', 'important');
-            c.style.setProperty('top', '0', 'important');
-            c.style.setProperty('left', '0', 'important');
-            c.style.setProperty('z-index', '1', 'important');
+        // 1. Find the active main canvas (either screenshare or main speaker)
+        var shareCanvas = document.querySelector('.share-canvas, canvas#share-canvas, .share-container canvas');
+        var mainVideo = document.querySelector('#sv-active-video, .speaker-view-video canvas, .main-video-container canvas');
+        
+        var targetCanvas = shareCanvas || mainVideo;
+        
+        if (targetCanvas) {
+            targetCanvas.style.setProperty('width', '100vw', 'important');
+            targetCanvas.style.setProperty('height', '100vh', 'important');
+            targetCanvas.style.setProperty('object-fit', 'contain', 'important');
+            targetCanvas.style.setProperty('position', 'fixed', 'important');
+            targetCanvas.style.setProperty('top', '0', 'important');
+            targetCanvas.style.setProperty('left', '0', 'important');
+            targetCanvas.style.setProperty('z-index', '10', 'important');
+            targetCanvas.style.setProperty('margin', '0', 'important');
+            targetCanvas.style.setProperty('padding', '0', 'important');
             
-            var p = c.parentElement;
+            var p = targetCanvas.parentElement;
             if (p) {
                 p.style.setProperty('width', '100vw', 'important');
                 p.style.setProperty('height', '100vh', 'important');
-                p.style.setProperty('position', 'absolute', 'important');
+                p.style.setProperty('position', 'fixed', 'important');
                 p.style.setProperty('top', '0', 'important');
                 p.style.setProperty('left', '0', 'important');
                 p.style.setProperty('transform', 'none', 'important');
                 p.style.setProperty('margin', '0', 'important');
                 p.style.setProperty('padding', '0', 'important');
+                p.style.setProperty('z-index', '10', 'important');
+            }
+        }
+        
+        // 2. Fix the floating host profile (remove any 100vw we accidentally set previously)
+        var allCanvases = document.querySelectorAll('canvas');
+        allCanvases.forEach(function(c) {
+            if (c !== targetCanvas) {
+                c.style.removeProperty('width');
+                c.style.removeProperty('height');
+                c.style.removeProperty('object-fit');
+                c.style.removeProperty('position');
+                c.style.removeProperty('top');
+                c.style.removeProperty('left');
+                c.style.removeProperty('z-index');
+                if (c.parentElement && c.parentElement !== (targetCanvas ? targetCanvas.parentElement : null)) {
+                    c.parentElement.style.removeProperty('position');
+                    c.parentElement.style.removeProperty('width');
+                    c.parentElement.style.removeProperty('height');
+                }
             }
         });
         
-        var isSharing = false;
-        canvases.forEach(function(c) {
-            if (c.className.includes('share') || (c.parentElement && c.parentElement.className.includes('share'))) {
-                isSharing = true;
+        // 3. Make sure the floating host profile is on top of our fixed canvas
+        var floatingBoxes = document.querySelectorAll('.video-avatar-container, .speaker-active-video, .gallery-video-container');
+        floatingBoxes.forEach(function(box) {
+            if (shareCanvas) {
+                box.style.setProperty('z-index', '50', 'important');
             }
         });
         
-        var speakerVideos = document.querySelectorAll('.speaker-view-video, .video-avatar-container, .zm-layout-viewer-video-container');
-        speakerVideos.forEach(function(sv) {
-            if (isSharing) {
-                sv.style.setProperty('display', 'none', 'important');
-            } else {
-                sv.style.setProperty('display', 'block', 'important');
-                sv.style.setProperty('width', '100vw', 'important');
-                sv.style.setProperty('height', '100vh', 'important');
-                sv.style.setProperty('position', 'absolute', 'important');
-                sv.style.setProperty('top', '0', 'important');
-                sv.style.setProperty('left', '0', 'important');
-            }
-        });
     }, 500);
-</script>
-<style>
-#mobile-rotate-btn {
-    position: fixed;
-    bottom: 80px;
-    right: 20px;
-    z-index: 999999;
-    background: rgba(37, 99, 235, 0.9);
-    color: white;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-    cursor: pointer;
-    transition: all 0.3s;
-    border: 2px solid rgba(255,255,255,0.2);
-}
-#mobile-rotate-btn svg {
-    width: 32px;
-    height: 32px;
-    fill: currentColor;
-}
-/* Hide Zoom's glitchy native fullscreen button */
-.full-screen-widget, .zm-btn__fullscreen, [aria-label="Enter Full Screen"], [aria-label="Exit Full Screen"] {
-    display: none !important;
-}
-</style>
-
-<div id="mobile-rotate-btn" onclick="forceRotate()">
-    <svg viewBox="0 0 24 24">
-        <!-- Screen rotation icon -->
-        <path d="M16.48 2.52c3.27 1.55 5.61 4.72 5.97 8.48h1.5C23.44 4.84 18.29 0 12 0l-.66.033L14.35 3h-2.1L9 0 5.75 3h1.83C4.16 4.3 2 7.4 2 11h1.5c0-3.86 3.14-7 7-7h1.5l-3.2 3.2h2.1l3.08-3.08v-.03C14.6 2.82 15.5 2.5 16.48 2.52zM7.52 21.48c-3.27-1.55-5.61-4.72-5.97-8.48H0c.51 6.16 5.66 11 12 11l.66-.03L9.65 21h2.1L15 24l3.25-3h-1.83c3.41-1.3 5.58-4.4 5.58-8h-1.5c0 3.86-3.14 7-7 7h-1.5l3.2-3.2h-2.1l-3.08 3.08v.03c-.63.26-1.53.58-2.5.56z"/>
-    </svg>
-</div>
-
-<script>
-function forceRotate() {
-    var elem = document.documentElement;
-    var promise = null;
-    
-    if (!document.fullscreenElement) {
-        if (elem.requestFullscreen) {
-            promise = elem.requestFullscreen();
-        } else if (elem.webkitRequestFullscreen) {
-            promise = elem.webkitRequestFullscreen();
-        }
-    } else {
-        promise = Promise.resolve();
-    }
-    
-    if (promise) {
-        promise.then(() => {
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed:', e));
-            }
-        }).catch(e => console.log('Fullscreen failed:', e));
-    }
-}
-
-// Show rotate button only in portrait mode
-setInterval(() => {
-    var btn = document.getElementById('mobile-rotate-btn');
-    if (btn) {
-        if (window.innerHeight > window.innerWidth) {
-            btn.style.display = 'flex';
-        } else {
-            btn.style.display = 'none';
-        }
-    }
-}, 500);
 </script>
 </body>
 </html>
