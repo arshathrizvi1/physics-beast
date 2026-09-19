@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/zoom-fullscreen.html',
+        source: '/:path*(zoom-fullscreen.html|zoom-mobile.html|zoom-frame.html)',
         headers: [
           { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' }

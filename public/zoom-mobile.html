@@ -105,8 +105,8 @@
             var params = new URLSearchParams(window.location.search);
             var meetingNumber = params.get('mn');
             var userName      = params.get('name') || 'Student';
-            var userEmail     = params.get('email') || '';
-            var password      = params.get('pwd') || '';
+            var userEmail = params.get('email'); if (!userEmail || userEmail === 'undefined' || userEmail === 'null' || userEmail.trim() === '') { userEmail = 'student@brilliantacademy.com'; }
+            var password = params.get('pwd'); if (!password || password === 'undefined' || password === 'null') { password = ''; }
             var role          = parseInt(params.get('role') || '0', 10);
 
             if (!meetingNumber) {
