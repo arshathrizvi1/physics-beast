@@ -17,9 +17,11 @@
         .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
 
-        /* The root will be dynamically scaled via JS */
+        /* Pure fluid width for WebGL safely */
         #zmmtg-root { 
-            position: absolute; z-index: 1; background-color: transparent; 
+            position: absolute; top: 60px; left: 0; 
+            width: 100%; height: calc(100% - 60px); 
+            z-index: 1; background-color: #1a1a1a; 
         }
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
@@ -33,7 +35,9 @@
         #preview-desc { color: #999; font-size: 14px; margin-top: 10px; text-align: center; }
         #join-btn { background-color: #0b5cff; color: white; border: none; border-radius: 8px; padding: 14px 0; width: 100%; max-width: 350px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(11,92,255,0.4); }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
-        .terms-text { font-size: 12px; color: #666; text-align: center; margin-bottom: 20px; max-width: 400px; }
+        
+        /* ONLY hide the explicit rename button class, do not hide "More" or "Participants" layout structure! */
+        .rename-btn, [aria-label="Rename"], .rename-menu-item { display: none !important; opacity: 0 !important; pointer-events: none !important; }
     </style>
 </head>
 <body>
@@ -48,9 +52,7 @@
             <div id="preview-name">Loading...</div>
             <div id="preview-desc">Ready to join meeting</div>
         </div>
-        <div class="terms-text">By clicking "Join", you agree to our Terms of Service.</div>
         <button id="join-btn">Join Class</button>
-        <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
     </div>
 
     <!-- CUSTOM HEADER -->
@@ -73,35 +75,6 @@
         var client;
         var meetingConfig = {};
         var joinAttempted = false;
-        
-        // VIRTUAL DESKTOP RESOLUTION TO BYPASS ZOOM'S 600px MINIMUM WIDTH RESTRICTION
-        var VIRTUAL_WIDTH = 1280;
-        var VIRTUAL_HEIGHT = 720;
-
-        function scaleZoomToFitScreen() {
-            var screenW = window.innerWidth;
-            var screenH = window.innerHeight - 60; // Subtract 60px for custom header
-            
-            // Calculate scale to fit entirely within the screen (letterbox)
-            var scale = Math.min(screenW / VIRTUAL_WIDTH, screenH / VIRTUAL_HEIGHT);
-            
-            var root = document.getElementById('zmmtg-root');
-            root.style.width = VIRTUAL_WIDTH + 'px';
-            root.style.height = VIRTUAL_HEIGHT + 'px';
-            root.style.transformOrigin = 'top left';
-            root.style.transform = 'scale(' + scale + ')';
-            
-            // Center the virtual canvas horizontally and vertically
-            var scaledW = VIRTUAL_WIDTH * scale;
-            var scaledH = VIRTUAL_HEIGHT * scale;
-            var offsetX = (screenW - scaledW) / 2;
-            var offsetY = ((screenH - scaledH) / 2) + 60;
-            
-            root.style.left = offsetX + 'px';
-            root.style.top = offsetY + 'px';
-        }
-
-        window.addEventListener('resize', scaleZoomToFitScreen);
 
         async function doJoin() {
             try {
@@ -128,9 +101,9 @@
                 });
 
                 // Auto-trigger video decoder bypass
-                setTimeout(function() {
-                    document.querySelectorAll('video, audio, canvas').forEach(function(el) { try{ el.play(); }catch(e){} });
-                }, 2000);
+                setInterval(function() {
+                    document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
+                }, 1000);
 
             } catch (err) {
                 var reason = (err.reason || err.message || "").toLowerCase();
@@ -178,20 +151,11 @@
                 client = window.ZoomMtgEmbedded.createClient();
                 var container = document.getElementById('zmmtg-root');
                 
-                scaleZoomToFitScreen();
-
-                // WE MUST PASS viewSizes OR COMPONENT VIEW CRASHES ON INIT!
+                // Keep it absolutely simple and standard to prevent WebGL layout crashing
                 await client.init({
                     zoomAppRoot: container,
                     language: 'en-US',
                     customize: {
-                        video: {
-                            isResizable: false,
-                            viewSizes: {
-                                default: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
-                                ribbon: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }
-                            }
-                        },
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
                         toolbar: {
                             buttons: [
@@ -231,14 +195,8 @@
             doJoin();
         });
 
-        // Anti-Rename logic
+        // Anti-Rename logic that does NOT break the layout
         setInterval(function() {
-            if (!document.getElementById('anti-rename-style')) {
-                var style = document.createElement('style');
-                style.id = 'anti-rename-style';
-                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper, .zm-layout-viewer-right-content { display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
-                document.head.appendChild(style);
-            }
             var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
             for(var j = 0; j < dropdowns.length; j++) {
                 if (dropdowns[j].textContent && dropdowns[j].textContent.indexOf('Rename') !== -1) {
