@@ -293,5 +293,61 @@
         });
     }, 200);
 </script>
+<script>
+    // Ultimate Mobile Interactions (Double Tap Fix & Fullscreen Hijack)
+    (function() {
+        // 1. Fix the "Double Tap" bug caused by Desktop Hover states
+        var touchStartX = 0;
+        var touchStartY = 0;
+        document.addEventListener('touchstart', function(e) {
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }
+        }, {passive: true});
+        
+        document.addEventListener('touchend', function(e) {
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                var touchEndX = e.changedTouches[0].screenX;
+                var touchEndY = e.changedTouches[0].screenY;
+                // If the user tapped (didn't swipe)
+                if (Math.abs(touchEndX - touchStartX) < 10 && Math.abs(touchEndY - touchStartY) < 10) {
+                    var btn = e.target.closest('button, .zm-btn, [role="button"], a, .footer-button__button');
+                    // Ensure it's not the canvas itself
+                    if (btn && btn.tagName !== 'CANVAS') {
+                        e.preventDefault(); // Prevent hover emulation trap
+                        btn.click(); // Instantly trigger the action
+                    }
+                }
+            }
+        }, {passive: false});
+
+        // 2. Fix Portrait Fullscreen Glitch and Auto-Rotate to Landscape
+        document.addEventListener('click', function(e) {
+            var fsBtn = e.target.closest('.full-screen-widget, [aria-label="Enter Full Screen"], [aria-label="Exit Full Screen"], .zm-btn__fullscreen');
+            if (fsBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().then(() => {
+                        // Auto-rotate to landscape!
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock('landscape').catch(err => console.log(err));
+                        }
+                    }).catch(err => console.log(err));
+                } else {
+                    document.exitFullscreen().then(() => {
+                        // Release rotation lock!
+                        if (screen.orientation && screen.orientation.unlock) {
+                            screen.orientation.unlock();
+                        }
+                    }).catch(err => console.log(err));
+                }
+            }
+        }, true); // useCapture to intercept before Zoom's buggy portrait logic runs
+    })();
+</script>
 </body>
 </html>
