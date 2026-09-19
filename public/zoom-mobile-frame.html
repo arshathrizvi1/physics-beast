@@ -86,7 +86,7 @@
                 const params = new URLSearchParams(window.location.search);
                 const meetingNumber = params.get('mn');
                 const userName = params.get('name') || 'Student';
-                const userEmail = params.get('email') || '';
+                const userEmail = (params.get('email') === 'undefined' ? '' : params.get('email')) || '';
                 const password = params.get('pwd') || '';
                 const role = parseInt(params.get('role') || '0', 10);
 
@@ -154,7 +154,7 @@
                     }).then(() => {
                         console.log("Successfully joined via Component View");
                         client.on('connection-change', function(payload) {
-                            if (payload.state === 'Closed') { window.location.href = '/zoom-ended.html'; }
+                            if (payload.state === 'Closed') { window.location.href = 'https://brilliantacademy.vercel.app/courses'; }
                         });
                     }).catch((error) => {
                         if (error && error.reason && error.reason.includes('duplicate join')) { 

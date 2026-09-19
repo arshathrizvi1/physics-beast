@@ -27,7 +27,7 @@ export default function ZoomPlayer({
   const params = new URLSearchParams({
     mn: meetingNumber,
     name: userName,
-    email: userEmail,
+    email: userEmail || 'student@brilliantacademy.com',
     pwd: password,
     role: role.toString(),
   });
@@ -41,7 +41,7 @@ export default function ZoomPlayer({
     if (isMobileDevice) {
       // Direct full window navigation for mobile.
       // This allows the mobile browser's native <meta viewport> to perfectly scale the 950px desktop UI.
-      window.location.href = "/zoom-mobile.html?v=51&" + params.toString();
+      window.location.href = "/zoom-mobile-frame.html?v=130&" + params.toString();
     } else {
       setPermissionsGranted(true);
     }
