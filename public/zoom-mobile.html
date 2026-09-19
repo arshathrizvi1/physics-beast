@@ -19,11 +19,17 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Component View root - must have explicit pixel dimensions */
+        /* Force Component View root to fill the screen */
         #zmmtg-root {
             position: fixed; top: 0; left: 0;
-            width: 100vw; height: 100vh;
+            width: 100vw !important; height: 100vh !important;
             z-index: 1;
+        }
+        
+        /* Force internal Zoom wrappers to fill the screen */
+        #zmmtg-root > div, .meeting-client, .meeting-client-inner {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         /* Hide rename everywhere */
@@ -38,7 +44,6 @@
 
     <div id="zmmtg-root"></div>
 
-    <!-- Component View SDK (works on mobile - no 4003) -->
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
@@ -47,6 +52,8 @@
     <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
 
     <script>
+        var initialOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+
         function initZoom() {
             var params = new URLSearchParams(window.location.search);
             var meetingNumber = params.get('mn') || '';
@@ -72,8 +79,8 @@
                 var client = window.ZoomMtgEmbedded.createClient();
                 var root   = document.getElementById('zmmtg-root');
 
-                var w = window.innerWidth  || screen.width  || 400;
-                var h = window.innerHeight || screen.height || 700;
+                // Pass the maximum dimension to viewSizes so the internal canvas is large enough for both orientations
+                var maxDim = Math.max(window.innerWidth, window.innerHeight);
 
                 client.init({
                     zoomAppRoot: root,
@@ -82,12 +89,12 @@
                         video: {
                             isResizable: false,
                             viewSizes: {
-                                default: { width: w, height: h },
-                                ribbon:  { width: w, height: h }
+                                default: { width: maxDim, height: maxDim },
+                                ribbon:  { width: maxDim, height: maxDim }
                             }
                         },
-                        meetingInfo: ['topic', 'host', 'mn', 'pwd', 'invite', 'participant', 'dc', 'enctype'],
-                        toolbar: { buttons: [] }
+                        meetingInfo: [] // Empty array hides the top green shield and meeting details
+                        // Removed toolbar config so default buttons (mic, video, participants, etc.) SHOW
                     }
                 }).then(function() {
                     return client.join({
@@ -99,17 +106,14 @@
                         userEmail:     userEmail
                     });
                 }).then(function() {
-                    // Successfully joined — hide loading
                     document.getElementById('loading').style.display = 'none';
 
-                    // Listen for leave
                     client.on('connection-change', function(payload) {
                         if (payload.state === 'Closed') {
                             window.location.href = '/zoom-ended.html';
                         }
                     });
 
-                    // Tap to unblock Android video autoplay
                     document.body.addEventListener('touchstart', function() {
                         document.querySelectorAll('video, audio').forEach(function(el) {
                             try { el.play(); } catch(e) {}
@@ -118,7 +122,6 @@
 
                 }).catch(function(err) {
                     var msg = err.reason || err.message || JSON.stringify(err);
-                    // Duplicate join = already in meeting, hide loading
                     if (msg.toLowerCase().indexOf('duplicate') !== -1) {
                         document.getElementById('loading').style.display = 'none';
                         return;
@@ -131,9 +134,21 @@
                 document.getElementById('loading').innerHTML =
                     '<p style="color:#f87171;text-align:center;padding:20px">Error: ' + e.message + '</p>';
             });
+            
+            // Handle true orientation change safely
+            var resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    var currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+                    if (currentOrientation !== initialOrientation) {
+                        // The user actually rotated their phone (not just opening keyboard)
+                        window.location.reload();
+                    }
+                }, 500);
+            });
         }
 
-        // Anti-rename sweep
         setInterval(function() {
             document.querySelectorAll('li, span, a, button').forEach(function(el) {
                 if (el.textContent && el.textContent.trim() === 'Rename') el.style.display = 'none';
