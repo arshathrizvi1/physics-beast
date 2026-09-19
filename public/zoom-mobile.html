@@ -10,7 +10,7 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #1a1a1a; /* Standard Zoom dark grey, not pitch black */
+            background-color: #1a1a1a;
             overflow: hidden;
             font-family: system-ui, -apple-system, sans-serif;
         }
@@ -20,7 +20,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1; /* Keep it underneath the preview screen */
+            z-index: 1;
         }
         #loading {
             position: absolute;
@@ -31,12 +31,10 @@
             font-size: 16px;
             z-index: 50;
         }
-        
-        /* PERFECT FAKE PC-LIKE PREVIEW SCREEN */
         #preview-screen {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #f5f5f5; /* Light background like PC */
+            background-color: #f5f5f5;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -70,7 +68,6 @@
             margin-top: 10px;
             text-align: center;
         }
-        
         #join-btn {
             background-color: #0b5cff;
             color: white;
@@ -87,7 +84,6 @@
         }
         #join-btn:active { background-color: #094dd6; }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
-        
         .terms-text {
             font-size: 12px;
             color: #666;
@@ -95,26 +91,21 @@
             margin-bottom: 20px;
             max-width: 400px;
         }
-        .terms-text a { color: #0b5cff; text-decoration: none; }
     </style>
 </head>
 <body>
     <div id="loading">Connecting securely...</div>
     
-    <!-- FAKE PREVIEW SCREEN (Matches PC Client View behavior without the fake broken buttons) -->
     <div id="preview-screen" style="display: none;">
         <div id="preview-box">
             <div id="preview-name">Loading...</div>
             <div id="preview-desc">Ready to join meeting</div>
         </div>
-        <div class="terms-text">
-            By clicking "Join", you agree to our Terms of Service and Privacy Statement.
-        </div>
+        <div class="terms-text">By clicking "Join", you agree to our Terms of Service.</div>
         <button id="join-btn">Join</button>
         <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
     </div>
 
-    <!-- MAIN ZOOM CONTAINER -->
     <div id="zmmtg-root"></div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
@@ -129,10 +120,63 @@
         let meetingConfig = {};
         let joinAttempted = false;
 
+        async function doJoin() {
+            try {
+                await client.join({
+                    sdkKey: meetingConfig.sdkKey,
+                    signature: meetingConfig.signature,
+                    meetingNumber: meetingConfig.meetingNumber,
+                    password: meetingConfig.password,
+                    userName: meetingConfig.userName,
+                    userEmail: meetingConfig.userEmail
+                });
+                
+                sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                document.getElementById('preview-screen').style.display = 'none';
+                document.getElementById('loading').style.display = 'none';
+                
+                window.addEventListener('resize', () => {
+                    if (client) {
+                        try {
+                            const newW = window.innerWidth > 0 ? window.innerWidth : 800;
+                            const newH = window.innerHeight > 0 ? window.innerHeight : 600;
+                            client.updateVideoViewSizes({
+                                default: { width: newW, height: newH },
+                                ribbon: { width: newW, height: newH }
+                            });
+                        } catch(e) {}
+                    }
+                });
+
+                client.on('connection-change', (payload) => {
+                    if (payload.state === 'Closed') { 
+                        sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
+                        window.location.href = '/zoom-ended.html'; 
+                    }
+                });
+
+            } catch (err) {
+                const reason = (err.reason || err.message || "").toLowerCase();
+                if (reason.includes("duplicate")) {
+                    console.log("Ignored duplicate join, resuming session.");
+                    sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                    document.getElementById('preview-screen').style.display = 'none';
+                    document.getElementById('loading').style.display = 'none';
+                } else {
+                    sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
+                    joinAttempted = false;
+                    const btn = document.getElementById('join-btn');
+                    btn.innerText = "Retry Join";
+                    btn.disabled = false;
+                    document.getElementById('preview-screen').style.display = 'flex';
+                    document.getElementById('loading').style.display = 'none';
+                    alert("Join Error: " + (err.reason || err.message || "Unknown error"));
+                }
+            }
+        }
+
         async function initPreview() {
             try {
-                try { sessionStorage.clear(); } catch(e){}
-
                 const params = new URLSearchParams(window.location.search);
                 meetingConfig.meetingNumber = params.get('mn');
                 meetingConfig.userName = params.get('name') || 'Student';
@@ -174,7 +218,6 @@
                                 { text: 'Audio', className: 'Microphone', visible: true },
                                 { text: 'Video', className: 'Camera', visible: true },
                                 { text: 'Leave', className: 'Leave', visible: true },
-                                // Strictly disable participants list to prevent renaming
                                 { text: 'Participants', className: 'Participants', visible: false },
                                 { text: 'Chat', className: 'Chat', visible: false },
                                 { text: 'Share', className: 'Share', visible: false }
@@ -183,14 +226,19 @@
                     }
                 });
 
-                // Cleanup hooks to destroy ghost connections on refresh
                 const cleanup = () => { if(client) { try{ client.leave(); }catch(e){} } };
                 window.addEventListener('beforeunload', cleanup);
                 window.addEventListener('pagehide', cleanup);
                 window.addEventListener('unload', cleanup);
 
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('preview-screen').style.display = 'flex';
+                // Seamless Auto-Join if refreshed
+                if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
+                    document.getElementById('loading').innerText = "Resuming class...";
+                    doJoin();
+                } else {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('preview-screen').style.display = 'flex';
+                }
 
             } catch (err) {
                 console.error("Init Error:", err);
@@ -198,51 +246,15 @@
             }
         }
 
-        document.getElementById('join-btn').addEventListener('click', async () => {
+        document.getElementById('join-btn').addEventListener('click', () => {
             if (joinAttempted) return;
             joinAttempted = true;
             
             const btn = document.getElementById('join-btn');
-            btn.innerText = "Connecting to Class...";
+            btn.innerText = "Connecting...";
             btn.disabled = true;
             
-            try {
-                await client.join({
-                    sdkKey: meetingConfig.sdkKey,
-                    signature: meetingConfig.signature,
-                    meetingNumber: meetingConfig.meetingNumber,
-                    password: meetingConfig.password,
-                    userName: meetingConfig.userName,
-                    userEmail: meetingConfig.userEmail
-                });
-                
-                // Hide preview screen ONLY AFTER successful join
-                document.getElementById('preview-screen').style.display = 'none';
-                
-                window.addEventListener('resize', () => {
-                    if (client) {
-                        try {
-                            const newW = window.innerWidth > 0 ? window.innerWidth : 800;
-                            const newH = window.innerHeight > 0 ? window.innerHeight : 600;
-                            client.updateVideoViewSizes({
-                                default: { width: newW, height: newH },
-                                ribbon: { width: newW, height: newH }
-                            });
-                        } catch(e) {}
-                    }
-                });
-
-                client.on('connection-change', (payload) => {
-                    if (payload.state === 'Closed') { window.location.href = '/zoom-ended.html'; }
-                });
-
-            } catch (err) {
-                joinAttempted = false;
-                btn.innerText = "Retry Join";
-                btn.disabled = false;
-                console.error("Join Error:", err);
-                alert("Failed to join: " + (err.reason || err.message || "Unknown error"));
-            }
+            doJoin();
         });
 
         window.addEventListener('load', initPreview);
