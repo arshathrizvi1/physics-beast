@@ -31,7 +31,7 @@ export default function ZoomPlayer({
     setIsMobile(isMobileDevice);
 
     if (isMobileDevice) {
-      // Navigate full window directly — Zoom WASM cannot run inside a nested iframe
+      // Navigate full window directly -- Zoom WASM cannot run inside a nested iframe
       const p = new URLSearchParams({
         mn: meetingNumber,
         name: userName,
@@ -85,12 +85,8 @@ export default function ZoomPlayer({
     pwd: password,
     role: role.toString(),
   });
-  
-  // Mobile MUST use Component View because Client View strictly throws 4003 on WebView engines
-  // despite any UserAgent spoofing. We embed it inside the iframe so it doesn't open in a new window.
-  const iframeSrc = isMobile 
-    ? "/zoom-mobile.html?v=23&" + params.toString()
-    : "/zoom-frame.html?v=120&" + params.toString();
+
+  const iframeSrc = "/zoom-frame.html?v=120&" + params.toString();
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
@@ -101,7 +97,7 @@ export default function ZoomPlayer({
         </div>
       )}
 
-      <button 
+      <button
         onClick={toggleFullscreen}
         className="absolute top-4 right-4 z-20 bg-black/70 text-white p-2.5 rounded-full hover:bg-black transition-colors border border-white/10 shadow-lg flex items-center justify-center"
         aria-label="Toggle Fullscreen"
@@ -110,42 +106,14 @@ export default function ZoomPlayer({
       </button>
 
       {permissionsGranted && (
-        <iframe 
-          src={iframeSrc} 
-          className="w-full h-full border-0 absolute inset-0 z-0" 
-          allow="camera; microphone; display-capture; fullscreen; autoplay" 
-          allowFullScreen={true} 
-          onLoad={() => setIframeLoaded(true)} 
+        <iframe
+          src={iframeSrc}
+          className="w-full h-full border-0 absolute inset-0 z-0"
+          allow="camera; microphone; display-capture; fullscreen; autoplay"
+          allowFullScreen={true}
+          onLoad={() => setIframeLoaded(true)}
         />
       )}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
