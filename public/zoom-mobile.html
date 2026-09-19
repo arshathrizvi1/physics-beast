@@ -37,75 +37,59 @@
     <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
     <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #1a1a1a;
-            color: white;
-            font-family: sans-serif;
-            overflow: hidden;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
         #zmmtg-root { display: none; }
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 50;
-            width: 80%;
-            text-align: center;
-        }
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-left-color: #ffffff;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
-        }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 50; width: 80%; text-align: center; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #ffffff; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin-bottom: 16px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        #loading-text { margin-bottom: 8px; font-weight: 500; }
-        #loading-subtext { font-size: 12px; color: #aaa; }
-        
-        /* RESTRICT ALL UNWANTED FEATURES TO MATCH COMPONENT VIEW PARITY */
-        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        [aria-label="Participants"], .zm-btn__participants, .rename-btn {
-            display: none !important;
-        }
+        #loading-text { margin-bottom: 8px; font-weight: 500; font-size: 16px; }
+        #loading-subtext { font-size: 13px; color: #aaa; }
+        .progress-bar { width: 100%; max-width: 250px; height: 4px; background: #333; border-radius: 2px; margin-top: 15px; overflow: hidden; }
+        #progress-fill { width: 0%; height: 100%; background: #0b5cff; transition: width 0.3s; }
+        #wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label='Meeting Info'] { display: none !important; visibility: hidden !important; }
+        [aria-label="Participants"], .zm-btn__participants, .rename-btn { display: none !important; }
     </style>
 </head>
 <body>
     <div id="loading">
         <div class="spinner" id="spinner-icon"></div>
         <div id="loading-text">Preparing Application...</div>
-        <div id="loading-subtext"></div>
+        <div id="loading-subtext">Initializing setup...</div>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
     </div>
-
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/zoom-meeting-3.8.0.min.js"></script>
+    
+    <div id="zmmtg-root"></div>
 
     <script>
-        function updateStatus(main, sub) {
+        function updateStatus(main, sub, percent) {
             document.getElementById('loading-text').innerText = main;
             if (sub) document.getElementById('loading-subtext').innerText = sub;
+            if (percent !== undefined) document.getElementById('progress-fill').style.width = percent + "%";
         }
 
-        async function startMeeting() {
+        async function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error("Failed to load: " + src));
+                document.body.appendChild(script);
+            });
+        }
+
+        async function bootstrap() {
             try {
-                updateStatus("Reading configuration...");
+                updateStatus("Downloading PC Engine (1/2)", "Please wait, downloading core libraries...", 10);
+                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/react.min.js");
+                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js");
+                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/redux.min.js");
+                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js");
+                await loadScript("https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js");
+                
+                updateStatus("Downloading PC Engine (2/2)", "Downloading main Zoom engine (approx. 10MB)...", 40);
+                await loadScript("https://source.zoom.us/3.8.0/zoom-meeting-3.8.0.min.js");
+
+                updateStatus("Reading configuration...", "Validating meeting details", 60);
                 const params = new URLSearchParams(window.location.search);
                 const meetingNumber = params.get('mn');
                 const userName = params.get('name') || 'Student';
@@ -113,18 +97,18 @@
                 const password = params.get('pwd') || '';
                 const role = parseInt(params.get('role') || '0', 10);
 
-                if (!meetingNumber) throw new Error("Meeting Number missing");
+                if (!meetingNumber) throw new Error("Meeting Number missing from URL.");
 
-                if (sessionStorage.getItem('hasJoinedClass_' + meetingNumber) === 'true') {
-                    updateStatus("Resuming class...");
+                if (!window.ZoomMtg) {
+                    throw new Error("Zoom engine failed to initialize correctly.");
                 }
 
-                updateStatus("Preloading HD Video Engine...", "This downloads a 10MB graphics pack. It may take up to 10-15 seconds on mobile data.");
+                updateStatus("Preloading HD Video Engine", "Unpacking WebAssembly components...", 70);
                 window.ZoomMtg.setZoomJSLib('https://source.zoom.us/3.8.0/lib', '/av');
                 window.ZoomMtg.preLoadWasm();
                 window.ZoomMtg.prepareWebSDK();
 
-                updateStatus("Authenticating with Zoom...");
+                updateStatus("Authenticating...", "Fetching secure signature from server...", 80);
                 const sigRes = await fetch("/api/zoom/signature", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -133,7 +117,7 @@
                 const sigData = await sigRes.json();
                 if (!sigRes.ok) throw new Error(sigData.error || "Signature failed");
 
-                updateStatus("Initializing Player...");
+                updateStatus("Starting Class...", "Entering the meeting room", 95);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('zmmtg-root').style.display = 'block';
 
@@ -154,18 +138,10 @@
                             userEmail: userEmail,
                             success: function (res) {
                                 console.log('Successfully joined Zoom meeting');
-                                sessionStorage.setItem('hasJoinedClass_' + meetingNumber, 'true');
                             },
                             error: function (res) {
                                 console.error('Join error', res);
-                                const reason = (res.reason || res.message || "").toLowerCase();
-                                if (reason.includes("duplicate")) {
-                                    sessionStorage.setItem('hasJoinedClass_' + meetingNumber, 'true');
-                                    console.log("Ignored duplicate join.");
-                                } else {
-                                    sessionStorage.removeItem('hasJoinedClass_' + meetingNumber);
-                                    alert("Failed to join meeting: " + JSON.stringify(res));
-                                }
+                                alert("Failed to join meeting: " + JSON.stringify(res));
                             }
                         });
                     },
@@ -176,22 +152,23 @@
                 });
 
             } catch (error) {
-                console.error("Zoom initialization failed:", error);
+                console.error("Bootstrap failed:", error);
                 document.getElementById('spinner-icon').style.display = 'none';
                 document.getElementById('loading-subtext').style.display = 'none';
+                document.querySelector('.progress-bar').style.display = 'none';
                 document.getElementById('loading-text').innerHTML = 
-                    <div style="color: #f87171; text-align: center;">
-                        <h3 style="margin-bottom: 8px;">Connection Error</h3>
-                        <p style="font-size: 14px;"></p>
+                    <div style="color: #f87171; text-align: center; background: #2a0000; padding: 20px; border-radius: 8px;">
+                        <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 18px;">Network Error</h3>
+                        <p style="font-size: 14px; margin: 0; color: #ffb3b3;"></p>
+                        <p style="font-size: 12px; margin-top: 15px; color: #888;">Please check your internet connection or reload the app.</p>
                     </div>
                 ;
             }
         }
 
-        // Execute immediately instead of waiting for potentially hanging window.onload events
-        startMeeting();
+        // Start the dynamic script loading sequence
+        bootstrap();
         
-        // Brute force DOM destruction of all meeting info UI (Client View specific)
         setInterval(() => {
             const elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn');
             elements.forEach(el => el.remove());
