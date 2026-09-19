@@ -31,15 +31,15 @@ export default function ZoomPlayer({
     setIsMobile(isMobileDevice);
 
     if (isMobileDevice) {
-      // Navigate full window directly -- Zoom WASM cannot run inside a nested iframe
-      const p = new URLSearchParams({
-        mn: meetingNumber,
-        name: userName,
-        email: userEmail,
-        pwd: password,
-        role: role.toString(),
-      });
-      window.location.href = "/zoom-mobile.html?v=24&" + p.toString();
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+          setPermissionsGranted(true);
+        })
+        .catch(err => {
+          console.warn("User or OS denied media permissions.", err);
+          setPermissionsGranted(true);
+        });
     } else {
       setPermissionsGranted(true);
     }
@@ -86,7 +86,9 @@ export default function ZoomPlayer({
     role: role.toString(),
   });
 
-  const iframeSrc = "/zoom-frame.html?v=120&" + params.toString();
+  const iframeSrc = isMobile 
+    ? "/zoom-mobile.html?v=30&" + params.toString()
+    : "/zoom-frame.html?v=120&" + params.toString();
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">

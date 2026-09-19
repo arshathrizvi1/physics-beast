@@ -19,10 +19,10 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Force Component View root to fill the screen */
+        /* Force Component View root to fill the iframe */
         #zmmtg-root {
             position: fixed; top: 0; left: 0;
-            width: 100vw !important; height: 100vh !important;
+            width: 100% !important; height: 100% !important;
             z-index: 1;
         }
         
@@ -52,8 +52,6 @@
     <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
 
     <script>
-        var initialOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-
         function initZoom() {
             var params = new URLSearchParams(window.location.search);
             var meetingNumber = params.get('mn') || '';
@@ -79,8 +77,9 @@
                 var client = window.ZoomMtgEmbedded.createClient();
                 var root   = document.getElementById('zmmtg-root');
 
-                // Pass the maximum dimension to viewSizes so the internal canvas is large enough for both orientations
-                var maxDim = Math.max(window.innerWidth, window.innerHeight);
+                // Using a very large dimension ensures the internal canvas has enough resolution.
+                // Our CSS will scale it down to fit the iframe perfectly.
+                var maxDim = 2560;
 
                 client.init({
                     zoomAppRoot: root,
@@ -94,7 +93,6 @@
                             }
                         },
                         meetingInfo: [] // Empty array hides the top green shield and meeting details
-                        // Removed toolbar config so default buttons (mic, video, participants, etc.) SHOW
                     }
                 }).then(function() {
                     return client.join({
@@ -110,7 +108,8 @@
 
                     client.on('connection-change', function(payload) {
                         if (payload.state === 'Closed') {
-                            window.location.href = '/zoom-ended.html';
+                            // On leave, notify parent window to reload or go somewhere
+                            window.parent.postMessage('zoom-leave', '*');
                         }
                     });
 
@@ -133,19 +132,6 @@
             .catch(function(e) {
                 document.getElementById('loading').innerHTML =
                     '<p style="color:#f87171;text-align:center;padding:20px">Error: ' + e.message + '</p>';
-            });
-            
-            // Handle true orientation change safely
-            var resizeTimeout;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(function() {
-                    var currentOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
-                    if (currentOrientation !== initialOrientation) {
-                        // The user actually rotated their phone (not just opening keyboard)
-                        window.location.reload();
-                    }
-                }, 500);
             });
         }
 
