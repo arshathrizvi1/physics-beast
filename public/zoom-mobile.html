@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Zoom Meeting</title>
 
     <!-- ULTIMATE NATIVE ENVIRONMENT SPOOFER to bypass Zoom 4003 Browser Restrictions -->
@@ -72,7 +72,12 @@
             animation: spin 1s linear infinite; margin-bottom: 16px;
         }
         @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
-        #zmmtg-root { display: none; width: 100% !important; height: 100% !important; }
+        
+        #zmmtg-root { 
+            display: none; 
+            width: 100% !important; 
+            height: 100% !important; 
+        }
 
         /* Anti-rename */
         .rename-btn, [aria-label='Rename'] {
@@ -84,7 +89,7 @@
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div>Connecting to Full PC Zoom Experience...</div>
+        <div>Connecting to Zoom...</div>
     </div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>

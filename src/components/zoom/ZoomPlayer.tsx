@@ -22,7 +22,6 @@ export default function ZoomPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,28 +44,6 @@ export default function ZoomPlayer({
       setPermissionsGranted(true);
     }
   }, []);
-
-  useEffect(() => {
-    if (isMobile) {
-      const handleResize = () => {
-        if (containerRef.current) {
-          const { clientWidth, clientHeight } = containerRef.current;
-          // Calculate scale to fit a 1280x720 "desktop" viewport into the current container
-          const scaleX = clientWidth / 1280;
-          const scaleY = clientHeight / 720;
-          setScale(Math.min(scaleX, scaleY));
-        }
-      };
-      
-      // Small delay ensures container is fully rendered before calculating size
-      const timer = setTimeout(handleResize, 100);
-      window.addEventListener('resize', handleResize);
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, [isMobile, isFullscreen]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -110,7 +87,7 @@ export default function ZoomPlayer({
   });
 
   const iframeSrc = isMobile 
-    ? "/zoom-mobile.html?v=31&" + params.toString()
+    ? "/zoom-mobile.html?v=32&" + params.toString()
     : "/zoom-frame.html?v=120&" + params.toString();
 
   return (
@@ -118,7 +95,7 @@ export default function ZoomPlayer({
       {(!iframeLoaded || !permissionsGranted) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>{permissionsGranted ? "Preparing PC Experience for Mobile..." : "Requesting Camera & Mic Permissions..."}</p>
+          <p>{permissionsGranted ? "Preparing Meeting Environment..." : "Requesting Camera & Mic Permissions..."}</p>
         </div>
       )}
 
@@ -131,27 +108,13 @@ export default function ZoomPlayer({
       </button>
 
       {permissionsGranted && (
-        <div className="absolute inset-0 flex items-center justify-center overflow-hidden z-0 bg-black">
-          <div 
-            style={isMobile ? { 
-              width: 1280, 
-              height: 720, 
-              transform: `scale(${scale})`, 
-              transformOrigin: 'center' 
-            } : { 
-              width: '100%', 
-              height: '100%' 
-            }}
-          >
-            <iframe
-              src={iframeSrc}
-              className="w-full h-full border-0"
-              allow="camera; microphone; display-capture; fullscreen; autoplay"
-              allowFullScreen={true}
-              onLoad={() => setIframeLoaded(true)}
-            />
-          </div>
-        </div>
+        <iframe
+          src={iframeSrc}
+          className="w-full h-full border-0 absolute inset-0 z-0"
+          allow="camera; microphone; display-capture; fullscreen; autoplay"
+          allowFullScreen={true}
+          onLoad={() => setIframeLoaded(true)}
+        />
       )}
     </div>
   );
