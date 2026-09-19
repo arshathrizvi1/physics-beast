@@ -19,7 +19,7 @@ export default function StudentLivePortal() {
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
   const [fetchingClasses, setFetchingClasses] = useState(true);
-  const [earlyJoinedClasses, setEarlyJoinedClasses] = useState<string[]>([]);
+  const [joinedClasses, setJoinedClasses] = useState<string[]>([]);
   
   const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
   const [oldRecordsSearch, setOldRecordsSearch] = useState("");
@@ -384,7 +384,7 @@ export default function StudentLivePortal() {
                     ) : (
                       <div className="shrink-0 p-3.5 bg-secondary/30 rounded-xl border border-border/50 text-center max-w-xs shadow-inner">
                         <div className="text-xs font-bold text-amber-500 flex items-center justify-center gap-1 mb-1">
-                          <span>🔒</span> Direct Join Disabled
+                          <span>⚠️</span> Direct Join Disabled
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-snug">
                           Direct 1-click entry has been disabled by the instructor for this session.
@@ -392,26 +392,40 @@ export default function StudentLivePortal() {
                       </div>
                     )
                   )}
-                  {cls.status === 'scheduled' && getActiveStream(cls).id === 'zoom' ? (
-                     <Button 
-                       variant="outline"
-                       onClick={() => setEarlyJoinedClasses(prev => [...prev, cls.id])}
-                       className="shrink-0 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-                     >
-                       <Clock className="w-4 h-4" />
-                       <span className="text-sm font-bold">Join Waiting Room</span>
-                     </Button>
-                  ) : cls.status === 'scheduled' ? (
+
+                  {/* Zoom Join Button */}
+                  {(cls.status === 'scheduled' || cls.status === 'live') && getActiveStream(cls).id === 'zoom' && (
+                    !joinedClasses.includes(cls.id) ? (
+                      <Button 
+                        onClick={() => setJoinedClasses(prev => [...prev, cls.id])}
+                        className="shrink-0 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg flex items-center gap-2"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                        {cls.status === 'live' ? 'Join Live Class' : 'Enter Waiting Room'}
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline"
+                        onClick={() => setJoinedClasses(prev => prev.filter(id => id !== cls.id))}
+                        className="shrink-0 border-red-500 text-red-500 hover:bg-red-500/10 font-bold"
+                      >
+                        Close Player
+                      </Button>
+                    )
+                  )}
+
+                  {/* Fallback for non-zoom scheduled classes */}
+                  {cls.status === 'scheduled' && getActiveStream(cls).id !== 'zoom' && (
                      <div className="shrink-0 px-4 py-3 bg-background rounded-lg border border-border shadow-inner flex items-center gap-2">
                        <Clock className="w-4 h-4 text-muted-foreground" />
                        <p className="text-sm font-bold text-muted-foreground">Waiting for host...</p>
                      </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
 
               {/* Zoom Embedded Player Section */}
-              {getActiveStream(cls).id === 'zoom' && (cls.status === 'live' || earlyJoinedClasses.includes(cls.id)) && (
+              {getActiveStream(cls).id === 'zoom' && joinedClasses.includes(cls.id) && (
                 <div className="w-full relative border-t border-border/30">
                   {cls.allowDirectJoin !== false ? (
                     getZoomDetails(getActiveStream(cls).link) ? (
