@@ -174,7 +174,7 @@
             if (!document.getElementById('anti-rename-style')) {
                 var style = document.createElement('style');
                 style.id = 'anti-rename-style';
-                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper {  display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
+                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper {  display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; } .share-container, .share-canvas-margin, .zm-layout-viewer-content, .speaker-view-video { width: 100% !important; height: 100% !important; } canvas { width: 100% !important; height: 100% !important; object-fit: contain !important; }';
                 document.head.appendChild(style);
             }
             var elements = document.querySelectorAll('.meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
@@ -199,7 +199,7 @@
             bar.style.transition = 'all 0.4s ease';
         });
         clearTimeout(toolbarTimeout);
-        toolbarTimeout = setTimeout(hideToolbar, 3500);
+        toolbarTimeout = setTimeout(hideToolbar, 2000);
     }
     function hideToolbar() {
         var bars = document.querySelectorAll('.footer, .footer-wrapper, .zm-layout-viewer-bottom, [class*="footer"], .header, .meeting-header, .zm-layout-viewer-header');
@@ -212,7 +212,7 @@
     document.addEventListener('touchstart', wakeToolbar, {passive: true});
     document.addEventListener('mousemove', wakeToolbar, {passive: true});
     document.addEventListener('click', wakeToolbar, {passive: true});
-    toolbarTimeout = setTimeout(hideToolbar, 4000);
+    toolbarTimeout = setTimeout(hideToolbar, 2000);
 </script>
 </body>
 </html>
