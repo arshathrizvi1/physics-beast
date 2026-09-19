@@ -2,146 +2,186 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live Class</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; background: #18181b; color: white; font-family: sans-serif; overflow: hidden; }
+    <meta name="viewport" content="width=1280, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zoom Meeting</title>
 
+    <!-- ULTIMATE NATIVE ENVIRONMENT SPOOFER to bypass Zoom 4003 Browser Restrictions -->
+    <script>
+        try {
+            var fakeUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            Object.defineProperty(navigator, 'userAgent', { get: function() { return fakeUA; }, configurable: true });
+            Object.defineProperty(navigator, 'appVersion', { get: function() { return '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; }, configurable: true });
+            Object.defineProperty(navigator, 'vendor', { get: function() { return 'Google Inc.'; }, configurable: true });
+            Object.defineProperty(navigator, 'platform', { get: function() { return 'Win32'; }, configurable: true });
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: function() { return 0; }, configurable: true });
+            if (navigator.userAgentData) {
+                Object.defineProperty(navigator, 'userAgentData', {
+                    get: function() { return { brands: [{brand:'Google Chrome',version:'120'},{brand:'Chromium',version:'120'}], mobile: false, platform: 'Windows' }; },
+                    configurable: true
+                });
+            }
+            window.ontouchstart = undefined;
+            window.TouchEvent = undefined;
+            Object.defineProperty(window, 'orientation', { get: function() { return undefined; }, configurable: true });
+            
+            var origMatchMedia = window.matchMedia;
+            window.matchMedia = function(query) {
+                if (query && query.indexOf('pointer: coarse') !== -1) {
+                    return { matches: false, media: query, onchange: null, addListener: function(){}, removeListener: function(){}, addEventListener: function(){}, removeEventListener: function(){}, dispatchEvent: function(){return false;} };
+                }
+                return origMatchMedia.apply(this, arguments);
+            };
+
+            Object.defineProperty(window, 'Capacitor', { get: function() { return undefined; }, configurable: true });
+            Object.defineProperty(window, 'cordova',   { get: function() { return undefined; }, configurable: true });
+            Object.defineProperty(window, 'android',   { get: function() { return undefined; }, configurable: true });
+            
+            function spoofWebGL(context) {
+                if (context && context.prototype && context.prototype.getParameter) {
+                    var orig = context.prototype.getParameter;
+                    context.prototype.getParameter = function(p) {
+                        if (p === 37445) return 'Google Inc. (NVIDIA)';
+                        if (p === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return orig.apply(this, arguments);
+                    };
+                }
+            }
+            spoofWebGL(window.WebGLRenderingContext);
+            spoofWebGL(window.WebGL2RenderingContext);
+        } catch(e) {}
+    </script>
+
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
+
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #18181b; color: white;
+            font-family: sans-serif; overflow: hidden;
+        }
         #loading {
-            position: fixed; inset: 0; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; background: #18181b; z-index: 100;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; align-items: center; z-index: 50;
         }
         .spinner {
-            border: 4px solid rgba(255,255,255,0.1); border-left-color: #fff;
-            border-radius: 50%; width: 32px; height: 32px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: #ffffff; border-radius: 50%;
+            width: 32px; height: 32px;
             animation: spin 1s linear infinite; margin-bottom: 16px;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        #zmmtg-root { display: none; width: 100% !important; height: 100% !important; }
 
-        /* Force Component View root to fill the iframe */
-        #zmmtg-root {
-            position: fixed; top: 0; left: 0;
-            width: 100% !important; height: 100% !important;
-            z-index: 1;
+        /* Anti-rename */
+        .rename-btn, [aria-label='Rename'] {
+            display: none !important; visibility: hidden !important;
+            opacity: 0 !important; pointer-events: none !important;
         }
-        
-        /* Force internal Zoom wrappers to fill the screen */
-        #zmmtg-root > div, .meeting-client, .meeting-client-inner {
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        /* Hide rename everywhere */
-        .rename-btn, [aria-label="Rename"] { display: none !important; }
     </style>
 </head>
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div>Connecting to Live Class...</div>
+        <div>Connecting to Full PC Zoom Experience...</div>
     </div>
-
-    <div id="zmmtg-root"></div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
 
+    <!-- ES5 Promises to prevent Android WebView crash -->
     <script>
         function initZoom() {
             var params = new URLSearchParams(window.location.search);
-            var meetingNumber = params.get('mn') || '';
+            var meetingNumber = params.get('mn');
             var userName      = params.get('name') || 'Student';
             var userEmail     = params.get('email') || '';
             var password      = params.get('pwd') || '';
             var role          = parseInt(params.get('role') || '0', 10);
 
             if (!meetingNumber) {
-                document.getElementById('loading').innerHTML = '<p style="color:#f87171">Missing meeting number</p>';
+                document.getElementById('loading').innerHTML = '<div style="color:#f87171;text-align:center"><h3>Error</h3><p>Meeting Number is missing</p></div>';
                 return;
             }
+
+            window.ZoomMtg.setZoomJSLib('https://source.zoom.us/3.8.0/lib', '/av');
+            window.ZoomMtg.preLoadWasm();
+            window.ZoomMtg.prepareWebSDK();
 
             fetch('/api/zoom/signature', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ meetingNumber: meetingNumber, role: role })
             })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (!data.signature) throw new Error('No signature returned');
+            .then(function(response) { return response.json().then(function(data) { return { ok: response.ok, data: data }; }); })
+            .then(function(result) {
+                if (!result.ok) throw new Error(result.data.error || 'Failed to get signature');
+                var signature = result.data.signature;
+                var sdkKey    = result.data.sdkKey;
 
-                var client = window.ZoomMtgEmbedded.createClient();
-                var root   = document.getElementById('zmmtg-root');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('zmmtg-root').style.display = 'block';
 
-                // Using a very large dimension ensures the internal canvas has enough resolution.
-                // Our CSS will scale it down to fit the iframe perfectly.
-                var maxDim = 2560;
-
-                client.init({
-                    zoomAppRoot: root,
-                    language: 'en-US',
-                    customize: {
-                        video: {
-                            isResizable: false,
-                            viewSizes: {
-                                default: { width: maxDim, height: maxDim },
-                                ribbon:  { width: maxDim, height: maxDim }
+                window.ZoomMtg.init({
+                    leaveUrl: window.location.origin + '/zoom-ended.html',
+                    disableInvite: true,
+                    disableCallOut: true,
+                    disableRecord: true,
+                    showMeetingHeader: false,
+                    meetingInfo: [],
+                    success: function() {
+                        window.ZoomMtg.join({
+                            sdkKey: sdkKey,
+                            signature: signature,
+                            meetingNumber: meetingNumber,
+                            passWord: password,
+                            userName: userName,
+                            userEmail: userEmail,
+                            success: function() {
+                                console.log('Successfully joined Zoom meeting');
+                            },
+                            error: function(res) {
+                                console.error('Join error', res);
+                                alert('Failed to join meeting: ' + JSON.stringify(res));
                             }
-                        },
-                        meetingInfo: [] // Empty array hides the top green shield and meeting details
-                    }
-                }).then(function() {
-                    return client.join({
-                        sdkKey:        data.sdkKey,
-                        signature:     data.signature,
-                        meetingNumber: meetingNumber,
-                        password:      password,
-                        userName:      userName,
-                        userEmail:     userEmail
-                    });
-                }).then(function() {
-                    document.getElementById('loading').style.display = 'none';
-
-                    client.on('connection-change', function(payload) {
-                        if (payload.state === 'Closed') {
-                            // On leave, notify parent window to reload or go somewhere
-                            window.parent.postMessage('zoom-leave', '*');
-                        }
-                    });
-
-                    document.body.addEventListener('touchstart', function() {
-                        document.querySelectorAll('video, audio').forEach(function(el) {
-                            try { el.play(); } catch(e) {}
                         });
-                    }, { once: false, passive: true });
-
-                }).catch(function(err) {
-                    var msg = err.reason || err.message || JSON.stringify(err);
-                    if (msg.toLowerCase().indexOf('duplicate') !== -1) {
-                        document.getElementById('loading').style.display = 'none';
-                        return;
+                    },
+                    error: function(res) {
+                        console.error('Init error', res);
+                        alert('Failed to initialize Zoom: ' + JSON.stringify(res));
                     }
-                    document.getElementById('loading').innerHTML =
-                        '<p style="color:#f87171;text-align:center;padding:20px">Join Error:<br>' + msg + '</p>';
                 });
             })
-            .catch(function(e) {
-                document.getElementById('loading').innerHTML =
-                    '<p style="color:#f87171;text-align:center;padding:20px">Error: ' + e.message + '</p>';
+            .catch(function(error) {
+                console.error('Zoom initialization failed:', error);
+                document.getElementById('loading').innerHTML = '<div style="color:#f87171;text-align:center"><h3 style="margin-bottom:8px">Connection Error</h3><p>' + error.message + '</p></div>';
             });
         }
 
-        setInterval(function() {
-            document.querySelectorAll('li, span, a, button').forEach(function(el) {
-                if (el.textContent && el.textContent.trim() === 'Rename') el.style.display = 'none';
-            });
-        }, 600);
-
         window.addEventListener('load', initZoom);
+
+        setInterval(function() {
+            if (!document.getElementById('anti-rename-style')) {
+                var style = document.createElement('style');
+                style.id = 'anti-rename-style';
+                style.innerHTML = '[aria-label="Participants"], [aria-label*="Rename"], [aria-label="More"], .zm-btn__participants, .rename-btn, .video-more-menu, .zm-btn__more, .participants-wrapper, .zm-layout-viewer-right-content { display: none !important; visibility: hidden !important; pointer-events: none !important; opacity: 0 !important; }';
+                document.head.appendChild(style);
+            }
+            var elements = document.querySelectorAll('#wc-header, .meeting-header, .meeting-info-icon__icon-wrap, .invite-btn-container, [aria-label="Meeting Info"], [aria-label="Participants"], .zm-btn__participants, .rename-btn, [aria-label="Rename"]');
+            elements.forEach(function(el) { el.remove(); });
+            var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
+            dropdowns.forEach(function(el) {
+                if (el.textContent && el.textContent.trim() === 'Rename') {
+                    el.style.display = 'none';
+                    el.remove();
+                }
+            });
+        }, 500);
     </script>
 </body>
 </html>
