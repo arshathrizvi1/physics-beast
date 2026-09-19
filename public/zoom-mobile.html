@@ -17,11 +17,9 @@
         .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
 
-        /* Pure fluid width for WebGL safely */
+        /* VIRTUAL MONITOR SCALING (DO NOT CHANGE) */
         #zmmtg-root { 
-            position: absolute; top: 60px; left: 0; 
-            width: 100%; height: calc(100% - 60px); 
-            z-index: 1; background-color: #1a1a1a; 
+            position: absolute; z-index: 1; background-color: transparent; 
         }
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
@@ -36,7 +34,7 @@
         #join-btn { background-color: #0b5cff; color: white; border: none; border-radius: 8px; padding: 14px 0; width: 100%; max-width: 350px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(11,92,255,0.4); }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
         
-        /* ONLY hide the explicit rename button class, do not hide "More" or "Participants" layout structure! */
+        /* ONLY target Rename explicit classes to avoid toolbar destruction */
         .rename-btn, [aria-label="Rename"], .rename-menu-item { display: none !important; opacity: 0 !important; pointer-events: none !important; }
     </style>
 </head>
@@ -55,7 +53,6 @@
         <button id="join-btn">Join Class</button>
     </div>
 
-    <!-- CUSTOM HEADER -->
     <div id="custom-header">
         <div id="custom-title">Live Class</div>
         <div id="custom-status"><div class="pulse-dot"></div> Connected</div>
@@ -75,6 +72,33 @@
         var client;
         var meetingConfig = {};
         var joinAttempted = false;
+
+        // VIRTUAL DESKTOP RESOLUTION (1280x720) TO BYPASS ZOOM'S 600px MINIMUM WIDTH RESTRICTION
+        var VIRTUAL_WIDTH = 1280;
+        var VIRTUAL_HEIGHT = 720;
+
+        function scaleZoomToFitScreen() {
+            var screenW = window.innerWidth;
+            var screenH = window.innerHeight - 60; // Subtract custom header height
+            
+            var scale = Math.min(screenW / VIRTUAL_WIDTH, screenH / VIRTUAL_HEIGHT);
+            
+            var root = document.getElementById('zmmtg-root');
+            root.style.width = VIRTUAL_WIDTH + 'px';
+            root.style.height = VIRTUAL_HEIGHT + 'px';
+            root.style.transformOrigin = 'top left';
+            root.style.transform = 'scale(' + scale + ')';
+            
+            var scaledW = VIRTUAL_WIDTH * scale;
+            var scaledH = VIRTUAL_HEIGHT * scale;
+            var offsetX = (screenW - scaledW) / 2;
+            var offsetY = ((screenH - scaledH) / 2) + 60;
+            
+            root.style.left = offsetX + 'px';
+            root.style.top = offsetY + 'px';
+        }
+
+        window.addEventListener('resize', scaleZoomToFitScreen);
 
         async function doJoin() {
             try {
@@ -151,11 +175,21 @@
                 client = window.ZoomMtgEmbedded.createClient();
                 var container = document.getElementById('zmmtg-root');
                 
-                // Keep it absolutely simple and standard to prevent WebGL layout crashing
+                // Initialize the virtual CSS scaling immediately before Zoom mounts
+                scaleZoomToFitScreen();
+
+                // WE ABSOLUTELY MUST PASS viewSizes. IF WE DO NOT, ZOOM FAILS TO MOUNT THE CANVAS.
                 await client.init({
                     zoomAppRoot: container,
                     language: 'en-US',
                     customize: {
+                        video: {
+                            isResizable: false,
+                            viewSizes: {
+                                default: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
+                                ribbon: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }
+                            }
+                        },
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
                         toolbar: {
                             buttons: [
@@ -195,7 +229,7 @@
             doJoin();
         });
 
-        // Anti-Rename logic that does NOT break the layout
+        // Safe Anti-Rename logic via Javascript
         setInterval(function() {
             var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
             for(var j = 0; j < dropdowns.length; j++) {
@@ -205,14 +239,6 @@
                 }
             }
         }, 500);
-
-        // Force media decode on screen tap
-        document.body.addEventListener('touchstart', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
-        document.body.addEventListener('click', function() {
-            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-        });
 
         window.addEventListener('load', initPreview);
     </script>
