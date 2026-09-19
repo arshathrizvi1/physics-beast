@@ -85,34 +85,7 @@
             display: none !important; visibility: hidden !important;
             opacity: 0 !important; pointer-events: none !important;
         }
-    .wr-ad-banner, .web-client-ad-banner, .zm-websdk-ad-banner, [class*="ad-banner"], .zoom-ad-banner { display: none !important; } /* Ultimate Mobile Viewport Scaling */
-.share-container, .share-canvas-margin, .speaker-view-video, .main-video-container {
-    width: 100vw !important;
-    height: 100vh !important;
-    transform: none !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background-color: #000 !important;
-    z-index: 10 !important;
-}
-.share-canvas, #sv-active-video, .speaker-view-video canvas, .main-video-container canvas {
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: contain !important;
-    transform: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-}
-.video-avatar-container, .speaker-active-video, .gallery-video-container {
-    z-index: 50 !important;
-}
-</style>
+    .wr-ad-banner, .web-client-ad-banner, .zm-websdk-ad-banner, [class*="ad-banner"], .zoom-ad-banner { display: none !important; } </style>
 </head>
 <body>
     <div id="loading">
@@ -243,32 +216,55 @@
 </script>
 
 <script>
-    // Automated View Options Configurator
+    // Ultimate Mobile Layout Engine V4
     setInterval(function() {
-        var viewOptionsBtn = Array.from(document.querySelectorAll('button, span, div, a')).find(el => el.textContent && el.textContent.trim() === 'View Options');
-        if (viewOptionsBtn) {
-            if (!window.hasConfiguredZoomView) {
-                // Open the dropdown
-                viewOptionsBtn.click();
+        var canvases = document.querySelectorAll('canvas');
+        canvases.forEach(function(c) {
+            // Only target large canvases to avoid breaking the tiny floating host profile (which is usually < 200px)
+            if (c.width > 200 || c.height > 200) {
+                c.style.setProperty('width', '100vw', 'important');
+                c.style.setProperty('height', '100vh', 'important');
+                c.style.setProperty('object-fit', 'contain', 'important');
+                c.style.setProperty('transform', 'none', 'important'); // CRITICAL: Strip Zoom's secret zoom scale multiplier
+                c.style.setProperty('position', 'fixed', 'important');
+                c.style.setProperty('top', '0', 'important');
+                c.style.setProperty('left', '0', 'important');
+                c.style.setProperty('z-index', '10', 'important');
+                c.style.setProperty('margin', '0', 'important');
+                c.style.setProperty('padding', '0', 'important');
                 
-                setTimeout(function() {
-                    var items = document.querySelectorAll('.zm-dropdown-menu-item, li, span, a');
-                    var fit = Array.from(items).find(el => el.textContent && el.textContent.trim() === 'Fit to Window');
-                    var standard = Array.from(items).find(el => el.textContent && el.textContent.trim() === 'Standard');
-                    
-                    if (fit) fit.click();
-                    if (standard) standard.click();
-                    
-                    window.hasConfiguredZoomView = true;
-                    
-                    // Close the dropdown by clicking somewhere safe
-                    document.body.click();
-                }, 300);
+                var p = c.parentElement;
+                if (p) {
+                    p.style.setProperty('transform', 'none', 'important');
+                    p.style.setProperty('position', 'fixed', 'important');
+                    p.style.setProperty('top', '0', 'important');
+                    p.style.setProperty('left', '0', 'important');
+                    p.style.setProperty('width', '100vw', 'important');
+                    p.style.setProperty('height', '100vh', 'important');
+                    p.style.setProperty('margin', '0', 'important');
+                    p.style.setProperty('padding', '0', 'important');
+                }
+            } else {
+                // This is the tiny floating host profile
+                var p = c.parentElement;
+                if (p) {
+                    p.style.setProperty('z-index', '50', 'important');
+                }
             }
-        } else {
-            window.hasConfiguredZoomView = false;
+        });
+        
+        // Hide the side-by-side gray speaker box if screensharing is active
+        var isSharing = false;
+        canvases.forEach(function(c) {
+            if (c.width > 200 && (c.className.includes('share') || (c.parentElement && c.parentElement.className.includes('share')))) {
+                isSharing = true;
+            }
+        });
+        if (isSharing) {
+            var sv = document.querySelectorAll('.speaker-view-video, .zm-layout-viewer-video-container');
+            sv.forEach(function(el) { el.style.setProperty('display', 'none', 'important'); });
         }
-    }, 2000);
+    }, 500);
 </script>
 </body>
 </html>
