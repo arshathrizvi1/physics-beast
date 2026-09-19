@@ -17,9 +17,10 @@
         .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
 
-        /* VIRTUAL MONITOR SCALING (DO NOT CHANGE) */
         #zmmtg-root { 
-            position: absolute; z-index: 1; background-color: transparent; 
+            position: absolute; top: 60px; left: 0; 
+            width: 100%; height: calc(100% - 60px);
+            z-index: 1; background-color: transparent; 
         }
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
@@ -34,7 +35,6 @@
         #join-btn { background-color: #0b5cff; color: white; border: none; border-radius: 8px; padding: 14px 0; width: 100%; max-width: 350px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(11,92,255,0.4); }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
         
-        /* ONLY target Rename explicit classes to avoid toolbar destruction */
         .rename-btn, [aria-label="Rename"], .rename-menu-item { display: none !important; opacity: 0 !important; pointer-events: none !important; }
     </style>
 </head>
@@ -61,6 +61,17 @@
     <!-- MAIN ZOOM CONTAINER -->
     <div id="zmmtg-root"></div>
 
+    <!-- FATAL ERROR TRAP for mobile WebViews -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var errStr = "Error: " + msg + " at line " + line;
+            console.error(errStr);
+            var title = document.getElementById('loading-title');
+            if(title) title.innerText = "Fatal Script Error: " + msg;
+            return false;
+        };
+    </script>
+
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
@@ -68,49 +79,21 @@
     <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
 
+    <!-- STRICT ES5 ONLY. OLDER ANDROID WEBVIEWS FATALLY CRASH ON ASYNC/AWAIT -->
     <script>
         var client;
         var meetingConfig = {};
         var joinAttempted = false;
 
-        // VIRTUAL DESKTOP RESOLUTION (1280x720) TO BYPASS ZOOM'S 600px MINIMUM WIDTH RESTRICTION
-        var VIRTUAL_WIDTH = 1280;
-        var VIRTUAL_HEIGHT = 720;
-
-        function scaleZoomToFitScreen() {
-            var screenW = window.innerWidth;
-            var screenH = window.innerHeight - 60; // Subtract custom header height
-            
-            var scale = Math.min(screenW / VIRTUAL_WIDTH, screenH / VIRTUAL_HEIGHT);
-            
-            var root = document.getElementById('zmmtg-root');
-            root.style.width = VIRTUAL_WIDTH + 'px';
-            root.style.height = VIRTUAL_HEIGHT + 'px';
-            root.style.transformOrigin = 'top left';
-            root.style.transform = 'scale(' + scale + ')';
-            
-            var scaledW = VIRTUAL_WIDTH * scale;
-            var scaledH = VIRTUAL_HEIGHT * scale;
-            var offsetX = (screenW - scaledW) / 2;
-            var offsetY = ((screenH - scaledH) / 2) + 60;
-            
-            root.style.left = offsetX + 'px';
-            root.style.top = offsetY + 'px';
-        }
-
-        window.addEventListener('resize', scaleZoomToFitScreen);
-
-        async function doJoin() {
-            try {
-                await client.join({
-                    sdkKey: meetingConfig.sdkKey,
-                    signature: meetingConfig.signature,
-                    meetingNumber: meetingConfig.meetingNumber,
-                    password: meetingConfig.password,
-                    userName: meetingConfig.userName,
-                    userEmail: meetingConfig.userEmail
-                });
-                
+        function doJoin() {
+            client.join({
+                sdkKey: meetingConfig.sdkKey,
+                signature: meetingConfig.signature,
+                meetingNumber: meetingConfig.meetingNumber,
+                password: meetingConfig.password,
+                userName: meetingConfig.userName,
+                userEmail: meetingConfig.userEmail
+            }).then(function() {
                 sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
                 
                 document.getElementById('custom-header').style.display = 'flex';
@@ -129,7 +112,7 @@
                     document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
                 }, 1000);
 
-            } catch (err) {
+            }).catch(function(err) {
                 var reason = (err.reason || err.message || "").toLowerCase();
                 if (reason.indexOf("duplicate") !== -1) {
                     sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
@@ -146,48 +129,53 @@
                     document.getElementById('loading').style.display = 'none';
                     alert("Join Error: " + (err.reason || err.message || "Unknown error"));
                 }
-            }
+            });
         }
 
-        async function initPreview() {
-            try {
-                var params = new URLSearchParams(window.location.search);
-                meetingConfig.meetingNumber = params.get('mn');
-                meetingConfig.userName = params.get('name') || 'Student';
-                meetingConfig.userEmail = params.get('email') || '';
-                meetingConfig.password = params.get('pwd') || '';
-                meetingConfig.role = parseInt(params.get('role') || '0', 10);
+        function initPreview() {
+            var params = new URLSearchParams(window.location.search);
+            meetingConfig.meetingNumber = params.get('mn');
+            meetingConfig.userName = params.get('name') || 'Student';
+            meetingConfig.userEmail = params.get('email') || '';
+            meetingConfig.password = params.get('pwd') || '';
+            meetingConfig.role = parseInt(params.get('role') || '0', 10);
 
-                if (!meetingConfig.meetingNumber) throw new Error("Meeting Number missing");
+            if (!meetingConfig.meetingNumber) {
+                document.getElementById('loading-title').innerText = "Meeting Number missing";
+                return;
+            }
 
-                document.getElementById('preview-name').innerText = meetingConfig.userName;
+            document.getElementById('preview-name').innerText = meetingConfig.userName;
 
-                var sigRes = await fetch("/api/zoom/signature", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ meetingNumber: meetingConfig.meetingNumber, role: meetingConfig.role }),
-                });
-                var sigData = await sigRes.json();
-                if (!sigRes.ok) throw new Error(sigData.error || "Signature failed");
+            fetch("/api/zoom/signature", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ meetingNumber: meetingConfig.meetingNumber, role: meetingConfig.role })
+            })
+            .then(function(res) {
+                if (!res.ok) throw new Error("Signature fetch failed");
+                return res.json();
+            })
+            .then(function(sigData) {
                 meetingConfig.signature = sigData.signature;
                 meetingConfig.sdkKey = sigData.sdkKey;
 
                 client = window.ZoomMtgEmbedded.createClient();
                 var container = document.getElementById('zmmtg-root');
                 
-                // Initialize the virtual CSS scaling immediately before Zoom mounts
-                scaleZoomToFitScreen();
-
-                // WE ABSOLUTELY MUST PASS viewSizes. IF WE DO NOT, ZOOM FAILS TO MOUNT THE CANVAS.
-                await client.init({
+                // Prevent crash if screen is extremely narrow by enforcing 600px minimum
+                var safeWidth = Math.max(window.innerWidth || 0, 600);
+                var safeHeight = Math.max(window.innerHeight || 0, 400);
+                
+                client.init({
                     zoomAppRoot: container,
                     language: 'en-US',
                     customize: {
                         video: {
-                            isResizable: false,
+                            isResizable: true,
                             viewSizes: {
-                                default: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT },
-                                ribbon: { width: VIRTUAL_WIDTH, height: VIRTUAL_HEIGHT }
+                                default: { width: safeWidth, height: safeHeight },
+                                ribbon: { width: safeWidth, height: safeHeight }
                             }
                         },
                         meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
@@ -199,25 +187,29 @@
                             ]
                         }
                     }
+                }).then(function() {
+                    var cleanup = function() { if(client) { try{ client.leave(); }catch(e){} } };
+                    window.addEventListener('beforeunload', cleanup);
+                    window.addEventListener('pagehide', cleanup);
+                    window.addEventListener('unload', cleanup);
+
+                    if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
+                        document.getElementById('loading-title').innerText = "Resuming class...";
+                        doJoin();
+                    } else {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('preview-screen').style.display = 'flex';
+                    }
+                }).catch(function(err) {
+                    console.error("Zoom Init Error:", err);
+                    document.getElementById('loading-title').innerText = "Zoom Init Error: " + (err.message || "Unknown");
                 });
 
-                var cleanup = function() { if(client) { try{ client.leave(); }catch(e){} } };
-                window.addEventListener('beforeunload', cleanup);
-                window.addEventListener('pagehide', cleanup);
-                window.addEventListener('unload', cleanup);
-
-                if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
-                    document.getElementById('loading-title').innerText = "Resuming class...";
-                    doJoin();
-                } else {
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('preview-screen').style.display = 'flex';
-                }
-
-            } catch (err) {
-                console.error("Init Error:", err);
+            })
+            .catch(function(err) {
+                console.error("Signature Error:", err);
                 document.getElementById('loading-title').innerText = "Init Error: " + (err.message || "Unknown");
-            }
+            });
         }
 
         document.getElementById('join-btn').addEventListener('click', function() {
@@ -229,7 +221,6 @@
             doJoin();
         });
 
-        // Safe Anti-Rename logic via Javascript
         setInterval(function() {
             var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
             for(var j = 0; j < dropdowns.length; j++) {
@@ -239,6 +230,13 @@
                 }
             }
         }, 500);
+
+        document.body.addEventListener('touchstart', function() {
+            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
+        });
+        document.body.addEventListener('click', function() {
+            document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
+        });
 
         window.addEventListener('load', initPreview);
     </script>
