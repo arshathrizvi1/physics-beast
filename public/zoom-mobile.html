@@ -36,6 +36,12 @@
             Object.defineProperty(window, 'cordova',   { get: function() { return undefined; }, configurable: true });
             Object.defineProperty(window, 'android',   { get: function() { return undefined; }, configurable: true });
             
+            // Critical fix: Spoof screen size to match our virtual window size, so Zoom's canvas isn't tiny!
+            Object.defineProperty(screen, 'width', { get: function() { return window.innerWidth; }, configurable: true });
+            Object.defineProperty(screen, 'height', { get: function() { return window.innerHeight; }, configurable: true });
+            Object.defineProperty(screen, 'availWidth', { get: function() { return window.innerWidth; }, configurable: true });
+            Object.defineProperty(screen, 'availHeight', { get: function() { return window.innerHeight; }, configurable: true });
+
             function spoofWebGL(context) {
                 if (context && context.prototype && context.prototype.getParameter) {
                     var orig = context.prototype.getParameter;
