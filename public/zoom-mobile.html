@@ -216,40 +216,24 @@
 </script>
 
 <script>
-    // Ultimate Mobile Layout Engine V7 - Smart Canvas Hijacker
+    // Ultimate Mobile Layout Engine V8 - Pure Resolution Heuristics
     setInterval(function() {
         var canvases = Array.from(document.querySelectorAll('canvas')).filter(c => {
             var comp = window.getComputedStyle(c);
             var pComp = c.parentElement ? window.getComputedStyle(c.parentElement) : null;
-            // Only process canvases that are actively displayed by Zoom
-            return comp.display !== 'none' && (!pComp || pComp.display !== 'none');
+            return comp.display !== 'none' && (!pComp || pComp.display !== 'none') && c.width > 10 && c.height > 10;
         });
         
-        var shareCanvas = null;
-        var hostCanvas = null;
+        if (canvases.length === 0) return;
         
-        canvases.forEach(function(c) {
-            var str = (c.className + " " + c.id + " " + (c.parentElement ? c.parentElement.className + " " + c.parentElement.id : "")).toLowerCase();
-            if (str.includes('share')) {
-                shareCanvas = c;
-            } else {
-                hostCanvas = c;
-            }
-        });
-        
-        if (canvases.length === 1) {
-            // If only one video is active (e.g. teaching on physical whiteboard, or just screensharing without camera)
-            var c = canvases[0];
-            if (c.className.includes('share')) shareCanvas = c;
-            else hostCanvas = c;
-        }
+        // Find the canvas with the largest internal resolution (this is guaranteed to be the main active video or screenshare)
+        var mainCanvas = canvases.reduce((largest, current) => {
+            return (current.width * current.height > largest.width * largest.height) ? current : largest;
+        }, canvases[0]);
 
-        // If a screenshare is active, it takes over the screen.
-        var mainFullscreenCanvas = shareCanvas ? shareCanvas : hostCanvas;
-        
-        if (mainFullscreenCanvas) {
-            // 1. Strip CSS traps from ancestors of the main fullscreen canvas
-            var curr = mainFullscreenCanvas.parentElement;
+        if (mainCanvas) {
+            // 1. Strip CSS traps from ancestors of the main canvas
+            var curr = mainCanvas.parentElement;
             while (curr && curr !== document.body && curr.nodeName !== 'HTML') {
                 curr.style.setProperty('transform', 'none', 'important');
                 curr.style.setProperty('perspective', 'none', 'important');
@@ -258,49 +242,55 @@
             }
             
             // 2. Force the main canvas to absolute edges
-            mainFullscreenCanvas.style.setProperty('width', '100vw', 'important');
-            mainFullscreenCanvas.style.setProperty('height', '100vh', 'important');
-            mainFullscreenCanvas.style.setProperty('object-fit', 'contain', 'important');
-            mainFullscreenCanvas.style.setProperty('transform', 'none', 'important'); 
-            mainFullscreenCanvas.style.setProperty('position', 'fixed', 'important');
-            mainFullscreenCanvas.style.setProperty('top', '0', 'important');
-            mainFullscreenCanvas.style.setProperty('left', '0', 'important');
-            mainFullscreenCanvas.style.setProperty('z-index', '10', 'important');
-            mainFullscreenCanvas.style.setProperty('margin', '0', 'important');
-            mainFullscreenCanvas.style.setProperty('padding', '0', 'important');
-            mainFullscreenCanvas.style.setProperty('background', '#000', 'important');
-        }
-        
-        // 3. If BOTH are active, hostCanvas becomes the draggable popup!
-        if (shareCanvas && hostCanvas) {
-            // We DO NOT freeze its position or strip its transforms, because Zoom's JS handles dragging!
-            // We just ensure it's sized nicely and stays on top.
-            hostCanvas.style.setProperty('width', '100%', 'important');
-            hostCanvas.style.setProperty('height', '100%', 'important');
-            hostCanvas.style.setProperty('object-fit', 'cover', 'important');
+            mainCanvas.style.setProperty('width', '100vw', 'important');
+            mainCanvas.style.setProperty('height', '100vh', 'important');
+            mainCanvas.style.setProperty('object-fit', 'contain', 'important');
+            mainCanvas.style.setProperty('transform', 'none', 'important'); 
+            mainCanvas.style.setProperty('position', 'fixed', 'important');
+            mainCanvas.style.setProperty('top', '0', 'important');
+            mainCanvas.style.setProperty('left', '0', 'important');
+            mainCanvas.style.setProperty('z-index', '10', 'important');
+            mainCanvas.style.setProperty('margin', '0', 'important');
+            mainCanvas.style.setProperty('padding', '0', 'important');
+            mainCanvas.style.setProperty('background', '#000', 'important');
             
-            var hp = hostCanvas.parentElement;
-            if (hp) {
-                // Ensure the wrapper is a small popup, but let Zoom's transform handle its actual X/Y coordinates!
-                if (true) {
-                     // Only set dimensions if we hijacked it previously or if it's broken
-                     hp.style.setProperty('width', '150px', 'important');
-                     hp.style.setProperty('height', '100px', 'important');
-                }
-                hp.style.setProperty('z-index', '9999', 'important');
-                hp.style.setProperty('border-radius', '8px', 'important');
-                hp.style.setProperty('overflow', 'hidden', 'important');
-                hp.style.setProperty('box-shadow', '0 4px 12px rgba(0,0,0,0.5)', 'important');
-                hp.style.setProperty('background', '#000', 'important');
-                
-                // CRITICAL: DO NOT STRIP TRANSFORM FROM HP, so the user can still drag it around!
-                hp.style.removeProperty('position'); 
-                hp.style.removeProperty('top'); 
-                hp.style.removeProperty('left'); 
-                hp.style.removeProperty('right'); 
-                hp.style.removeProperty('bottom');
+            var p = mainCanvas.parentElement;
+            if (p) {
+                p.style.setProperty('width', '100vw', 'important');
+                p.style.setProperty('height', '100vh', 'important');
+                p.style.setProperty('transform', 'none', 'important');
+                p.style.setProperty('position', 'fixed', 'important');
+                p.style.setProperty('top', '0', 'important');
+                p.style.setProperty('left', '0', 'important');
+                p.style.setProperty('z-index', '10', 'important');
+                p.style.setProperty('background', '#000', 'important');
             }
         }
+        
+        // 3. For all other canvases (thumbnails/popups), undo any aggressive styles we might have accidentally applied to them previously
+        canvases.forEach(function(c) {
+            if (c !== mainCanvas) {
+                c.style.removeProperty('width');
+                c.style.removeProperty('height');
+                c.style.removeProperty('object-fit');
+                c.style.removeProperty('transform');
+                c.style.removeProperty('position');
+                c.style.removeProperty('top');
+                c.style.removeProperty('left');
+                c.style.setProperty('z-index', '50', 'important');
+                
+                var cp = c.parentElement;
+                if (cp && cp !== mainCanvas.parentElement) {
+                    cp.style.removeProperty('width');
+                    cp.style.removeProperty('height');
+                    cp.style.removeProperty('transform');
+                    cp.style.removeProperty('position');
+                    cp.style.removeProperty('top');
+                    cp.style.removeProperty('left');
+                    cp.style.setProperty('z-index', '50', 'important');
+                }
+            }
+        });
     }, 200);
 </script>
 </body>
