@@ -33,24 +33,16 @@
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; background: #0f0f0f; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        body, html { width: 100%; height: 100%; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
-        #overlay {
+        /* Preview screen sits on top until join is pressed */
+        #preview {
             position: fixed; inset: 0; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            background: #0f0f0f; z-index: 9999; transition: opacity 0.3s;
+            background: #0f0f0f; z-index: 9999; padding: 28px 24px;
         }
-        .spinner {
-            width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.08);
-            border-left-color: #0b5cff; border-radius: 50%;
-            animation: spin 0.9s linear infinite; margin-bottom: 24px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        #status-msg { font-size: 16px; font-weight: 600; color: #e0e0e0; text-align: center; padding: 0 20px; }
-
-        /* Preview card */
         .preview-card {
-            width: calc(100% - 48px); max-width: 420px; background: #1c1c1e;
+            width: 100%; max-width: 420px; background: #1c1c1e;
             border-radius: 20px; padding: 40px 24px 32px;
             display: flex; flex-direction: column; align-items: center;
             box-shadow: 0 20px 60px rgba(0,0,0,0.6);
@@ -61,7 +53,7 @@
             background: linear-gradient(135deg, #0b5cff, #6366f1);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 28px; font-weight: 700; margin-bottom: 18px;
-            box-shadow: 0 8px 24px rgba(11,92,255,0.4);
+            box-shadow: 0 8px 24px rgba(11,92,255,0.4); color: white;
         }
         #preview-name { font-size: 22px; font-weight: 700; color: #fff; text-align: center; }
         .live-badge {
@@ -72,41 +64,50 @@
             font-size: 12px; font-weight: 700; color: #f87171;
         }
         .live-dot { width: 7px; height: 7px; background: #ef4444; border-radius: 50%; animation: pulse 1.4s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
         #join-btn {
-            width: calc(100% - 48px); max-width: 420px; padding: 17px;
+            width: 100%; max-width: 420px; padding: 17px;
             background: #0b5cff; color: #fff; border: none; border-radius: 14px;
             font-size: 17px; font-weight: 700; cursor: pointer;
             box-shadow: 0 8px 24px rgba(11,92,255,0.45);
+            transition: opacity 0.2s;
         }
-        #join-btn:disabled { background: #2a2a2a; color: #555; box-shadow: none; }
-        .terms { font-size: 11px; color: #444; margin-top: 16px; }
+        #join-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Zoom renders directly into body — no interference */
+        /* Loading state shown inside preview while fetching sig */
+        .spinner {
+            width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1);
+            border-left-color: #0b5cff; border-radius: 50%;
+            animation: spin 0.9s linear infinite; margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #init-status { font-size: 14px; color: #888; text-align: center; margin-top: 12px; padding: 0 12px; }
+
+        /* Anti-rename */
         .rename-btn, [aria-label="Rename"] { display: none !important; }
     </style>
 </head>
 <body>
 
-<!-- Single overlay that covers everything until Zoom is ready -->
-<div id="overlay">
-    <div class="spinner" id="spinner"></div>
-    <div id="status-msg">Connecting...</div>
-</div>
-
-<!-- Preview UI (shown inside overlay once ready) -->
-<div id="preview-ui" style="display:none; flex-direction:column; align-items:center; width:100%; padding: 28px 0;">
-    <div class="preview-card">
-        <div class="avatar" id="avatar-letter">S</div>
-        <div id="preview-name">Student</div>
-        <div class="live-badge"><div class="live-dot"></div> LIVE NOW</div>
+<!-- Preview screen — removed from DOM completely when join starts -->
+<div id="preview">
+    <div id="loading-state">
+        <div class="spinner"></div>
+        <div id="init-status">Connecting to server...</div>
     </div>
-    <button id="join-btn">Join Now</button>
-    <div class="terms">By joining you agree to our Terms of Service</div>
+
+    <div id="join-state" style="display:none; flex-direction:column; align-items:center; width:100%;">
+        <div class="preview-card">
+            <div class="avatar" id="avatar-letter">S</div>
+            <div id="preview-name">Student</div>
+            <div class="live-badge"><div class="live-dot"></div> LIVE NOW</div>
+        </div>
+        <button id="join-btn">Join Now</button>
+    </div>
 </div>
 
-<!-- CLIENT VIEW CSS (Zoom injects its own root into body) -->
+<!-- CLIENT VIEW CSS -->
 <link rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css">
 <link rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css">
 
@@ -121,49 +122,16 @@
     var cfg = {};
     var joining = false;
 
-    function showPreview() {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status-msg').style.display = 'none';
-        document.getElementById('preview-ui').style.display = 'flex';
-    }
-
-    function showStatus(msg) {
-        document.getElementById('spinner').style.display = 'block';
-        document.getElementById('status-msg').style.display = 'block';
-        document.getElementById('status-msg').innerText = msg;
-        document.getElementById('preview-ui').style.display = 'none';
-    }
-
-    function hideOverlay() {
-        document.getElementById('overlay').style.opacity = '0';
-        document.getElementById('overlay').style.pointerEvents = 'none';
-    }
-
-    function showError(msg) {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('status-msg').innerText = msg;
-        document.getElementById('status-msg').style.display = 'block';
-        document.getElementById('overlay').style.opacity = '1';
-        document.getElementById('overlay').style.pointerEvents = 'auto';
-        joining = false;
-        document.getElementById('join-btn').innerText = 'Retry Join';
-        document.getElementById('join-btn').disabled = false;
-        showPreview();
-    }
-
     function doJoin() {
-        showStatus('Starting Zoom...');
+        // IMMEDIATELY remove the preview screen so Zoom renders freely
+        var preview = document.getElementById('preview');
+        preview.parentNode.removeChild(preview);
 
-        // Hide overlay so Zoom can render freely into the body underneath
-        // Wait 500ms so ZoomMtg has time to inject #zmmtg-root into body
         ZoomMtg.init({
             leaveUrl: window.location.href,
             showMeetingHeader: false,
             disablePreview: true,
-            videoDrag: false,
-            sharingMode: 'none',
             success: function() {
-                showStatus('Joining meeting...');
                 ZoomMtg.join({
                     sdkKey: cfg.sdkKey,
                     signature: cfg.signature,
@@ -171,18 +139,11 @@
                     password: cfg.password || '',
                     userName: cfg.userName,
                     userEmail: cfg.userEmail || '',
-                    success: function() {
-                        // Zoom joined — remove overlay so Zoom UI is fully visible
-                        hideOverlay();
-                    },
-                    error: function(err) {
-                        showError('Join error: ' + JSON.stringify(err));
-                    }
+                    success: function() { /* Zoom handles its own UI */ },
+                    error: function(err) { console.error('Join error', err); }
                 });
             },
-            error: function(err) {
-                showError('Init error: ' + JSON.stringify(err));
-            }
+            error: function(err) { console.error('Init error', err); }
         });
     }
 
@@ -195,20 +156,17 @@
         cfg.role          = parseInt(params.get('role') || '0', 10);
 
         if (!cfg.meetingNumber) {
-            showError('Missing meeting number');
+            document.getElementById('init-status').innerText = 'Error: Missing meeting number';
             return;
         }
 
         document.getElementById('preview-name').innerText = cfg.userName;
         document.getElementById('avatar-letter').innerText = cfg.userName.charAt(0).toUpperCase();
 
-        // Start preloading WASM early
         if (typeof ZoomMtg !== 'undefined') {
             ZoomMtg.preLoadWasm();
             ZoomMtg.prepareWebSDK();
         }
-
-        showStatus('Fetching session...');
 
         fetch('/api/zoom/signature', {
             method: 'POST',
@@ -217,13 +175,16 @@
         })
         .then(function(r) { return r.json(); })
         .then(function(d) {
-            if (!d.signature) throw new Error('No signature in response');
+            if (!d.signature) throw new Error('No signature');
             cfg.signature = d.signature;
             cfg.sdkKey    = d.sdkKey;
-            showPreview();
+
+            // Show the Join Now button
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('join-state').style.display = 'flex';
         })
         .catch(function(e) {
-            showError('Error: ' + e.message);
+            document.getElementById('init-status').innerText = 'Error: ' + e.message;
         });
     }
 
@@ -233,7 +194,7 @@
         this.innerText = 'Joining...';
         this.disabled = true;
 
-        // Request fullscreen
+        // Fullscreen
         var el = document.documentElement;
         var fs = el.requestFullscreen || el.webkitRequestFullscreen;
         if (fs) { try { fs.call(el); } catch(e) {} }
@@ -244,9 +205,7 @@
     // Anti-Rename sweep
     setInterval(function() {
         document.querySelectorAll('li, span, a, button').forEach(function(el) {
-            if (el.textContent && el.textContent.trim() === 'Rename') {
-                el.style.display = 'none';
-            }
+            if (el.textContent && el.textContent.trim() === 'Rename') el.style.display = 'none';
         });
     }, 600);
 
