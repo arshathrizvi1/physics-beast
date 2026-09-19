@@ -86,6 +86,12 @@
             opacity: 0 !important; pointer-events: none !important;
         }
     .wr-ad-banner, .web-client-ad-banner, .zm-websdk-ad-banner, [class*="ad-banner"], .zoom-ad-banner { display: none !important; } </style>
+<style>
+/* Guarantee UI elements float above hijacked canvases */
+.zm-modal, [role="dialog"], .join-audio-container, .join-audio-by-voip, .zm-websdk-header, .footer, .footer-button, .zm-btn {
+    z-index: 9999 !important;
+}
+</style>
 </head>
 <body>
     <div id="loading">
@@ -249,7 +255,7 @@
             mainCanvas.style.setProperty('position', 'fixed', 'important');
             mainCanvas.style.setProperty('top', '0', 'important');
             mainCanvas.style.setProperty('left', '0', 'important');
-            mainCanvas.style.setProperty('z-index', '10', 'important');
+            mainCanvas.style.setProperty('z-index', '1', 'important');
             mainCanvas.style.setProperty('margin', '0', 'important');
             mainCanvas.style.setProperty('padding', '0', 'important');
             mainCanvas.style.setProperty('background', '#000', 'important');
@@ -262,7 +268,7 @@
                 p.style.setProperty('position', 'fixed', 'important');
                 p.style.setProperty('top', '0', 'important');
                 p.style.setProperty('left', '0', 'important');
-                p.style.setProperty('z-index', '10', 'important');
+                p.style.setProperty('z-index', '1', 'important');
                 p.style.setProperty('background', '#000', 'important');
             }
         }
