@@ -3,131 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Zoom Mobile Component Player</title>
+    <title>Zoom Mobile PC-Engine Player</title>
+    
+    <!-- ULTIMATE 4003 BROWSER RESTRICTION SPOOFER -->
+    <!-- Zoom Web SDK Client View explicitly scans the window object for Capacitor, Cordova, and Android to block WebView wrappers. We must completely blind it. -->
+    <script>
+        try {
+            var fakeUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            Object.defineProperty(navigator, 'userAgent', { get: function() { return fakeUA; }, configurable: true });
+            Object.defineProperty(navigator, 'platform', { get: function() { return 'Win32'; }, configurable: true });
+            Object.defineProperty(navigator, 'maxTouchPoints', { get: function() { return 0; }, configurable: true });
+            Object.defineProperty(window, 'ontouchstart', { get: function() { return undefined; }, configurable: true });
+            
+            // BLIND ZOOM FROM DETECTING CAPACITOR/ANDROID
+            Object.defineProperty(window, 'Capacitor', { get: function() { return undefined; }, configurable: true });
+            Object.defineProperty(window, 'cordova', { get: function() { return undefined; }, configurable: true });
+            Object.defineProperty(window, 'android', { get: function() { return undefined; }, configurable: true });
+            Object.defineProperty(window, 'Android', { get: function() { return undefined; }, configurable: true });
+            
+            // TRAP PARENT TRAVERSAL
+            Object.defineProperty(window, 'parent', { get: function() { return window; }, configurable: true });
+            Object.defineProperty(window, 'top', { get: function() { return window; }, configurable: true });
+
+            // FAKE DESKTOP GPU
+            var originalGetContext = HTMLCanvasElement.prototype.getContext;
+            HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+                var ctx = originalGetContext.call(this, type, attrs);
+                if (ctx && (type === 'webgl' || type === 'webgl2')) {
+                    var originalGetParameter = ctx.getParameter;
+                    ctx.getParameter = function(pName) {
+                        if (pName === 37445) return 'Google Inc. (NVIDIA)';
+                        if (pName === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return originalGetParameter.call(this, pName);
+                    };
+                }
+                return ctx;
+            };
+        } catch(e) {}
+    </script>
+
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; }
-        
-        #custom-header {
-            position: absolute; top: 0; left: 0; width: 100%; height: 60px; background-color: #242424;
-            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
-            z-index: 500; border-bottom: 1px solid #333; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: none;
-        }
-        #custom-title { color: white; font-size: 16px; font-weight: 600; }
-        #custom-status { color: #4ade80; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-        .pulse-dot { width: 8px; height: 8px; background-color: #4ade80; border-radius: 50%; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
-
-        #zmmtg-root { 
-            position: absolute; top: 60px; left: 0; 
-            width: 100%; height: calc(100% - 60px);
-            z-index: 1; background-color: transparent; 
-        }
+        #zmmtg-root { display: none; } /* Client view handles its own root */
         
         #loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #1a1a1a; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.1); border-left-color: #0b5cff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #loading-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
         #loading-desc { font-size: 14px; color: #aaa; max-width: 80%; text-align: center; line-height: 1.5; }
         
         #preview-screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
         #preview-box { width: 100%; max-width: 600px; background-color: #242424; border-radius: 12px; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.2); margin-bottom: 20px; }
         #preview-name { color: white; font-size: 26px; font-weight: 500; text-align: center; word-break: break-all; }
-        #preview-desc { color: #999; font-size: 14px; margin-top: 10px; text-align: center; }
         #join-btn { background-color: #0b5cff; color: white; border: none; border-radius: 8px; padding: 14px 0; width: 100%; max-width: 350px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(11,92,255,0.4); }
         #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
         
+        /* SAFE ANTI-RENAME FOR CLIENT VIEW */
         .rename-btn, [aria-label="Rename"], .rename-menu-item { display: none !important; opacity: 0 !important; pointer-events: none !important; }
     </style>
 </head>
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div id="loading-title">Connecting to Server...</div>
+        <div id="loading-title">Connecting to PC Engine...</div>
         <div id="loading-desc"></div>
     </div>
     
     <div id="preview-screen" style="display: none;">
         <div id="preview-box">
             <div id="preview-name">Loading...</div>
-            <div id="preview-desc">Ready to join meeting</div>
+            <div style="color: #999; font-size: 14px; margin-top: 10px;">Tap Join to enter meeting</div>
         </div>
         <button id="join-btn">Join Class</button>
     </div>
 
-    <div id="custom-header">
-        <div id="custom-title">Live Class</div>
-        <div id="custom-status"><div class="pulse-dot"></div> Connected</div>
-    </div>
+    <!-- CLIENT VIEW STYLES -->
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/3.8.0/css/react-select.css" />
 
-    <!-- MAIN ZOOM CONTAINER -->
-    <div id="zmmtg-root"></div>
-
-    <!-- FATAL ERROR TRAP for mobile WebViews -->
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            var errStr = "Error: " + msg + " at line " + line;
-            console.error(errStr);
-            var title = document.getElementById('loading-title');
-            if(title) title.innerText = "Fatal Script Error: " + msg;
-            return false;
-        };
-    </script>
-
+    <!-- CLIENT VIEW SCRIPTS -->
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react-dom.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/redux-thunk.min.js"></script>
     <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/3.8.0/zoom-meeting-embedded-3.8.0.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
 
-    <!-- STRICT ES5 ONLY. OLDER ANDROID WEBVIEWS FATALLY CRASH ON ASYNC/AWAIT -->
     <script>
-        var client;
         var meetingConfig = {};
         var joinAttempted = false;
 
+        ZoomMtg.preLoadWasm();
+        ZoomMtg.prepareWebSDK();
+
         function doJoin() {
-            client.join({
-                sdkKey: meetingConfig.sdkKey,
-                signature: meetingConfig.signature,
-                meetingNumber: meetingConfig.meetingNumber,
-                password: meetingConfig.password,
-                userName: meetingConfig.userName,
-                userEmail: meetingConfig.userEmail
-            }).then(function() {
-                sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
-                
-                document.getElementById('custom-header').style.display = 'flex';
-                document.getElementById('preview-screen').style.display = 'none';
-                document.getElementById('loading').style.display = 'none';
-                
-                client.on('connection-change', function(payload) {
-                    if (payload.state === 'Closed') { 
-                        sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
-                        window.location.href = '/zoom-ended.html'; 
-                    }
-                });
-
-                // Auto-trigger video decoder bypass
-                setInterval(function() {
-                    document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
-                }, 1000);
-
-            }).catch(function(err) {
-                var reason = (err.reason || err.message || "").toLowerCase();
-                if (reason.indexOf("duplicate") !== -1) {
-                    sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
-                    document.getElementById('custom-header').style.display = 'flex';
-                    document.getElementById('preview-screen').style.display = 'none';
-                    document.getElementById('loading').style.display = 'none';
-                } else {
-                    sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
-                    joinAttempted = false;
-                    var btn = document.getElementById('join-btn');
-                    btn.innerText = "Retry Join";
-                    btn.disabled = false;
-                    document.getElementById('preview-screen').style.display = 'flex';
-                    document.getElementById('loading').style.display = 'none';
-                    alert("Join Error: " + (err.reason || err.message || "Unknown error"));
+            ZoomMtg.init({
+                leaveUrl: '/zoom-ended.html',
+                showMeetingHeader: false,
+                disablePreview: true,
+                success: function() {
+                    ZoomMtg.join({
+                        sdkKey: meetingConfig.sdkKey,
+                        signature: meetingConfig.signature,
+                        meetingNumber: meetingConfig.meetingNumber,
+                        password: meetingConfig.password,
+                        userName: meetingConfig.userName,
+                        userEmail: meetingConfig.userEmail,
+                        success: function(res) {
+                            sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                            document.getElementById('preview-screen').style.display = 'none';
+                            document.getElementById('loading').style.display = 'none';
+                        },
+                        error: function(err) {
+                            var reason = (err.reason || err.message || "").toLowerCase();
+                            if (reason.indexOf("duplicate") !== -1 || reason.indexOf("already") !== -1) {
+                                sessionStorage.setItem('hasJoinedClass_' + meetingConfig.meetingNumber, 'true');
+                                document.getElementById('preview-screen').style.display = 'none';
+                                document.getElementById('loading').style.display = 'none';
+                            } else {
+                                sessionStorage.removeItem('hasJoinedClass_' + meetingConfig.meetingNumber);
+                                joinAttempted = false;
+                                document.getElementById('join-btn').innerText = "Retry Join";
+                                document.getElementById('join-btn').disabled = false;
+                                document.getElementById('preview-screen').style.display = 'flex';
+                                document.getElementById('loading').style.display = 'none';
+                                alert("Join Error: " + JSON.stringify(err));
+                            }
+                        }
+                    });
+                },
+                error: function(res) {
+                    console.error("Init Error", res);
                 }
             });
         }
@@ -152,62 +158,20 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ meetingNumber: meetingConfig.meetingNumber, role: meetingConfig.role })
             })
-            .then(function(res) {
-                if (!res.ok) throw new Error("Signature fetch failed");
-                return res.json();
-            })
+            .then(function(res) { return res.json(); })
             .then(function(sigData) {
                 meetingConfig.signature = sigData.signature;
                 meetingConfig.sdkKey = sigData.sdkKey;
 
-                client = window.ZoomMtgEmbedded.createClient();
-                var container = document.getElementById('zmmtg-root');
-                
-                // Prevent crash if screen is extremely narrow by enforcing 600px minimum
-                var safeWidth = Math.max(window.innerWidth || 0, 600);
-                var safeHeight = Math.max(window.innerHeight || 0, 400);
-                
-                client.init({
-                    zoomAppRoot: container,
-                    language: 'en-US',
-                    customize: {
-                        video: {
-                            isResizable: true,
-                            viewSizes: {
-                                default: { width: safeWidth, height: safeHeight },
-                                ribbon: { width: safeWidth, height: safeHeight }
-                            }
-                        },
-                        meetingInfo: { showMeetingId: false, showPasscode: false, showInviteLink: false },
-                        toolbar: {
-                            buttons: [
-                                { text: 'Audio', className: 'Microphone', visible: true },
-                                { text: 'Video', className: 'Camera', visible: true },
-                                { text: 'Leave', className: 'Leave', visible: true }
-                            ]
-                        }
-                    }
-                }).then(function() {
-                    var cleanup = function() { if(client) { try{ client.leave(); }catch(e){} } };
-                    window.addEventListener('beforeunload', cleanup);
-                    window.addEventListener('pagehide', cleanup);
-                    window.addEventListener('unload', cleanup);
-
-                    if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
-                        document.getElementById('loading-title').innerText = "Resuming class...";
-                        doJoin();
-                    } else {
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('preview-screen').style.display = 'flex';
-                    }
-                }).catch(function(err) {
-                    console.error("Zoom Init Error:", err);
-                    document.getElementById('loading-title').innerText = "Zoom Init Error: " + (err.message || "Unknown");
-                });
-
+                if (sessionStorage.getItem('hasJoinedClass_' + meetingConfig.meetingNumber) === 'true') {
+                    document.getElementById('loading-title').innerText = "Resuming class...";
+                    doJoin();
+                } else {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('preview-screen').style.display = 'flex';
+                }
             })
             .catch(function(err) {
-                console.error("Signature Error:", err);
                 document.getElementById('loading-title').innerText = "Init Error: " + (err.message || "Unknown");
             });
         }
@@ -215,22 +179,22 @@
         document.getElementById('join-btn').addEventListener('click', function() {
             if (joinAttempted) return;
             joinAttempted = true;
-            var btn = document.getElementById('join-btn');
-            btn.innerText = "Connecting...";
-            btn.disabled = true;
+            this.innerText = "Connecting...";
+            this.disabled = true;
             doJoin();
         });
 
+        // Safe Anti-Rename logic
         setInterval(function() {
             var dropdowns = document.querySelectorAll('.zm-dropdown-menu-item, li, a, span');
             for(var j = 0; j < dropdowns.length; j++) {
                 if (dropdowns[j].textContent && dropdowns[j].textContent.indexOf('Rename') !== -1) {
                     dropdowns[j].style.display = 'none';
-                    dropdowns[j].remove();
                 }
             }
         }, 500);
 
+        // Force media decode on screen tap
         document.body.addEventListener('touchstart', function() {
             document.querySelectorAll('video, audio').forEach(function(el) { try{ el.play(); }catch(e){} });
         });
