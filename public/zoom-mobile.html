@@ -10,17 +10,17 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #18181b; /* Dark Zoom background */
+            background-color: #1a1a1a; /* Standard Zoom dark grey, not pitch black */
             overflow: hidden;
             font-family: system-ui, -apple-system, sans-serif;
         }
         #zmmtg-root {
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             position: absolute;
             top: 0;
             left: 0;
-            display: block; z-index: 1;
+            z-index: 1; /* Keep it underneath the preview screen */
         }
         #loading {
             position: absolute;
@@ -32,11 +32,11 @@
             z-index: 50;
         }
         
-        /* FAKE PC-LIKE PREVIEW SCREEN */
+        /* PERFECT FAKE PC-LIKE PREVIEW SCREEN */
         #preview-screen {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #ffffff;
+            background-color: #f5f5f5; /* Light background like PC */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -46,57 +46,48 @@
         }
         #preview-box {
             width: 100%;
-            max-width: 800px;
+            max-width: 600px;
             background-color: #242424;
-            border-radius: 8px;
-            padding: 40px 20px;
+            border-radius: 12px;
+            padding: 50px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
             margin-bottom: 20px;
-            min-height: 300px;
         }
         #preview-name {
             color: white;
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 40px;
+            font-size: 26px;
+            font-weight: 500;
             text-align: center;
             word-break: break-all;
         }
-        .preview-controls {
-            display: flex;
-            gap: 20px;
-            background-color: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 8px;
+        #preview-desc {
+            color: #999;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
         }
-        .preview-btn {
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-size: 12px;
-            opacity: 0.8;
-        }
-        .preview-btn svg { width: 24px; height: 24px; margin-bottom: 4px; }
         
         #join-btn {
             background-color: #0b5cff;
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 12px 0;
+            padding: 14px 0;
             width: 100%;
-            max-width: 400px;
+            max-width: 350px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(11,92,255,0.4);
+            box-shadow: 0 2px 8px rgba(11,92,255,0.4);
+            transition: background-color 0.2s, opacity 0.2s;
         }
         #join-btn:active { background-color: #094dd6; }
+        #join-btn:disabled { background-color: #666; cursor: not-allowed; opacity: 0.7; }
+        
         .terms-text {
             font-size: 12px;
             color: #666;
@@ -110,28 +101,20 @@
 <body>
     <div id="loading">Connecting securely...</div>
     
-    <!-- FAKE PREVIEW SCREEN (Matches PC Client View) -->
+    <!-- FAKE PREVIEW SCREEN (Matches PC Client View behavior without the fake broken buttons) -->
     <div id="preview-screen" style="display: none;">
         <div id="preview-box">
-            <div id="preview-name">Student</div>
-            <div class="preview-controls">
-                <div class="preview-btn">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-                    Join Audio
-                </div>
-                <div class="preview-btn" style="color: #ff4d4f; opacity: 1;">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11z"/></svg>
-                    Start Video
-                </div>
-            </div>
+            <div id="preview-name">Loading...</div>
+            <div id="preview-desc">Ready to join meeting</div>
         </div>
         <div class="terms-text">
-            By clicking "Join", you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Statement</a>.
+            By clicking "Join", you agree to our Terms of Service and Privacy Statement.
         </div>
         <button id="join-btn">Join</button>
-        <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc. All rights reserved.</div>
+        <div style="color: #666; font-size: 12px; margin-top: 15px;">© 2024 Zoom Video Communications, Inc.</div>
     </div>
 
+    <!-- MAIN ZOOM CONTAINER -->
     <div id="zmmtg-root"></div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
@@ -144,6 +127,7 @@
     <script>
         let client;
         let meetingConfig = {};
+        let joinAttempted = false;
 
         async function initPreview() {
             try {
@@ -158,10 +142,8 @@
 
                 if (!meetingConfig.meetingNumber) throw new Error("Meeting Number missing");
 
-                // Set preview name
                 document.getElementById('preview-name').innerText = meetingConfig.userName;
 
-                // Get signature
                 const sigRes = await fetch("/api/zoom/signature", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -192,6 +174,7 @@
                                 { text: 'Audio', className: 'Microphone', visible: true },
                                 { text: 'Video', className: 'Camera', visible: true },
                                 { text: 'Leave', className: 'Leave', visible: true },
+                                // Strictly disable participants list to prevent renaming
                                 { text: 'Participants', className: 'Participants', visible: false },
                                 { text: 'Chat', className: 'Chat', visible: false },
                                 { text: 'Share', className: 'Share', visible: false }
@@ -200,13 +183,12 @@
                     }
                 });
 
-                // Setup cleanup hooks to prevent Ghost Participants on refresh
+                // Cleanup hooks to destroy ghost connections on refresh
                 const cleanup = () => { if(client) { try{ client.leave(); }catch(e){} } };
                 window.addEventListener('beforeunload', cleanup);
                 window.addEventListener('pagehide', cleanup);
                 window.addEventListener('unload', cleanup);
 
-                // Show Preview Screen
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('preview-screen').style.display = 'flex';
 
@@ -217,8 +199,12 @@
         }
 
         document.getElementById('join-btn').addEventListener('click', async () => {
-            document.getElementById('preview-screen').style.display = 'none';
+            if (joinAttempted) return;
+            joinAttempted = true;
             
+            const btn = document.getElementById('join-btn');
+            btn.innerText = "Connecting to Class...";
+            btn.disabled = true;
             
             try {
                 await client.join({
@@ -229,6 +215,9 @@
                     userName: meetingConfig.userName,
                     userEmail: meetingConfig.userEmail
                 });
+                
+                // Hide preview screen ONLY AFTER successful join
+                document.getElementById('preview-screen').style.display = 'none';
                 
                 window.addEventListener('resize', () => {
                     if (client) {
@@ -246,15 +235,13 @@
                 client.on('connection-change', (payload) => {
                     if (payload.state === 'Closed') { window.location.href = '/zoom-ended.html'; }
                 });
+
             } catch (err) {
-                const reason = (err.reason || err.message || "").toLowerCase();
-                if (reason.includes("duplicate")) {
-                    console.log("Ignored duplicate join");
-                } else {
-                    document.getElementById('zmmtg-root').style.display = 'none';
-                    document.getElementById('loading').style.display = 'block';
-                    document.getElementById('loading').innerText = "Join Error: " + (err.reason || err.message);
-                }
+                joinAttempted = false;
+                btn.innerText = "Retry Join";
+                btn.disabled = false;
+                console.error("Join Error:", err);
+                alert("Failed to join: " + (err.reason || err.message || "Unknown error"));
             }
         });
 
@@ -262,4 +249,3 @@
     </script>
 </body>
 </html>
-
