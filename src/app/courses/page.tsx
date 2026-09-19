@@ -296,8 +296,19 @@ function CoursesContent() {
     return { ...course, courseProgress };
   });
 
-  const activatedCourses = coursesWithProgress.filter(c => isCourseActivated(c));
-  const availableCourses = coursesWithProgress;
+  const activatedCourses = coursesWithProgress
+    .filter(c => isCourseActivated(c))
+    .sort((a, b) => {
+      if (a.isMonthly && !b.isMonthly) return -1;
+      if (!a.isMonthly && b.isMonthly) return 1;
+      return 0;
+    });
+    
+  const availableCourses = [...coursesWithProgress].sort((a, b) => {
+    if (a.isMonthly && !b.isMonthly) return -1;
+    if (!a.isMonthly && b.isMonthly) return 1;
+    return 0;
+  });
 
   const displayedSubjects = subjects.filter(s => !user?.stream || (s.streamNames || []).includes(user.stream) || s.streamName === user.stream);
   const displayedTeachers = teachers.filter(teacher => courses.some(c => c.subjectId === selectedSubjectId && c.teacherId === teacher.id));

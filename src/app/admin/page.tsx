@@ -577,12 +577,13 @@ export default function AdminDashboard() {
       (studentFilterStatus === "Active" ? s.isApproved : 
        studentFilterStatus === "Suspended" ? (!s.isApproved && s.pendingReason === 'Access Suspended') : 
        (!s.isApproved && s.pendingReason !== 'Access Suspended'));
-    const matchSearch = !studentSearchTerm || 
-      (s.name?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
-      (s.studentId?.toLowerCase().includes(studentSearchTerm.toLowerCase())) ||
-      (s.phone?.includes(studentSearchTerm)) ||
-      (s.nicNumber?.includes(studentSearchTerm)) ||
-      (s.email?.toLowerCase().includes(studentSearchTerm.toLowerCase()));
+    const term = studentSearchTerm.trim().toLowerCase();
+    const matchSearch = !term || 
+      (s.name?.toLowerCase().includes(term)) ||
+      (s.studentId?.toLowerCase().includes(term)) ||
+      (s.phone?.includes(term)) ||
+      (s.nicNumber?.includes(term)) ||
+      (s.email?.toLowerCase().includes(term));
     return matchBatch && matchStatus && matchSearch;
   });
 
