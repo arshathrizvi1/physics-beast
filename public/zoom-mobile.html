@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- NATIVE BROWSER SCALING: Forces mobile browsers to zoom out to fit the 1000px PC UI -->
+    <meta name="viewport" content="width=1000, user-scalable=no">
     <title>Zoom Meeting</title>
 
     <!-- ULTIMATE NATIVE ENVIRONMENT SPOOFER to bypass Zoom 4003 Browser Restrictions -->
@@ -35,12 +36,6 @@
             Object.defineProperty(window, 'Capacitor', { get: function() { return undefined; }, configurable: true });
             Object.defineProperty(window, 'cordova',   { get: function() { return undefined; }, configurable: true });
             Object.defineProperty(window, 'android',   { get: function() { return undefined; }, configurable: true });
-            
-            // Critical fix: Spoof screen size to match our virtual window size, so Zoom's canvas isn't tiny!
-            Object.defineProperty(screen, 'width', { get: function() { return window.innerWidth; }, configurable: true });
-            Object.defineProperty(screen, 'height', { get: function() { return window.innerHeight; }, configurable: true });
-            Object.defineProperty(screen, 'availWidth', { get: function() { return window.innerWidth; }, configurable: true });
-            Object.defineProperty(screen, 'availHeight', { get: function() { return window.innerHeight; }, configurable: true });
 
             function spoofWebGL(context) {
                 if (context && context.prototype && context.prototype.getParameter) {
@@ -74,8 +69,8 @@
         .spinner {
             border: 4px solid rgba(255,255,255,0.1);
             border-left-color: #ffffff; border-radius: 50%;
-            width: 32px; height: 32px;
-            animation: spin 1s linear infinite; margin-bottom: 16px;
+            width: 64px; height: 64px;
+            animation: spin 1s linear infinite; margin-bottom: 24px;
         }
         @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
         
@@ -95,7 +90,7 @@
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div>Connecting to Zoom...</div>
+        <div style="font-size: 24px">Connecting to Live Class...</div>
     </div>
 
     <script src="https://source.zoom.us/3.8.0/lib/vendor/react.min.js"></script>
@@ -105,7 +100,6 @@
     <script src="https://source.zoom.us/3.8.0/lib/vendor/lodash.min.js"></script>
     <script src="https://source.zoom.us/zoom-meeting-3.8.0.min.js"></script>
 
-    <!-- ES5 Promises to prevent Android WebView crash -->
     <script>
         function initZoom() {
             var params = new URLSearchParams(window.location.search);

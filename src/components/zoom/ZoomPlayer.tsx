@@ -22,9 +22,15 @@ export default function ZoomPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [virtualSize, setVirtualSize] = useState({ width: 1024, height: 768 });
-  const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const params = new URLSearchParams({
+    mn: meetingNumber,
+    name: userName,
+    email: userEmail,
+    pwd: password,
+    role: role.toString(),
+  });
 
   useEffect(() => {
     const mobileCheck = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -33,59 +39,30 @@ export default function ZoomPlayer({
     setIsMobile(isMobileDevice);
 
     if (isMobileDevice) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-          stream.getTracks().forEach(track => track.stop());
-          setPermissionsGranted(true);
-        })
-        .catch(err => {
-          console.warn("User or OS denied media permissions.", err);
-          setPermissionsGranted(true);
-        });
+      // Direct full window navigation for mobile.
+      // This allows the mobile browser's native <meta viewport> to perfectly scale the 950px desktop UI.
+      window.location.href = "/zoom-mobile.html?v=50&" + params.toString();
     } else {
       setPermissionsGranted(true);
     }
   }, []);
 
   useEffect(() => {
-    if (isMobile) {
-      const handleResize = () => {
-        if (containerRef.current) {
-          const { clientWidth, clientHeight } = containerRef.current;
-          
-          // Calculate a virtual resolution that is at least 950px wide (needed for PC Client View)
-          // but maintains the exact aspect ratio of the phone screen so there are NO black bars.
-          const targetVirtualWidth = Math.max(950, clientWidth);
-          const targetVirtualHeight = (clientHeight / clientWidth) * targetVirtualWidth;
-          
-          setVirtualSize({ width: targetVirtualWidth, height: targetVirtualHeight });
-          setScale(clientWidth / targetVirtualWidth);
-        }
+    if (!isMobile) {
+      const handleFullscreenChange = () => {
+        const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+        setIsFullscreen(isFull);
+        document.body.style.overflow = isFull ? "hidden" : "";
       };
-      
-      const timer = setTimeout(handleResize, 100);
-      window.addEventListener('resize', handleResize);
+      document.addEventListener("fullscreenchange", handleFullscreenChange);
+      document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
       return () => {
-        clearTimeout(timer);
-        window.removeEventListener('resize', handleResize);
+        document.removeEventListener("fullscreenchange", handleFullscreenChange);
+        document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+        document.body.style.overflow = "";
       };
     }
-  }, [isMobile, isFullscreen]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isFull = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
-      setIsFullscreen(isFull);
-      document.body.style.overflow = isFull ? "hidden" : "";
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-      document.body.style.overflow = "";
-    };
-  }, []);
+  }, [isMobile]);
 
   const toggleFullscreen = () => {
     if (!isFullscreen) {
@@ -105,24 +82,24 @@ export default function ZoomPlayer({
     }
   };
 
-  const params = new URLSearchParams({
-    mn: meetingNumber,
-    name: userName,
-    email: userEmail,
-    pwd: password,
-    role: role.toString(),
-  });
+  const iframeSrc = "/zoom-frame.html?v=120&" + params.toString();
 
-  const iframeSrc = isMobile 
-    ? "/zoom-mobile.html?v=33&" + params.toString()
-    : "/zoom-frame.html?v=120&" + params.toString();
+  // If mobile, we are redirecting, so show a cleaner loading state
+  if (isMobile) {
+    return (
+      <div className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px] flex flex-col items-center justify-center text-white">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+        <p>Launching Mobile Live Class...</p>
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="w-full h-full relative bg-zinc-900 rounded-lg overflow-hidden min-h-[500px]">
       {(!iframeLoaded || !permissionsGranted) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 z-10 text-white">
           <Loader2 className="w-8 h-8 animate-spin mb-4" />
-          <p>{permissionsGranted ? "Preparing PC Experience for Mobile..." : "Requesting Camera & Mic Permissions..."}</p>
+          <p>Preparing PC Experience...</p>
         </div>
       )}
 
@@ -135,27 +112,13 @@ export default function ZoomPlayer({
       </button>
 
       {permissionsGranted && (
-        <div className="absolute inset-0 flex items-start justify-start overflow-hidden z-0 bg-black">
-          <div 
-            style={isMobile ? { 
-              width: virtualSize.width, 
-              height: virtualSize.height, 
-              transform: `scale(${scale})`, 
-              transformOrigin: 'top left' 
-            } : { 
-              width: '100%', 
-              height: '100%' 
-            }}
-          >
-            <iframe
-              src={iframeSrc}
-              className="w-full h-full border-0"
-              allow="camera; microphone; display-capture; fullscreen; autoplay"
-              allowFullScreen={true}
-              onLoad={() => setIframeLoaded(true)}
-            />
-          </div>
-        </div>
+        <iframe
+          src={iframeSrc}
+          className="w-full h-full border-0 absolute inset-0 z-0"
+          allow="camera; microphone; display-capture; fullscreen; autoplay"
+          allowFullScreen={true}
+          onLoad={() => setIframeLoaded(true)}
+        />
       )}
     </div>
   );
