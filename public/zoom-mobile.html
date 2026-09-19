@@ -20,7 +20,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            display: none; /* Hidden until join */
+            display: block; z-index: 1;
         }
         #loading {
             position: absolute;
@@ -218,7 +218,7 @@
 
         document.getElementById('join-btn').addEventListener('click', async () => {
             document.getElementById('preview-screen').style.display = 'none';
-            document.getElementById('zmmtg-root').style.display = 'block';
+            
             
             try {
                 await client.join({
@@ -262,3 +262,4 @@
     </script>
 </body>
 </html>
+
