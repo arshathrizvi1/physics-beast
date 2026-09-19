@@ -31,8 +31,7 @@ export default function ZoomPlayer({
     setIsMobile(isMobileDevice);
 
     if (isMobileDevice) {
-      // CRITICAL FIX: Zoom WASM cannot initialize inside a nested iframe on Android WebView.
-      // Navigate the full window directly to the standalone zoom-mobile page instead.
+      // Navigate full window directly — Zoom WASM cannot run inside a nested iframe
       const p = new URLSearchParams({
         mn: meetingNumber,
         name: userName,
@@ -40,7 +39,7 @@ export default function ZoomPlayer({
         pwd: password,
         role: role.toString(),
       });
-      window.location.href = "/zoom-mobile.html?v=23&" + p.toString();
+      window.location.href = "/zoom-mobile.html?v=24&" + p.toString();
     } else {
       setPermissionsGranted(true);
     }
@@ -122,6 +121,7 @@ export default function ZoomPlayer({
     </div>
   );
 }
+
 
 
 
