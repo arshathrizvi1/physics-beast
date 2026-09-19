@@ -21,7 +21,7 @@
     </style>
 
     <!-- FAKE PC SIGNATURE (MUST BE VERY CAREFUL NOT TO CRASH OLD WEBVIEWS) -->
-    <script>
+        <script>
         window.onerror = function(msg, url, line) {
             document.getElementById('loading-title').innerText = "System Crash";
             document.getElementById('loading-desc').innerText = "Error on line " + line + ": " + msg;
@@ -33,8 +33,32 @@
             if (Object.defineProperty) {
                 Object.defineProperty(navigator, 'userAgent', { get: function() { return fakeUserAgent; }, configurable: true });
                 Object.defineProperty(navigator, 'platform', { get: function() { return 'Win32'; }, configurable: true });
+                Object.defineProperty(navigator, 'maxTouchPoints', { get: function() { return 0; }, configurable: true });
+                if (navigator.userAgentData) {
+                    Object.defineProperty(navigator, 'userAgentData', {
+                        get: function() { return { brands: [{brand: "Google Chrome", version: "120"}], mobile: false, platform: "Windows" }; },
+                        configurable: true
+                    });
+                }
             }
-        } catch(e) {}
+            window.ontouchstart = undefined;
+            window.TouchEvent = undefined;
+            
+            function spoofWebGL(context) {
+                if (context && context.prototype && context.prototype.getParameter) {
+                    var originalGetParameter = context.prototype.getParameter;
+                    context.prototype.getParameter = function(parameter) {
+                        if (parameter === 37445) return 'Google Inc. (NVIDIA)';
+                        if (parameter === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3080 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                        return originalGetParameter.apply(this, arguments);
+                    };
+                }
+            }
+            spoofWebGL(window.WebGLRenderingContext);
+            spoofWebGL(window.WebGL2RenderingContext);
+        } catch(e) {
+            console.error("Spoof failed", e);
+        }
     </script>
 </head>
 <body>
@@ -160,4 +184,5 @@
     </script>
 </body>
 </html>
+
 
