@@ -215,40 +215,51 @@
     toolbarTimeout = setTimeout(hideToolbar, 2000);
 </script>
 <script>
-    // Ultimate Mobile Layout Engine
+    // Ultimate Mobile Layout Engine V2
     setInterval(function() {
-        var shareCanvas = document.querySelector('.share-canvas, canvas#share-canvas, .share-container canvas');
-        var speakerVideo = document.querySelector('.speaker-view-video, .zm-layout-viewer-video-container, .main-video-container, .video-avatar-container');
-        
-        if (shareCanvas && shareCanvas.style.display !== 'none') {
-            if (speakerVideo) speakerVideo.style.setProperty('display', 'none', 'important');
+        var canvases = document.querySelectorAll('canvas');
+        canvases.forEach(function(c) {
+            c.style.setProperty('width', '100vw', 'important');
+            c.style.setProperty('height', '100vh', 'important');
+            c.style.setProperty('object-fit', 'contain', 'important');
+            c.style.setProperty('position', 'absolute', 'important');
+            c.style.setProperty('top', '0', 'important');
+            c.style.setProperty('left', '0', 'important');
+            c.style.setProperty('z-index', '1', 'important');
             
-            var p = shareCanvas.parentElement;
+            var p = c.parentElement;
             if (p) {
                 p.style.setProperty('width', '100vw', 'important');
                 p.style.setProperty('height', '100vh', 'important');
-                p.style.setProperty('transform', 'none', 'important');
-                p.style.setProperty('left', '0', 'important');
+                p.style.setProperty('position', 'absolute', 'important');
                 p.style.setProperty('top', '0', 'important');
+                p.style.setProperty('left', '0', 'important');
+                p.style.setProperty('transform', 'none', 'important');
+                p.style.setProperty('margin', '0', 'important');
+                p.style.setProperty('padding', '0', 'important');
             }
-            shareCanvas.style.setProperty('width', '100vw', 'important');
-            shareCanvas.style.setProperty('height', '100vh', 'important');
-            shareCanvas.style.setProperty('object-fit', 'contain', 'important');
-        } else if (speakerVideo) {
-            speakerVideo.style.setProperty('display', 'block', 'important');
-            speakerVideo.style.setProperty('width', '100vw', 'important');
-            speakerVideo.style.setProperty('height', '100vh', 'important');
-            speakerVideo.style.setProperty('transform', 'none', 'important');
-            speakerVideo.style.setProperty('left', '0', 'important');
-            speakerVideo.style.setProperty('top', '0', 'important');
-            
-            var vidCanvas = speakerVideo.querySelector('canvas');
-            if (vidCanvas) {
-                vidCanvas.style.setProperty('width', '100vw', 'important');
-                vidCanvas.style.setProperty('height', '100vh', 'important');
-                vidCanvas.style.setProperty('object-fit', 'contain', 'important');
+        });
+        
+        var isSharing = false;
+        canvases.forEach(function(c) {
+            if (c.className.includes('share') || (c.parentElement && c.parentElement.className.includes('share'))) {
+                isSharing = true;
             }
-        }
+        });
+        
+        var speakerVideos = document.querySelectorAll('.speaker-view-video, .video-avatar-container, .zm-layout-viewer-video-container');
+        speakerVideos.forEach(function(sv) {
+            if (isSharing) {
+                sv.style.setProperty('display', 'none', 'important');
+            } else {
+                sv.style.setProperty('display', 'block', 'important');
+                sv.style.setProperty('width', '100vw', 'important');
+                sv.style.setProperty('height', '100vh', 'important');
+                sv.style.setProperty('position', 'absolute', 'important');
+                sv.style.setProperty('top', '0', 'important');
+                sv.style.setProperty('left', '0', 'important');
+            }
+        });
     }, 500);
 </script>
 </body>
