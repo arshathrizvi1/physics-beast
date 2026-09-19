@@ -1,12 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meeting Ended</title>
-    <script>
-        window.location.href = "/";
-    </script>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #18181b; color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background-color: #27272a;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: 90%;
+        }
+        .icon {
+            background-color: #3f3f46;
+            color: #d4d4d8;
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.5rem auto;
+        }
+        .icon svg { width: 32px; height: 32px; }
+        h2 { margin: 0 0 0.5rem 0; font-size: 1.5rem; font-weight: 600; }
+        p { margin: 0 0 2rem 0; color: #a1a1aa; line-height: 1.5; }
+        .btn {
+            background-color: #eab308;
+            color: #18181b;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background-color: #ca8a04; }
+    </style>
 </head>
 <body>
-    Returning to app...
+    <div class="container">
+        <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+        <h2>Live Class Ended</h2>
+        <p>This Zoom meeting has ended. Thank you for joining.</p>
+        <button class="btn" onclick="goBack()">Close Screen</button>
+    </div>
+    
+    <script>
+        function goBack() {
+            try {
+                // If it's full screen on mobile, attempt to reload the parent to get out of it cleanly
+                if (window.parent && window.parent !== window) {
+                    window.parent.location.reload();
+                } else {
+                    window.location.href = '/';
+                }
+            } catch(e) {
+                window.location.href = '/';
+            }
+        }
+    </script>
 </body>
 </html>
