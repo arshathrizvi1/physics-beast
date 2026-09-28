@@ -1373,7 +1373,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             <div 
               ref={syllabusScrollRef}
               data-lenis-prevent="true"
-              onWheel={(e) => e.stopPropagation()}
+              onMouseEnter={() => { if (typeof window !== 'undefined' && (window as any).lenis) (window as any).lenis.stop(); }} onMouseLeave={() => { if (typeof window !== 'undefined' && (window as any).lenis) (window as any).lenis.start(); }}
               className="h-[520px] overflow-y-auto overflow-x-hidden p-2 flex flex-col gap-2 custom-scrollbar overscroll-contain"
               style={{
                 scrollbarWidth: 'thin',
