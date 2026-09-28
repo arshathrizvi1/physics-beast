@@ -390,14 +390,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
   }, [id]);
 
+  const hasAutoOpenedRef = useRef(false);
+
   useEffect(() => {
-    if (!user || folders.length === 0 || activeFolderId) return;
+    if (!user || folders.length === 0 || hasAutoOpenedRef.current) return;
     const accessibleFolders = sidebarFolders.filter((f: any) => {
       const exp = user.folderAccess?.[f.id];
       return user.role === 'admin' || user.role === 'teacher' || (user.accessibleCourses && user.accessibleCourses.includes(id)) || (exp && exp > Date.now());
     });
 
     if (accessibleFolders.length > 0) {
+      hasAutoOpenedRef.current = true;
       const firstFolder = accessibleFolders[0];
       setActiveFolderId(firstFolder.id);
       if (videos.length > 0) {
@@ -407,7 +410,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         }
       }
     }
-  }, [folders, videos, user, activeFolderId, id]);
+  }, [folders, videos, user, id]);
 
   const playingRef = useRef(playing);
   useEffect(() => { playingRef.current = playing; }, [playing]);
@@ -1352,7 +1355,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             <div 
               ref={syllabusScrollRef}
               data-lenis-prevent="true"
-              className="h-[520px] overflow-y-auto overflow-x-hidden p-2 flex flex-col gap-2 custom-scrollbar overscroll-contain select-none"
+              onWheel={(e) => e.stopPropagation()}
+              className="h-[520px] overflow-y-auto overflow-x-hidden p-2 flex flex-col gap-2 custom-scrollbar overscroll-contain"
               style={{
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgba(212, 175, 55, 0.75) rgba(255, 255, 255, 0.05)',
