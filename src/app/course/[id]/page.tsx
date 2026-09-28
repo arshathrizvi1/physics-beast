@@ -1336,7 +1336,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     <div className="flex items-center gap-1">
                       <button 
                         type="button"
-                        onClick={() => syllabusScrollRef.current?.scrollBy({ top: -180, behavior: 'smooth' })}
+                        onClick={() => document.getElementById('syllabus-scroll-area')?.querySelector('[data-slot="scroll-area-viewport"]')?.scrollBy({ top: -180, behavior: 'smooth' })}
                         className="p-1 rounded bg-secondary/15 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all active:scale-95 cursor-pointer border border-secondary/20"
                         title="Scroll syllabus up"
                         aria-label="Scroll syllabus up"
@@ -1345,7 +1345,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </button>
                       <button 
                         type="button"
-                        onClick={() => syllabusScrollRef.current?.scrollBy({ top: 180, behavior: 'smooth' })}
+                        onClick={() => document.getElementById('syllabus-scroll-area')?.querySelector('[data-slot="scroll-area-viewport"]')?.scrollBy({ top: 180, behavior: 'smooth' })}
                         className="p-1 rounded bg-secondary/15 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all active:scale-95 cursor-pointer border border-secondary/20"
                         title="Scroll syllabus down"
                         aria-label="Scroll syllabus down"
@@ -1370,17 +1370,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             })()}
           </CardHeader>
           <CardContent className="p-0">
-            <div 
-              ref={syllabusScrollRef}
-              data-lenis-prevent="true"
-              onMouseEnter={() => { if (typeof window !== 'undefined' && (window as any).lenis) (window as any).lenis.stop(); }} onMouseLeave={() => { if (typeof window !== 'undefined' && (window as any).lenis) (window as any).lenis.start(); }}
-              className="h-[520px] overflow-y-auto overflow-x-hidden p-2 flex flex-col gap-2 custom-scrollbar overscroll-contain"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(212, 175, 55, 0.75) rgba(255, 255, 255, 0.05)',
-              }}
-            >
-                {folders.length === 0 ? (
+            <ScrollArea id="syllabus-scroll-area" data-lenis-prevent="true" className="h-[520px]"> <div className="p-2 flex flex-col gap-2"> {folders.length === 0 ? (
                   <p className="p-4 text-muted-foreground text-sm text-center">No folders available for this course yet.</p>
                 ) : (
                   sidebarFolders.map((folder) => {
@@ -1632,11 +1622,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     )}
                   </div>
                 )}
-              </div>
-          </CardContent>
-        </Card>
-
-        {user ? (
+              </div></ScrollArea></CardContent></Card> {user ? (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader>
               <CardTitle className="text-lg">Ready to test your knowledge?</CardTitle>
@@ -1840,4 +1826,5 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
