@@ -416,6 +416,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => { playingRef.current = playing; }, [playing]);
   const activeVideoRef = useRef(activeVideo);
   useEffect(() => { activeVideoRef.current = activeVideo; setActiveServer('bunny'); }, [activeVideo]);
+
+  // Completely block Lenis smooth-scroll hijacking over the syllabus container
+  useEffect(() => {
+    const el = syllabusScrollRef.current;
+    if (!el) return;
+    const stopWheel = (e: WheelEvent) => {
+      // Allow native scroll, but stop it from bubbling up to Window where Lenis catches it
+      e.stopPropagation();
+    };
+    el.addEventListener('wheel', stopWheel, { passive: true });
+    el.addEventListener('touchstart', stopWheel, { passive: true });
+    el.addEventListener('touchmove', stopWheel, { passive: true });
+    return () => {
+      el.removeEventListener('wheel', stopWheel);
+      el.removeEventListener('touchstart', stopWheel);
+      el.removeEventListener('touchmove', stopWheel);
+    };
+  }, [folders]); // re-bind if structure changes
   const lastStudyDateRef = useRef(user?.lastStudyDate || new Date().toISOString().split('T')[0]);
 
   // Heartbeat & Presence Logic (Tracks Real "Students Watching" and Updates "Total Study Time")
