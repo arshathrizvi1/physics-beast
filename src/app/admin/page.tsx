@@ -180,7 +180,7 @@ export default function AdminDashboard() {
   const [isEditingStudent, setIsEditingStudent] = useState(false);
   const [editingStudentData, setEditingStudentData] = useState<any>(null);
   
-  const [newBatchName, setNewBatchName] = useState("");
+  const [newBatchName, setNewBatchName] = useState(""); const [newBatchIsAL, setNewBatchIsAL] = useState(false);
   const [newBatchYear, setNewBatchYear] = useState("");
   const [streams, setStreams] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -758,9 +758,9 @@ export default function AdminDashboard() {
     try {
       // using random string or docRef for id
       const ref = doc(collection(db, 'batches'));
-      await setDoc(ref, { name: newBatchName, year: newBatchYear, createdAt: Date.now() });
+      await setDoc(ref, { name: newBatchName, year: newBatchYear, isAL: newBatchIsAL, createdAt: Date.now() });
       setNewBatchName("");
-      setNewBatchYear("");
+      setNewBatchYear(""); setNewBatchIsAL(false);
       setSelectedBatchId(ref.id); // Auto-select so user can immediately add courses
     } catch (err) {
       console.log(err);
@@ -2687,7 +2687,7 @@ export default function AdminDashboard() {
                     </div>
                     <form onSubmit={handleCreateBatch} className="pt-2 border-t space-y-2">
                       <Input placeholder="Batch Name (e.g. 2026 Batch)" value={newBatchName} onChange={e => setNewBatchName(e.target.value)} required />
-                      <Input placeholder="Year (e.g. 2026)" value={newBatchYear} onChange={e => setNewBatchYear(e.target.value)} required />
+                      <Input placeholder="Year (e.g. 2026)" value={newBatchYear} onChange={e => setNewBatchYear(e.target.value)} required /> <div className="flex items-center space-x-2 my-2"><input type="checkbox" id="isAL" checked={newBatchIsAL} onChange={e => setNewBatchIsAL(e.target.checked)} className="w-4 h-4" /><label htmlFor="isAL" className="text-sm font-medium">This is an A/L Batch (Requires NIC verification)</label></div>
                       <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Batch</Button>
                     </form>
                   </div>
@@ -6001,6 +6001,8 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+
 
 
 

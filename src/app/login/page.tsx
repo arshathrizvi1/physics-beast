@@ -313,8 +313,10 @@ function LoginPageContent() {
         if (!address.trim()) missingFields.push("Address");
         if (!phone.trim()) missingFields.push("Your Phone Number");
         if (!parentPhone.trim()) missingFields.push("Parent's Phone Number");
-        if (!nicNumber.trim()) missingFields.push("NIC Number");
-        if (!nicFile) missingFields.push("NIC Image");
+        const selectedBatch = batches.find(b => b.year === graduationYear || b.id === graduationYear);
+          const isALBatch = selectedBatch?.isAL === true;
+          if (isALBatch && !nicNumber.trim()) missingFields.push("NIC Number");
+          if (isALBatch && !nicFile) missingFields.push("NIC Image");
         if (!email.trim()) missingFields.push("Email");
         if (!password.trim()) missingFields.push("Password");
 
@@ -329,12 +331,44 @@ function LoginPageContent() {
           setIsSubmitting(false);
           return;
         }
-        const profileData = { name, dob, school, gender, stream, graduationYear, address, phone, parentPhone, nicNumber };
-        if (isGoogleSignupForm) {
-          success = await completeGoogleSignup(profileData, nicFile, password);
-        } else {
-          success = await signup(email, password, profileData, nicFile);
-        }
+        
+          const selectedBatch = batches.find(b => b.year === graduationYear || b.id === graduationYear);
+          const isALBatch = selectedBatch?.isAL === true;
+          let isAiApproved = false;
+          if (isALBatch && nicFile && nicNumber.trim()) {
+             try {
+                const base64Str = await new Promise((resolve, reject) => {
+                   const reader = new FileReader();
+                   reader.readAsDataURL(nicFile);
+                   reader.onload = () => resolve(reader.result);
+                   reader.onerror = error => reject(error);
+                });
+                const res = await fetch('/api/verify-nic', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ imageBase64: base64Str, name: name, nicNumber: nicNumber.trim() })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                   setError(ID Verification Failed: . Please try again with a clearer photo or contact support.);
+                   setIsSubmitting(false);
+                   return;
+                }
+                isAiApproved = true;
+             } catch (err) {
+                console.error(err);
+                setError("There was an error connecting to the verification server. Please try again.");
+                setIsSubmitting(false);
+                return;
+             }
+          }
+          const profileData = { name, dob, school, gender, stream, graduationYear, address, phone, parentPhone, nicNumber };
+          if (isGoogleSignupForm) {
+            success = await completeGoogleSignup(profileData, nicFile, password, isAiApproved);
+          } else {
+            success = await signup(email, password, profileData, nicFile, isAiApproved);
+          }
+
       }
       
       if (!success) {
@@ -717,7 +751,11 @@ function LoginPageContent() {
     );
   }
 
+  
   // Login/Signup View
+  const selectedBatchObj = batches.find(b => b.year === graduationYear || b.id === graduationYear);
+  const isALBatch = selectedBatchObj?.isAL === true;
+
   return (
     <div className="flex min-h-[70vh] items-center justify-center">
       <Card className="w-full max-w-md border-secondary/50 shadow-lg shadow-primary/5">
@@ -926,24 +964,24 @@ function LoginPageContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="student-nic-number">NIC Number <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="student-nic-number">NIC Number {isALBatch && <span className="text-red-500">*</span>}</Label>
                     <Input 
                       id="student-nic-number" 
                       type="number"
                       placeholder="e.g. 2005..." 
                       value={nicNumber}
                       onChange={(e) => setNicNumber(e.target.value)}
-                      required 
+                      required={isALBatch} 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="student-nic">NIC Image <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="student-nic">NIC Image {isALBatch && <span className="text-red-500">*</span>}</Label>
                     <Input 
                       id="student-nic" 
                       type="file" 
                       accept="image/*"
                       onChange={(e) => setNicFile(e.target.files ? e.target.files[0] : null)}
-                      required
+                      required={isALBatch}
                     />
                   </div>
                 </div>

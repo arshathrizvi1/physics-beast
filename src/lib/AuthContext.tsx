@@ -84,13 +84,13 @@ interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, profileData: any, nicFile: File | null) => Promise<boolean>;
+  signup: (email: string, password: string, profileData: any, nicFile: File | null, isAiApproved?: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   updateProfilePicture: (file: File) => Promise<boolean>;
   updateProfileName: (newName: string) => Promise<boolean>;
   resetPassword: (email: string) => Promise<{ success: boolean; email?: string; error?: string }>;
   googleSignIn: () => Promise<{ success: boolean; isNewUser?: boolean; googleUser?: any; error?: string }>;
-  completeGoogleSignup: (profileData: any, nicFile: File | null, password?: string) => Promise<boolean>;
+  completeGoogleSignup: (profileData: any, nicFile: File | null, password?: string, isAiApproved?: boolean) => Promise<boolean>;
   signupTeacher: (email: string, password: string, profileData: { name: string; subject: string }) => Promise<boolean>;
   completeGoogleTeacherSignup: (profileData: { name: string; subject: string }, password?: string) => Promise<boolean>;
   loginWithCustomToken: (token: string) => Promise<boolean>;
@@ -611,7 +611,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, profileData: any, nicFile: File | null) => {
+  const signup = async (email: string, password: string, profileData: any, nicFile: File | null, isAiApproved: boolean = false) => {
     try {
       safeStorage.session.setItem('isSigningUp', 'true');
       const usersRef = collection(db, 'users');
@@ -675,8 +675,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         name: profileData.name,
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
-        isApproved: email === 'arshathrizvi1010@gmail.com', // Admins are auto-approved, students must be reviewed
-        pendingReason: email === 'arshathrizvi1010@gmail.com' ? undefined : 'ID Verification',
+        isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved,
+        pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'ID Verification',
         dob: profileData.dob,
         school: profileData.school,
         gender: profileData.gender,
@@ -983,7 +983,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const completeGoogleSignup = async (profileData: any, nicFile: File | null, password?: string) => {
+  const completeGoogleSignup = async (profileData: any, nicFile: File | null, password?: string, isAiApproved: boolean = false) => {
     try {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) throw new Error("Not authenticated with Google.");
@@ -1034,8 +1034,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         name: profileData.name || firebaseUser.displayName,
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
-        isApproved: email === 'arshathrizvi1010@gmail.com',
-        pendingReason: email === 'arshathrizvi1010@gmail.com' ? undefined : 'ID Verification',
+        isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved, pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'ID Verification',
         dob: profileData.dob,
         school: profileData.school,
         gender: profileData.gender,
@@ -1367,6 +1366,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+
 
 
 
