@@ -26,7 +26,7 @@
       "launchAutoHide": true,
       "backgroundColor": "#000000",
       "androidSplashResourceName": "splash",
-      "showSpinner": true,
+      "showSpinner": false,
       "spinnerColor": "#b08933"
     }
   }
