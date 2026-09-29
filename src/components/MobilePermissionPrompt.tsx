@@ -18,17 +18,15 @@ export function MobilePermissionPrompt() {
 
       setIsMobileApp(true);
 
-      try {
-        const { registerPlugin } = await import("@capacitor/core");
-        const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
-        const { isIgnoring } = await BackgroundPermission.checkBatteryOptimization();
-        if (isIgnoring) {
-          return; 
-        }
-      } catch (err) {
-        console.log("Error checking battery status", err);
+      // Check REAL Android OS Status via our Native Bridge
+      if ((window as any).AndroidNative && (window as any).AndroidNative.hasBatteryPermission) {
+         const hasPerm = (window as any).AndroidNative.hasBatteryPermission();
+         if (hasPerm) {
+             return; // PERMANENTLY HIDE if they actually flipped the switch in settings!
+         }
       }
 
+      // If they clicked "Maybe Later" in this session, hide it temporarily
       const hasPrompted = sessionStorage.getItem("mobile_perm_prompt_shown");
       if (!hasPrompted) {
         const timer = setTimeout(() => {
@@ -47,9 +45,7 @@ export function MobilePermissionPrompt() {
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       await LocalNotifications.requestPermissions();
-    } catch (err) {
-      console.log("LocalNotifications error:", err);
-    }
+    } catch (err) {}
 
     if (typeof window !== "undefined" && (window as any).AndroidNative) {
       (window as any).AndroidNative.openBatterySettings();
@@ -65,6 +61,7 @@ export function MobilePermissionPrompt() {
   };
 
   const handleDismiss = () => {
+    // Only hide it for this session if they click close/maybe later
     sessionStorage.setItem("mobile_perm_prompt_shown", "true");
     setIsOpen(false);
   };
