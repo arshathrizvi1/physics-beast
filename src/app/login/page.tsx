@@ -244,7 +244,7 @@ function LoginPageContent() {
       if (res.success && res.email) {
         setResetSuccessEmail(res.email);
         setError("");
-        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\n⚠️ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
+        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\nâš ï¸ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
       } else {
         setError(res.error || "Failed to send reset email. Make sure the email is correct.");
       }
@@ -269,14 +269,14 @@ function LoginPageContent() {
             await logout();
             setError("This Google account hasn't been registered yet. Please sign up first to create your account.");
           } else {
-            // Student is on the signup page — show the extended form
+            // Student is on the signup page â€” show the extended form
             setIsGoogleSignupForm(true);
             if (res.googleUser?.email) setEmail(res.googleUser.email);
             if (res.googleUser?.name) setName(res.googleUser.name);
             setPassword("");
           }
         } else {
-          // Existing user — dashboard handles the view
+          // Existing user â€” dashboard handles the view
         }
       } else {
         if (res.error?.includes('auth/popup-closed-by-user')) {
@@ -350,7 +350,7 @@ function LoginPageContent() {
                 });
                 const data = await res.json();
                 if (!data.success) {
-                   setError(ID Verification Failed: . Please try again with a clearer photo or contact support.);
+                   setError("ID Verification Failed: Please try again with a clearer photo or contact support.");
                    setIsSubmitting(false);
                    return;
                 }
@@ -785,7 +785,7 @@ function LoginPageContent() {
                 <div className="flex items-start gap-2 pt-1 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-lg">
                   <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
                   <div>
-                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1–2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
+                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1â€“2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
                   </div>
                 </div>
               </div>
