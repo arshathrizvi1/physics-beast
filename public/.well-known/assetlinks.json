@@ -1,10 +1,10 @@
 [{
-  "relation": ["delegate_permission/common.handle_all_urls"],
+  "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
   "target": {
     "namespace": "android_app",
     "package_name": "com.brilliantacademy.app",
     "sha256_cert_fingerprints": [
-      "7F:B6:FD:79:35:F7:20:61:A9:2E:A9:41:1E:53:46:3D:87:75:B8:62:26:C5:12:54:1F:F9:94:51:95:9E:26:60"
+      "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34"
     ]
   }
 }]
