@@ -1,120 +1,118 @@
 package com.brilliantacademy.app;
 
-import android.content.ComponentName;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.Settings;
-import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
-import com.getcapacitor.BridgeActivity;
-import android.os.Bundle;
-import android.content.pm.PackageManager;
-import android.content.pm.InstallSourceInfo;
 import android.os.Build;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.content.pm.PackageInfo;
+import android.util.Log;
+import android.webkit.WebView;
+
+import com.getcapacitor.BridgeActivity;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
 
-        if (!verifyInstaller(this)) {
-            new AlertDialog.Builder(this)
-                .setTitle("Security Violation")
-                .setMessage("This app must be installed from the official Google Play Store. Sideloading or sharing the APK via Shareit is strictly prohibited.")
-                .setCancelable(false)
-                .setPositiveButton("Exit", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        finishAffinity();
-                    }
-                })
-                .show();
-            return;
-        }
+    // Load the Unbreakable C++ Security Engine
+    static {
+        System.loadLibrary("secureplayer");
     }
 
-    private boolean verifyInstaller(android.content.Context context) {
+    private native void nativeVerifySecurity(String currentSignature, String installerPackage);
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Disable Screenshots/Screen Recording (Uncomment for Production)
+        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+
+        // Run C++ Native Security Lock immediately on startup
         try {
-            String installer = null;
-            PackageManager pm = context.getPackageManager();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                InstallSourceInfo info = pm.getInstallSourceInfo(context.getPackageName());
-                installer = info.getInstallingPackageName();
-            } else {
-                installer = pm.getInstallerPackageName(context.getPackageName());
-            }
-
-            // Allow ADB (Android Studio) for your development
-            if (installer == null) return true;
-            
-            // Allow official Google Play Store
-            if (installer.equals("com.android.vending")) return true;
-
-            // Block everything else (Shareit, Chrome, File Managers)
-            return false;
+            String signature = getAppSignature();
+            String installer = getInstallerPackageName();
+            nativeVerifySecurity(signature, installer);
         } catch (Exception e) {
-            return false;
+            Log.e("BrilliantSecurity", "Failed to run security checks", e);
+            finishAffinity(); // Crash if checking fails
         }
     }
 
-        class NativeBridge {
-        @JavascriptInterface
-        public boolean hasBatteryPermission() {
-            try {
-                android.os.PowerManager pm = (android.os.PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
-                if (pm != null) {
-                    return pm.isIgnoringBatteryOptimizations(getPackageName());
+    // Called natively from C++ if the app is cracked or sideloaded
+    public void showTamperAlertAndCrash() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Toast.makeText(this, "🚨 CRITICAL: This app is compromised or downloaded from an unofficial source! It will now terminate.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Please download the official app from the Google Play Store.", Toast.LENGTH_LONG).show();
+        });
+    }
+
+    private String getAppSignature() {
+        try {
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
+            for (Signature signature : packageInfo.signatures) {
+                MessageDigest md = MessageDigest.getInstance("SHA-256");
+                md.update(signature.toByteArray());
+                byte[] digest = md.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : digest) {
+                    String hex = Integer.toHexString(0xFF & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex).append(":");
                 }
-            } catch (Exception e) {}
-            return false;
+                return hexString.toString().substring(0, hexString.length() - 1).toUpperCase();
+            }
+        } catch (PackageManager.NameNotFoundException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
+    private String getInstallerPackageName() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                return getPackageManager().getInstallSourceInfo(getPackageName()).getInstallingPackageName();
+            } else {
+                return getPackageManager().getInstallerPackageName(getPackageName());
+            }
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        WebView webView = this.bridge.getWebView();
+        if (webView != null) {
+            webView.addJavascriptInterface(new NativeBridge(), "AndroidNative");
+        }
+    }
+
+    private class NativeBridge {
+        @android.webkit.JavascriptInterface
+        public boolean hasBatteryPermission() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.os.PowerManager pm = (android.os.PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
+                return pm.isIgnoringBatteryOptimizations(getPackageName());
+            }
+            return true;
         }
 
-        @JavascriptInterface
+        @android.webkit.JavascriptInterface
         public void openBatterySettings() {
-            try {
-                Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.content.Intent intent = new android.content.Intent();
+                intent.setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(android.net.Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
-            } catch (Exception e) {
-                try {
-                    Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    fallback.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(fallback);
-                } catch (Exception ex) {}
             }
-        }
-
-        @JavascriptInterface
-        public void openAutoStartSettings() {
-            try {
-                // Try Xiaomi / OEM AutoStart
-                Intent intent = new Intent();
-                intent.setComponent(new ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"));
-                startActivity(intent);
-            } catch (Exception e) {
-                try {
-                    // Fallback to general app settings
-                    Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    fallback.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(fallback);
-                } catch (Exception ex) {}
-            }
-        }
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        // FLAG_SECURE disabled for development screenshots
-        // getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        if (this.bridge != null && this.bridge.getWebView() != null) {
-            this.bridge.getWebView().addJavascriptInterface(new NativeBridge(), "AndroidNative");
         }
     }
 }
