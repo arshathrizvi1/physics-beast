@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       // The base64url encoded sha256 fingerprint (what Android actually sends!)
               // The NEW Android APK Key Hash (Base64Url)
         'android:apk-key-hash:f7b9eTX3IGGpLqlBHINGPYd1uGlmxRJUH_mUUZWejYA',
+        'android:apk-key-hash:BUAmTVxIv5_l8b-kstpHWDPDCx-X8VT-wmGqfvGUJDQ',
         // The NEW Android APK Key Hash (Raw Hex Uppercase)
         'android:apk-key-hash:7FB6FD7935F72061A92EA9411E53463D8775B86226C512541FF99451959E2660',
         // The NEW Android APK Key Hash (Raw Hex Lowercase)
