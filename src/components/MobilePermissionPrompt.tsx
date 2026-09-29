@@ -19,63 +19,14 @@ export function MobilePermissionPrompt() {
 
       setIsMobileApp(true);
 
-      try {
-        const { registerPlugin } = await import("@capacitor/core");
-        const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
-        
-        // Check if the permission is ALREADY granted at the OS level
-        const { isIgnoring } = await BackgroundPermission.checkBatteryOptimization();
-        if (isIgnoring) {
-          return; // Never show the prompt again if already permitted!
-        }
-      } catch (err) {
-        console.log("Error checking battery status", err);
-      }
-
-      // Check if previously dismissed in THIS active session
-      const hasPrompted = sessionStorage.getItem("mobile_perm_prompt_shown");
-      if (!hasPrompted) {
-        // Show the permission prompt after a brief delay
-        const timer = setTimeout(() => {
-          setIsOpen(true);
-        }, 1200);
-        return () => clearTimeout(timer);
-      }
-    };
-
-    checkPerms();
-  }, []);
-
-  const handleGrantBattery = async () => {
-    setStatus("redirecting");
-
-    try {
-      const { LocalNotifications } = await import("@capacitor/local-notifications");
-      await LocalNotifications.requestPermissions();
-    } catch (err) {
-      console.log("LocalNotifications error:", err);
-    }
-
-    try {
-      const { registerPlugin } = await import("@capacitor/core");
-      const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
-      await BackgroundPermission.requestBatteryOptimization();
-    } catch (err) {
-      console.log("BackgroundPermission error:", err);
-    }
+      if (typeof window !== "undefined" && (window as any).AndroidNative) { (window as any).AndroidNative.openBatterySettings(); }
 
     // Give them a moment to come back
     setTimeout(() => setStatus("idle"), 3000);
   };
 
   const handleAutoStart = async () => {
-    try {
-      const { registerPlugin } = await import("@capacitor/core");
-      const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
-      await BackgroundPermission.requestAutoStart();
-    } catch (err) {
-      console.log("AutoStart error:", err);
-    }
+    if (typeof window !== "undefined" && (window as any).AndroidNative) { (window as any).AndroidNative.openAutoStartSettings(); }
   };
 
   const handleDismiss = () => {
