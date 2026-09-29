@@ -13,20 +13,55 @@ export function MobilePermissionPrompt() {
     if (typeof window === "undefined") return;
 
     const checkPerms = async () => {
-      // Detect if running inside the installed mobile APK (Capacitor native app)
       const isCapacitor = !!((window as any).Capacitor && (window as any).Capacitor.isNativePlatform());
       if (!isCapacitor) return;
 
       setIsMobileApp(true);
 
-      if (typeof window !== "undefined" && (window as any).AndroidNative) { (window as any).AndroidNative.openBatterySettings(); }
+      try {
+        const { registerPlugin } = await import("@capacitor/core");
+        const BackgroundPermission = registerPlugin<any>("BackgroundPermission");
+        const { isIgnoring } = await BackgroundPermission.checkBatteryOptimization();
+        if (isIgnoring) {
+          return; 
+        }
+      } catch (err) {
+        console.log("Error checking battery status", err);
+      }
 
-    // Give them a moment to come back
+      const hasPrompted = sessionStorage.getItem("mobile_perm_prompt_shown");
+      if (!hasPrompted) {
+        const timer = setTimeout(() => {
+          setIsOpen(true);
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    };
+
+    checkPerms();
+  }, []);
+
+  const handleGrantBattery = async () => {
+    setStatus("redirecting");
+
+    try {
+      const { LocalNotifications } = await import("@capacitor/local-notifications");
+      await LocalNotifications.requestPermissions();
+    } catch (err) {
+      console.log("LocalNotifications error:", err);
+    }
+
+    if (typeof window !== "undefined" && (window as any).AndroidNative) {
+      (window as any).AndroidNative.openBatterySettings();
+    }
+
     setTimeout(() => setStatus("idle"), 3000);
   };
 
   const handleAutoStart = async () => {
-    if (typeof window !== "undefined" && (window as any).AndroidNative) { (window as any).AndroidNative.openAutoStartSettings(); }
+    if (typeof window !== "undefined" && (window as any).AndroidNative) {
+      (window as any).AndroidNative.openAutoStartSettings();
+    }
   };
 
   const handleDismiss = () => {
@@ -40,7 +75,6 @@ export function MobilePermissionPrompt() {
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
       <div className="relative w-full max-w-sm rounded-3xl bg-zinc-900 border border-emerald-500/40 p-6 shadow-[0_0_50px_rgba(16,185,129,0.25)] text-center space-y-5">
         
-        {/* Close Button */}
         <button 
           onClick={handleDismiss}
           className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-full bg-zinc-800/60"
@@ -48,18 +82,15 @@ export function MobilePermissionPrompt() {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Live Cloud Badge */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Cloud-Synced Mobile Feature</span>
         </div>
 
-        {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-inner">
           <Shield className="w-8 h-8 animate-pulse" />
         </div>
 
-        {/* Text */}
         <div className="space-y-2">
           <h3 className="text-xl font-bold text-white tracking-tight">
             Background Run Permission
@@ -69,7 +100,6 @@ export function MobilePermissionPrompt() {
           </p>
         </div>
 
-        {/* Actions */}
         <div className="space-y-3 pt-2">
           <Button
             onClick={handleGrantBattery}
