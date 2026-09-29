@@ -74,7 +74,7 @@ export default function PremiumNavbar() {
   const isTeacher = user?.role === "teacher";
 
   return ( <div className="dark"> <>
-      {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ NAVBAR ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ NAVBAR Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <motion.header
         ref={navRef}
         onMouseMove={handleMouseMove}
@@ -124,20 +124,38 @@ export default function PremiumNavbar() {
 
           <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between gap-4 relative z-10">
 
-            {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ LOGO ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ LOGO Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={mounted ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: 0.3, duration: 1, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Link href="/" className="flex items-center shrink-0 group">
-                <div className="relative w-[180px] h-[55px] sm:w-[220px] sm:h-[65px] transition-transform duration-500 group-hover:scale-[1.02]">
-                  <Image src="/website_logo_new.jpg" alt="Brilliant Academy" fill sizes="(max-width: 768px) 180px, 220px" className="object-contain mix-blend-screen hover:brightness-125 transition-all duration-300" priority />
+              <Link href="/" className="flex items-center gap-3 shrink-0 group">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-full overflow-hidden border border-[#d4af37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.35)] group-hover:border-[#d4af37]/60 transition-all duration-500">
+                    <Image src="/logo.jpg" alt="Brilliant Academy" width={44} height={44} className="object-cover w-full h-full" priority />
+                  </div>
+                  {/* shine sweep visible on hover */}
+                  <div
+                    className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700"
+                    style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.4) 0%, transparent 60%)" }}
+                  />
+                </div>
+                <div className="hidden sm:flex flex-col uppercase leading-none justify-center">
+                  {/* Gold shine sweep on BRILLIANT text (hover only) */}
+                  <div className="relative overflow-hidden">
+                    <span className="font-bold text-[18px] tracking-widest font-serif text-[#C9A227]">Brilliant</span>
+                    <div
+                      className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-in-out"
+                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
+                    />
+                  </div>
+                  <span className="text-[#D8D8D8] text-[11px] tracking-[0.22em] font-sans">Academy</span>
                 </div>
               </Link>
             </motion.div>
 
-            {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ DESKTOP NAV ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ DESKTOP NAV Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map((link, i) => {
                 const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
@@ -184,7 +202,7 @@ export default function PremiumNavbar() {
               >
                 <Search className="w-3.5 h-3.5 text-[#F4E3A1]" />
                 <span className="w-24 text-left text-[#F3F3F3]">Search...</span>
-                <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-black/40 text-[9px] font-mono border border-white/10 text-zinc-500">Ã¢Å’ËœK</kbd>
+                <kbd className="hidden lg:inline-flex px-1.5 py-0.5 rounded bg-black/40 text-[9px] font-mono border border-white/10 text-zinc-500">âŒ˜K</kbd>
               </button>
 
               {user ? (
@@ -257,7 +275,7 @@ export default function PremiumNavbar() {
 
       </motion.header>
 
-        {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ MOBILE MENU ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ MOBILE MENU Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
