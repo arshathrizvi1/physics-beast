@@ -132,7 +132,7 @@ export default function PremiumNavbar() {
             >
               <Link href="/" className="flex items-center shrink-0 group">
                 <div className="relative w-[180px] h-[55px] sm:w-[220px] sm:h-[65px] transition-transform duration-500 group-hover:scale-[1.02]">
-                  <Image src="/website_logo_new.jpg" alt="Brilliant Academy" fill sizes="(max-width: 768px) 180px, 220px" className="object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]" priority />
+                  <Image src="/website_logo_new.jpg" alt="Brilliant Academy" fill sizes="(max-width: 768px) 180px, 220px" className="object-contain mix-blend-screen hover:brightness-125 transition-all duration-300" priority />
                 </div>
               </Link>
             </motion.div>
