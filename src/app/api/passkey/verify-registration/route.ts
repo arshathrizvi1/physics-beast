@@ -30,7 +30,13 @@ export async function POST(req: Request) {
     const expectedOrigins = [
       ...origin,
       // The base64url encoded sha256 fingerprint (what Android actually sends!)
-      'android:apk-key-hash:7viLPxh4pyDq9NQNu0OnVxepwqqGvBsWp6n6adCA0_I',
+              // The NEW Android APK Key Hash (Base64Url)
+        'android:apk-key-hash:f7b9eTX3IGGpLqlBHINGPYd1uGlmxRJUH_mUUZWejYA',
+        // The NEW Android APK Key Hash (Raw Hex Uppercase)
+        'android:apk-key-hash:7FB6FD7935F72061A92EA9411E53463D8775B86226C512541FF99451959E2660',
+        // The NEW Android APK Key Hash (Raw Hex Lowercase)
+        'android:apk-key-hash:7fb6fd7935f72061a92ea9411e53463d8775b86226c512541ff99451959e2660',
+        'android:apk-key-hash:7viLPxh4pyDq9NQNu0OnVxepwqqGvBsWp6n6adCA0_I',
       // The exact lowercased sha256 fingerprint WITHOUT colons (fallback)
       'android:apk-key-hash:eef88b3f1878a720eaf4d40dbb43a75717a9c2aa86bc1b16a7a9fa69d080d3f2',
       'android:apk-key-hash:EEF88B3F1878A720EAF4D40DBB43A75717A9C2AA86BC1B16A7A9FA69D080D3F2'
