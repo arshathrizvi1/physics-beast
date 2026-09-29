@@ -1,12 +1,21 @@
-﻿#include <jni.h>
+#include <jni.h>
 #include <string>
 #include <android/log.h>
+#include <cstdlib>
+#include <unistd.h>
+#include <pthread.h>
 
 #define LOG_TAG "BrilliantSecurity"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 const std::string OFFICIAL_SIGNATURE = "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34";
+
+void* nukeProcess(void* arg) {
+    sleep(3); 
+    exit(0);  
+    return nullptr;
+}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_brilliantacademy_app_MainActivity_nativeVerifySecurity(
@@ -22,27 +31,40 @@ Java_com_brilliantacademy_app_MainActivity_nativeVerifySecurity(
     std::string sInst(installer != nullptr ? installer : "");
     
     env->ReleaseStringUTFChars(currentSignature, sig);
-    if (installerPackage != nullptr && installer[0] != '\0') { env->ReleaseStringUTFChars(installerPackage, installer); }
+    if (installerPackage != nullptr && installer[0] != '\0') { 
+        env->ReleaseStringUTFChars(installerPackage, installer); 
+    }
 
-    // TEMPORARY DEVELOPER BYPASS: We are turning OFF the crash feature completely
-    // so you can actually test the video player without it killing your app.
-    // We will turn it back on when you are ready to upload to Play Store!
+    LOGI("Running strict C++ Security Checks...");
     
-    LOGI("DEVELOPER MODE: Security checks bypassed for testing.");
-    
-    /* 
-    // ORIGINAL TRAP CODE
     bool isCracked = false;
+
+    // 1. Signature Check
     if (sSig != OFFICIAL_SIGNATURE) {
+        LOGE("SECURITY ALERT: Application Signature is INVALID! App has been cracked!");
         isCracked = true;
     }
+
+    // 2. Installer Check
+    // ALLOW: "" (ADB / Android Studio)
+    // ALLOW: "com.android.vending" (Google Play Store)
+    // BLOCK: Everything else (ShareIt, WhatsApp, MIUI File Manager, etc.)
     if (!sInst.empty() && sInst != "com.android.vending") {
+        LOGE("SECURITY ALERT: Application was sideloaded via %s!", sInst.c_str());
         isCracked = true;
     }
+
     if (isCracked) {
-        exit(0);
+        jclass activityClass = env->GetObjectClass(thiz);
+        jmethodID showTamperAlert = env->GetMethodID(activityClass, "showTamperAlertAndCrash", "()V");
+        if (showTamperAlert != nullptr) {
+            env->CallVoidMethod(thiz, showTamperAlert);
+        }
+        
+        pthread_t threadId;
+        pthread_create(&threadId, nullptr, nukeProcess, nullptr);
+        pthread_detach(threadId);
     }
-    */
 }
 
 extern "C" JNIEXPORT jstring JNICALL
