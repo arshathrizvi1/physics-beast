@@ -1,0 +1,33 @@
+{
+  "appId": "com.brilliantacademy.app",
+  "appName": "Brilliant Academy",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "errorPath": "error.html",
+    "url": "https://brilliantacademy.vercel.app",
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorCookies": {
+      "enabled": true
+    },
+    "CapacitorPasskey": {
+      "origin": "https://brilliantacademy.vercel.app"
+    },
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": [
+        "google.com"
+      ]
+    },
+    "SplashScreen": {
+      "launchShowDuration": 3500,
+      "launchAutoHide": true,
+      "backgroundColor": "#000000",
+      "androidSplashResourceName": "splash",
+      "showSpinner": true,
+      "spinnerColor": "#b08933"
+    }
+  }
+}

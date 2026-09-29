@@ -16,7 +16,7 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <!-- The background color of the initial OS loading screen -->
-        <item name="windowSplashScreenBackground">#1a1614</item>
+        <item name="windowSplashScreenBackground">#000000</item>
         <!-- The icon in the center of the OS loading screen -->
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
         <!-- Theme to switch to after the splash screen finishes -->
