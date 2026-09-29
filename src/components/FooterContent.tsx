@@ -7,7 +7,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 const defaultFooter = {
-  tagline: "Learn Today · Build Tomorrow",
+  tagline: "Learn Today - Build Tomorrow",
   contactEmail: "contact@brilliantacademy.com",
   quickLinks: [
     { label: "Courses", href: "/courses" },
@@ -24,14 +24,25 @@ const defaultFooter = {
 
 export default function FooterContent() {
   const [footer, setFooter] = useState(defaultFooter);
+  const [isMobileApp, setIsMobileApp] = useState(false);
 
   useEffect(() => {
+    // Hide footer if running natively inside the Android App
+    if (typeof window !== "undefined") {
+      const isCapacitor = !!((window as any).Capacitor && (window as any).Capacitor.isNativePlatform());
+      setIsMobileApp(isCapacitor);
+    }
+
     getDoc(doc(db, "siteConfig", "footer"))
       .then(snap => {
         if (snap.exists()) setFooter({ ...defaultFooter, ...snap.data() });
       })
       .catch(() => {/* use defaults */});
   }, []);
+
+  if (isMobileApp) {
+    return null; // Do not render the footer at all in the Android app
+  }
 
   return (
     <div className="container mx-auto px-4">
@@ -117,4 +128,3 @@ export default function FooterContent() {
     </div>
   );
 }
-
