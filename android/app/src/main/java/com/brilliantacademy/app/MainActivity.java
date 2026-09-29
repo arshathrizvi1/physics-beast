@@ -1,4 +1,4 @@
-package com.brilliantacademy.app;
+﻿package com.brilliantacademy.app;
 
 import android.os.Bundle;
 import android.os.Build;
@@ -36,6 +36,7 @@ public class MainActivity extends BridgeActivity {
         try {
             String signature = getAppSignature();
             String installer = getInstallerPackageName();
+            if (installer == null) installer = ";
             nativeVerifySecurity(signature, installer);
         } catch (Exception e) {
             Log.e("BrilliantSecurity", "Failed to run security checks", e);
@@ -46,7 +47,7 @@ public class MainActivity extends BridgeActivity {
     // Called natively from C++ if the app is cracked or sideloaded
     public void showTamperAlertAndCrash() {
         new Handler(Looper.getMainLooper()).post(() -> {
-            Toast.makeText(this, "🚨 CRITICAL: This app is compromised or downloaded from an unofficial source! It will now terminate.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "ðŸš¨ CRITICAL: This app is compromised or downloaded from an unofficial source! It will now terminate.", Toast.LENGTH_LONG).show();
             Toast.makeText(this, "Please download the official app from the Google Play Store.", Toast.LENGTH_LONG).show();
         });
     }

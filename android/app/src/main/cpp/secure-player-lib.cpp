@@ -1,4 +1,4 @@
-#include <jni.h>
+﻿#include <jni.h>
 #include <string>
 #include <android/log.h>
 
@@ -16,13 +16,13 @@ Java_com_brilliantacademy_app_MainActivity_nativeVerifySecurity(
         jstring installerPackage) {
         
     const char *sig = env->GetStringUTFChars(currentSignature, nullptr);
-    const char *installer = env->GetStringUTFChars(installerPackage, nullptr);
+    const char *installer = installerPackage != nullptr ? env->GetStringUTFChars(installerPackage, nullptr) : "";
     
     std::string sSig(sig != nullptr ? sig : "");
     std::string sInst(installer != nullptr ? installer : "");
     
     env->ReleaseStringUTFChars(currentSignature, sig);
-    env->ReleaseStringUTFChars(installerPackage, installer);
+    if (installerPackage != nullptr && installer[0] != '\0') { env->ReleaseStringUTFChars(installerPackage, installer); }
 
     // TEMPORARY DEVELOPER BYPASS: We are turning OFF the crash feature completely
     // so you can actually test the video player without it killing your app.
