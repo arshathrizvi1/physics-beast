@@ -130,27 +130,9 @@ export default function PremiumNavbar() {
               animate={mounted ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: 0.3, duration: 1, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Link href="/" className="flex items-center gap-3 shrink-0 group">
-                <div className="relative">
-                  <div className="w-11 h-11 rounded-full overflow-hidden border border-[#d4af37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.35)] group-hover:border-[#d4af37]/60 transition-all duration-500">
-                    <Image src="/logo.jpg" alt="Brilliant Academy" width={44} height={44} className="object-cover w-full h-full" priority />
-                  </div>
-                  {/* shine sweep visible on hover */}
-                  <div
-                    className="absolute inset-0 rounded-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-700"
-                    style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.4) 0%, transparent 60%)" }}
-                  />
-                </div>
-                <div className="hidden sm:flex flex-col uppercase leading-none justify-center">
-                  {/* Gold shine sweep on BRILLIANT text (hover only) */}
-                  <div className="relative overflow-hidden">
-                    <span className="font-bold text-[18px] tracking-widest font-serif text-[#C9A227]">Brilliant</span>
-                    <div
-                      className="absolute inset-0 pointer-events-none -translate-x-full group-hover:translate-x-full transition-transform duration-[1200ms] ease-in-out"
-                      style={{ background: "linear-gradient(90deg, transparent 0%, rgba(249,229,150,0.6) 50%, transparent 100%)" }}
-                    />
-                  </div>
-                  <span className="text-[#D8D8D8] text-[11px] tracking-[0.22em] font-sans">Academy</span>
+              <Link href="/" className="flex items-center shrink-0 group">
+                <div className="relative w-[180px] h-[55px] sm:w-[220px] sm:h-[65px] transition-transform duration-500 group-hover:scale-[1.02]">
+                  <Image src="/website_logo_new.jpg" alt="Brilliant Academy" fill sizes="(max-width: 768px) 180px, 220px" className="object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]" priority />
                 </div>
               </Link>
             </motion.div>
