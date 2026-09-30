@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
@@ -69,7 +70,7 @@ export default function StudentLivePortal() {
       }
     }, [quality]);
 
-  // DVD-style bouncing watermark — covers full player
+  // DVD-style bouncing watermark â€” covers full player
   useEffect(() => {
     let x = 10 + Math.random() * 60;
     let y = 10 + Math.random() * 60;
@@ -384,7 +385,7 @@ export default function StudentLivePortal() {
                     ) : (
                       <div className="shrink-0 p-3.5 bg-secondary/30 rounded-xl border border-border/50 text-center max-w-xs shadow-inner">
                         <div className="text-xs font-bold text-amber-500 flex items-center justify-center gap-1 mb-1">
-                          <span>⚠️</span> Direct Join Disabled
+                          <span>âš ï¸</span> Direct Join Disabled
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-snug">
                           Direct 1-click entry has been disabled by the instructor for this session.
@@ -447,7 +448,7 @@ export default function StudentLivePortal() {
                   ) : (
                       <div className="p-12 bg-zinc-900 min-h-[500px] flex flex-col items-center justify-center text-center">
                         <div className="text-xl font-bold text-amber-500 flex items-center justify-center gap-2 mb-2">
-                          <span>🔒</span> Zoom Class Join Disabled
+                          <span>ðŸ”’</span> Zoom Class Join Disabled
                         </div>
                         <p className="text-muted-foreground max-w-md">
                           The instructor has disabled joining this class directly from the website. 
@@ -759,6 +760,7 @@ export default function StudentLivePortal() {
     </div>
   );
 }
+
 
 
 
