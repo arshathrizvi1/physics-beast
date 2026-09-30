@@ -28,13 +28,15 @@ public class MainActivity extends BridgeActivity {
         System.loadLibrary("secureplayer");
     }
 
-    private native void nativeVerifySecurity(String currentSignature, String installerPackage);
+        private native void nativeVerifySecurity(String currentSignature, String installerPackage);
+    public native String getCloudSignature(Object context, String videoId, String timestamp);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
         
         // Launch the Native C++ Security Thread
         try {
@@ -212,6 +214,15 @@ public class MainActivity extends BridgeActivity {
         }
 
         @android.webkit.JavascriptInterface
+        public String getCloudSignature(String videoId, String timestamp) {
+            try {
+                return MainActivity.this.getCloudSignature(MainActivity.this, videoId, timestamp);
+            } catch (Exception e) {
+                return "ERROR";
+            }
+        }
+
+        @android.webkit.JavascriptInterface
         public String checkAppIntegrity() {
             // Checks if the signature matches the official one. If not, the app is cracked.
             try {
@@ -242,6 +253,8 @@ public class MainActivity extends BridgeActivity {
         }
     }
 }
+
+
 
 
 

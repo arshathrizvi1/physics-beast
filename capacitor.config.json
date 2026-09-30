@@ -1,33 +1,38 @@
-{
-  "appId": "com.brilliantacademy.app",
-  "appName": "Brilliant Academy",
-  "webDir": "public",
-  "bundledWebRuntime": false,
-  "server": {
-    "errorPath": "error.html",
-    "url": "https://brilliantacademy.vercel.app",
-    "cleartext": true
-  },
-  "plugins": {
-    "CapacitorCookies": {
-      "enabled": true
-    },
-    "CapacitorPasskey": {
-      "origin": "https://brilliantacademy.vercel.app"
-    },
-    "FirebaseAuthentication": {
-      "skipNativeAuth": false,
-      "providers": [
-        "google.com"
-      ]
-    },
-    "SplashScreen": {
-      "launchShowDuration": 0,
-      "launchAutoHide": true,
-      "backgroundColor": "#000000",
-      "androidSplashResourceName": "splash",
-      "showSpinner": false,
-      "spinnerColor": "#b08933"
-    }
-  }
+﻿{
+    "appId":  "com.brilliantacademy.app",
+    "appName":  "Brilliant Academy",
+    "webDir":  "public",
+    "bundledWebRuntime":  false,
+    "server":  {
+                   "cleartext":  true,
+                   "url":  "https://brilliantacademy.vercel.app",
+                   "errorPath":  "error.html",
+                   "allowNavigation":  [
+                                           "brilliantacademy.vercel.app",
+                                           "iframe.mediadelivery.net",
+                                           "*.b-cdn.net"
+                                       ]
+               },
+    "plugins":  {
+                    "CapacitorCookies":  {
+                                             "enabled":  true
+                                         },
+                    "CapacitorPasskey":  {
+                                             "origin":  "https://brilliantacademy.vercel.app"
+                                         },
+                    "FirebaseAuthentication":  {
+                                                   "skipNativeAuth":  false,
+                                                   "providers":  [
+                                                                     "google.com"
+                                                                 ]
+                                               },
+                    "SplashScreen":  {
+                                         "launchShowDuration":  0,
+                                         "launchAutoHide":  true,
+                                         "backgroundColor":  "#000000",
+                                         "androidSplashResourceName":  "splash",
+                                         "showSpinner":  false,
+                                         "spinnerColor":  "#b08933"
+                                     }
+                }
 }

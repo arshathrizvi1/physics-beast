@@ -1,4 +1,4 @@
-#include <jni.h>
+﻿#include <jni.h>
 #include <string>
 #include <vector>
 #include <android/log.h>
@@ -133,7 +133,7 @@ Java_com_brilliantacademy_app_SecureVideoActivity_getSecureUrl(JNIEnv* env, jobj
 
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_brilliantacademy_app_SecureVideoActivity_getCloudSignature(JNIEnv* env, jobject thiz, jobject context, jstring videoId, jstring timestamp) {
+Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobject thiz, jobject context, jstring videoId, jstring timestamp) {
     
     // --- NATIVE INTEGRITY CHECK (IMMUNE TO JAVA HACKING) ---
     jclass contextClass = env->GetObjectClass(context);
@@ -216,6 +216,7 @@ Java_com_brilliantacademy_app_SecureVideoActivity_getCloudSignature(JNIEnv* env,
     
     return env->NewStringUTF(hexStr.c_str());
 }
+
 
 
 
