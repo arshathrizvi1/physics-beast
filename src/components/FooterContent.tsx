@@ -122,7 +122,7 @@ export default function FooterContent() {
           transition={{ duration: 1.5, ease: "easeInOut" }}
         />
         <div className="text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Brilliant Academy. All rights reserved.
+&copy; {new Date().getFullYear()} Brilliant Academy. All rights reserved. </div><div className="flex flex-wrap items-center justify-center gap-4 text-xs mt-2"><Link href="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link><Link href="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link><Link href="/return-policy" className="hover:text-primary transition-colors">Return Policy</Link>
         </div>
       </div>
     </div>
