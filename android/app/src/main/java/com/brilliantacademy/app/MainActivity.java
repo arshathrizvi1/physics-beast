@@ -36,7 +36,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         
         // TEMPORARILY DISABLED FOR DEBUGGING
-        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
         
         // Launch the Native C++ Security Thread
         try {
@@ -66,7 +66,7 @@ public class MainActivity extends BridgeActivity {
 
         // Show loading image full-screen on top of WebView
         loadingImageView = new ImageView(this);
-        loadingImageView.setImageResource(R.drawable.loading_bg);
+        loadingImageView.setImageResource(R.drawable.splash);
         loadingImageView.setScaleType(ImageView.ScaleType.CENTER_CROP); // Fill screen, no stretch
         loadingImageView.setBackgroundColor(Color.BLACK);
         loadingImageView.setElevation(9999f);
@@ -253,6 +253,8 @@ public class MainActivity extends BridgeActivity {
         }
     }
 }
+
+
 
 
 
