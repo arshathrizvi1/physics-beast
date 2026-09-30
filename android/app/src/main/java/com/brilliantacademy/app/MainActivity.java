@@ -1,4 +1,4 @@
-﻿package com.brilliantacademy.app;
+package com.brilliantacademy.app;
 
 import android.os.Bundle;
 import android.os.Build;
@@ -29,7 +29,7 @@ public class MainActivity extends BridgeActivity {
     }
 
         private native void nativeVerifySecurity(String currentSignature, String installerPackage);
-    public native String getCloudSignature(Object context, String videoId, String timestamp);
+    public native String getCloudSignature(Object context, String videoId, String timestamp, String installer);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -216,7 +216,7 @@ public class MainActivity extends BridgeActivity {
         @android.webkit.JavascriptInterface
         public String getCloudSignature(String videoId, String timestamp) {
             try {
-                return MainActivity.this.getCloudSignature(MainActivity.this, videoId, timestamp);
+                return MainActivity.this.getCloudSignature(MainActivity.this, videoId, timestamp, getInstallerPackageName());
             } catch (Exception e) {
                 return "ERROR";
             }

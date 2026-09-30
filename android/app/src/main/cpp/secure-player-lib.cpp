@@ -133,7 +133,7 @@ Java_com_brilliantacademy_app_SecureVideoActivity_getSecureUrl(JNIEnv* env, jobj
 
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobject thiz, jobject context, jstring videoId, jstring timestamp) {
+Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobject thiz, jobject context, jstring videoId, jstring timestamp, jstring installerPackage) {
     
     // --- NATIVE INTEGRITY CHECK (IMMUNE TO JAVA HACKING) ---
     jclass contextClass = env->GetObjectClass(context);
@@ -180,13 +180,13 @@ Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobjec
     env->ReleaseByteArrayElements(hashBytes, bytes, JNI_ABORT);
 
     // --- BYPASS SIGNATURE CHECK FOR ANDROID STUDIO DEV BUILDS ---
-    jmethodID getInstallerPackageNameMid = env->GetMethodID(packageManagerClass, "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;");
-    jstring installerPackage = (jstring) env->CallObjectMethod(packageManager, getInstallerPackageNameMid, packageName);
     std::string sInst = "";
     if (installerPackage != nullptr) {
         const char *inst = env->GetStringUTFChars(installerPackage, nullptr);
-        sInst = inst;
-        env->ReleaseStringUTFChars(installerPackage, inst);
+        if (inst != nullptr) {
+            sInst = inst;
+            env->ReleaseStringUTFChars(installerPackage, inst);
+        }
     }
     
     if (currentSig != OFFICIAL_SIGNATURE) {
