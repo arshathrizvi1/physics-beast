@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import SplashLoader from "@/components/SplashLoader";
 import LenisProvider from "@/components/LenisProvider";
 import FooterContent from "@/components/FooterContent";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -49,6 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body suppressHydrationWarning className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden w-full`}>
+        <SplashLoader />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
@@ -87,6 +89,7 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
 
