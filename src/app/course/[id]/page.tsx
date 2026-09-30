@@ -1658,7 +1658,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                     id: cls.id,
                                     title: cls.title,
                                     url: cls.link, // ReactPlayer accepts youtube links naturally
-                                    type: cls.platform === 'zoom' ? 'resource' : 'video' // If zoom, make it a resource so it opens in a new tab
+                                    type: 'video' // Zoom should now be 'video' so it loads inline in iframe
                                   }); 
                                   setPlaying(false); 
                                 } 

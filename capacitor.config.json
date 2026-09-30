@@ -1,4 +1,4 @@
-﻿{
+{
     "appId":  "com.brilliantacademy.app",
     "appName":  "Brilliant Academy",
     "webDir":  "public",
@@ -10,7 +10,7 @@
                    "allowNavigation":  [
                                            "brilliantacademy.vercel.app",
                                            "iframe.mediadelivery.net",
-                                           "*.b-cdn.net"
+                                           "*.b-cdn.net", "*.zoom.us", "*.zoom.com"
                                        ]
                },
     "plugins":  {
@@ -36,3 +36,5 @@
                                      }
                 }
 }
+
+
