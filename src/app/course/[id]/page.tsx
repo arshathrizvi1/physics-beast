@@ -900,7 +900,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseLeave={() => setShowControls(false)}
                 >
                       <>
-                        {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
+                        {activeVideo.platform === 'zoom' && (
+                              <iframe 
+                                src={activeVideo.url.replace(/\/j\/(\d+)/, '/wc/join/$1')} 
+                                className="w-full h-full border-0 relative z-[60] pointer-events-auto bg-black"
+                                allow="camera *; microphone *; display-capture *; accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                                allowFullScreen={true}
+                              />
+                          )}
+
+                          {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
                           bunnyEmbedUrl.startsWith('CRACKED') ? (
                                 <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto relative z-[60]">
                                     <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
@@ -1883,6 +1892,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
+
 
 
 
