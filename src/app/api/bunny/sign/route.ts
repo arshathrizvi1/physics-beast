@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function GET(request: Request) {
@@ -31,9 +31,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden: Request expired' }, { status: 403 });
     }
 
-    // Calculate the expected signature: HMAC-SHA256(videoId + timestamp)
-    const expectedSignature = crypto.createHash('sha256').update(CLOUD_SECRET_KEY + videoId + clientTimestamp)
-      .digest('hex');
+    // Calculate the expected signature
+    const expectedSignature = crypto.createHash('sha256').update(CLOUD_SECRET_KEY + videoId + clientTimestamp).digest('hex');
 
     if (clientSignature !== expectedSignature) {
       console.warn("BLOCKED: Invalid Cloud DRM Signature! Potential hacker.");
@@ -46,7 +45,7 @@ export async function GET(request: Request) {
 
     if (!tokenKey) {
       return NextResponse.json({
-        url: https://iframe.mediadelivery.net/embed//?autoplay=true
+        url: `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true`
       });
     }
 
@@ -54,10 +53,10 @@ export async function GET(request: Request) {
     const expires = Math.floor(Date.now() / 1000) + 14400;
 
     // SHA256(token_security_key + video_id + expiration_timestamp)
-    const rawSignature = ${tokenKey};
+    const rawSignature = `${tokenKey}${videoId}${expires}`;
     const token = crypto.createHash('sha256').update(rawSignature).digest('hex');
 
-    const signedUrl = https://iframe.mediadelivery.net/embed//?token=&expires=&autoplay=true;
+    const signedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${token}&expires=${expires}&autoplay=true`;
 
     return NextResponse.json({ url: signedUrl, expires });
   } catch (error: any) {
