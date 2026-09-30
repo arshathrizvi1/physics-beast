@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +109,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       const vid = match ? match[2] : activeVideo.url;
       const lib = match ? match[1] : '748058';
 
+      const isNative = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative);
+      
+      if (isNative && user) {
+        // NATIVE OVERRIDE: Launch the secure C++ Video Player and pass the user's email and library ID
+        const userEmail = user?.email || user?.phone || 'student';
+        window.location.href = `https://brilliantacademy.vercel.app/video/` + vid + `?email=` + encodeURIComponent(userEmail) + `&lib=` + encodeURIComponent(lib);
+        return;
+      }
+
       fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`)
         .then(res => res.json())
         .then(data => {
@@ -119,7 +128,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     } else {
       setBunnyEmbedUrl('');
     }
-  }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform]);
+  }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user]);
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
