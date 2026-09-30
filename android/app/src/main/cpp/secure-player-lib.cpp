@@ -23,9 +23,7 @@ std::string decryptString(std::vector<int> encrypted, int key) {
 // "BrilliantAcademy_SuperSecretKey_2026!$" XOR'd with 42
 // This ensures the secret key CANNOT be extracted by simply running the "strings" command on the APK!
 const std::vector<int> ENC_CLOUD_SECRET = {
-    104, 90, 83, 86, 86, 83, 75, 72, 94, 107, 73, 75, 79, 77, 87, 121, 
-    105, 95, 94, 77, 90, 105, 77, 75, 90, 77, 94, 115, 77, 83, 121, 
-    26, 24, 26, 28, 11, 14
+    104, 88, 67, 70, 70, 67, 75, 68, 94, 107, 73, 75, 78, 79, 71, 83, 117, 121, 95, 90, 79, 88, 121, 79, 73, 88, 79, 94, 97, 79, 83, 117, 24, 26, 24, 28, 11, 14
 };
 
 // "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34" XOR'd with 42
