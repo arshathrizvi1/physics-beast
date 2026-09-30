@@ -1,4 +1,4 @@
-﻿#include <jni.h>
+#include <jni.h>
 #include <string>
 #include <vector>
 #include <android/log.h>
@@ -182,7 +182,7 @@ Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobjec
     // --- BYPASS SIGNATURE CHECK FOR ANDROID STUDIO DEV BUILDS ---
     if (currentSig != OFFICIAL_SIGNATURE) {
         if (isDebug) {
-            LOGW("DEV MODE: Signature mismatch ignored because app is in Debug Mode.");
+            LOGI("DEV MODE: Signature mismatch ignored because app is in Debug Mode.");
         } else {
             LOGE("NATIVE SECURITY ALERT: APP CRACKED! SENDING FAKE TOKEN TO CLOUD!");
             return env->NewStringUTF("CRACKED_APP_BLOCKED");
@@ -220,6 +220,8 @@ Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobjec
     
     return env->NewStringUTF(hexStr.c_str());
 }
+
+
 
 
 
