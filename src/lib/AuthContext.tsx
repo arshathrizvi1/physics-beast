@@ -1245,6 +1245,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Buffer in memory for both Web and App
     pendingStudyMinutesRef.current += 1;
+    // Persist to local storage for sudden death/crash recovery!
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(pendingStudyMins_, pendingStudyMinutesRef.current.toString());
+    }
   }, [user]);
 
   const syncStudyTimeNow = useCallback(async () => {
@@ -1253,6 +1257,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const minutesToSync = pendingStudyMinutesRef.current;
     pendingStudyMinutesRef.current = 0;
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(pendingStudyMins_);
+    }
     
     try {
       const { doc, updateDoc, increment } = await import('firebase/firestore');
@@ -1275,26 +1282,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
+    // Crash Recovery: Check if the app died suddenly while holding unsaved minutes
+    if (user?.uid && typeof window !== 'undefined') {
+      const recoveredMins = parseInt(localStorage.getItem(pendingStudyMins_) || '0');
+      if (recoveredMins > 0) {
+        pendingStudyMinutesRef.current = recoveredMins;
+        syncStudyTimeNow(); // Upload the recovered minutes immediately on boot!
+      }
+    }
+
     // Sync every 3 hours (10,800,000 ms) while active as a fallback
     const interval = setInterval(() => {
       syncStudyTimeNow();
     }, 3 * 60 * 60 * 1000);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        syncStudyTimeNow();
+      }
+    };
+
     const handleBeforeUnload = () => {
       syncStudyTimeNow();
     };
 
-    // Only sync on actual page unload/close, NEVER on tab switch or minimize
+    // Web Listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('unload', handleBeforeUnload);
 
+    // Capacitor App Background Listener
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          syncStudyTimeNow();
+        }
+      });
+    }).catch(() => {});
+
     return () => {
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('unload', handleBeforeUnload);
       syncStudyTimeNow();
     };
-  }, [syncStudyTimeNow]);
+  }, [syncStudyTimeNow, user?.uid]);
 
   const updateVideoProgress = async (videoId: string, percent: number) => {
     if (!videoId) return;
