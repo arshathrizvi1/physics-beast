@@ -148,14 +148,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           const res = await fetch(`https://brilliantacademy.vercel.app/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
           if (!res.ok) {
               if (res.status === 403) setBunnyEmbedUrl('CRACKED');
-              else setBunnyEmbedUrl(https://iframe.mediadelivery.net/embed//?autoplay=true);
+              else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
               return;
           }
           const data = await res.json();
           if (data.url) setBunnyEmbedUrl(data.url);
-          else setBunnyEmbedUrl(https://iframe.mediadelivery.net/embed//?autoplay=true);
+          else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
         } catch (e) {
-          setBunnyEmbedUrl(https://iframe.mediadelivery.net/embed//?autoplay=true);
+          setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
         }
       };
       fetchVideoUrl();
@@ -1876,6 +1876,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
 
 
