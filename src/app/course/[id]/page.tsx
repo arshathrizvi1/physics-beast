@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 
@@ -499,7 +499,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       const currentVideo = activeVideoRef.current;
       if (!currentVideo) return;
       
-      const presenceRef = doc(db, 'presence', ${currentVideo.id}_);
+      const presenceRef = doc(db, 'presence', `${currentVideo.id}_${user.uid}`);
       setDoc(presenceRef, { videoId: currentVideo.id, userId: user.uid, lastActive: Date.now() }, { merge: true }).catch(() => {});
     }, 300000);
 
@@ -1882,6 +1882,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
 
 

@@ -189,6 +189,9 @@ export default function AdminDashboard() {
   const [newSubjectName, setNewSubjectName] = useState("");
   const [newSubjectStreamIds, setNewSubjectStreamIds] = useState<string[]>([]);
   const [newStreamName, setNewStreamName] = useState("");
+  const [newStreamIsAL, setNewStreamIsAL] = useState(false);
+  const [editingBatch, setEditingBatch] = useState<any>(null);
+  const [editingStream, setEditingStream] = useState<any>(null);
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseDescription, setNewCourseDescription] = useState("");
   const [newCourseIsMonthly, setNewCourseIsMonthly] = useState(false);
@@ -795,11 +798,37 @@ export default function AdminDashboard() {
     if (!newStreamName) return;
     try {
       const ref = doc(collection(db, 'streams'));
-      await setDoc(ref, { name: newStreamName, createdAt: Date.now() });
+      await setDoc(ref, { name: newStreamName, isAL: newStreamIsAL, createdAt: Date.now() });
       setNewStreamName("");
+      setNewStreamIsAL(false);
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleUpdateBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBatch) return;
+    try {
+      await updateDoc(doc(db, 'batches', editingBatch.id), {
+        name: editingBatch.name,
+        year: editingBatch.year,
+        isAL: editingBatch.isAL || false
+      });
+      setEditingBatch(null);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleUpdateStream = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStream) return;
+    try {
+      await updateDoc(doc(db, 'streams', editingStream.id), {
+        name: editingStream.name,
+        isAL: editingStream.isAL || false
+      });
+      setEditingStream(null);
+    } catch (err) { console.error(err); }
   };
 
   const handleDeleteStream = async (id: string) => {
