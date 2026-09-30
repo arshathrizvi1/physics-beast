@@ -105,9 +105,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   // Fetch signed embed URL for Bunny videos (supports Token Authentication if enabled)
   useEffect(() => {
     if (activeVideo?.platform === 'bunny' && activeVideo?.url) {
-      const match = activeVideo.url.match(/embed\/(\d+)\/([a-zA-Z0-9-]+)/);
-      const vid = match ? match[2] : activeVideo.url;
-      const lib = match ? match[1] : '748058';
+      let vid = activeVideo.url;
+      let lib = process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID || '764707'; // Fallback to their actual library ID
+
+      // Bulletproof regex to extract UUID video ID from ANY Bunny format
+      const idMatch = activeVideo.url.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+      if (idMatch) {
+          vid = idMatch[1];
+      } else {
+          // Fallback if it's a short ID
+          const shortMatch = activeVideo.url.match(/\/(embed|play)\/(\d+)\/([a-zA-Z0-9-]+)/);
+          if (shortMatch) {
+              lib = shortMatch[2];
+              vid = shortMatch[3];
+          }
+      }
+      
+      const libMatch = activeVideo.url.match(/\/(embed|play)\/(\d+)\//);
+      if (libMatch) {
+          lib = libMatch[2];
+      }
 
       const isNative = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative);
       
