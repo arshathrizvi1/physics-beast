@@ -126,7 +126,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           lib = libMatch[2];
       }
 
-      const isNative = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative);
+      const isNative = typeof window !== 'undefined' && typeof (window as any).AndroidNative !== 'undefined';
       
       if (isNative && user) {
         // NATIVE OVERRIDE: Launch the secure C++ Video Player using Custom URI Scheme to break out of Capacitor WebView
