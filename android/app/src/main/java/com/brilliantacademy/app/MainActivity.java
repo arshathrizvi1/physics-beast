@@ -1,4 +1,4 @@
-﻿package com.brilliantacademy.app;
+package com.brilliantacademy.app;
 
 import android.os.Bundle;
 import android.os.Build;
@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.content.pm.PackageInfo;
 import android.util.Log;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 
 import com.getcapacitor.BridgeActivity;
@@ -29,14 +30,13 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Show the native animated loading screen ON TOP of the Capacitor WebView
         brilliantLoadingView = new BrilliantLoadingView(this);
-        brilliantLoadingView.setElevation(9999f); // Force it on top of Capacitor WebView
-        addContentView(brilliantLoadingView, new android.view.ViewGroup.LayoutParams(
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-        
-        // Disable FLAG_SECURE temporarily for developer screenshots
-        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        brilliantLoadingView.setElevation(9999f);
+        addContentView(brilliantLoadingView, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
 
         try {
             String signature = getAppSignature();
@@ -45,14 +45,14 @@ public class MainActivity extends BridgeActivity {
             nativeVerifySecurity(signature, installer);
         } catch (Exception e) {
             Log.e("BrilliantSecurity", "Failed to run security checks", e);
-            finishAffinity(); // Crash if checking fails
+            finishAffinity();
         }
     }
 
     // Called natively from C++ if the app is cracked or sideloaded
     public void showTamperAlertAndCrash() {
         new Handler(Looper.getMainLooper()).post(() -> {
-            Toast.makeText(this, "ðŸš¨ CRITICAL: This app is compromised or downloaded from an unofficial source! It will now terminate.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "CRITICAL: This app is compromised or downloaded from an unofficial source! It will now terminate.", Toast.LENGTH_LONG).show();
             Toast.makeText(this, "Please download the official app from the Google Play Store.", Toast.LENGTH_LONG).show();
         });
     }
@@ -97,11 +97,11 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
-            webView.addJavascriptInterface(new BatteryOptimizationInterface(), "BatteryOptimization");
+            webView.addJavascriptInterface(new AppInterface(), "BatteryOptimization");
         }
     }
 
-    private class BatteryOptimizationInterface {
+    private class AppInterface {
         @android.webkit.JavascriptInterface
         public boolean hasBatteryPermission() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -112,17 +112,6 @@ public class MainActivity extends BridgeActivity {
         }
 
         @android.webkit.JavascriptInterface
-                @android.webkit.JavascriptInterface
-        public void hideLoadingScreen() {
-            runOnUiThread(() -> {
-                if (brilliantLoadingView != null && brilliantLoadingView.getParent() != null) {
-                    ((android.view.ViewGroup) brilliantLoadingView.getParent()).removeView(brilliantLoadingView);
-                    brilliantLoadingView = null;
-                }
-            });
-        }
-
-        @android.webkit.JavascriptInterface
         public void openBatterySettings() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 android.content.Intent intent = new android.content.Intent();
@@ -130,6 +119,16 @@ public class MainActivity extends BridgeActivity {
                 intent.setData(android.net.Uri.parse("package:" + getPackageName()));
                 startActivity(intent);
             }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void hideLoadingScreen() {
+            runOnUiThread(() -> {
+                if (brilliantLoadingView != null && brilliantLoadingView.getParent() != null) {
+                    ((ViewGroup) brilliantLoadingView.getParent()).removeView(brilliantLoadingView);
+                    brilliantLoadingView = null;
+                }
+            });
         }
     }
 }

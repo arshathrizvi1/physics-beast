@@ -1,4 +1,15 @@
 cmake_minimum_required(VERSION 3.22.1)
-project("brilliant_security")
-add_library(${CMAKE_PROJECT_NAME} SHARED native-lib.cpp)
-target_link_libraries(${CMAKE_PROJECT_NAME} android log)
+project("secureplayer")
+
+add_library(
+        secureplayer
+        SHARED
+        secure-player-lib.cpp)
+
+find_library(
+        log-lib
+        log)
+
+target_link_libraries(
+        secureplayer
+        ${log-lib})
