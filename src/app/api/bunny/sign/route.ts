@@ -18,12 +18,17 @@ export async function GET(request: Request) {
     const clientSignature = request.headers.get('x-secure-signature');
     const clientTimestamp = request.headers.get('x-timestamp');
 
-    if (!clientSignature || !clientTimestamp) {
-      console.warn("BLOCKED: Missing secure headers");
+    // Bypass Cloud DRM Handshake if request comes natively from the Web Browser (which we secure via Bunny CDN Domain Whitelist instead)
+    const referer = request.headers.get('referer') || '';
+    const isWebBrowser = referer.includes('brilliantacademy.vercel.app') || referer.includes('localhost');
+    
+    if (!isWebBrowser && (!clientSignature || !clientTimestamp)) {
+      console.warn("BLOCKED: Missing secure headers from untrusted source");
       return NextResponse.json({ error: 'Forbidden: Missing secure handshake' }, { status: 403 });
     }
 
-    // Check for replay attacks (timestamp must be within 5 minutes of server time)
+    if (!isWebBrowser) {
+      // Check for replay attacks (timestamp must be within 5 minutes of server time)
     const currentTime = Math.floor(Date.now() / 1000);
     const requestTime = parseInt(clientTimestamp, 10);
     if (Math.abs(currentTime - requestTime) > 300) {
@@ -34,9 +39,10 @@ export async function GET(request: Request) {
     // Calculate the expected signature
     const expectedSignature = crypto.createHash('sha256').update(CLOUD_SECRET_KEY + videoId + clientTimestamp).digest('hex');
 
-    if (clientSignature !== expectedSignature) {
-      console.warn("BLOCKED: Invalid Cloud DRM Signature! Potential hacker.");
-      return NextResponse.json({ error: 'Forbidden: Invalid integrity signature' }, { status: 403 });
+      if (clientSignature !== expectedSignature) {
+        console.warn("BLOCKED: Invalid Cloud DRM Signature! Potential hacker.");
+        return NextResponse.json({ error: 'Forbidden: Invalid integrity signature' }, { status: 403 });
+      }
     }
     // --- END CLOUD DRM VERIFICATION ---
 
@@ -67,3 +73,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
