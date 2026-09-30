@@ -57,8 +57,11 @@ export async function GET(request: Request) {
     const token = crypto.createHash('sha256').update(rawSignature).digest('hex');
 
     const signedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${token}&expires=${expires}&autoplay=true`;
+    
+    // For Native Android ExoPlayer
+    const hlsUrl = `https://vz-7422f6bf-7e4.b-cdn.net/${videoId}/playlist.m3u8?token=${token}&expires=${expires}`;
 
-    return NextResponse.json({ url: signedUrl, expires });
+    return NextResponse.json({ url: signedUrl, hlsUrl, token, expires });
   } catch (error: any) {
     console.error('Bunny Token Sign Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
