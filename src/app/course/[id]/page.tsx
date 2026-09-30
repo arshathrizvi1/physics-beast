@@ -162,7 +162,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     } else {
       setBunnyEmbedUrl('');
     }
-  }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user]);
+  }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user?.email]);
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
@@ -1876,6 +1876,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
 
 
