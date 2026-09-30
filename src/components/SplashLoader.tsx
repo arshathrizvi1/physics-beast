@@ -1,11 +1,13 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 export default function SplashLoader() {
   const [loading, setLoading] = useState(true);
   const [percent, setPercent] = useState(0);
 
   useEffect(() => {
+    SplashScreen.hide().catch(() => {});
     let current = 0;
     const interval = setInterval(() => {
       current += Math.random() * 15;
@@ -136,9 +138,9 @@ export default function SplashLoader() {
           <img src="/logo.jpg" alt="Brilliant Academy" className="academy-logo" />
           <div className="tagline">
             <span>LEARN</span>
-            <b>•</b>
+            <b>â€¢</b>
             <span>GROW</span>
-            <b>•</b>
+            <b>â€¢</b>
             <span>ACHIEVE</span>
           </div>
           <div className="loader">
