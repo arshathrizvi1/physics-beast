@@ -147,7 +147,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           
           const res = await fetch(`https://brilliantacademy.vercel.app/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
           if (!res.ok) {
-              if (res.status === 403) setBunnyEmbedUrl('CRACKED');
+              if (res.status === 403) { const errData = await res.json().catch(() => ({})); setBunnyEmbedUrl('CRACKED:' + (errData.error || 'Unknown 403')); return; }
               else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
               return;
           }
@@ -901,10 +901,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 >
                       <>
                         {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
-                          bunnyEmbedUrl === 'CRACKED' ? (
+                          bunnyEmbedUrl.startsWith('CRACKED') ? (
                                 <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto relative z-[60]">
                                     <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
-                                    <p className="text-zinc-400">Video playback has been permanently blocked due to unauthorized modification of the app.</p>
+                                    <p className="text-zinc-400">Video playback has been permanently blocked due to unauthorized modification of the app.</p><p className="text-red-500 mt-4 text-xs">{bunnyEmbedUrl}</p>
                                 </div>
                             ) : (
                                 <iframe 
