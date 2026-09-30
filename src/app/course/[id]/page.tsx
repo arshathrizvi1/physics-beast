@@ -128,30 +128,37 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           lib = libMatch[2];
       }
 
-      const isNative = typeof window !== 'undefined' && (typeof (window as any).AndroidNative !== 'undefined' || window.navigator.userAgent.includes('wv') || window.navigator.userAgent.includes('Capacitor'));
-      
-      if (isNative && user) {
-        // NATIVE OVERRIDE: Launch the secure C++ Video Player using Custom URI Scheme to break out of Capacitor WebView
-        const userEmail = user?.email || user?.phone || 'student';
-        const deepLink = `physicsbeast://video/` + vid + `?email=` + encodeURIComponent(userEmail) + `&lib=` + encodeURIComponent(lib);
-        
+      const fetchVideoUrl = async () => {
         try {
-            // Force Capacitor to hand off the URL to the Android OS natively
-            const { App } = require('@capacitor/app');
-            App.openUrl({ url: deepLink });
-        } catch (e) {
-            window.location.href = deepLink;
-        }
-        return;
-      }
-
-      fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`)
-        .then(res => res.json())
-        .then(data => {
+          let headers: any = {};
+          
+          if (typeof window !== 'undefined' && typeof (window as any).AndroidNative !== 'undefined') {
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            // Call C++ to generate a secure signature that hackers can't forge in JavaScript
+            const signature = (window as any).AndroidNative.getCloudSignature(vid, timestamp);
+            if (signature && signature !== 'ERROR') {
+                headers['x-secure-signature'] = signature;
+                headers['x-timestamp'] = timestamp;
+            }
+            headers['x-app-platform'] = 'android';
+          } else {
+            headers['x-app-platform'] = 'web';
+          }
+          
+          const res = await fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
+          if (!res.ok) {
+              if (res.status === 403) setBunnyEmbedUrl('CRACKED');
+              else setBunnyEmbedUrl(activeVideo.url);
+              return;
+          }
+          const data = await res.json();
           if (data.url) setBunnyEmbedUrl(data.url);
           else setBunnyEmbedUrl(activeVideo.url);
-        })
-        .catch(() => setBunnyEmbedUrl(activeVideo.url));
+        } catch (e) {
+          setBunnyEmbedUrl(activeVideo.url);
+        }
+      };
+      fetchVideoUrl();
     } else {
       setBunnyEmbedUrl('');
     }
@@ -1869,6 +1876,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
 
 
