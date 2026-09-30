@@ -484,38 +484,28 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (!user?.uid) return;
     lastStudyDateRef.current = user.lastStudyDate || new Date().toISOString().split('T')[0];
 
-    // Ping every 60 seconds of wall-clock time, but only increment if video is currently playing
-    const heartbeat = setInterval(() => {
+    // Local study time tracker (runs every 60s, updates local memory only, NO Firebase writes)
+    const studyTimer = setInterval(() => {
       const currentVideo = activeVideoRef.current;
       if (!currentVideo) return;
       
-      const presenceRef = doc(db, 'presence', `${currentVideo.id}_${user.uid}`);
-      setDoc(presenceRef, { videoId: currentVideo.id, userId: user.uid, lastActive: Date.now() }, { merge: true });
-      
       if (playingRef.current || currentVideo.type === 'resource') {
-        const userRef = doc(db, 'users', user.uid);
-        const newXp = (user.totalXp || 0) + XP_PER_STUDY_MINUTE;
-        const nowStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        
-        const isSameDay = lastStudyDateRef.current === nowStr;
-        if (!isSameDay) {
-          lastStudyDateRef.current = nowStr;
-        }
-        
-        updateDoc(userRef, {
-          totalStudyTimeMins: increment(1),
-          todayStudyTimeMins: isSameDay ? increment(1) : 1,
-          [`studyHistory.${nowStr}`]: increment(1),
-          totalXp: increment(XP_PER_STUDY_MINUTE),
-          xpLevel: calculateXpLevel(newXp),
-          lastStudyPing: Date.now(),
-          lastStudyDate: nowStr
-        }).catch(e => console.error("Failed to update study time and XP", e));
+        recordStudyMinute(); // Buffers locally in AuthContext
       }
     }, 60000);
 
+    // Presence pinger (runs every 5 minutes to vastly reduce Firebase write costs)
+    const presenceTimer = setInterval(() => {
+      const currentVideo = activeVideoRef.current;
+      if (!currentVideo) return;
+      
+      const presenceRef = doc(db, 'presence', ${currentVideo.id}_);
+      setDoc(presenceRef, { videoId: currentVideo.id, userId: user.uid, lastActive: Date.now() }, { merge: true }).catch(() => {});
+    }, 300000);
+
     return () => {
-      clearInterval(heartbeat);
+      clearInterval(studyTimer);
+      clearInterval(presenceTimer);
     };
   }, [user?.uid]); // Removed activeVideo and playing from deps so interval never resets!
 

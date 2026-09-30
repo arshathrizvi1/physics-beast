@@ -1243,27 +1243,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     });
 
-    if (isCapacitorRef.current) {
-      // In Android app: save to SharedPreferences via native plugin (survives kills/reboots)
-      try {
-        (window as any).Capacitor.Plugins.StudyTime?.recordMinute();
-      } catch {}
-    } else {
-      // On web: buffer in memory
-      pendingStudyMinutesRef.current += 1;
-    }
+    // Buffer in memory for both Web and App
+    pendingStudyMinutesRef.current += 1;
   }, [user]);
 
   const syncStudyTimeNow = useCallback(async () => {
-    if (isCapacitorRef.current) {
-      // In Android app: trigger native WorkManager sync
-      try {
-        (window as any).Capacitor.Plugins.StudyTime?.syncNow();
-      } catch {}
-      return;
-    }
-
-    // Web: sync from browser memory to Firestore
+    // Sync from memory to Firestore
     if (!user || pendingStudyMinutesRef.current === 0) return;
     
     const minutesToSync = pendingStudyMinutesRef.current;
@@ -1290,11 +1275,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    // In Capacitor: native WorkManager handles the 3-hour sync.
-    // On web: use 5-minute interval sync.
-    const interval = isCapacitorRef.current ? null : setInterval(() => {
+    // Sync every 3 hours (10,800,000 ms) while active as a fallback
+    const interval = setInterval(() => {
       syncStudyTimeNow();
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 60 * 1000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -1306,11 +1290,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       syncStudyTimeNow();
     };
 
+    // Web Listeners
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // Capacitor App Background Listener
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          syncStudyTimeNow();
+        }
+      });
+    }).catch(() => {});
+
     return () => {
-      if (interval) clearInterval(interval);
+      clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       syncStudyTimeNow();
