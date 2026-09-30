@@ -23,8 +23,22 @@ import PermissionGate from "@/components/PermissionGate";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Brilliant Academy LMS",
-  description: "Learn Today, Build Tomorrow",
+  title: {
+    template: '%s | Brilliant Academy',
+    default: 'Brilliant Academy | Advanced Level Physics & Online Classes Sri Lanka',
+  },
+  description: "Join Brilliant Academy for the best Advanced Level (A/L) Physics and Science online classes in Sri Lanka. Expert teachers, live sessions, and comprehensive study materials.",
+  keywords: ["A/L Physics", "Online Classes Sri Lanka", "Brilliant Academy", "Advanced Level", "LMS", "Online Education", "Physics Tuition", "Sri Lanka"],
+  authors: [{ name: "Brilliant Academy" }],
+  creator: "Brilliant Academy",
+  openGraph: {
+    type: "website",
+    locale: "en_LK",
+    url: "https://brilliantacademy.vercel.app/",
+    title: "Brilliant Academy | Premium Online A/L Classes",
+    description: "Master Advanced Level Physics with Sri Lanka's leading online educational platform. Join thousands of students today.",
+    siteName: "Brilliant Academy",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
