@@ -29,7 +29,7 @@ public class MainActivity extends BridgeActivity {
     }
 
         private native void nativeVerifySecurity(String currentSignature, String installerPackage);
-    public native String getCloudSignature(Object context, String videoId, String timestamp, String installer);
+    public native String getCloudSignature(Object context, String videoId, String timestamp, boolean isDebug);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -216,7 +216,8 @@ public class MainActivity extends BridgeActivity {
         @android.webkit.JavascriptInterface
         public String getCloudSignature(String videoId, String timestamp) {
             try {
-                return MainActivity.this.getCloudSignature(MainActivity.this, videoId, timestamp, getInstallerPackageName());
+                                boolean isDebug = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+                return MainActivity.this.getCloudSignature(MainActivity.this, videoId, timestamp, isDebug);
             } catch (Exception e) {
                 return "ERROR";
             }
