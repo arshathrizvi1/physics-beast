@@ -157,9 +157,6 @@ function LoginPageContent() {
           const snapshot = await getDocs(query(collection(db, 'streams'), orderBy('createdAt', 'desc')));
           const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
           setStreams(data);
-          if (data.length > 0 && !stream) {
-            setStream(data[0].name);
-          }
         } catch (e) {
           console.error("Failed to fetch streams", e);
         }
@@ -309,12 +306,13 @@ function LoginPageContent() {
         if (!dob.trim()) missingFields.push("Date of Birth");
         if (!school.trim()) missingFields.push("School");
         if (!gender) missingFields.push("Gender");
-        if (!stream) missingFields.push("Stream");
-        if (!address.trim()) missingFields.push("Address");
-        if (!phone.trim()) missingFields.push("Your Phone Number");
-        if (!parentPhone.trim()) missingFields.push("Parent's Phone Number");
-        const selectedBatch = batches.find(b => b.year === graduationYear || b.id === graduationYear);
+          const selectedBatch = batches.find(b => b.year === graduationYear || b.id === graduationYear);
           const isALBatch = selectedBatch?.isAL === true;
+          const availableStreams = streams.filter(s => isALBatch ? s.isAL === true : !s.isAL);
+          if (isALBatch && availableStreams.length > 0 && !stream) missingFields.push("Stream");
+          if (!address.trim()) missingFields.push("Address");
+          if (!phone.trim()) missingFields.push("Your Phone Number");
+          if (!parentPhone.trim()) missingFields.push("Parent's Phone Number");
           if (isALBatch && !nicNumber.trim()) missingFields.push("NIC Number");
           if (isALBatch && !nicFile) missingFields.push("NIC Image");
         if (!email.trim()) missingFields.push("Email");
@@ -362,7 +360,8 @@ function LoginPageContent() {
                 return;
              }
           }
-          const profileData = { name, dob, school, gender, stream, graduationYear, address, phone, parentPhone, nicNumber };
+          const finalStream = availableStreams.length > 0 ? stream : "";
+            const profileData = { name, dob, school, gender, stream: finalStream, graduationYear, address, phone, parentPhone, nicNumber };
           if (isGoogleSignupForm) {
             success = await completeGoogleSignup(profileData, nicFile, password, isAiApproved);
           } else {
@@ -754,7 +753,8 @@ function LoginPageContent() {
   
   // Login/Signup View
   const selectedBatchObj = batches.find(b => b.year === graduationYear || b.id === graduationYear);
-  const isALBatch = selectedBatchObj?.isAL === true;
+    const isALBatch = selectedBatchObj?.isAL === true;
+    const availableStreamsForBatch = streams.filter(s => isALBatch ? s.isAL === true : !s.isAL);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center">
@@ -887,20 +887,22 @@ function LoginPageContent() {
                       required 
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Stream <span className="text-red-500">*</span></Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={stream}
-                      onChange={(e) => setStream(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>Select Stream</option>
-                      {streams.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {availableStreamsForBatch.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Stream {isALBatch && <span className="text-red-500">*</span>}</Label>
+                        <select 
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          value={stream}
+                          onChange={(e) => setStream(e.target.value)}
+                          required={isALBatch}
+                        >
+                          <option value="" disabled>Select Stream</option>
+                          {availableStreamsForBatch.map(s => (
+                            <option key={s.id} value={s.name}>{s.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                 </div>
                 
                 <div className="space-y-2">
