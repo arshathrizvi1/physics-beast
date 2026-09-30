@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,7 +254,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return `${mm}:${ss}`;
   };
 
-  // DVD-style bouncing watermark â€” covers full player
+  // DVD-style bouncing watermark Ã¢â‚¬â€ covers full player
   useEffect(() => {
     let x = 10 + Math.random() * 60;
     let y = 10 + Math.random() * 60;
@@ -544,7 +544,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           // Upload directly to Bunny CDN (forceBunny = true)
           receiptUrl = await uploadToS3(receiptFile, "payment-receipts", true);
         } catch (uploadErr: any) {
-          alert(`âŒ Failed to upload receipt: ${uploadErr.message}`);
+          alert(`Ã¢ÂÅ’ Failed to upload receipt: ${uploadErr.message}`);
           setIsSubmittingPayment(false);
           return;
         }
@@ -575,7 +575,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         
         addDoc(collection(db, "notifications"), {
           target: "admin",
-          title: paymentMethod === 'bank' ? "New Pending Payment Receipt ðŸ’³" : "Payment Received (Card) ðŸ’³",
+          title: paymentMethod === 'bank' ? "New Pending Payment Receipt Ã°Å¸â€™Â³" : "Payment Received (Card) Ã°Å¸â€™Â³",
           message: `${studentLabel} submitted a ${paymentTypeLabel} payment of Rs. ${checkoutFolder.price || 0} for "${checkoutFolder.name}". Pending payment verification.`,
           link: "/admin#payments",
           timestamp: Date.now(),
@@ -584,7 +584,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         }).catch(err => console.error("Failed to notify admin of payment:", err));
       } catch (writeError: any) {
         if (writeError.code === 'permission-denied') {
-          alert("âŒ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");
+          alert("Ã¢ÂÅ’ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");
           setIsSubmittingPayment(false);
           return;
         }
@@ -642,7 +642,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (course.teacherId) {
         await addDoc(collection(db, 'notifications'), {
           target: course.teacherId, // Delivered ONLY to this teacher
-          title: `New Student Doubt ðŸ¤” - ${course.name}`,
+          title: `New Student Doubt Ã°Å¸Â¤â€ - ${course.name}`,
           message: `${studentDisplayName} asked: "${doubtText.slice(0, 70)}${doubtText.length > 70 ? '...' : ''}" in ${activeVideo?.title || course.name}.`,
           link: "/admin#messages",
           timestamp: Date.now(),
@@ -846,7 +846,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
                   <h3 className="text-lg font-bold text-white mb-2">Optimizing Video for Smooth Playback</h3>
                   <p className="text-xs text-muted-foreground max-w-sm">
-                    AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1â€“2 minutes after uploading. It will start playing automatically once ready!
+                    AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1Ã¢â‚¬â€œ2 minutes after uploading. It will start playing automatically once ready!
                   </p>
                 </div>
               ) : (
@@ -1833,6 +1833,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   </>
   );
 }
+
 
 
 
