@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class MainActivity extends BridgeActivity {
+    private BrilliantLoadingView brilliantLoadingView;
 
     // Load the Unbreakable C++ Security Engine
     static {
@@ -28,15 +29,19 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        brilliantLoadingView = new BrilliantLoadingView(this);
+        brilliantLoadingView.setElevation(9999f); // Force it on top of Capacitor WebView
+        addContentView(brilliantLoadingView, new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
         
-        // Disable Screenshots/Screen Recording (Uncomment for Production)
+        // Disable FLAG_SECURE temporarily for developer screenshots
         // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
 
-        // Run C++ Native Security Lock immediately on startup
         try {
             String signature = getAppSignature();
             String installer = getInstallerPackageName();
-            if (installer == null) installer = ";
+            if (installer == null) installer = "";
             nativeVerifySecurity(signature, installer);
         } catch (Exception e) {
             Log.e("BrilliantSecurity", "Failed to run security checks", e);
@@ -92,11 +97,11 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
-            webView.addJavascriptInterface(new NativeBridge(), "AndroidNative");
+            webView.addJavascriptInterface(new BatteryOptimizationInterface(), "BatteryOptimization");
         }
     }
 
-    private class NativeBridge {
+    private class BatteryOptimizationInterface {
         @android.webkit.JavascriptInterface
         public boolean hasBatteryPermission() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -104,6 +109,17 @@ public class MainActivity extends BridgeActivity {
                 return pm.isIgnoringBatteryOptimizations(getPackageName());
             }
             return true;
+        }
+
+        @android.webkit.JavascriptInterface
+                @android.webkit.JavascriptInterface
+        public void hideLoadingScreen() {
+            runOnUiThread(() -> {
+                if (brilliantLoadingView != null && brilliantLoadingView.getParent() != null) {
+                    ((android.view.ViewGroup) brilliantLoadingView.getParent()).removeView(brilliantLoadingView);
+                    brilliantLoadingView = null;
+                }
+            });
         }
 
         @android.webkit.JavascriptInterface
