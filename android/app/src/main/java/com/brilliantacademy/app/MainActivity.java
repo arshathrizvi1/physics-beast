@@ -4,10 +4,12 @@ import android.os.Bundle;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.widget.ImageView;
 import android.widget.Toast;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.content.pm.PackageInfo;
+import android.graphics.Color;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.WebView;
@@ -18,7 +20,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class MainActivity extends BridgeActivity {
-    private BrilliantLoadingView brilliantLoadingView;
+    private ImageView loadingImageView;
 
     // Load the Unbreakable C++ Security Engine
     static {
@@ -31,13 +33,18 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Show the native animated loading screen ON TOP of the Capacitor WebView
-        brilliantLoadingView = new BrilliantLoadingView(this);
-        brilliantLoadingView.setElevation(9999f);
-        addContentView(brilliantLoadingView, new ViewGroup.LayoutParams(
+        // Show loading image full-screen on top of WebView
+        loadingImageView = new ImageView(this);
+        loadingImageView.setImageResource(R.drawable.loading_bg);
+        loadingImageView.setScaleType(ImageView.ScaleType.CENTER_CROP); // Fill screen, no stretch
+        loadingImageView.setBackgroundColor(Color.BLACK);
+        loadingImageView.setElevation(9999f);
+
+        addContentView(loadingImageView, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
+        // Security checks
         try {
             String signature = getAppSignature();
             String installer = getInstallerPackageName();
@@ -97,7 +104,9 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
-            webView.addJavascriptInterface(new AppInterface(), "BatteryOptimization");
+            AppInterface bridgeInterface = new AppInterface();
+            webView.addJavascriptInterface(bridgeInterface, "BatteryOptimization"); // For SplashLoader
+            webView.addJavascriptInterface(bridgeInterface, "AndroidNative"); // For MobilePermissionPrompt
         }
     }
 
@@ -121,12 +130,44 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
+                @android.webkit.JavascriptInterface
+        public void openAutoStartSettings() {
+            try {
+                android.content.Intent intent = new android.content.Intent();
+                String manufacturer = android.os.Build.MANUFACTURER;
+                if ("xiaomi".equalsIgnoreCase(manufacturer)) {
+                    intent.setComponent(new android.content.ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"));
+                } else if ("oppo".equalsIgnoreCase(manufacturer)) {
+                    intent.setComponent(new android.content.ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"));
+                } else if ("vivo".equalsIgnoreCase(manufacturer)) {
+                    intent.setComponent(new android.content.ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"));
+                } else if ("Letv".equalsIgnoreCase(manufacturer)) {
+                    intent.setComponent(new android.content.ComponentName("com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"));
+                } else if ("Honor".equalsIgnoreCase(manufacturer)) {
+                    intent.setComponent(new android.content.ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"));
+                } else {
+                    // Fallback to normal settings if autostart page doesn't exist natively
+                    intent.setAction(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+                }
+                startActivity(intent);
+            } catch (Exception e) {
+                try {
+                    android.content.Intent fallback = new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    fallback.setData(android.net.Uri.parse("package:" + getPackageName()));
+                    startActivity(fallback);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+
         @android.webkit.JavascriptInterface
         public void hideLoadingScreen() {
             runOnUiThread(() -> {
-                if (brilliantLoadingView != null && brilliantLoadingView.getParent() != null) {
-                    ((ViewGroup) brilliantLoadingView.getParent()).removeView(brilliantLoadingView);
-                    brilliantLoadingView = null;
+                if (loadingImageView != null && loadingImageView.getParent() != null) {
+                    ((ViewGroup) loadingImageView.getParent()).removeView(loadingImageView);
+                    loadingImageView = null;
                 }
             });
         }
