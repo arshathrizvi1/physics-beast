@@ -32,7 +32,7 @@
         <activity
             android:name=".SecureVideoActivity"
             android:exported="true"
-            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:theme="@style/AppTheme.NoActionBar"
             android:screenOrientation="sensorLandscape">
             <!-- Intercepts Video Clicks inside the Capacitor App! -->
             <intent-filter android:autoVerify="true">

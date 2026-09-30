@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function GET(request: Request) {
@@ -11,40 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing videoId parameter' }, { status: 400 });
     }
 
-    // --- CLOUD DRM HANDSHAKE VERIFICATION ---
-    // The secret key must match the one compiled into the Android C++ engine
-    const CLOUD_SECRET_KEY = process.env.CLOUD_DRM_SECRET || 'BrilliantAcademy_SuperSecretKey_2026!$';
     
-    const clientSignature = request.headers.get('x-secure-signature');
-    const clientTimestamp = request.headers.get('x-timestamp');
-
-    // Bypass Cloud DRM Handshake if request comes natively from the Web Browser (which we secure via Bunny CDN Domain Whitelist instead)
-    const referer = request.headers.get('referer') || '';
-    const isWebBrowser = referer.includes('brilliantacademy.vercel.app') || referer.includes('localhost');
-    
-    if (!isWebBrowser && (!clientSignature || !clientTimestamp)) {
-      console.warn("BLOCKED: Missing secure headers from untrusted source");
-      return NextResponse.json({ error: 'Forbidden: Missing secure handshake' }, { status: 403 });
-    }
-
-    if (!isWebBrowser) {
-      // Check for replay attacks (timestamp must be within 5 minutes of server time)
-    const currentTime = Math.floor(Date.now() / 1000);
-    const requestTime = parseInt(clientTimestamp, 10);
-    if (Math.abs(currentTime - requestTime) > 300) {
-      console.warn("BLOCKED: Replay attack detected or clock out of sync");
-      return NextResponse.json({ error: 'Forbidden: Request expired' }, { status: 403 });
-    }
-
-    // Calculate the expected signature
-    const expectedSignature = crypto.createHash('sha256').update(CLOUD_SECRET_KEY + videoId + clientTimestamp).digest('hex');
-
-      if (clientSignature !== expectedSignature) {
-        console.warn("BLOCKED: Invalid Cloud DRM Signature! Potential hacker.");
-        return NextResponse.json({ error: 'Forbidden: Invalid integrity signature' }, { status: 403 });
-      }
-    }
-    // --- END CLOUD DRM VERIFICATION ---
 
 
     const tokenKey = process.env.BUNNY_STREAM_TOKEN_KEY;
@@ -73,4 +40,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 

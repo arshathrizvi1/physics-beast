@@ -1,4 +1,4 @@
-package com.brilliantacademy.app;
+﻿package com.brilliantacademy.app;
 
 import android.os.Bundle;
 import android.os.Build;
@@ -34,8 +34,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // TEMPORARILY DISABLED FOR DEBUGGING
-        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
         
         // Launch the Native C++ Security Thread
         try {
@@ -135,11 +134,12 @@ public class MainActivity extends BridgeActivity {
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
             AppInterface bridgeInterface = new AppInterface();
-            webView.addJavascriptInterface(bridgeInterface, "BatteryOptimization"); // For SplashLoader
-            webView.addJavascriptInterface(bridgeInterface, "AndroidNative"); // For MobilePermissionPrompt
-        }
+            webView.addJavascriptInterface(bridgeInterface, "BatteryOptimization");
+            webView.addJavascriptInterface(bridgeInterface, "AndroidNative");
+            
+            }
     }
-
+    
     private class AppInterface {
         @android.webkit.JavascriptInterface
         public void startVideoPlayer(String videoId, String email, String libId) {
@@ -242,6 +242,8 @@ public class MainActivity extends BridgeActivity {
         }
     }
 }
+
+
 
 
 

@@ -29,7 +29,7 @@ import java.security.MessageDigest;
 public class SecureVideoActivity extends AppCompatActivity {
 
     static {
-        System.loadLibrary("secure-player-lib");
+        System.loadLibrary("secureplayer");
     }
 
     public native String getCloudSignature(Object context, String videoId, String timestamp);
