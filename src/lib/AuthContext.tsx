@@ -1280,33 +1280,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       syncStudyTimeNow();
     }, 3 * 60 * 60 * 1000);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        syncStudyTimeNow();
-      }
-    };
-
     const handleBeforeUnload = () => {
       syncStudyTimeNow();
     };
 
-    // Web Listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Only sync on actual page unload/close, NEVER on tab switch or minimize
     window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // Capacitor App Background Listener
-    import('@capacitor/app').then(({ App }) => {
-      App.addListener('appStateChange', ({ isActive }) => {
-        if (!isActive) {
-          syncStudyTimeNow();
-        }
-      });
-    }).catch(() => {});
+    window.addEventListener('unload', handleBeforeUnload);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleBeforeUnload);
       syncStudyTimeNow();
     };
   }, [syncStudyTimeNow]);
