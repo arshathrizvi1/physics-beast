@@ -114,6 +114,8 @@ const AuthContext = createContext<AuthContextType>({
   completeGoogleTeacherSignup: async () => false,
   loginWithCustomToken: async () => false,
   updateVideoProgress: async () => {},
+  recordStudyMinute: () => {},
+  syncStudyTimeNow: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

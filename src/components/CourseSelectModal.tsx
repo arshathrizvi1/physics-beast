@@ -20,6 +20,7 @@ interface CourseSelectModalProps {
   allowNone?: boolean;
   noneLabel?: string;
   defaultBatchId?: string;
+    onBatchChange?: (batchId: string) => void;
 }
 
 export function CourseSelectModal({
