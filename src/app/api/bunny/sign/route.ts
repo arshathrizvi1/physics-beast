@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function GET(request: Request) {
@@ -11,12 +11,42 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing videoId parameter' }, { status: 400 });
     }
 
+    // --- CLOUD DRM HANDSHAKE VERIFICATION ---
+    // The secret key must match the one compiled into the Android C++ engine
+    const CLOUD_SECRET_KEY = process.env.CLOUD_DRM_SECRET || 'BrilliantAcademy_SuperSecretKey_2026!$';
+    
+    const clientSignature = request.headers.get('x-secure-signature');
+    const clientTimestamp = request.headers.get('x-timestamp');
+
+    if (!clientSignature || !clientTimestamp) {
+      console.warn("BLOCKED: Missing secure headers");
+      return NextResponse.json({ error: 'Forbidden: Missing secure handshake' }, { status: 403 });
+    }
+
+    // Check for replay attacks (timestamp must be within 5 minutes of server time)
+    const currentTime = Math.floor(Date.now() / 1000);
+    const requestTime = parseInt(clientTimestamp, 10);
+    if (Math.abs(currentTime - requestTime) > 300) {
+      console.warn("BLOCKED: Replay attack detected or clock out of sync");
+      return NextResponse.json({ error: 'Forbidden: Request expired' }, { status: 403 });
+    }
+
+    // Calculate the expected signature: HMAC-SHA256(videoId + timestamp)
+    const expectedSignature = crypto.createHash('sha256').update(CLOUD_SECRET_KEY + videoId + clientTimestamp)
+      .digest('hex');
+
+    if (clientSignature !== expectedSignature) {
+      console.warn("BLOCKED: Invalid Cloud DRM Signature! Potential hacker.");
+      return NextResponse.json({ error: 'Forbidden: Invalid integrity signature' }, { status: 403 });
+    }
+    // --- END CLOUD DRM VERIFICATION ---
+
+
     const tokenKey = process.env.BUNNY_STREAM_TOKEN_KEY;
 
-    // If no token key is configured, return the standard embed URL without token
     if (!tokenKey) {
       return NextResponse.json({
-        url: `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true`
+        url: https://iframe.mediadelivery.net/embed//?autoplay=true
       });
     }
 
@@ -24,10 +54,10 @@ export async function GET(request: Request) {
     const expires = Math.floor(Date.now() / 1000) + 14400;
 
     // SHA256(token_security_key + video_id + expiration_timestamp)
-    const rawSignature = `${tokenKey}${videoId}${expires}`;
+    const rawSignature = ${tokenKey};
     const token = crypto.createHash('sha256').update(rawSignature).digest('hex');
 
-    const signedUrl = `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?token=${token}&expires=${expires}&autoplay=true`;
+    const signedUrl = https://iframe.mediadelivery.net/embed//?token=&expires=&autoplay=true;
 
     return NextResponse.json({ url: signedUrl, expires });
   } catch (error: any) {
