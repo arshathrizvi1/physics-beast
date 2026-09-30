@@ -179,10 +179,23 @@ Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobjec
     }
     env->ReleaseByteArrayElements(hashBytes, bytes, JNI_ABORT);
 
-    // IF HACKER CHANGED APK SIGNATURE, DESTROY THE CLOUD REQUEST!
+    // --- BYPASS SIGNATURE CHECK FOR ANDROID STUDIO DEV BUILDS ---
+    jmethodID getInstallerPackageNameMid = env->GetMethodID(packageManagerClass, "getInstallerPackageName", "(Ljava/lang/String;)Ljava/lang/String;");
+    jstring installerPackage = (jstring) env->CallObjectMethod(packageManager, getInstallerPackageNameMid, packageName);
+    std::string sInst = "";
+    if (installerPackage != nullptr) {
+        const char *inst = env->GetStringUTFChars(installerPackage, nullptr);
+        sInst = inst;
+        env->ReleaseStringUTFChars(installerPackage, inst);
+    }
+    
     if (currentSig != OFFICIAL_SIGNATURE) {
-        LOGE("NATIVE SECURITY ALERT: APP CRACKED! SENDING FAKE TOKEN TO CLOUD!");
-        return env->NewStringUTF("CRACKED_APP_BLOCKED");
+        if (sInst.empty()) {
+            LOGE("DEV MODE: Signature mismatch ignored because app was installed via ADB (Android Studio).");
+        } else {
+            LOGE("NATIVE SECURITY ALERT: APP CRACKED! SENDING FAKE TOKEN TO CLOUD!");
+            return env->NewStringUTF("CRACKED_APP_BLOCKED");
+        }
     }
 
     // --- GENERATE REAL CLOUD SIGNATURE ONLY IF SAFE ---

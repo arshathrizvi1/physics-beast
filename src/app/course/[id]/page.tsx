@@ -901,12 +901,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 >
                       <>
                         {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
-                          <iframe 
-                            src={bunnyEmbedUrl || activeVideo.url} 
-                            className="w-full h-full border-0 relative z-[50]"
-                            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                            allowFullScreen={true}
-                          />
+                          bunnyEmbedUrl === 'CRACKED' ? (
+                                <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto relative z-[60]">
+                                    <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
+                                    <p className="text-zinc-400">Video playback has been permanently blocked due to unauthorized modification of the app.</p>
+                                </div>
+                            ) : (
+                                <iframe 
+                                  src={bunnyEmbedUrl || activeVideo.url} 
+                                  className="w-full h-full border-0 relative z-[50]"
+                                  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                                  allowFullScreen={true}
+                                />
+                            )
                         )}
                         <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
                           {typeof window !== 'undefined' && (window as any).AndroidNative?.checkAppIntegrity?.() === 'CRACKED' ? (
