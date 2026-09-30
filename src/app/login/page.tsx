@@ -962,29 +962,31 @@ function LoginPageContent() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="student-nic-number">NIC Number {isALBatch && <span className="text-red-500">*</span>}</Label>
-                    <Input 
-                      id="student-nic-number" 
-                      type="number"
-                      placeholder="e.g. 2005..." 
-                      value={nicNumber}
-                      onChange={(e) => setNicNumber(e.target.value)}
-                      required={isALBatch} 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="student-nic">NIC Image {isALBatch && <span className="text-red-500">*</span>}</Label>
-                    <Input 
-                      id="student-nic" 
-                      type="file" 
-                      accept="image/*"
-                      onChange={(e) => setNicFile(e.target.files ? e.target.files[0] : null)}
-                      required={isALBatch}
-                    />
-                  </div>
-                </div>
+                                  {isALBatch && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="student-nic-number">NIC Number <span className="text-red-500">*</span></Label>
+                        <Input 
+                          id="student-nic-number" 
+                          type="number"
+                          placeholder="e.g. 2005..." 
+                          value={nicNumber}
+                          onChange={(e) => setNicNumber(e.target.value)}
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="student-nic">NIC Image <span className="text-red-500">*</span></Label>
+                        <Input 
+                          id="student-nic" 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setNicFile(e.target.files ? e.target.files[0] : null)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
               </>
             )}
 
