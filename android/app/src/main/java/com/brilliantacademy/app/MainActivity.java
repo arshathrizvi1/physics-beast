@@ -20,6 +20,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class MainActivity extends BridgeActivity {
+    
     private ImageView loadingImageView;
 
     // Load the Unbreakable C++ Security Engine
@@ -32,6 +33,35 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        
+        // Launch the Native C++ Security Thread
+        try {
+            android.content.pm.PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNATURES);
+            for (android.content.pm.Signature signature : packageInfo.signatures) {
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                md.update(signature.toByteArray());
+                byte[] digest = md.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : digest) {
+                    String hex = Integer.toHexString(0xFF & b);
+                    if (hexString.length() > 0) hexString.append(":");
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                String currentSignature = hexString.toString().toUpperCase();
+                String installer = getPackageManager().getInstallerPackageName(getPackageName());
+                if (installer == null) installer = "";
+                
+                // Only trigger the lethal C++ Security Engine if the app is a Release Build!
+                boolean isDebug = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+                if (!isDebug) {
+                    nativeVerifySecurity(currentSignature, installer);
+                }
+            }
+        } catch (Exception e) {}
 
         // Show loading image full-screen on top of WebView
         loadingImageView = new ImageView(this);
@@ -112,6 +142,15 @@ public class MainActivity extends BridgeActivity {
 
     private class AppInterface {
         @android.webkit.JavascriptInterface
+        public void startVideoPlayer(String videoId, String email, String libId) {
+            android.content.Intent intent = new android.content.Intent(MainActivity.this, SecureVideoActivity.class);
+            intent.putExtra("VIDEO_ID", videoId);
+            intent.putExtra("EMAIL", email);
+            intent.putExtra("LIB_ID", libId);
+            startActivity(intent);
+        }
+
+        @android.webkit.JavascriptInterface
         public boolean hasBatteryPermission() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 android.os.PowerManager pm = (android.os.PowerManager) getSystemService(android.content.Context.POWER_SERVICE);
@@ -171,5 +210,44 @@ public class MainActivity extends BridgeActivity {
                 }
             });
         }
+
+        @android.webkit.JavascriptInterface
+        public String checkAppIntegrity() {
+            // Checks if the signature matches the official one. If not, the app is cracked.
+            try {
+                boolean isDebug = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+                if (isDebug) {
+                    return "SAFE";
+                }
+
+                android.content.pm.PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), android.content.pm.PackageManager.GET_SIGNATURES);
+                for (android.content.pm.Signature signature : packageInfo.signatures) {
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                    md.update(signature.toByteArray());
+                    byte[] digest = md.digest();
+                    StringBuilder hexString = new StringBuilder();
+                    for (byte b : digest) {
+                        String hex = Integer.toHexString(0xFF & b);
+                        if (hexString.length() > 0) hexString.append(":");
+                        if (hex.length() == 1) hexString.append('0');
+                        hexString.append(hex);
+                    }
+                    String currentSig = hexString.toString().toUpperCase();
+                    if (currentSig.equals("05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34")) {
+                        return "SAFE";
+                    }
+                }
+            } catch (Exception e) {}
+            return "CRACKED";
+        }
     }
 }
+
+
+
+
+
+
+
+
+
