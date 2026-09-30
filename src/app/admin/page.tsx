@@ -2707,9 +2707,14 @@ export default function AdminDashboard() {
                             <p className="font-bold">{b.name}</p>
                             <p className="text-xs opacity-80">{b.year}</p>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteBatch(b.id); }} className="p-1 hover:bg-destructive/20 rounded-md text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                              <button onClick={(e) => { e.stopPropagation(); setEditingBatch(b); }} className="p-1 hover:bg-primary/20 rounded-md text-primary">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteBatch(b.id); }} className="p-1 hover:bg-destructive/20 rounded-md text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                         </div>
                       ))}
                       {batches.length === 0 && <p className="text-sm text-muted-foreground italic">No batches yet.</p>}
@@ -2731,16 +2736,25 @@ export default function AdminDashboard() {
                           className="p-3 rounded-md flex justify-between items-center transition-colors bg-secondary/20 border border-secondary/30"
                         >
                           <p className="font-bold text-sm">{s.name}</p>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteStream(s.id); }} className="p-1 rounded-md transition-colors hover:bg-destructive/20 text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                              <button onClick={(e) => { e.stopPropagation(); setEditingStream(s); }} className="p-1 rounded-md transition-colors hover:bg-primary/20 text-primary">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteStream(s.id); }} className="p-1 rounded-md transition-colors hover:bg-destructive/20 text-destructive">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                         </div>
                       ))}
                       {streams.length === 0 && <p className="text-sm text-muted-foreground italic">No streams yet.</p>}
                     </div>
                     <form onSubmit={handleCreateStream} className="pt-2 border-t space-y-2">
                       <Input placeholder="Stream Name (e.g. Science)" value={newStreamName} onChange={e => setNewStreamName(e.target.value)} required />
-                      <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Stream</Button>
+                        <div className="flex items-center space-x-2 my-2">
+                          <input type="checkbox" id="isStreamAL" checked={newStreamIsAL} onChange={e => setNewStreamIsAL(e.target.checked)} className="w-4 h-4" />
+                          <label htmlFor="isStreamAL" className="text-sm font-medium">This is an A/L Stream</label>
+                        </div>
+                        <Button type="submit" className="w-full" size="sm"><Plus className="w-4 h-4 mr-1" /> Add Stream</Button>
                     </form>
                   </div>
 
