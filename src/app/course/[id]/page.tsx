@@ -129,9 +129,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       const isNative = typeof window !== 'undefined' && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor?.isNative);
       
       if (isNative && user) {
-        // NATIVE OVERRIDE: Launch the secure C++ Video Player and pass the user's email and library ID
+        // NATIVE OVERRIDE: Launch the secure C++ Video Player using Custom URI Scheme to break out of Capacitor WebView
         const userEmail = user?.email || user?.phone || 'student';
-        window.location.href = `https://brilliantacademy.vercel.app/video/` + vid + `?email=` + encodeURIComponent(userEmail) + `&lib=` + encodeURIComponent(lib);
+        window.location.href = `physicsbeast://video/` + vid + `?email=` + encodeURIComponent(userEmail) + `&lib=` + encodeURIComponent(lib);
         return;
       }
 
