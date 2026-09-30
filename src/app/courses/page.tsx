@@ -282,7 +282,7 @@ function CoursesContent() {
   const isCourseActivated = (course: any) => {
     if (!user) return false;
     if (user.role === 'admin' || user.role === 'teacher') return true;
-    if (user.courseAccess && user.courseAccess[course.id] && user.courseAccess[course.id] > Date.now()) return true;
+    if ((user as any).courseAccess && (user as any).courseAccess[course.id] && (user as any).courseAccess[course.id] > Date.now()) return true;
     const courseFolders = folders.filter(f => f.courseId === course.id);
     return courseFolders.some(f => user.folderAccess && user.folderAccess[f.id] && user.folderAccess[f.id] > Date.now());
   };

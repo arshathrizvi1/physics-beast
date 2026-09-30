@@ -95,6 +95,8 @@ interface AuthContextType {
   completeGoogleTeacherSignup: (profileData: { name: string; subject: string }, password?: string) => Promise<boolean>;
   loginWithCustomToken: (token: string) => Promise<boolean>;
   updateVideoProgress: (videoId: string, percent: number) => Promise<void>;
+  recordStudyMinute: () => void;
+  syncStudyTimeNow: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -1247,7 +1249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     pendingStudyMinutesRef.current += 1;
     // Persist to local storage for sudden death/crash recovery!
     if (typeof window !== 'undefined') {
-      localStorage.setItem(pendingStudyMins_, pendingStudyMinutesRef.current.toString());
+      localStorage.setItem(`pendingStudyMins_${user.uid}`, pendingStudyMinutesRef.current.toString());
     }
   }, [user]);
 
@@ -1258,7 +1260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const minutesToSync = pendingStudyMinutesRef.current;
     pendingStudyMinutesRef.current = 0;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(pendingStudyMins_);
+      localStorage.removeItem(`pendingStudyMins_${user.uid}`);
     }
     
     try {
@@ -1284,7 +1286,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Crash Recovery: Check if the app died suddenly while holding unsaved minutes
     if (user?.uid && typeof window !== 'undefined') {
-      const recoveredMins = parseInt(localStorage.getItem(pendingStudyMins_) || '0');
+      const recoveredMins = parseInt(localStorage.getItem(`pendingStudyMins_${user.uid}`) || '0');
       if (recoveredMins > 0) {
         pendingStudyMinutesRef.current = recoveredMins;
         syncStudyTimeNow(); // Upload the recovered minutes immediately on boot!

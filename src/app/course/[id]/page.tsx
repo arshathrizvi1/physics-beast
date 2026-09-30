@@ -464,7 +464,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     const el = syllabusScrollRef.current;
     if (!el) return;
-    const stopWheel = (e: WheelEvent) => {
+    const stopWheel = (e: Event) => {
       // Allow native scroll, but stop it from bubbling up to Window where Lenis catches it
       e.stopPropagation();
     };
