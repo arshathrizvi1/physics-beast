@@ -649,7 +649,7 @@ export default function AdminLiveStudio() {
               )}
             </CardContent>
             <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
                 {isSubmitting ? "Processing..." : editingClass?.status === 'draft' ? "Publish Zoom Meeting" : "Schedule Class"}
               </Button>
               {editingClass?.status === 'draft' && (
