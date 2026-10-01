@@ -13,7 +13,27 @@ import PasskeySettings from "@/components/PasskeySettings";
 
 // Simple counter component using Framer Motion
 const Counter = ({ end, duration = 2, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      if (code) {
+        fetch('/api/zoom/oauth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        }).then(res => res.json()).then(data => {
+          if (data.success) {
+            alert("Zoom Account Successfully Connected!");
+          }
+          window.history.replaceState({}, '', '/');
+        }).catch(console.error);
+      }
+    }
+  }, []);
   const [count, setCount] = useState(0);
+
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
