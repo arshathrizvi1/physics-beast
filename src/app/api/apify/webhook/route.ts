@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Fetch it into Bunny Stream
-    const websiteUrl = process.env.WEBSITE_URL || 'https://brilliantacademy.vercel.app';
+    const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
     const bunnyFetchUrl = `${websiteUrl}/api/bunny/fetch`;
 
     const fetchRes = await fetch(bunnyFetchUrl, {
