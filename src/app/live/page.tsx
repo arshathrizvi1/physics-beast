@@ -691,7 +691,19 @@ export default function StudentLivePortal() {
                 </div>
               )}
               
-              {/* Secret Chat Box for Live Classes */}
+              {/* Secondary Zoom Join Button for YouTube/RTMP streams */}
+                {cls.enableSecondaryZoom && cls.secondaryZoomLink && cls.status === 'live' && getActiveStream(cls).id !== 'zoom' && (
+                  <div className="p-4 bg-zinc-900 border-t border-border/30 flex justify-center">
+                    <a href={cls.secondaryZoomLink} target="_blank" rel="noreferrer">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 px-8 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.3)] animate-pulse hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all flex items-center gap-2">
+                        <Video className="w-5 h-5" />
+                        Join Zoom Meeting Directly
+                      </Button>
+                    </a>
+                  </div>
+                )}
+                
+                {/* Secret Chat Box for Live Classes */}
               {cls.status === 'live' && getActiveStream(cls).id !== 'zoom' && (
                  <LiveChat liveClassId={cls.id} />
               )}

@@ -31,6 +31,8 @@ export default function AdminLiveStudio() {
   const [description, setDescription] = useState("");
   const [platform, setPlatform] = useState("youtube"); // Legacy default
   const [link, setLink] = useState(""); // Legacy default
+    const [enableSecondaryZoom, setEnableSecondaryZoom] = useState(false);
+    const [secondaryZoomLink, setSecondaryZoomLink] = useState("");
   const [multiStreams, setMultiStreams] = useState({
     youtube: { enabled: false, link: "" },
     zoom: { enabled: false, link: "" },
@@ -137,7 +139,9 @@ export default function AdminLiveStudio() {
               }
             }
           setLink(draft.link || "");
-          if (draft.multiStreams) {
+            setEnableSecondaryZoom(draft.enableSecondaryZoom || false);
+            setSecondaryZoomLink(draft.secondaryZoomLink || "");
+            if (draft.multiStreams) {
             setMultiStreams(draft.multiStreams);
           } else {
             // Fallback for old drafts
@@ -195,7 +199,9 @@ export default function AdminLiveStudio() {
         batchId: batchId === "all" ? null : batchId,
         targetFolderId: targetFolderId === "none" ? null : targetFolderId,
         allowDirectJoin,
-        ...(platform === 'rtmp' ? { streamKey: rtmpStreamKey } : {}),
+          enableSecondaryZoom: platform !== 'zoom' ? enableSecondaryZoom : false,
+          secondaryZoomLink: platform !== 'zoom' ? secondaryZoomLink : "",
+          ...(platform === 'rtmp' ? { streamKey: rtmpStreamKey } : {}),
         status: 'scheduled'
       };
 
@@ -210,7 +216,8 @@ export default function AdminLiveStudio() {
       setDescription("");
       setPlatform("youtube");
       setLink("");
-      setMultiStreams({
+        setSecondaryZoomLink("");
+        setMultiStreams({
         youtube: { enabled: false, link: "" },
         zoom: { enabled: false, link: "" },
         rtmp: { enabled: false, link: "" },
