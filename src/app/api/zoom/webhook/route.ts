@@ -89,7 +89,7 @@ export async function POST(request: Request) {
           batchId: null,
           targetFolderId: null,
           allowDirectJoin: true,
-          createdAt: adminDb.FieldValue.serverTimestamp()
+          createdAt: Date.now()
         });
         // Notify admin
         await adminDb.collection('notifications').add({
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
               type: 'video',
               isReady: false,
               processingStatus: 'downloading_on_aws',
-              createdAt: adminDb.FieldValue.serverTimestamp(),
+              createdAt: Date.now(),
               updatedAt: Date.now()
           });
 
