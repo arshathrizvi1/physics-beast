@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       }
     });
 
-    if (body.event === 'meeting.started') {
+    if (body.event === 'meeting.started' || body.event === 'meeting.created') {
       if (matchingClassDoc) {
         // Automatically start the class
         await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
