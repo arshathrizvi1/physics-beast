@@ -1,4 +1,8 @@
-"use client";
+﻿import sys
+
+path = r'C:\Projects\Brilliant Academy\physics-beast\src\components\ZoomSettingsModal.tsx'
+
+new_file_content = """"use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -88,3 +92,9 @@ export function ZoomSettingsModal() {
     </>
   );
 }
+"""
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(new_file_content)
+
+print("Updated ZoomSettingsModal.tsx successfully!")
