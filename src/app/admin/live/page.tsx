@@ -22,6 +22,7 @@ import { ZoomSettingsModal } from "@/components/ZoomSettingsModal";
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [liveClasses, setLiveClasses] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
@@ -111,7 +112,7 @@ export default function AdminLiveStudio() {
     const handleDrafts = () => {
       if (typeof window === 'undefined' || !liveClasses.length) return;
       
-      const searchParams = new URLSearchParams(window.location.search);
+      // using next/navigation searchParams instead
       const draftId = searchParams.get('draftId');
       
       if (draftId) {
@@ -165,7 +166,7 @@ export default function AdminLiveStudio() {
       }
     };
     handleDrafts();
-  }, [liveClasses]);
+  }, [liveClasses, searchParams]);
 
   // Generate a random stream key for RTMP
   const generateStreamKey = () => {
