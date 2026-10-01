@@ -56,7 +56,7 @@ export function ZoomSettingsModal() {
   };
 
   const authLink = sdkKey.trim() 
-    ? 'https://zoom.us/oauth/authorize?response_type=code&client_id=' + sdkKey.trim() + '&redirect_uri=https://brilliantacademy.vercel.app'
+    ? 'https://zoom.us/oauth/authorize?response_type=code&client_id=' + sdkKey.trim() + '&redirect_uri=https://brillliantacademy.site'
     : '#';
 
   return (
