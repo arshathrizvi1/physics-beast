@@ -46,6 +46,9 @@ export const metadata: Metadata = {
     title: "Brilliant Academy LMS",
   },
   applicationName: "Brilliant Academy LMS",
+  verification: {
+    google: "mL8cyyAyZ9u1E2t781IfntHrU5PGtz7VgQG3q2q4rAU",
+  },
 };
 
 export const viewport = {
