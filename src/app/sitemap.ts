@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
  
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://brilliantacademy.vercel.app' // Replace with your custom domain later
+  const baseUrl = 'https://brillliantacademy.site' 
   
   return [
     {

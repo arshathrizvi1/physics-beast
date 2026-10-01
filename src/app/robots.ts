@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
  
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://brilliantacademy.vercel.app' // Replace with your custom domain later
+  const baseUrl = 'https://brillliantacademy.site' 
 
   return {
     rules: {

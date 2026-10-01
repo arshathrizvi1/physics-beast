@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_LK",
-    url: "https://brilliantacademy.vercel.app/",
+    url: "https://brillliantacademy.site/",
     title: "Brilliant Academy | Premium Online A/L Classes",
     description: "Master Advanced Level Physics with Sri Lanka's leading online educational platform. Join thousands of students today.",
     siteName: "Brilliant Academy",
