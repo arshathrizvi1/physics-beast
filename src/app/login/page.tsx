@@ -375,6 +375,12 @@ function LoginPageContent() {
           setIsSubmitting(false);
           return;
         }
+
+        if (!isGoogleSignupForm && !isPhoneVerified) {
+          setError("Please verify your phone number before creating an account.");
+          setIsSubmitting(false);
+          return;
+        }
         
 
 
