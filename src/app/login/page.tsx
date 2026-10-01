@@ -172,6 +172,7 @@ function LoginPageContent() {
   const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [otpSending, setOtpSending] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
   if (loading) {
     return (
@@ -289,6 +290,48 @@ function LoginPageContent() {
       setError("An unexpected error occurred during Google sign-in.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  
+  const handleSendInlineOtp = async () => {
+    if (!phone.trim()) {
+      setPhoneError("Please enter your phone number first.");
+      return;
+    }
+    setOtpSending(true);
+    setPhoneError("");
+    try {
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+      }
+      let fmtPhone = phone.trim();
+      if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
+      if (!fmtPhone.startsWith('+')) fmtPhone = '+94' + fmtPhone;
+      
+      const confResult = await signInWithPhoneNumber(auth, fmtPhone, window.recaptchaVerifier);
+      window.confirmationResult = confResult;
+      setShowOtpScreen(true); // Reusing this variable to mean "OTP Sent"
+      setOtpSending(false);
+    } catch(e: any) {
+      console.error("SMS Error", e);
+      setPhoneError("Failed to send SMS. Check your number or wait a bit.");
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyInlineOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) return;
+    setOtpSending(true);
+    try {
+      await window.confirmationResult.confirm(otpCode);
+      setIsPhoneVerified(true);
+      setShowOtpScreen(false);
+      setOtpSending(false);
+      setPhoneError("");
+    } catch(e) {
+      setPhoneError("Invalid OTP Code.");
+      setOtpSending(false);
     }
   };
 
@@ -816,7 +859,7 @@ function LoginPageContent() {
               </div>
             )}
 
-            {!showOtpScreen && !isGoogleSignupForm && (
+            {!isGoogleSignupForm && (
               <>
                 <Button 
                   type="button" 
@@ -1065,7 +1108,7 @@ function LoginPageContent() {
             </Button>
           </form>
         </CardContent>
-        {!showOtpScreen && !isGoogleSignupForm && (
+        {!isGoogleSignupForm && (
           <CardFooter className="flex justify-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"} 
             <Button 

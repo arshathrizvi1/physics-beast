@@ -1101,6 +1101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         firebaseUser = userCredential.user;
+        try {
+          await sendEmailVerification(firebaseUser);
+        } catch(e) { console.error("Email verification failed to send", e); }
       } catch (authErr: any) {
         if (authErr.code === 'auth/email-already-in-use') {
           // If email is already in use in Firebase Auth, check if the Firestore doc was deleted by admin!
