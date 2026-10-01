@@ -624,12 +624,10 @@ export default function AdminLiveStudio() {
                 <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
                   <div className="space-y-0.5 pr-3">
                     <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
-                      <span>📹</span> Direct Zoom Join (Option 1)
+                      <span>📹</span> Zoom Embedded Player
                     </Label>
                     <p className="text-[11px] text-muted-foreground leading-tight">
-                      {allowDirectJoin 
-                        ? "Enabled: Students see the 'JOIN ZOOM MEETING' 1-click button." 
-                        : "Disabled: 1-Click button hidden. Students cannot enter your Zoom room directly."}
+                      {allowDirectJoin ? "Enabled: Embeds Zoom Player directly inside the website." : "Disabled: Forces students to open the native Zoom App on their device."}
                     </p>
                   </div>
                   <Button
@@ -777,7 +775,7 @@ export default function AdminLiveStudio() {
                             await updateDoc(doc(db, 'live_classes', cls.id), { allowDirectJoin: newVal });
                           }}
                         >
-                          {cls.allowDirectJoin !== false ? "✓ Direct Zoom Join: Enabled" : "✕ Direct Zoom Join: Disabled"}
+                          {cls.allowDirectJoin !== false ? "✅ Embedded Zoom: Enabled" : "❌ Embedded Zoom: Disabled"}
                         </Button>
                       </div>
                     )}
@@ -865,12 +863,10 @@ export default function AdminLiveStudio() {
                   <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
                     <div className="space-y-0.5 pr-3">
                       <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
-                        <span>📹</span> Direct Zoom Join (Option 1)
+                        <span>📹</span> Zoom Embedded Player
                       </Label>
                       <p className="text-[11px] text-muted-foreground leading-tight">
-                        {editAllowDirectJoin 
-                          ? "Students see the 'JOIN ZOOM MEETING' 1-click button." 
-                          : "1-Click button hidden. Students cannot enter your Zoom room directly."}
+                        {editAllowDirectJoin ? "Enabled: Embeds Zoom Player directly inside the website." : "Disabled: Forces students to open the native Zoom App on their device."}
                       </p>
                     </div>
                     <Button
