@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const signature = request.headers.get('x-zm-signature');
     const timestamp = request.headers.get('x-zm-request-timestamp');
     
-    let secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "f7GsL3bNQS2T9x4U45Zltw";
+    let secretToken = process.env.ZOOM_WEBHOOK_SECRET_TOKEN || "5QPmp_3gSyWDinZnR2I3lQ";
 
     // Try to fetch from Firebase settings
     try {
