@@ -821,25 +821,7 @@ function LoginPageContent() {
               </div>
             )}
 
-            {showOtpScreen && (
-                <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl space-y-3 mb-4">
-                   <h3 className="font-bold text-blue-600 dark:text-blue-400">Verify Your Phone Number</h3>
-                   <p className="text-xs text-muted-foreground">We sent a 6-digit code to {phone}. Please enter it below.</p>
-                   <Input 
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="Enter 6-digit OTP"
-                      className="text-center tracking-[0.5em] font-bold text-lg"
-                      maxLength={6}
-                   />
-                   <div className="flex gap-2">
-                     <Button type="button" variant="outline" className="flex-1" onClick={() => {setShowOtpScreen(false); setIsSubmitting(false);}}>Cancel</Button>
-                     <Button type="button" className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSubmit} disabled={otpCode.length !== 6 || isSubmitting}>
-                        {isSubmitting ? "Verifying..." : "Confirm OTP"}
-                     </Button>
-                   </div>
-                </div>
-              )}
+            
               {resetSuccessEmail && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-sm p-4 rounded-xl space-y-2.5 shadow-sm animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-300">
@@ -987,17 +969,45 @@ function LoginPageContent() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="student-phone">Your Phone <span className="text-red-500">*</span></Label>
-                    <Input 
-                      id="student-phone" 
-                      type="number"
-                      placeholder="077..." 
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required 
-                    />
-                    {phoneError && (
-                      <p className="text-xs text-destructive font-semibold">{phoneError}</p>
-                    )}
+                      <div className="flex gap-2 items-center">
+                        <Input 
+                          id="student-phone" 
+                          type="number"
+                          placeholder="077..." 
+                          value={phone}
+                          onChange={(e) => {setPhone(e.target.value); setIsPhoneVerified(false); setShowOtpScreen(false);}}
+                          required 
+                          disabled={isPhoneVerified}
+                          className="flex-1"
+                        />
+                        {!isLogin && !isPhoneVerified && !showOtpScreen && (
+                           <Button type="button" variant="secondary" onClick={handleSendInlineOtp} disabled={otpSending || !phone}>
+                             {otpSending ? "..." : "Verify"}
+                           </Button>
+                        )}
+                        {!isLogin && isPhoneVerified && (
+                           <div className="flex items-center text-green-600 bg-green-500/10 px-3 h-10 rounded-md">
+                              <CheckCircle2 className="w-5 h-5" />
+                           </div>
+                        )}
+                      </div>
+                      {!isLogin && showOtpScreen && !isPhoneVerified && (
+                         <div className="flex gap-2 mt-2">
+                            <Input 
+                               value={otpCode}
+                               onChange={(e) => setOtpCode(e.target.value)}
+                               placeholder="6-digit OTP"
+                               maxLength={6}
+                               className="flex-1 text-center tracking-widest font-bold"
+                            />
+                            <Button type="button" onClick={handleVerifyInlineOtp} disabled={otpSending || otpCode.length !== 6}>
+                               {otpSending ? "..." : "Confirm"}
+                            </Button>
+                         </div>
+                      )}
+                      {phoneError && (
+                        <p className="text-xs text-destructive font-semibold">{phoneError}</p>
+                      )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="student-parent-phone">Parent's Phone <span className="text-red-500">*</span></Label>
