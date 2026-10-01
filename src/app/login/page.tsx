@@ -169,6 +169,9 @@ function LoginPageContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
 
   if (loading) {
     return (
@@ -375,7 +378,7 @@ function LoginPageContent() {
         setIsSubmitting(false);
       } else if (!isLogin) {
         // Successfully signed up!
-        alert("Account created successfully! Your account is pending admin approval. You can log in once approved.");
+        alert("Account created successfully! We have sent a verification link to your email. You MUST click that link before you can log in. Also, please wait for admin approval.");
         await logout();
         setIsLogin(true);
         setIsGoogleSignupForm(false);
@@ -387,7 +390,9 @@ function LoginPageContent() {
       // If success && isLogin, we intentionally leave isSubmitting=true so the button keeps spinning 
       // until the AuthContext fires and flips the UI to the dashboard.
     } catch (err: any) {
-      if (err.message === "PHONE_DUPLICATE") {
+      if (err.message === "EMAIL_NOT_VERIFIED") {
+          setError("Your email is not verified! Please check your inbox (and spam folder) for the verification link.");
+        } else if (err.message === "PHONE_DUPLICATE") {
         setPhoneError("This number has already been used.");
       } else {
         setError("Failed to create account.");
@@ -764,7 +769,8 @@ function LoginPageContent() {
           <CardDescription>{isGoogleSignupForm ? "Please fill in all the required details below to complete your registration." : isLogin ? "Login to access your courses and exams." : "Join Brilliant Academy and master physics."}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div id="recaptcha-container"></div>
+            <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
@@ -772,7 +778,26 @@ function LoginPageContent() {
               </div>
             )}
 
-            {resetSuccessEmail && (
+            {showOtpScreen && (
+                <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl space-y-3 mb-4">
+                   <h3 className="font-bold text-blue-600 dark:text-blue-400">Verify Your Phone Number</h3>
+                   <p className="text-xs text-muted-foreground">We sent a 6-digit code to {phone}. Please enter it below.</p>
+                   <Input 
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="Enter 6-digit OTP"
+                      className="text-center tracking-[0.5em] font-bold text-lg"
+                      maxLength={6}
+                   />
+                   <div className="flex gap-2">
+                     <Button type="button" variant="outline" className="flex-1" onClick={() => {setShowOtpScreen(false); setIsSubmitting(false);}}>Cancel</Button>
+                     <Button type="button" className="flex-1 bg-blue-600 hover:bg-blue-700" onClick={handleSubmit} disabled={otpCode.length !== 6 || isSubmitting}>
+                        {isSubmitting ? "Verifying..." : "Confirm OTP"}
+                     </Button>
+                   </div>
+                </div>
+              )}
+              {resetSuccessEmail && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-sm p-4 rounded-xl space-y-2.5 shadow-sm animate-in fade-in duration-300">
                 <div className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-300">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -791,7 +816,7 @@ function LoginPageContent() {
               </div>
             )}
 
-            {!isGoogleSignupForm && (
+            {!showOtpScreen && !isGoogleSignupForm && (
               <>
                 <Button 
                   type="button" 
@@ -1040,7 +1065,7 @@ function LoginPageContent() {
             </Button>
           </form>
         </CardContent>
-        {!isGoogleSignupForm && (
+        {!showOtpScreen && !isGoogleSignupForm && (
           <CardFooter className="flex justify-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"} 
             <Button 
