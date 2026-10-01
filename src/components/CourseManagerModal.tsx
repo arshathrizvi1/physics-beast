@@ -186,7 +186,7 @@ export default function CourseManagerModal({
       ? teachers 
       : teachers.filter(t => {
           const subj = subjects.find(s => s.id === filterSubjectId);
-          return !subj || t.subject === subj.name || !t.subject;
+          return subj && t.subject === subj.name;
         });
   }, [filterSubjectId, teachers, subjects]);
 
@@ -195,7 +195,7 @@ export default function CourseManagerModal({
       ? teachers
       : teachers.filter(t => {
           const subj = subjects.find(s => s.id === formSubjectId);
-          return !subj || t.subject === subj.name || !t.subject;
+          return subj && t.subject === subj.name;
         });
   }, [formSubjectId, teachers, subjects]);
 
@@ -394,3 +394,4 @@ export default function CourseManagerModal({
     </div>
   );
 }
+
