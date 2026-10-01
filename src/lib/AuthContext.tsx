@@ -162,6 +162,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         // Fetch custom user profile from Firestore
         try {
+          // Intercept unverified users immediately so they don\'t get routed to the dashboard
+          if (!firebaseUser.emailVerified && firebaseUser.email !== "admin@brilliantacademy.com" && firebaseUser.email !== "arshathrizvi1010@gmail.com") {
+            // Allow Google Sign-In users through because Google verifies them. But Google accounts have emailVerified = true anyway.
+            // We just let it silently ignore them and clear local state until they verify.
+            setUser(null);
+            return;
+          }
+
           const docRef = doc(db, 'users', firebaseUser.uid);
           
           // STRICT 2-SECOND TIMEOUT: If Firestore WebSockets are blocked or slow, don't leave the user hanging!
@@ -550,6 +558,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userCred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Enforce Email Verification for standard users
+      if (!userCred.user.emailVerified) {
+        // Allow master admin or legacy admin to bypass
+        if (userCred.user.email !== "admin@brilliantacademy.com" && userCred.user.email !== "arshathrizvi1010@gmail.com") {
+          await firebaseSignOut(auth);
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
+      }
 
       // Check if this is a new device or multiple login attempt
       const userDocRef = doc(db, 'users', userCred.user.uid);
