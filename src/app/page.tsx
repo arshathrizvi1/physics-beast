@@ -240,8 +240,10 @@ export default function Home() {
  
  {/* 3. Hero Background â€” lightweight static glows only */}
  <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
- <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#d4af37]/10 rounded-full " />
- <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#d4af37]/5 rounded-full " />
+ <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full mix-blend-screen" 
+       style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0) 70%)' }} />
+  <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full mix-blend-screen"
+       style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.05) 0%, rgba(212,175,55,0) 70%)' }} />
  </div>
 
  {/* Hero Section */}

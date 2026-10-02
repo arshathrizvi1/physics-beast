@@ -140,6 +140,21 @@ public class MainActivity extends BridgeActivity {
         super.onResume();
         WebView webView = this.bridge.getWebView();
         if (webView != null) {
+            
+            // ULTIMATE GPU PERFORMANCE TUNING
+            webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
+            
+            android.webkit.WebSettings settings = webView.getSettings();
+            
+            // Enable smooth scrolling and off-screen rendering
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                settings.setOffscreenPreRaster(true); // Pre-renders out-of-screen content using GPU
+            }
+            
+            // Force hardware rendering for HTML5 canvas and WebGL
+            settings.setRenderPriority(android.webkit.WebSettings.RenderPriority.HIGH);
+            settings.setCacheMode(android.webkit.WebSettings.LOAD_DEFAULT);
+
             AppInterface bridgeInterface = new AppInterface();
             webView.addJavascriptInterface(bridgeInterface, "BatteryOptimization");
             webView.addJavascriptInterface(bridgeInterface, "AndroidNative");
