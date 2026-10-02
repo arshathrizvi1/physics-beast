@@ -1,4 +1,7 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+﻿import sys
+
+path = r'C:\Projects\Brilliant Academy\physics-beast\src\lib\firebase.ts'
+repl = """import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -31,3 +34,8 @@ try {
 
 export const db = dbInstance;
 export const storage = getStorage(app, "gs://physics-beastsl.firebasestorage.app");
+"""
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(repl)
+print("Updated firebase.ts with modern v11 ultra-low latency caching!")
