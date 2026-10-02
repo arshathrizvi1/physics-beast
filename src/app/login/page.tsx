@@ -314,10 +314,20 @@ function LoginPageContent() {
       setShowOtpScreen(true); // Reusing this variable to mean "OTP Sent"
       setOtpSending(false);
     } catch(e: any) {
-      console.error("SMS Error", e);
-      setPhoneError("Failed to send SMS. Check your number or wait a bit.");
-      setOtpSending(false);
-    }
+        console.error("SMS Error", e);
+        
+        let errorMessage = "Failed to send SMS.";
+        if (e.code === 'auth/invalid-phone-number') {
+          errorMessage = "Invalid phone format.";
+        } else if (e.code === 'auth/too-many-requests') {
+          errorMessage = "Quota exceeded or spam block. Use test number.";
+        } else if (e.message) {
+          errorMessage = `Firebase says: ${e.message}`;
+        }
+        
+        setPhoneError(errorMessage);
+        setOtpSending(false);
+      }
   };
 
   const handleVerifyInlineOtp = async () => {
