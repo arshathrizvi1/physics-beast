@@ -5,7 +5,7 @@
     "bundledWebRuntime": false,
     "server": {
         "cleartext": true,
-        "url": "https://brillliantacademy.site",
+        "url": "https://www.brillliantacademy.site",
         "errorPath": "error.html",
         "allowNavigation": [
             "brilliantacademy.vercel.app",
@@ -22,7 +22,7 @@
             "enabled": true
         },
         "CapacitorPasskey": {
-            "origin": "https://brillliantacademy.site"
+            "origin": "https://www.brillliantacademy.site"
         },
         "FirebaseAuthentication": {
             "skipNativeAuth": false,

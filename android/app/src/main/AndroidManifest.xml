@@ -40,7 +40,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="physicsbeast" android:host="video" />
-                <data android:scheme="https" android:host="brilliantacademy.vercel.app" android:pathPrefix="/video" />
+                <data android:scheme="https" android:host="www.brillliantacademy.site" android:pathPrefix="/video" />
             </intent-filter>
         </activity>
             <!-- CapacitorPasskey auto-configuration -->

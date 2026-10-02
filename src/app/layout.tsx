@@ -14,6 +14,18 @@ import { AndroidBackButtonHandler } from "@/components/AndroidBackButtonHandler"
 import { AndroidSwipeReloadHandler } from "@/components/AndroidSwipeReloadHandler";
 import { MobilePermissionPrompt } from "@/components/MobilePermissionPrompt";
 import { PushNotificationSetup } from "@/components/PushNotificationSetup";
+
+import { Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#000000',
+};
+
 import { PasskeyShim } from "@/components/PasskeyShim";
 import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
 import { SpeedInsights } from "@vercel/speed-insights/next";

@@ -46,7 +46,7 @@ public class SecureVideoActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         
         // Anti-Screen Recording & Screenshots (TEMPORARILY DISABLED FOR DEBUGGING)
-        // getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE);
         
         setContentView(R.layout.activity_secure_video);
         
@@ -101,7 +101,7 @@ public class SecureVideoActivity extends AppCompatActivity {
                 String secureSignature = getCloudSignature(SecureVideoActivity.this, videoId, timestamp);
                 
                 // Call Vercel API
-                URL url = new URL("https://brilliantacademy.vercel.app/api/bunny/sign?videoId=" + videoId + "&libraryId=" + libId);
+                URL url = new URL("https://www.brillliantacademy.site/api/bunny/sign?videoId=" + videoId + "&libraryId=" + libId);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestProperty("x-timestamp", timestamp);
                 conn.setRequestProperty("x-secure-signature", secureSignature);
