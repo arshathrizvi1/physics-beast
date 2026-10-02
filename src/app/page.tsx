@@ -604,8 +604,8 @@ export default function Home() {
  <div className="relative w-full rounded-[2.5rem] overflow-hidden shadow-2xl border border-border group-hover:border-[#d4af37]/60 transition-all duration-500 bg-gradient-to-b from-[#111115] via-[#09090c] to-black p-2 sm:p-5 lg:p-8 flex flex-col items-center justify-center min-h-[460px] sm:min-h-[520px]">
  
  {/* Subtle background grid pattern */}
- <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(212,175,55,0.09),transparent_70%)] pointer-events-none" />
- <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+ 
+ 
 
  {/* Top Badge Tag: Interactive Preview */}
  <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 flex items-center gap-2 bg-black/75 px-3 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white shadow-lg">
@@ -803,7 +803,7 @@ export default function Home() {
  {/* Student Reviews Section */}
  <section className="py-12 md:py-24 bg-background relative z-10 overflow-hidden">
  {/* background gold glow blob */}
- <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#d4af37]/5 rounded-full pointer-events-none" />
+ 
 
  <div className="container mx-auto px-6 text-center mb-8 md:mb-14 relative z-10">
  {/* Animated gold star row */}
