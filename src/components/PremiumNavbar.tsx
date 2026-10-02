@@ -78,8 +78,8 @@ export default function PremiumNavbar() {
       <motion.header
         ref={navRef}
         onMouseMove={handleMouseMove}
-        initial={{ opacity: 0, y: -30, scale: 0.97, filter: "blur(10px)" }}
-        animate={mounted ? { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" } : {}}
+        initial={{ opacity: 0, y: -30, scale: 0.97, filter: "(10px)" }}
+        animate={mounted ? { opacity: 1, y: 0, scale: 1, filter: "(0px)" } : {}}
         transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
         className="sticky top-0 z-50 w-full print:hidden"
         style={{ perspective: "1000px" }}
@@ -98,8 +98,8 @@ export default function PremiumNavbar() {
           className="relative"
           style={{
             background: "linear-gradient(105deg, #111111 0%, #2B2417 18%, #B08A32 42%, #51401D 50%, #222222 72%, #111111 100%)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
+            backdropFilter: "(20px)",
+            WebkitBackdropFilter: "(20px)",
             borderBottom: "1px solid #C9A227",
           }}
         >
@@ -283,7 +283,7 @@ export default function PremiumNavbar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 top-16 z-40 flex flex-col bg-[#111111]/98 backdrop-blur-md border-t border-[#C9A227]/30"
+              className="fixed inset-0 top-16 z-40 flex flex-col bg-[#111111]/98 bg-zinc-950/95 border-t border-[#C9A227]/30"
             >
               <div className="flex flex-col p-6 gap-1">
                 {NAV_LINKS.map((link, i) => {
