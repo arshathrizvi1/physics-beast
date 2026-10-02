@@ -25,38 +25,23 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: {
     template: '%s | Brilliant Academy',
-    default: 'Brilliant Academy | Advanced Level Physics & Online Classes Sri Lanka',
+    default: 'Brilliant Academy | Classes in Rakwana (Grade 6-11 & ICT)',
   },
-  description: "Join Brilliant Academy Rakwana for the best Advanced Level (A/L) Physics and Science classes in Sri Lanka. Expert teachers, live sessions, and comprehensive study materials.",
-  keywords: ["A/L Physics", "Brilliant Academy", "Brilliant Academy Rakwana", "Rakwana", "Online Classes Sri Lanka", "Advanced Level", "Physics Tuition Rakwana", "Sri Lanka"],
+  description: "Join Brilliant Academy Rakwana for the best Mathematics, Science, and ICT classes in Sri Lanka. Expert 
+teaching for Grade 6-11 (O/L) and Advanced Level (A/L) ICT.",
+  keywords: ["Rakwana class", "Classes in Rakwana", "Brilliant Academy Rakwana", "O/L Maths Rakwana", "O/L Science 
+Rakwana", "ICT Classes Rakwana", "Grade 6-11 Tuition", "Sri Lanka Online Classes"],
   authors: [{ name: "Brilliant Academy" }],
   creator: "Brilliant Academy",
   openGraph: {
     type: "website",
     locale: "en_LK",
     url: "https://brillliantacademy.site/",
-    title: "Brilliant Academy | Premium Online A/L Classes",
-    description: "Master Advanced Level Physics with Brilliant Academy Rakwana, Sri Lanka's leading educational platform. Join our classes today.",
+    title: "Brilliant Academy | Rakwana's Premier Educational Institute",
+    description: "Master Maths, Science, and ICT with Brilliant Academy Rakwana. Join physical and online classes 
+today.",
     siteName: "Brilliant Academy",
   },
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Brilliant Academy LMS",
-  },
-  applicationName: "Brilliant Academy LMS",
-  verification: {
-    google: "mL8cyyAyZ9u1E2t781IfntHrU5PGtz7VgQG3q2q4rAU",
-  },
-};
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
 };
 
 export default function RootLayout({
