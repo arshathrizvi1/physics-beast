@@ -14,56 +14,29 @@ import PasskeySettings from "@/components/PasskeySettings";
 
 // Simple counter component using Framer Motion
 const Counter = ({ end, duration = 2, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
-      if (code) {
-        fetch('/api/zoom/oauth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code })
-        }).then(res => res.json()).then(data => {
-          if (data.success) {
-            alert("Zoom Account Successfully Connected!");
-          }
-          window.history.replaceState({}, '', '/');
-        }).catch(console.error);
-      }
-    }
-  }, []);
-  const [count, setCount] = useState(0);
-
-  const ref = useRef(null);
+  const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   useEffect(() => {
-    if (isInView) {
-      let start = 0;
-      const endVal = end;
-      if (start === endVal) return;
-      
-      const totalMilSecDur = duration * 1000;
-      const incrementTime = 30; // 30ms per step
-      const steps = totalMilSecDur / incrementTime;
-      const stepValue = endVal / steps;
-      
-      const timer = setInterval(() => {
-        start += stepValue;
-        if (start >= endVal) {
-          setCount(endVal);
-          clearInterval(timer);
-        } else {
-          setCount(Math.ceil(start));
+    if (isInView && ref.current) {
+      let startTimestamp: number | null = null;
+      const step = (timestamp: number) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+        if (ref.current) {
+          ref.current.innerText = Math.floor(progress * end) + suffix;
         }
-      }, incrementTime);
-      
-      return () => clearInterval(timer);
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        } else if (ref.current) {
+          ref.current.innerText = end + suffix;
+        }
+      };
+      window.requestAnimationFrame(step);
     }
-  }, [isInView, end, duration]);
+  }, [isInView, end, duration, suffix]);
 
-  return <span ref={ref}>{count}{suffix}</span>;
+  return <span ref={ref}>0{suffix}</span>;
 };
 
 // Word reveal animation variant
