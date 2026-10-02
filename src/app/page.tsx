@@ -330,7 +330,7 @@ export default function Home() {
  <motion.div 
  initial={false}
  animate={{ height: showSearch && searchResults.length > 0 ? 'auto' : 0, opacity: showSearch && searchResults.length > 0 ? 1 : 0 }}
- className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50 flex flex-col"
+ className="absolute top-full mt-2 w-full bg-white/70 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 shadow-xl rounded-2xl overflow-hidden shadow-2xl z-50 flex flex-col"
  >
  {searchResults.slice(0, 5).map(r => (
  <Link 
@@ -353,7 +353,7 @@ export default function Home() {
  )}
  </motion.div>
  {showSearch && searchResults.length === 0 && searchQuery.trim() && (
- <div className="absolute top-full mt-2 w-full bg-white dark:bg-secondary border border-black/10 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-2xl z-50">
+ <div className="absolute top-full mt-2 w-full bg-white/70 dark:bg-zinc-900/70 border border-black/5 dark:border-white/10 shadow-xl rounded-2xl overflow-hidden shadow-2xl z-50">
  <div className="px-5 py-4 text-zinc-500 text-sm">No results found for "{searchQuery}"</div>
  </div>
  )}
@@ -396,7 +396,7 @@ export default function Home() {
  
  {/* Floating Badge */}
  <div 
- className="absolute bottom-4 right-2 md:bottom-8 md:-right-5 bg-card border border-[#d4af37]/30 p-3 md:p-4 rounded-xl shadow-2xl flex items-center gap-3 md:gap-4 scale-90 md:scale-100 origin-bottom-right animate-[float_4s_ease-in-out_1s_infinite]"
+ className="absolute bottom-4 right-2 md:bottom-8 md:-right-5 bg-card/70 border border-[#d4af37]/30 shadow-2xl p-3 md:p-4 rounded-xl shadow-2xl flex items-center gap-3 md:gap-4 scale-90 md:scale-100 origin-bottom-right animate-[float_4s_ease-in-out_1s_infinite]"
  >
  <div className="w-12 h-12 bg-[#d4af37]/20 rounded-full flex items-center justify-center">
  <Award className="w-6 h-6 text-[#d4af37]" />
@@ -583,7 +583,7 @@ export default function Home() {
  ))}
  </ul>
  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-4">
- <Button render={<Link href="/login" />} className="bg-white text-black hover:bg-zinc-200 rounded-full px-8 h-12 font-bold shadow-xl">
+ <Button render={<Link href="/login" />} className="bg-white/80 dark:bg-white/90 border border-black/5 dark:border-white/20 shadow-xl text-black hover:bg-white rounded-full px-8 h-12 font-bold shadow-xl">
  Start Your Learning Journey <ArrowRight className="w-4 h-4 ml-2" />
  </Button>
  </motion.div>
@@ -608,7 +608,7 @@ export default function Home() {
  
 
  {/* Top Badge Tag: Interactive Preview */}
- <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 flex items-center gap-2 bg-black/75 px-3 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white shadow-lg">
+ <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-20 flex items-center gap-2 bg-black/50 border-white/20 shadow-lg px-3 py-1.5 rounded-full border border-white/10 text-xs font-semibold text-white shadow-lg">
  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
  <span>Interactive Preview</span>
  </div>
@@ -661,7 +661,7 @@ export default function Home() {
  </div>
 
  {/* Mini LMS App Header */}
- <div className="px-3.5 py-2 flex items-center justify-between border-b border-border/40 shrink-0 bg-zinc-950/70 ">
+ <div className="px-3.5 py-2 flex items-center justify-between border-b border-border/40 shrink-0 bg-black/50 border border-white/10 shadow-lg ">
  <div className="flex items-center gap-2">
  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#d4af37] to-[#8d711c] flex items-center justify-center text-black font-black text-xs shadow-sm">
  B
