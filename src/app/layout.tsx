@@ -27,8 +27,7 @@ export const metadata: Metadata = {
     template: '%s | Brilliant Academy',
     default: 'Brilliant Academy | Classes in Rakwana (Grade 6-11 & ICT)',
   },
-  description: "Join Brilliant Academy Rakwana for the best Mathematics, Science, and ICT classes in Sri Lanka. Expert 
-teaching for Grade 6-11 (O/L) and Advanced Level (A/L) ICT.",
+  description: "Join Brilliant Academy Rakwana for the best Mathematics, Science, and ICT classes in Sri Lanka. Expert teaching for Grade 6-11 (O/L) and Advanced Level (A/L) ICT.",
   keywords: ["Rakwana class", "Classes in Rakwana", "Brilliant Academy Rakwana", "O/L Maths Rakwana", "O/L Science 
 Rakwana", "ICT Classes Rakwana", "Grade 6-11 Tuition", "Sri Lanka Online Classes"],
   authors: [{ name: "Brilliant Academy" }],
@@ -38,8 +37,7 @@ Rakwana", "ICT Classes Rakwana", "Grade 6-11 Tuition", "Sri Lanka Online Classes
     locale: "en_LK",
     url: "https://brillliantacademy.site/",
     title: "Brilliant Academy | Rakwana's Premier Educational Institute",
-    description: "Master Maths, Science, and ICT with Brilliant Academy Rakwana. Join physical and online classes 
-today.",
+    description: "Master Maths, Science, and ICT with Brilliant Academy Rakwana. Join physical and online classes today.",
     siteName: "Brilliant Academy",
   },
 };
