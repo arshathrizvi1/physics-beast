@@ -1,41 +1,34 @@
 ﻿import re
-import os
 
 path = r'C:\Projects\Brilliant Academy\physics-beast\src\app\exams\page.tsx'
-if os.path.exists(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        content = f.read()
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-    target = r'const fetchExams = async \(\) => \{'
-    repl = """const fetchExams = async () => {
-      // ULTRA LOW LATENCY CACHE (0ms load time)
-      try {
-        const cached = localStorage.getItem('cached_exams_page');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setExams(parsed.exams || []);
-          setLoading(false); // Instantly remove the loading spinner!
-        }
-      } catch (e) {}
-"""
-    if "ULTRA LOW LATENCY CACHE" not in content:
-        content = content.replace(target, repl)
+# 1. Update State Initializers for zero-latency cache
+state_replacements = {
+    'const [exams, setExams] = useState<any[]>([]);': 
+        'const [exams, setExams] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_exams"); if(c) return JSON.parse(c); } return []; });',
+    
+    'const [loading, setLoading] = useState(true);':
+        'const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_exams") ? false : true; } return true; });'
+}
 
-    target_end = r'setExams\(fetchedExams\);'
-    repl_end = """setExams(fetchedExams);
+for old, new_st in state_replacements.items():
+    content = content.replace(old, new_st)
+
+# 2. Add localStorage.setItem to fetchExams right before setExams
+cache_save_code = """
+          // Save to Zero-Latency Cache
+          localStorage.setItem("cache_exams", JSON.stringify(fetchedExams));
           
-          // Save to local cache for 0ms instant loading next time!
-          try {
-            localStorage.setItem('cached_exams_page', JSON.stringify({
-              exams: fetchedExams
-            }));
-          } catch(e) {}
+          setExams(fetchedExams);
 """
-    if "Save to local cache" not in content:
-        content = content.replace(target_end, repl_end)
+# Replace the block where it calls setExams
+content = content.replace(
+    'setExams(fetchedExams);',
+    cache_save_code
+)
 
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(content)
-    print("Injected SWR caching for exams!")
-else:
-    print("exams/page.tsx not found")
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("Implemented SWR Memory Cache for Exams!")

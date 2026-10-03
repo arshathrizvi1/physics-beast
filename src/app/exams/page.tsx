@@ -32,10 +32,10 @@ type SortByOption = 'newest' | 'oldest' | 'title';
 
 export default function ExamsPage() {
   const { user } = useAuth();
-  const [exams, setExams] = useState<any[]>([]);
+  const [exams, setExams] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_exams"); if(c) return JSON.parse(c); } return []; });
   const [myResults, setMyResults] = useState<Record<string, any>>({});
   const [folders, setFolders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_exams") ? false : true; } return true; });
   const [now, setNow] = useState(Date.now());
 
   // Filter & Group states
