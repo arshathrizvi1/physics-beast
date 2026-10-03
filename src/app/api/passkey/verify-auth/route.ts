@@ -43,6 +43,7 @@ export async function POST(req: Request) {
     const credentialPublicKey = new Uint8Array(Buffer.from(credentialData.credentialPublicKey, 'base64'));
 
     const expectedOrigins = [
+      'android:apk-key-hash:LVpJceSiciBSkcTsTyhTX8Z_1WFOBs5YhWg2fmL0ZsQ',
       ...origin,
       // The base64url encoded sha256 fingerprint (what Android actually sends!)
               // The NEW Android APK Key Hash (Base64Url)
