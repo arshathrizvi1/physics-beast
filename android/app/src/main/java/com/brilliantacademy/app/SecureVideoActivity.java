@@ -161,18 +161,13 @@ public class SecureVideoActivity extends AppCompatActivity {
                     hexString.append(hex);
                 }
                 String currentSig = hexString.toString().toUpperCase();
-                if (!currentSig.equals("05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34")) {
+                if (!currentSig.equals("2D:5A:49:71:E4:A2:72:20:52:91:C4:EC:4F:28:53:5F:C6:7F:D5:61:4E:06:CE:58:85:68:36:7E:62:F4:66:C4")) {
                     return true;
                 }
             }
         } catch (Exception e) { return true; }
         
-        try {
-            String installer = getPackageManager().getInstallerPackageName(getPackageName());
-            if (installer != null && !installer.equals("") && !installer.equals("com.android.vending")) {
-                return true;
-            }
-        } catch (Exception e) { }
+        
         return false;
     }
 
