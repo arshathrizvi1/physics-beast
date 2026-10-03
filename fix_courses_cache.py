@@ -4,46 +4,41 @@ path = r'C:\Projects\Brilliant Academy\physics-beast\src\app\courses\page.tsx'
 with open(path, 'r', encoding='utf-8') as f:
     content = f.read()
 
-target = r'const fetchCourses = async \(\) => \{'
+# 1. Update State Initializers for zero-latency cache
+state_replacements = {
+    'const [courses, setCourses] = useState<any[]>([]);': 
+        'const [courses, setCourses] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_courses"); if(c) return JSON.parse(c); } return []; });',
+    
+    'const [teachers, setTeachers] = useState<any[]>([]);':
+        'const [teachers, setTeachers] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_teachers"); if(c) return JSON.parse(c); } return []; });',
+        
+    'const [subjects, setSubjects] = useState<any[]>([]);':
+        'const [subjects, setSubjects] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_subjects"); if(c) return JSON.parse(c); } return []; });',
+        
+    'const [loading, setLoading] = useState(true);':
+        'const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_courses") ? false : true; } return true; });'
+}
 
-repl = """const fetchCourses = async () => {
-      // ULTRA LOW LATENCY CACHE (0ms load time)
-      try {
-        const cached = localStorage.getItem('cached_courses_page');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setCourses(parsed.courses || []);
-          setTeachers(parsed.teachers || []);
-          setSubjects(parsed.subjects || []);
-          setFolders(parsed.folders || []);
-          setVideos(parsed.videos || []);
-          setLoading(false); // Instantly remove the loading spinner!
-        }
-      } catch (e) {}
-"""
+for old, new_st in state_replacements.items():
+    content = content.replace(old, new_st)
 
-if "ULTRA LOW LATENCY CACHE" not in content:
-    content = content.replace(target, repl)
-
-target_end = r'setCourses\(fetchedCourses\);'
-
-repl_end = """setCourses(fetchedCourses);
+# 2. Add localStorage.setItem to fetchCourses right before setCourses
+cache_save_code = """
+          // Save to Zero-Latency Cache
+          localStorage.setItem("cache_courses", JSON.stringify(fetchedCourses));
+          localStorage.setItem("cache_teachers", JSON.stringify(fetchedTeachers));
+          localStorage.setItem("cache_subjects", JSON.stringify(fetchedSubjects));
           
-          // Save to local cache for 0ms instant loading next time!
-          try {
-            localStorage.setItem('cached_courses_page', JSON.stringify({
-              courses: fetchedCourses,
-              teachers: fetchedTeachers,
-              subjects: fetchedSubjects,
-              folders: fetchedFolders,
-              videos: fetchedVideos
-            }));
-          } catch(e) {}
+          setCourses(fetchedCourses);
 """
-
-if "Save to local cache" not in content:
-    content = content.replace(target_end, repl_end)
+# Replace the block where it calls setCourses
+content = content.replace(
+"""          setCourses(fetchedCourses);
+          setTeachers(fetchedTeachers);
+          setSubjects(fetchedSubjects);""", 
+    cache_save_code + "\n          setTeachers(fetchedTeachers);\n          setSubjects(fetchedSubjects);"
+)
 
 with open(path, 'w', encoding='utf-8') as f:
     f.write(content)
-print("Injected SWR caching!")
+print("Implemented SWR Memory Cache for Courses!")

@@ -148,9 +148,9 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
 };
 
 function CoursesContent() {
-  const [courses, setCourses] = useState<any[]>([]);
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_courses"); if(c) return JSON.parse(c); } return []; });
+  const [teachers, setTeachers] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_teachers"); if(c) return JSON.parse(c); } return []; });
+  const [subjects, setSubjects] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_subjects"); if(c) return JSON.parse(c); } return []; });
   const [folders, setFolders] = useState<any[]>([]);
   const [videos, setVideos] = useState<any[]>([]);
   const searchParams = useSearchParams();
@@ -161,7 +161,7 @@ function CoursesContent() {
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(viewTeacher || "all");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(viewSubject || "");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_courses") ? false : true; } return true; });
   const [dbError, setDbError] = useState(false);
   const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
   const [localSearch, setLocalSearch] = useState("");
