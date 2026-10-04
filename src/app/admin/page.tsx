@@ -494,6 +494,13 @@ export default function AdminDashboard() {
     }
     
     try {
+      // 0. Delete user from Firebase Auth via server
+      await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+
       // 1. Delete user from Firestore
       await deleteDoc(doc(db, 'users', userId));
       
@@ -510,7 +517,7 @@ export default function AdminDashboard() {
       
       await batch.commit();
 
-      alert(`✅ Account for ${userName} (${role}) has been permanently deleted from the database. They can now sign up from the beginning.`);
+      alert(`✅ Account for ${userName} (${role}) has been permanently deleted from the database AND Authentication. They can now sign up from the beginning.`);
       if (selectedStudentInfo?.id === userId) setSelectedStudentInfo(null);
       if (selectedTeacherDetails?.id === userId) setSelectedTeacherDetails(null);
       setConfirmingDeleteId(null);
