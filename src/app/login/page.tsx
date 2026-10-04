@@ -456,7 +456,7 @@ function LoginPageContent() {
              }
           }
           const finalStream = availableStreams.length > 0 ? stream : "";
-            const profileData = { name, dob, school, gender, stream: finalStream, graduationYear, address, phone, parentPhone, nicNumber };
+            const profileData = { name, dob, school, gender, stream: finalStream, graduationYear, address, phone, parentPhone, nicNumber, requiresAdminApproval: isALBatch };
           if (isGoogleSignupForm) {
             success = await completeGoogleSignup(profileData, nicFile, password, isAiApproved);
           } else {

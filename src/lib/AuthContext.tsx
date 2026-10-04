@@ -96,6 +96,7 @@ export interface UserProfile {
   photoUrl?: string;
   isApproved?: boolean;
   pendingReason?: string;
+  requiresAdminApproval?: boolean;
   deviceId?: string;
   deviceName?: string;
   totpSecret?: string | null;
@@ -624,22 +625,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (userDoc && userDoc.exists()) {
         const data = userDoc.data();
         
-        // --- NEW LOGIC: Move from Email Verification to ID Verification ---
+        // --- NEW LOGIC: Move from Email Verification to ID Verification OR Auto-Approve ---
         if (data.pendingReason === 'Email Verification') {
-          await updateDoc(userDocRef, {
-            pendingReason: 'ID Verification'
-          });
-          data.pendingReason = 'ID Verification';
+          if (data.requiresAdminApproval === false) {
+             // AUTO-APPROVE (e.g. Grade 10 batch)
+             await updateDoc(userDocRef, {
+               isApproved: true,
+               pendingReason: null
+             });
+             data.isApproved = true;
+             data.pendingReason = undefined;
 
-          addDoc(collection(db, "notifications"), {
-            target: "admin",
-            title: "New Student Registration (Email Verified)",
-            message: `${data.name} (${data.studentId || 'Student'}) verified their email and is waiting for your ID approval.`,
-            link: "/admin#pending-approvals",
-            timestamp: Date.now(),
-            type: "student_signup",
-            readBy: []
-          }).catch(console.error);
+             addDoc(collection(db, "notifications"), {
+               target: "admin",
+               title: "New Student Joined",
+               message: `${data.name} (${data.studentId || 'Student'}) joined the platform (Auto-Approved).`,
+               link: "/admin#students",
+               timestamp: Date.now(),
+               type: "student_signup",
+               readBy: []
+             }).catch(console.error);
+          } else {
+             // REQUIRES ADMIN APPROVAL (e.g. A/L batch)
+             await updateDoc(userDocRef, {
+               pendingReason: 'ID Verification'
+             });
+             data.pendingReason = 'ID Verification';
+
+             addDoc(collection(db, "notifications"), {
+               target: "admin",
+               title: "New Student Registration (Email Verified)",
+               message: `${data.name} (${data.studentId || 'Student'}) verified their email and is waiting for your ID approval.`,
+               link: "/admin#pending-approvals",
+               timestamp: Date.now(),
+               type: "student_signup",
+               readBy: []
+             }).catch(console.error);
+          }
         }
 
         if (data.role !== 'admin' && data.role !== 'teacher') {
@@ -767,6 +789,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
         isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved,
         pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'Email Verification',
+        requiresAdminApproval: profileData.requiresAdminApproval,
         dob: profileData.dob,
         school: profileData.school,
         gender: profileData.gender,
@@ -1111,7 +1134,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         name: profileData.name || firebaseUser.displayName,
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
-        isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved, pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'ID Verification',
+        isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved || profileData.requiresAdminApproval === false, 
+        pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved || profileData.requiresAdminApproval === false ? undefined : 'ID Verification',
+        requiresAdminApproval: profileData.requiresAdminApproval,
         dob: profileData.dob,
         school: profileData.school,
         gender: profileData.gender,
@@ -1147,8 +1172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       addDoc(collection(db, "notifications"), {
         target: "admin",
-        title: "New Student Registration",
-        message: `${newProfile.name} (${newProfile.studentId || 'Student'}) registered and is waiting for your approval.`,
+        title: newProfile.isApproved ? "New Student Joined" : "New Student Registration",
+        message: `${newProfile.name} (${newProfile.studentId || 'Student'}) ${newProfile.isApproved ? 'joined the platform (Auto-Approved).' : 'registered and is waiting for your ID approval.'}`,
         link: "/admin#pending-approvals",
         timestamp: Date.now(),
         type: "student_signup",
