@@ -1,18 +1,24 @@
-import * as admin from 'firebase-admin';
+import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
-if (!admin.apps.length) {
-  try {
+let adminAuth: Auth | null = null;
+
+try {
+  if (!getApps().length) {
     const serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     if (serviceAccountStr) {
-      admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(serviceAccountStr))
+      const app: App = initializeApp({
+        credential: cert(JSON.parse(serviceAccountStr))
       });
+      adminAuth = getAuth(app);
     } else {
       console.warn("FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.");
     }
-  } catch (error: any) {
-    console.error('Firebase admin initialization error', error.stack);
+  } else {
+    adminAuth = getAuth();
   }
+} catch (error: any) {
+  console.error('Firebase admin initialization error', error.stack);
 }
 
-export const adminAuth = admin.apps.length ? admin.auth() : null;
+export { adminAuth };
