@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, CheckCircle2, XCircle, Edit2, Check, FileText, Sparkles, Zap, Timer, ShieldAlert, Eye, EyeOff, Loader2, Fingerprint } from 'lucide-react';
+import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, CheckCircle2, XCircle, Edit2, Check, FileText, Sparkles, Zap, Timer, ShieldAlert, Eye, EyeOff, Loader2, Fingerprint, Mail, RefreshCw } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
 import { db, auth } from "@/lib/firebase";
@@ -523,12 +523,30 @@ function LoginPageContent() {
           <Card className="w-full max-w-md border-secondary/50 shadow-lg text-center p-8">
             <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-6 animate-pulse" />
             <CardTitle className="text-2xl font-bold text-primary mb-2">
-              {user.pendingReason === 'New Device Login' ? 'New Device Detected' : 
+              {user.pendingReason === 'Email Verification' ? 'Verify Your Email' :
+               user.pendingReason === 'New Device Login' ? 'New Device Detected' : 
                user.pendingReason === 'Network Error' ? 'Connection Error' : 
                user.pendingReason === 'Access Suspended' ? 'Access Suspended' : 'Account Pending Approval'}
             </CardTitle>
             <CardDescription className="text-base text-muted-foreground mb-6">
-              {user.pendingReason === 'New Device Login' ? (
+              {user.pendingReason === 'Email Verification' ? (
+                <>
+                  We have sent a verification email to <strong className="text-foreground">{user.email}</strong>. 
+                  <br /><br />
+                  Please click the link in that email to activate your account. 
+                  <strong className="text-red-500 block mt-3 p-3 bg-red-500/10 rounded-lg text-sm border border-red-500/20">
+                    ⚠️ IMPORTANT: Please check your Spam or Junk folder if you do not see it in your Inbox!
+                  </strong>
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                    <Button onClick={() => window.open('https://mail.google.com/', '_blank')} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center gap-2">
+                       <Mail className="w-4 h-4" /> Open Gmail
+                    </Button>
+                    <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 font-bold flex items-center justify-center gap-2 border-[#d4af37]/50 text-[#d4af37] hover:bg-[#d4af37] hover:text-black">
+                       <RefreshCw className="w-4 h-4" /> I have verified
+                    </Button>
+                  </div>
+                </>
+              ) : user.pendingReason === 'New Device Login' ? (
                 <>
                   You have logged in from a new device or browser. To protect your account from unauthorized access, we have temporarily locked your portal. 
                   <br /><br />

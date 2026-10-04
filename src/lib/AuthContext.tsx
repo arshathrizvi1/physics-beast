@@ -204,11 +204,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         // Fetch custom user profile from Firestore
         try {
-          // Intercept unverified users immediately so they don\'t get routed to the dashboard
+          // Intercept unverified users immediately and show them the Verification UI
           if (!firebaseUser.emailVerified && firebaseUser.email !== "admin@brilliantacademy.com" && firebaseUser.email !== "arshathrizvi1010@gmail.com") {
-            // Allow Google Sign-In users through because Google verifies them. But Google accounts have emailVerified = true anyway.
-            // We just let it silently ignore them and clear local state until they verify.
-            setUser(null);
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: firebaseUser.displayName || 'Student',
+              role: 'User',
+              isApproved: false,
+              pendingReason: 'Email Verification',
+            } as UserProfile);
+            setLoading(false);
             return;
           }
 
@@ -601,14 +607,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const userCred = await signInWithEmailAndPassword(auth, email, password);
 
-      // Enforce Email Verification for standard users
-      if (!userCred.user.emailVerified) {
-        // Allow master admin or legacy admin to bypass
-        if (userCred.user.email !== "admin@brilliantacademy.com" && userCred.user.email !== "arshathrizvi1010@gmail.com") {
-          await firebaseSignOut(auth);
-          throw new Error("EMAIL_NOT_VERIFIED");
-        }
-      }
+      // (Note: Unverified users are now gracefully handled by onAuthStateChanged sending them to the Verification UI)
 
       // Check if this is a new device or multiple login attempt
       const userDocRef = doc(db, 'users', userCred.user.uid);
