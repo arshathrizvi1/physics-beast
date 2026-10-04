@@ -20,16 +20,57 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 import { uploadToS3 } from './s3Storage';
 import { calculateXpLevel } from './xp';
+import CryptoJS from 'crypto-js';
+
+const STORAGE_SECRET = process.env.NEXT_PUBLIC_STORAGE_SECRET || "brilliant-academy-secure-storage-key-2026";
+
+const encryptData = (data: string) => {
+  try {
+    return CryptoJS.AES.encrypt(data, STORAGE_SECRET).toString();
+  } catch {
+    return data;
+  }
+};
+
+const decryptData = (data: string) => {
+  try {
+    const bytes = CryptoJS.AES.decrypt(data, STORAGE_SECRET);
+    const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    return decrypted || data; // Fallback to raw data if it was unencrypted
+  } catch {
+    return data;
+  }
+};
 
 const safeStorage = {
   local: {
-    getItem: (key: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(key) : null; } catch { return null; } },
-    setItem: (key: string, value: string) => { try { if (typeof window !== 'undefined') window.localStorage.setItem(key, value); } catch {} },
+    getItem: (key: string) => { 
+      try { 
+        if (typeof window === 'undefined') return null;
+        const val = window.localStorage.getItem(key);
+        return val ? decryptData(val) : null;
+      } catch { return null; } 
+    },
+    setItem: (key: string, value: string) => { 
+      try { 
+        if (typeof window !== 'undefined') window.localStorage.setItem(key, encryptData(value)); 
+      } catch {} 
+    },
     removeItem: (key: string) => { try { if (typeof window !== 'undefined') window.localStorage.removeItem(key); } catch {} }
   },
   session: {
-    getItem: (key: string) => { try { return typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null; } catch { return null; } },
-    setItem: (key: string, value: string) => { try { if (typeof window !== 'undefined') window.sessionStorage.setItem(key, value); } catch {} },
+    getItem: (key: string) => { 
+      try { 
+        if (typeof window === 'undefined') return null;
+        const val = window.sessionStorage.getItem(key);
+        return val ? decryptData(val) : null;
+      } catch { return null; } 
+    },
+    setItem: (key: string, value: string) => { 
+      try { 
+        if (typeof window !== 'undefined') window.sessionStorage.setItem(key, encryptData(value)); 
+      } catch {} 
+    },
     removeItem: (key: string) => { try { if (typeof window !== 'undefined') window.sessionStorage.removeItem(key); } catch {} }
   }
 };
