@@ -641,11 +641,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 15000)
       );
 
+      // Authenticate FIRST so Firestore rules allow reading the users collection
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
       // 1. Check if NIC number already exists (duplicate check)
       if (profileData.nicNumber) {
         const qNic = query(usersRef, where("nicNumber", "==", profileData.nicNumber));
         const nicSnapshot = await Promise.race([getDocs(qNic), timeoutPromise]) as any;
         if (!nicSnapshot.empty) {
+          await firebaseUser.delete().catch(() => {});
           throw new Error("NIC_DUPLICATE");
         }
       }
@@ -655,12 +660,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const qPhone = query(usersRef, where("phone", "==", profileData.phone));
         const phoneSnapshot = await Promise.race([getDocs(qPhone), timeoutPromise]) as any;
         if (!phoneSnapshot.empty) {
+          await firebaseUser.delete().catch(() => {});
           throw new Error("PHONE_DUPLICATE");
         }
       }
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
       
       let nicUrl = "";
       if (nicFile) {
