@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
@@ -31,6 +31,7 @@ import { ServiceWorkerCleanup } from "@/components/ServiceWorkerCleanup";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import PermissionGate from "@/components/PermissionGate";
+import { SecurityEnforcer } from "@/components/SecurityEnforcer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -61,6 +62,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body suppressHydrationWarning className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden w-full`}>
+        <SecurityEnforcer />
         <SplashLoader />
         <ThemeProvider
           attribute="class"

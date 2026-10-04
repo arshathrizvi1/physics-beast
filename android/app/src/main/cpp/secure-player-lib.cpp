@@ -28,12 +28,7 @@ const std::vector<int> ENC_CLOUD_SECRET = {
 
 // "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34" XOR'd with 42
 const std::vector<int> ENC_OFFICIAL_SIG = {
-    26, 27, 20, 22, 26, 20, 26, 22, 20, 22, 14, 20, 27, 13, 20, 22, 
-    34, 20, 104, 37, 20, 15, 23, 20, 111, 27, 20, 104, 36, 20, 106, 
-    22, 20, 104, 38, 20, 26, 25, 20, 27, 34, 20, 25, 25, 20, 105, 
-    25, 20, 26, 13, 20, 25, 21, 20, 25, 25, 20, 111, 27, 20, 106, 
-    22, 20, 105, 111, 20, 105, 14, 20, 105, 34, 20, 25, 25, 20, 26, 
-    22, 20, 105, 37, 20, 26, 27, 20, 26, 26
+    24, 110, 16, 31, 107, 16, 30, 19, 16, 29, 27, 16, 111, 30, 16, 107, 24, 16, 29, 24, 16, 24, 26, 16, 31, 24, 16, 19, 27, 16, 105, 30, 16, 111, 105, 16, 30, 108, 16, 24, 18, 16, 31, 25, 16, 31, 108, 16, 105, 28, 16, 29, 108, 16, 110, 31, 16, 28, 27, 16, 30, 111, 16, 26, 28, 16, 105, 111, 16, 31, 18, 16, 18, 31, 16, 28, 18, 16, 25, 28, 16, 29, 111, 16, 28, 24, 16, 108, 30, 16, 28, 28, 16, 105, 30
 };
 
 #define CLOUD_SECRET_KEY decryptString(ENC_CLOUD_SECRET, 42)
@@ -96,13 +91,19 @@ Java_com_brilliantacademy_app_MainActivity_nativeVerifySecurity(
         }
     }
 
-    // 2. Installer Check
-    // ALLOW: "" (ADB / Android Studio)
-    // ALLOW: "com.android.vending" (Google Play Store)
-    // BLOCK: Everything else (ShareIt, WhatsApp, MIUI File Manager, etc.)
-    if (!sInst.empty() && sInst != "com.android.vending") {
-        LOGE("SECURITY ALERT: Application was sideloaded via %s!", sInst.c_str());
-        isCracked = true;
+    // 2. Smart Installer Check (Allow Web Browsers & My Files)
+    if (!sInst.empty()) {
+        if (sInst != "com.android.vending" && 
+            sInst != "com.android.chrome" && 
+            sInst != "com.sec.android.app.sbrowser" && 
+            sInst != "com.google.android.packageinstaller" && 
+            sInst != "com.samsung.android.packageinstaller" &&
+            sInst != "com.miui.packageinstaller" &&
+            sInst != "com.coloros.safecenter") {
+            
+            LOGE("SECURITY ALERT: Application was sidelined by PIRATE STORE: %s", sInst.c_str());
+            isCracked = true;
+        }
     }
 
     if (isCracked) {
