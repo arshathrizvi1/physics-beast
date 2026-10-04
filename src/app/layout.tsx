@@ -62,7 +62,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body suppressHydrationWarning className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden w-full`}>
-        <SecurityEnforcer />
         <SplashLoader />
         <ThemeProvider
           attribute="class"
@@ -71,6 +70,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <SecurityEnforcer />
             <PermissionGate>
             <NotificationProvider>
               <LenisProvider>

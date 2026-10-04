@@ -40,8 +40,8 @@ public class MainActivity extends BridgeActivity {
         }
 
         
-        // TEMPORARILY DISABLED FOR DEBUGGING
-        // getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
+        // Enable Screen Capture Prevention (Anti-Screenshot/Recording)
+        getWindow().setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE);
         
         // Launch the Native C++ Security Thread
         try {
