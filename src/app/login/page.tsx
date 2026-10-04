@@ -14,7 +14,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
 import { db, auth } from "@/lib/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, setDoc, addDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { formatSeconds, calculateXpLevel } from "@/lib/xp";
 import ReportIssueModal from "@/components/ReportIssueModal";
 import PasskeySettings from "@/components/PasskeySettings";
@@ -303,45 +303,57 @@ function LoginPageContent() {
     setOtpSending(true);
     setPhoneError("");
     try {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-      }
       let fmtPhone = phone.trim();
       if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
       if (!fmtPhone.startsWith('+')) fmtPhone = '+94' + fmtPhone;
       
-      const confResult = await signInWithPhoneNumber(auth, fmtPhone, window.recaptchaVerifier);
-      window.confirmationResult = confResult;
-      setShowOtpScreen(true); // Reusing this variable to mean "OTP Sent"
+      const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
+      
+      // Save OTP to DB
+      await setDoc(doc(db, 'otp_verifications', fmtPhone), {
+        code: otp,
+        timestamp: serverTimestamp()
+      });
+      
+      // Add message to AWS WhatsApp Queue
+      await addDoc(collection(db, 'academy_whatsapp_queue'), {
+        phone: fmtPhone,
+        message: `*Brilliant Academy 🎓*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
+        status: 'pending',
+        isGroup: false,
+        type: 'otp',
+        createdAt: serverTimestamp()
+      });
+
+      setShowOtpScreen(true); 
       setOtpSending(false);
     } catch(e: any) {
-        console.error("SMS Error", e);
-        
-        let errorMessage = "Failed to send SMS.";
-        if (e.code === 'auth/invalid-phone-number') {
-          errorMessage = "Invalid phone format.";
-        } else if (e.code === 'auth/too-many-requests') {
-          errorMessage = "Quota exceeded or spam block. Use test number.";
-        } else if (e.message) {
-          errorMessage = `Firebase says: ${e.message}`;
-        }
-        
-        setPhoneError(errorMessage);
+        console.error("WhatsApp Request Error", e);
+        setPhoneError("Failed to request WhatsApp code.");
         setOtpSending(false);
-      }
+    }
   };
 
   const handleVerifyInlineOtp = async () => {
     if (!otpCode || otpCode.length !== 6) return;
     setOtpSending(true);
     try {
-      await window.confirmationResult.confirm(otpCode);
-      setIsPhoneVerified(true);
-      setShowOtpScreen(false);
+      let fmtPhone = phone.trim();
+      if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
+      if (!fmtPhone.startsWith('+')) fmtPhone = '+94' + fmtPhone;
+
+      const otpDoc = await getDoc(doc(db, 'otp_verifications', fmtPhone));
+      
+      if (otpDoc.exists() && otpDoc.data().code === otpCode) {
+        setIsPhoneVerified(true);
+        setShowOtpScreen(false);
+        setPhoneError("");
+      } else {
+        setPhoneError("Invalid OTP Code.");
+      }
       setOtpSending(false);
-      setPhoneError("");
     } catch(e) {
-      setPhoneError("Invalid OTP Code.");
+      setPhoneError("An error occurred verifying the OTP.");
       setOtpSending(false);
     }
   };
