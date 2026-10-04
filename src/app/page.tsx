@@ -506,13 +506,11 @@ export default function Home() {
  <Link href={`/course/${course.id}`} className="block h-full" draggable={false}>
  <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col" style={{ pointerEvents: isDragging ? 'none' : 'auto' }}>
  <div className="relative h-32 sm:h-48 overflow-hidden bg-zinc-900">
- {/* 11. Course Image Hover Animation */}
- <motion.img 
- whileHover={{ scale: 1.1 }}
- transition={{ duration: 0.6 }}
+ {/* 11. Course Image Hover Animation (Fixed for Mobile Blinking) */}
+ <img 
  src={course.image || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400`} 
  alt={course.name} 
- className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+ className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 ease-out" 
  draggable={false}
  />
  <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
