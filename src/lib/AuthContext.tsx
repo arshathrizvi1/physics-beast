@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Intercept unverified users immediately and show them the Verification UI
           if (!firebaseUser.emailVerified && firebaseUser.email !== "admin@brilliantacademy.com" && firebaseUser.email !== "arshathrizvi1010@gmail.com") {
             setUser({
-              id: firebaseUser.uid,
+              uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               name: firebaseUser.displayName || 'Student',
               role: 'User',
