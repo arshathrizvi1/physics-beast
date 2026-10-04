@@ -929,7 +929,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      await sendPasswordResetEmail(auth, targetEmail);
+      const res = await fetch('/api/auth/send-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail })
+      });
+      if (!res.ok) {
+        throw new Error("Failed to send password reset email via server");
+      }
       return { success: true, email: targetEmail };
     } catch (error: any) {
       console.log("Password reset failed:", error?.message || "Unknown error");
