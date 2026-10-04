@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     try {
       const user = await adminAuth.getUserByEmail(email);
       await adminAuth.deleteUser(user.uid);
-      return NextResponse.json({ success: true, message: \`Deleted \${email} from Auth\` });
+      return NextResponse.json({ success: true, message: `Deleted ${email} from Auth` });
     } catch (authError: any) {
       return NextResponse.json({ error: authError.message }, { status: 404 });
     }

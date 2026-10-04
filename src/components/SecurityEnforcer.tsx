@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { JailbreakRootDetection } from '@capgo/capacitor-is-root';
+import { IsRoot } from '@capgo/capacitor-is-root';
 import { App } from '@capacitor/app';
 import { ShieldAlert } from 'lucide-react';
 
@@ -16,8 +16,8 @@ export function SecurityEnforcer() {
         if (!isNative) return;
 
         // Uses the native Android checks for Root / Magisk / Su binary / Emulator
-        const rootCheck = await JailbreakRootDetection.isJailbrokenOrRooted();
-        const simCheck = await JailbreakRootDetection.isSimulator();
+        const rootCheck = await IsRoot.isJailbrokenOrRooted();
+        const simCheck = await IsRoot.isSimulator();
         
         if (rootCheck.result || simCheck.result) {
           setIsCompromised(true);
