@@ -1,4 +1,4 @@
-﻿const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const admin = require('firebase-admin');
 
@@ -70,8 +70,11 @@ function startQueueListener() {
                     
                     console.log(`✅ Sent OTP to ${formattedPhone}`);
                     
-                    // Small delay to prevent spam detection on the new number
-                    await new Promise(r => setTimeout(r, 2000)); 
+                    // ANTI-BAN FEATURE: Randomized human-like delay (4 to 9 seconds)
+                    // (We use a slightly faster delay here than the payment bot because students need OTPs quickly to log in)
+                    const delayMs = Math.floor(Math.random() * (9000 - 4000 + 1)) + 4000;
+                    console.log(`[Anti-Ban] Sleeping for ${Math.round(delayMs/1000)} seconds...`);
+                    await new Promise(r => setTimeout(r, delayMs)); 
                     
                 } catch (error) {
                     console.error("Failed to send OTP:", error.message);
