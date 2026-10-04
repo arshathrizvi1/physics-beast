@@ -1021,7 +1021,7 @@ function LoginPageContent() {
                       <div className="flex gap-2 items-center">
                         <Input 
                           id="student-phone" 
-                          type="number"
+                          type="tel"
                           placeholder="077..." 
                           value={phone}
                           onChange={(e) => {setPhone(e.target.value); setIsPhoneVerified(false); setShowOtpScreen(false);}}
@@ -1062,7 +1062,7 @@ function LoginPageContent() {
                     <Label htmlFor="student-parent-phone">Parent's Phone <span className="text-red-500">*</span></Label>
                     <Input 
                       id="student-parent-phone" 
-                      type="number"
+                      type="tel"
                       placeholder="077..." 
                       value={parentPhone}
                       onChange={(e) => setParentPhone(e.target.value)}
@@ -1097,7 +1097,7 @@ function LoginPageContent() {
                         <Label htmlFor="student-nic-number">NIC Number <span className="text-red-500">*</span></Label>
                         <Input 
                           id="student-nic-number" 
-                          type="number"
+                          type="text"
                           placeholder="e.g. 2005..." 
                           value={nicNumber}
                           onChange={(e) => setNicNumber(e.target.value)}
