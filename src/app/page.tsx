@@ -617,8 +617,8 @@ export default function Home() {
 
  {/* Top Right Quick Action: Direct APK Download Link */}
  <a 
- href="/Brilliant-Academy.apk" 
- download="Brilliant-Academy.apk"
+ href="/BrilliantAcademy.apk" 
+ download="BrilliantAcademy.apk"
  className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20 flex items-center gap-1.5 bg-[#d4af37]/15 hover:bg-[#d4af37] text-[#d4af37] hover:text-black transition-all duration-300 px-3 py-1.5 rounded-full border border-[#d4af37]/40 hover:border-[#d4af37] text-xs font-bold shadow-lg"
  title="Download Android App APK"
  >
