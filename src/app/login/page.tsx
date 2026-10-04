@@ -13,7 +13,7 @@ import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, Check
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
 import { db, auth } from "@/lib/firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber, applyActionCode } from "firebase/auth";
 import { collection, query, where, getDocs, orderBy, setDoc, addDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { formatSeconds, calculateXpLevel } from "@/lib/xp";
 import ReportIssueModal from "@/components/ReportIssueModal";
@@ -33,6 +33,21 @@ function LoginPageContent() {
     const handleOpenModal = () => setIsPfpModalOpen(true);
     window.addEventListener('open-pfp-modal', handleOpenModal);
     return () => window.removeEventListener('open-pfp-modal', handleOpenModal);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    const oobCode = searchParams.get('oobCode');
+    if (mode === 'verifyEmail' && oobCode) {
+      applyActionCode(auth, oobCode)
+        .then(() => {
+          alert("✅ Email verified successfully! You can now log in.");
+          window.history.replaceState({}, '', '/login');
+        })
+        .catch(err => {
+          alert("❌ Verification link is invalid or expired. " + err.message);
+        });
+    }
   }, [searchParams]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

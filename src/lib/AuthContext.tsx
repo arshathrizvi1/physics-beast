@@ -728,7 +728,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebaseUser = userCredential.user;
 
       try {
-        await sendEmailVerification(firebaseUser);
+        await sendEmailVerification(firebaseUser, {
+          url: 'https://brillliantacademy.site/login',
+          handleCodeInApp: true
+        });
       } catch (emailErr) {
         console.error("Failed to send verification email:", emailErr);
       }
@@ -1200,7 +1203,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         firebaseUser = userCredential.user;
         try {
-          await sendEmailVerification(firebaseUser);
+          await sendEmailVerification(firebaseUser, {
+            url: 'https://brillliantacademy.site/login',
+            handleCodeInApp: true
+          });
         } catch(e) { console.error("Email verification failed to send", e); }
       } catch (authErr: any) {
         if (authErr.code === 'auth/email-already-in-use') {
