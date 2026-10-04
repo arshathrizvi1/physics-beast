@@ -12,7 +12,8 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signInWithCredential,
-  updatePassword
+  updatePassword,
+  sendEmailVerification
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, getCountFromServer, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -582,6 +583,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (userDoc && userDoc.exists()) {
         const data = userDoc.data();
+        
+        // --- NEW LOGIC: Move from Email Verification to ID Verification ---
+        if (data.pendingReason === 'Email Verification') {
+          await updateDoc(userDocRef, {
+            pendingReason: 'ID Verification'
+          });
+          data.pendingReason = 'ID Verification';
+
+          addDoc(collection(db, "notifications"), {
+            target: "admin",
+            title: "New Student Registration (Email Verified)",
+            message: `${data.name} (${data.studentId || 'Student'}) verified their email and is waiting for your ID approval.`,
+            link: "/admin#pending-approvals",
+            timestamp: Date.now(),
+            type: "student_signup",
+            readBy: []
+          }).catch(console.error);
+        }
+
         if (data.role !== 'admin' && data.role !== 'teacher') {
           // If the admin explicitly revoked/signed out the student's previous device (or if there was no device bound yet),
           // bind this current device seamlessly so the student can log in from their new/replacement phone or same device!
@@ -645,6 +665,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
+      try {
+        await sendEmailVerification(firebaseUser);
+      } catch (emailErr) {
+        console.error("Failed to send verification email:", emailErr);
+      }
+
       // 1. Check if NIC number already exists (duplicate check)
       if (profileData.nicNumber) {
         const qNic = query(usersRef, where("nicNumber", "==", profileData.nicNumber));
@@ -700,7 +726,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: profileData.name,
         role: email === 'arshathrizvi1010@gmail.com' ? 'admin' : 'student',
         isApproved: email === 'arshathrizvi1010@gmail.com' || isAiApproved,
-        pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'ID Verification',
+        pendingReason: email === 'arshathrizvi1010@gmail.com' || isAiApproved ? undefined : 'Email Verification',
         dob: profileData.dob,
         school: profileData.school,
         gender: profileData.gender,
@@ -726,19 +752,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Create document in Firestore
       await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
-      
-      // Notify admin for student signup approval
-      if (newProfile.role === 'student' && !newProfile.isApproved) {
-        addDoc(collection(db, "notifications"), {
-          target: "admin",
-          title: "New Student Registration",
-          message: `${newProfile.name} (${newProfile.studentId || 'Student'}) registered and is waiting for your approval.`,
-          link: "/admin#pending-approvals",
-          timestamp: Date.now(),
-          type: "student_signup",
-          readBy: []
-        }).catch(console.error);
-      }
 
       // Update local state immediately (onAuthStateChanged might have fired too early before setDoc finished)
       setUser(newProfile);

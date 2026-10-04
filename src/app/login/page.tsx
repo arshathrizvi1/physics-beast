@@ -302,6 +302,26 @@ function LoginPageContent() {
     }
     setOtpSending(true);
     setPhoneError("");
+
+    try {
+      // PRE-CHECK: Securely query database to ensure this phone isn't already registered
+      const checkRes = await fetch('/api/check-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone.trim() })
+      });
+      const checkData = await checkRes.json();
+      
+      if (checkData.exists) {
+        setPhoneError(checkData.reason);
+        setOtpSending(false);
+        return; // Stop here, do NOT send OTP
+      }
+    } catch (e) {
+      console.error("Failed to verify phone uniqueness", e);
+      // If the check fails for network reasons, we'll just continue so we don't block them entirely
+    }
+
     try {
       let fmtPhone = phone.trim();
       if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
