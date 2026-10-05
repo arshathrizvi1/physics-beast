@@ -293,7 +293,7 @@ function LoginPageContent() {
       if (res.success && res.email) {
         setResetSuccessEmail(res.email);
         setError("");
-        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\nâš ï¸ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
+        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\n⚠️ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
       } else {
         setError(res.error || "Failed to send reset email. Make sure the email is correct.");
       }
@@ -385,7 +385,7 @@ function LoginPageContent() {
       // Add message to AWS WhatsApp Queue
       await addDoc(collection(db, 'academy_whatsapp_queue'), {
         phone: fmtPhone,
-        message: `*Brilliant Academy Ã°Å¸Å½â€œ*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
+        message: `*Brilliant Academy 🎓*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
         status: 'pending',
         isGroup: false,
         type: 'otp',
@@ -582,7 +582,7 @@ function LoginPageContent() {
                   <br /><br />
                   Please click the link in that email to activate your account. 
                   <strong className="text-red-500 block mt-3 p-3 bg-red-500/10 rounded-lg text-sm border border-red-500/20">
-                    Ã¢Å¡Â Ã¯Â¸Â IMPORTANT: Please check your Spam or Junk folder if you do not see it in your Inbox!
+                    ⚠️ IMPORTANT: Please check your Spam or Junk folder if you do not see it in your Inbox!
                   </strong>
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     <Button onClick={() => window.open('https://mail.google.com/', '_blank')} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center gap-2">
