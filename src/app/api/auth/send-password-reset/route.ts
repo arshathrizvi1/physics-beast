@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const rawLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
     const urlObj = new URL(rawLink);
     const oobCode = urlObj.searchParams.get('oobCode');
-    const resetLink = \`https://brillliantacademy.site/login?mode=resetPassword&oobCode=\${oobCode}\`;
+    const resetLink = `https://brillliantacademy.site/login?mode=resetPassword&oobCode=${oobCode}`;
 
     // 2. Fetch user's name if possible
     let name = 'Student';
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
           <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-bottom: 0;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
         </div>
         <div style="text-align: center; margin-top: 20px;">
-          <p style="color: #666666; font-size: 12px;">Â© ${new Date().getFullYear()} Brilliant Academy. All rights reserved.</p>
+          <p style="color: #666666; font-size: 12px;">Ã‚Â© ${new Date().getFullYear()} Brilliant Academy. All rights reserved.</p>
         </div>
       </div>
     `;
@@ -71,4 +71,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 
