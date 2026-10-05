@@ -8,7 +8,9 @@ import { motion } from "framer-motion";
 
 const defaultFooter = {
   tagline: "Learn Today - Build Tomorrow",
-  contactEmail: "contact@brilliantacademy.com",
+  contactEmail: "arshathrizvicoding@gmail.com",
+  contactPhone: "+94 77 000 0000",
+  contactAddress: "123 Main Street, Colombo 00100, Sri Lanka",
   quickLinks: [
     { label: "Courses", href: "/courses" },
     { label: "Exams", href: "/exams" },
@@ -78,6 +80,8 @@ export default function FooterContent() {
           <div>
             <h4 className="font-semibold mb-1">Contact</h4>
             <p className="text-sm text-muted-foreground">{footer.contactEmail}</p>
+            {footer.contactPhone && <p className="text-sm text-muted-foreground mt-1">{footer.contactPhone}</p>}
+            {footer.contactAddress && <p className="text-sm text-muted-foreground mt-1">{footer.contactAddress}</p>}
           </div>
         </div>
       </div>
@@ -111,6 +115,8 @@ export default function FooterContent() {
         <div>
           <h4 className="font-semibold mb-1">Contact</h4>
           <p className="text-sm text-muted-foreground">{footer.contactEmail}</p>
+            {footer.contactPhone && <p className="text-sm text-muted-foreground mt-1">{footer.contactPhone}</p>}
+            {footer.contactAddress && <p className="text-sm text-muted-foreground mt-1">{footer.contactAddress}</p>}
         </div>
       </div>
       <div className="relative pt-3 mt-4 md:pt-4 md:mt-5">

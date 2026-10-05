@@ -53,6 +53,15 @@ export default function TermsAndConditions() {
             Brilliant Academy reserves the right to revise these terms at any time without notice. By using this website, you are agreeing to be bound by the then-current version of these Terms and Conditions.
           </p>
         </div>
+      <h2>Contact Us</h2>
+          <p>
+            If you have any questions about these Terms, please contact us at:<br/>
+            <strong>Brilliant Academy</strong><br/>
+            123 Main Street, Colombo 00100, Sri Lanka<br/>
+            Email: arshathrizvicoding@gmail.com<br/>
+            Phone: +94 77 000 0000
+          </p>
+        </div>
       </div>
     </div>
   );

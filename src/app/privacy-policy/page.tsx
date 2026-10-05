@@ -57,6 +57,15 @@ export default function PrivacyPolicy() {
             <strong>Email:</strong> support@brilliantacademy.com<br />
           </p>
         </div>
+      <h2>Contact Us</h2>
+          <p>
+            If you have any questions about this Privacy Policy, please contact us at:<br/>
+            <strong>Brilliant Academy</strong><br/>
+            123 Main Street, Colombo 00100, Sri Lanka<br/>
+            Email: arshathrizvicoding@gmail.com<br/>
+            Phone: +94 77 000 0000
+          </p>
+        </div>
       </div>
     </div>
   );
