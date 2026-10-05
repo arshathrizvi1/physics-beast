@@ -39,42 +39,14 @@ export async function POST(req: Request) {
     const userId = parsedRef[1];
     const price = checkout.payment.amountCents / 100;
 
-    // Check if we already processed this exact transaction (idempotency)
-    const paymentRef = doc(db, 'payments', checkout.payment.id);
-    const existingPayment = await getDoc(paymentRef);
-    if (existingPayment.exists()) {
-      return NextResponse.json({ success: true, message: "Already processed" });
-    }
-
-    // Update user access in Firestore
-    const folderAccessRef = doc(db, `users/${userId}/folderAccess/${courseId}`);
-    await setDoc(folderAccessRef, {
-        grantedAt: Date.now(),
-        expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
-        source: 'payable_online',
-        transactionId: checkout.payment.id
+    // Return the validated data to the frontend so it can save the records using the authenticated user session!
+    return NextResponse.json({ 
+      success: true,
+      courseId,
+      userId,
+      amount: price,
+      paymentId: checkout.payment.id
     });
-
-    // Record the payment using the payment ID directly!
-    // This requires rules allowing writes to `payments`, but we can bypass reading `payable_sessions`.
-    // Wait! Since this still writes to `payments` unauthenticated, it will throw a PERMISSION_DENIED 
-    // if their rules block unauthenticated writes to `payments` or `folderAccess`!
-    try {
-      await setDoc(paymentRef, {
-          userId: userId,
-          courseId: courseId,
-          amount: price,
-          method: 'card',
-          status: 'approved',
-          createdAt: Date.now(),
-          gateway: 'payable',
-          transactionId: checkout.payment.id
-      });
-    } catch (e) {
-      console.warn("Could not save to payments history, but access granted:", e);
-    }
-
-    return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Payable Verify Error:", error);
     return NextResponse.json({ error: error.message || "Verification failed" }, { status: 500 });

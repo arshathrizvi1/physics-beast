@@ -330,16 +330,39 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           });
           const data = await res.json();
           if (data.success) {
-            // Update local user state immediately
             if (user) {
-                const now = Date.now();
-                const folderAccess = user.folderAccess || {};
-                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
-                
+                try {
+                  const now = Date.now();
+                  
+                  // 1. Update user folder access in Firestore
+                  const userRef = doc(db, 'users', user.uid);
+                  const folderAccess = user.folderAccess || {};
+                  folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+                  await updateDoc(userRef, { folderAccess });
+
+                  // 2. Add to payments collection for revenue tab
+                  await addDoc(collection(db, 'payments'), {
+                    studentId: user.uid,
+                    studentName: user.name || "Student",
+                    studentEmail: user.email,
+                    folderId: id,
+                    folderName: course?.name || "Course",
+                    courseId: id,
+                    courseName: course?.name || "Course",
+                    amount: data.amount || 1000,
+                    method: 'card',
+                    status: 'approved',
+                    createdAt: now,
+                    gateway: 'payable',
+                    transactionId: data.paymentId
+                  });
+                } catch (dbError) {
+                  console.error("Error saving payment to database:", dbError);
+                }
+
                 // Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
                 alert("Payment Successful! Access granted.");
-                // Reload course data implicitly if needed, or window reload
                 window.location.reload();
             }
           } else {
