@@ -41,11 +41,11 @@ function LoginPageContent() {
     if (mode === 'verifyEmail' && oobCode) {
       applyActionCode(auth, oobCode)
         .then(() => {
-          alert("âœ… Email verified successfully! You can now log in.");
+          alert("✅ Email verified successfully! You can now log in.");
           window.history.replaceState({}, '', '/login');
         })
         .catch(err => {
-          alert("âŒ Verification link is invalid or expired. " + err.message);
+          alert("❌ Verification link is invalid or expired. " + err.message);
         });
     } else if (mode === 'resetPassword' && oobCode) {
       setResetOobCode(oobCode);
@@ -266,7 +266,7 @@ function LoginPageContent() {
     setError("");
     try {
       await confirmPasswordReset(auth, resetOobCode!, newPassword);
-      alert("âœ… Password successfully reset! You can now log in.");
+      alert("✅ Password successfully reset! You can now log in.");
       setResetOobCode(null);
       setNewPassword("");
       setConfirmNewPassword("");
