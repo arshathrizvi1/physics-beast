@@ -609,6 +609,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             price: checkoutFolder.price,
             userId: user.uid,
             userEmail: user.email,
+            userPhone: user.phone,
             studentId: user.studentId,
             userName: user.name
           })

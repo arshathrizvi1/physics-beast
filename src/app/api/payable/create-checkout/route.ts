@@ -8,7 +8,7 @@ const client = new PaymentsLk(PAYABLE_KEY);
 
 export async function POST(req: Request) {
   try {
-    const { courseId, courseName, price, userId, userEmail, studentId, userName } = await req.json();
+    const { courseId, courseName, price, userId, userEmail, userPhone, studentId, userName } = await req.json();
 
     if (!courseId || !userId || !price) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -22,10 +22,20 @@ export async function POST(req: Request) {
     // courseId (20 chars), userId (28 chars). Total JSON: ~55 chars.
     const reference = JSON.stringify([courseId, userId]);
 
+    // Build the customer object for auto-filling the Payable hosted checkout
+    const customerPayload: any = {
+      name: userName || "Student",
+      email: userEmail || "student@brillliantacademy.site"
+    };
+    if (userPhone) {
+      customerPayload.phone = userPhone;
+    }
+
     const checkout = await client.checkouts.create({
       amountCents: Math.round(price * 100),
       description: `Course: ${courseName}`,
       reference: reference,
+      customer: customerPayload,
       successUrl: `${baseUrl}/course/${courseId}?payment=success&session_id={CHECKOUT_ID}`,
       cancelUrl: `${baseUrl}/course/${courseId}?payment=cancelled`
     });
