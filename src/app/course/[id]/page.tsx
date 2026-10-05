@@ -397,7 +397,52 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
     setupListeners();
 
-    // Anti-IDM / Downloader Extension DOM removal
+    
+  // Check for successful Payable return
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
+
+    if (paymentStatus === 'success' && sessionId && user) {
+      // Show processing state
+      const verifyPayment = async () => {
+        try {
+          const res = await fetch('/api/payable/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkoutId: sessionId })
+          });
+          const data = await res.json();
+          if (data.success) {
+            // Update local user state immediately
+            if (user) {
+                const now = Date.now();
+                const folderAccess = user.folderAccess || {};
+                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+                
+                // Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+                alert("Payment Successful! Access granted.");
+                // Reload course data implicitly if needed, or window reload
+                window.location.reload();
+            }
+          } else {
+            alert("Payment verification failed: " + (data.status || data.error));
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      verifyPayment();
+    } else if (paymentStatus === 'cancelled') {
+      alert("Payment was cancelled.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user, id]);
+
+
+      // Anti-IDM / Downloader Extension DOM removal
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         mutation.addedNodes.forEach((node: any) => {
@@ -562,6 +607,38 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const handlePaymentSubmit = async () => {
     if (!user || !checkoutFolder) return;
+
+    if (paymentMethod === 'card') {
+      setIsSubmittingPayment(true);
+      try {
+        const res = await fetch('/api/payable/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            courseId: id,
+            courseName: course.name || checkoutFolder.name,
+            price: checkoutFolder.price,
+            userId: user.uid,
+            userEmail: user.email,
+            studentId: user.studentId,
+            userName: user.name
+          })
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert("Payment gateway error: " + (data.error || "Unknown error"));
+          setIsSubmittingPayment(false);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to connect to payment gateway.");
+        setIsSubmittingPayment(false);
+      }
+      return;
+    }
+
     
     if (paymentMethod === 'bank' && !receiptFile) {
       alert("Please upload your bank transfer receipt.");

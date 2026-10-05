@@ -29,6 +29,7 @@
     "@capgo/capacitor-is-root": "^8.1.19",
     "@capgo/capacitor-passkey": "^8.5.1",
     "@google/generative-ai": "^0.24.1",
+    "@payments-lk/node": "^0.4.1",
     "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.0.1",
     "@types/jsonwebtoken": "^9.0.10",
