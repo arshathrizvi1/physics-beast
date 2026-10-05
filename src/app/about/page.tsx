@@ -163,8 +163,8 @@ export default function AboutPage() {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
                 {[
-                  { icon: Mail, label: "Email", value: data.contact?.email || "arshathrizvicoding@gmail.com" },
-                  { icon: Phone, label: "Phone", value: data.contact?.phone || "+94 77 000 0000" },
+                  { icon: Mail, label: "Email", value: data.contact?.email || "arshathrizvi1010@gmail.com" },
+                  { icon: Phone, label: "Phone", value: data.contact?.phone || "0757391416" },
                   { icon: MapPin, label: "Location", value: data.contact?.location || "Colombo, Sri Lanka" },
                   { icon: Globe, label: "Website", value: data.contact?.website || "www.brillliantacademy.site" },
                 ].map((item, i) => (
@@ -326,9 +326,9 @@ const defaultAbout = {
     { title: "Certified Courses", description: "Earn recognized certificates that boost your career and prove your expertise to employers." },
   ],
   contact: {
-    email: "arshathrizvicoding@gmail.com",
-    phone: "+94 77 000 0000",
-    location: "123 Main Street, Colombo 00100, Sri Lanka",
+    email: "arshathrizvi1010@gmail.com",
+    phone: "0757391416",
+    location: "No:19 VTG Karunarathna Mawatha, Rakwana",
     website: "www.brillliantacademy.site",
   },
 };

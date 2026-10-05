@@ -56,9 +56,9 @@ export default function ReturnPolicy() {
           <p>
             If you have any questions about our Return Policy, please contact us at:<br/>
             <strong>Brilliant Academy</strong><br/>
-            123 Main Street, Colombo 00100, Sri Lanka<br/>
-            Email: arshathrizvicoding@gmail.com<br/>
-            Phone: +94 77 000 0000
+            No:19 VTG Karunarathna Mawatha, Rakwana<br/>
+            Email: arshathrizvi1010@gmail.com<br/>
+            Phone: 0757391416
           </p>
         </div>
       </div>

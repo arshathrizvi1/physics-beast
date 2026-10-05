@@ -8,9 +8,9 @@ import { motion } from "framer-motion";
 
 const defaultFooter = {
   tagline: "Learn Today - Build Tomorrow",
-  contactEmail: "arshathrizvicoding@gmail.com",
-  contactPhone: "+94 77 000 0000",
-  contactAddress: "123 Main Street, Colombo 00100, Sri Lanka",
+  contactEmail: "arshathrizvi1010@gmail.com",
+  contactPhone: "0757391416",
+  contactAddress: "No:19 VTG Karunarathna Mawatha, Rakwana",
   quickLinks: [
     { label: "Courses", href: "/courses" },
     { label: "Exams", href: "/exams" },
