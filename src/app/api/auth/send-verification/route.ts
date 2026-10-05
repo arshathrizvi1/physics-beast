@@ -22,7 +22,10 @@ export async function POST(req: Request) {
     };
 
     // 1. Generate the raw, secure link via Firebase Admin SDK
-    const verificationLink = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings);
+    const rawLink = await adminAuth.generateEmailVerificationLink(email, actionCodeSettings);
+    const urlObj = new URL(rawLink);
+    const oobCode = urlObj.searchParams.get('oobCode');
+    const verificationLink = \`https://brillliantacademy.site/login?mode=verifyEmail&oobCode=\${oobCode}\`;
 
     // 2. Create our custom branded HTML email
     const htmlContent = `
