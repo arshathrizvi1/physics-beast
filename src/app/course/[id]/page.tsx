@@ -64,20 +64,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);
 
-  // Lock body scroll when checkout modal is open to prevent double scrollbars
-  useEffect(() => {
-    if (checkoutFolder) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
-  }, [checkoutFolder]);
+
 
   // Doubt / Question to Teacher State
   const [doubtText, setDoubtText] = useState("");
@@ -1950,35 +1937,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </div>
                         </div>
                       ) : (paymentConfig?.cardEnabled !== false) ? (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
-                        <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 mb-4">
-                          <p className="text-xs text-orange-400 font-medium flex items-start gap-2">
-                            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
-                            This is a secure mock payment gateway. No real charges will be made.
-                          </p>
+                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4 text-center py-8">
+                          <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CreditCard className="w-8 h-8" />
+                          </div>
+                          <h3 className="font-bold text-lg text-foreground">Payable Secure Checkout</h3>
+                          <p className="text-sm text-muted-foreground">You will be redirected to the secure Payable.lk payment gateway to complete your transaction.</p>
                         </div>
-                        <div className="space-y-3">
-                          <div className="space-y-1">
-                            <Label>Card Number</Label>
-                            <Input placeholder="0000 0000 0000 0000" className="font-mono" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <Label>Expiry Date</Label>
-                              <Input placeholder="MM/YY" className="font-mono" />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>CVC</Label>
-                              <Input placeholder="123" type="password" maxLength={3} className="font-mono" />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Cardholder Name</Label>
-                            <Input placeholder="Name on card" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
+                      ) : (
                       <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-400 font-medium">
                         No payment methods are currently available. Please contact the administrator.
                       </div>
