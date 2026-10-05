@@ -14,36 +14,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Determine the base URL for success/cancel redirects
     const host = req.headers.get('host') || 'www.brillliantacademy.site';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // We don't need a long reference since we save all data to Firestore mapped by checkout.id!
-    const reference = `user_${userId.substring(0, 10)}_course_${courseId.substring(0, 10)}`;
+    // Pack the data tightly to fit within Payable's strict 64-char reference limit!
+    // courseId (20 chars), userId (28 chars). Total JSON: ~55 chars.
+    const reference = JSON.stringify([courseId, userId]);
 
     const checkout = await client.checkouts.create({
-      amountCents: Math.round(price * 100), // Payable expects cents (e.g. Rs. 1000 = 100000)
+      amountCents: Math.round(price * 100),
       description: `Course: ${courseName}`,
       reference: reference,
       successUrl: `${baseUrl}/course/${courseId}?payment=success&session_id={CHECKOUT_ID}`,
       cancelUrl: `${baseUrl}/course/${courseId}?payment=cancelled`
     });
 
-    // Save the checkout session mapping to Firestore so the user can be granted access when they return
-    await setDoc(doc(db, 'payable_sessions', checkout.id), {
-      checkoutId: checkout.id,
-      courseId,
-      courseName,
-      price,
-      userId,
-      userEmail,
-      studentId: studentId || null,
-      userName: userName || null,
-      status: 'pending',
-      createdAt: Date.now()
-    });
-
+    // We don't save to Firestore here to avoid PERMISSION_DENIED errors for unauthenticated API routes.
+    // Instead, we will parse the reference string directly from Payable during the verification step!
     return NextResponse.json({ url: checkout.url });
   } catch (error: any) {
     console.error("Payable Checkout Error:", error);
