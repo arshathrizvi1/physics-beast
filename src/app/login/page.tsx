@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { Suspense } from 'react';
 
 import { useState, useEffect } from "react";
@@ -47,8 +47,13 @@ function LoginPageContent() {
         .catch(err => {
           alert("❌ Verification link is invalid or expired. " + err.message);
         });
+    } else if (mode === 'resetPassword' && oobCode) {
+      setResetOobCode(oobCode);
     }
   }, [searchParams]);
+  const [resetOobCode, setResetOobCode] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -246,6 +251,32 @@ function LoginPageContent() {
     }
   };
 
+  const handleSaveNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await confirmPasswordReset(auth, resetOobCode!, newPassword);
+      alert("✅ Password successfully reset! You can now log in.");
+      setResetOobCode(null);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      window.history.replaceState({}, '', '/login');
+    } catch (err: any) {
+      setError(err.message || "Failed to reset password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!email.trim()) {
       setError("Please enter your email or Student ID first to reset your password.");
@@ -261,7 +292,7 @@ function LoginPageContent() {
       if (res.success && res.email) {
         setResetSuccessEmail(res.email);
         setError("");
-        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\nÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
+        alert(`Password reset link sent to ${res.email}!\n\nPlease check your Inbox.\n\n⚠️ IMPORTANT: If you do not see the email in your Inbox within a few minutes, please check your Spam / Junk mail folder!`);
       } else {
         setError(res.error || "Failed to send reset email. Make sure the email is correct.");
       }
@@ -286,14 +317,14 @@ function LoginPageContent() {
             await logout();
             setError("This Google account hasn't been registered yet. Please sign up first to create your account.");
           } else {
-            // Student is on the signup page ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â show the extended form
+            // Student is on the signup page ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â show the extended form
             setIsGoogleSignupForm(true);
             if (res.googleUser?.email) setEmail(res.googleUser.email);
             if (res.googleUser?.name) setName(res.googleUser.name);
             setPassword("");
           }
         } else {
-          // Existing user ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â dashboard handles the view
+          // Existing user ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â dashboard handles the view
         }
       } else {
         if (res.error?.includes('auth/popup-closed-by-user')) {
@@ -353,7 +384,7 @@ function LoginPageContent() {
       // Add message to AWS WhatsApp Queue
       await addDoc(collection(db, 'academy_whatsapp_queue'), {
         phone: fmtPhone,
-        message: `*Brilliant Academy 🎓*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
+        message: `*Brilliant Academy ðŸŽ“*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
         status: 'pending',
         isGroup: false,
         type: 'otp',
@@ -550,7 +581,7 @@ function LoginPageContent() {
                   <br /><br />
                   Please click the link in that email to activate your account. 
                   <strong className="text-red-500 block mt-3 p-3 bg-red-500/10 rounded-lg text-sm border border-red-500/20">
-                    ⚠️ IMPORTANT: Please check your Spam or Junk folder if you do not see it in your Inbox!
+                    âš ï¸ IMPORTANT: Please check your Spam or Junk folder if you do not see it in your Inbox!
                   </strong>
                   <div className="mt-6 flex flex-col sm:flex-row gap-3">
                     <Button onClick={() => window.open('https://mail.google.com/', '_blank')} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center gap-2">
@@ -881,7 +912,67 @@ function LoginPageContent() {
   }
 
   
+
+  if (resetOobCode) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <Card className="w-full max-w-md border-secondary/50 shadow-lg shadow-primary/5">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-primary">Reset Your Password</CardTitle>
+            <CardDescription>Enter a strong new password below.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSaveNewPassword} className="space-y-4">
+              {error && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm text-center">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input 
+                    id="newPassword" 
+                    type={showPassword ? "text" : "password"} 
+                    value={newPassword} 
+                    onChange={(e) => setNewPassword(e.target.value)} 
+                    placeholder="Enter new password"
+                    required 
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmNewPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Input 
+                    id="confirmNewPassword" 
+                    type={showPassword ? "text" : "password"} 
+                    value={confirmNewPassword} 
+                    onChange={(e) => setConfirmNewPassword(e.target.value)} 
+                    placeholder="Confirm new password"
+                    required 
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full font-bold" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Updating...</span>
+                ) : (
+                  "Update Password"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Login/Signup View
+
   const selectedBatchObj = batches.find(b => b.year === graduationYear || b.id === graduationYear);
     const isALBatch = selectedBatchObj?.isAL === true;
     const availableStreamsForBatch = streams.filter(s => isALBatch ? s.isAL === true : !s.isAL);
@@ -917,7 +1008,7 @@ function LoginPageContent() {
                 <div className="flex items-start gap-2 pt-1 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-lg">
                   <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
                   <div>
-                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
+                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
                   </div>
                 </div>
               </div>
@@ -1236,3 +1327,4 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
