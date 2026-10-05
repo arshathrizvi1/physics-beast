@@ -326,6 +326,49 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
+  // Check for successful Payable return
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
+
+    if (paymentStatus === 'success' && sessionId && user) {
+      // Show processing state
+      const verifyPayment = async () => {
+        try {
+          const res = await fetch('/api/payable/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkoutId: sessionId })
+          });
+          const data = await res.json();
+          if (data.success) {
+            // Update local user state immediately
+            if (user) {
+                const now = Date.now();
+                const folderAccess = user.folderAccess || {};
+                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+                
+                // Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+                alert("Payment Successful! Access granted.");
+                // Reload course data implicitly if needed, or window reload
+                window.location.reload();
+            }
+          } else {
+            alert("Payment verification failed: " + (data.status || data.error));
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      verifyPayment();
+    } else if (paymentStatus === 'cancelled') {
+      alert("Payment was cancelled.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user, id]);
+
   useEffect(() => {
     if (!id) return;
 
@@ -398,48 +441,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     setupListeners();
 
     
-  // Check for successful Payable return
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const sessionId = urlParams.get('session_id');
 
-    if (paymentStatus === 'success' && sessionId && user) {
-      // Show processing state
-      const verifyPayment = async () => {
-        try {
-          const res = await fetch('/api/payable/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ checkoutId: sessionId })
-          });
-          const data = await res.json();
-          if (data.success) {
-            // Update local user state immediately
-            if (user) {
-                const now = Date.now();
-                const folderAccess = user.folderAccess || {};
-                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
-                
-                // Clear URL params
-                window.history.replaceState({}, document.title, window.location.pathname);
-                alert("Payment Successful! Access granted.");
-                // Reload course data implicitly if needed, or window reload
-                window.location.reload();
-            }
-          } else {
-            alert("Payment verification failed: " + (data.status || data.error));
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
-      verifyPayment();
-    } else if (paymentStatus === 'cancelled') {
-      alert("Payment was cancelled.");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [user, id]);
 
 
       // Anti-IDM / Downloader Extension DOM removal
