@@ -19,8 +19,8 @@ export async function POST(req: Request) {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // Create a reference that we can parse later in a webhook or success redirect
-    const reference = JSON.stringify({ courseId, userId });
+    // We don't need a long reference since we save all data to Firestore mapped by checkout.id!
+    const reference = `user_${userId.substring(0, 10)}_course_${courseId.substring(0, 10)}`;
 
     const checkout = await client.checkouts.create({
       amountCents: Math.round(price * 100), // Payable expects cents (e.g. Rs. 1000 = 100000)
