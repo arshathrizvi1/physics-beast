@@ -1965,8 +1965,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
                             <CreditCard className="w-8 h-8" />
                           </div>
-                          <h3 className="font-bold text-lg text-foreground">Payable Secure Checkout</h3>
-                          <p className="text-sm text-muted-foreground">You will be redirected to the secure Payable.lk payment gateway to complete your transaction.</p>
+                          <h3 className="font-bold text-lg text-foreground">Secure Online Checkout</h3>
+                          <p className="text-sm text-muted-foreground">You will be redirected to the secure payments.lk gateway to complete your transaction.</p>
                         </div>
                       ) : (
                       <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-400 font-medium">
