@@ -13,7 +13,7 @@ import { AlertCircle, Flame, Clock, Target, Award, BookOpen, ChevronRight, Check
 import { startAuthentication } from '@simplewebauthn/browser';
 import { Progress } from "@/components/ui/progress";
 import { db, auth } from "@/lib/firebase";
-import { RecaptchaVerifier, signInWithPhoneNumber, applyActionCode } from "firebase/auth";
+import { RecaptchaVerifier, signInWithPhoneNumber, applyActionCode, confirmPasswordReset } from "firebase/auth";
 import { collection, query, where, getDocs, orderBy, setDoc, addDoc, doc, getDoc, serverTimestamp } from "firebase/firestore";
 import { formatSeconds, calculateXpLevel } from "@/lib/xp";
 import ReportIssueModal from "@/components/ReportIssueModal";
