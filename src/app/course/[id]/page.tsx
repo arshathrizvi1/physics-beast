@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
+import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback } from "react";
