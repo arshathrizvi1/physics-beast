@@ -61,7 +61,6 @@ export default function TermsAndConditions() {
             Email: arshathrizvi1010@gmail.com<br/>
             Phone: 0757391416
           </p>
-        </div>
       </div>
     </div>
   );
