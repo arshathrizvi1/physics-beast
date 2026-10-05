@@ -5,7 +5,7 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA",
-  authDomain: "physics-beastsl.firebaseapp.com",
+  authDomain: "www.brillliantacademy.site",
   projectId: "physics-beastsl",
   storageBucket: "physics-beastsl.firebasestorage.app",
   messagingSenderId: "326758596614",
