@@ -1008,7 +1008,7 @@ function LoginPageContent() {
                 <div className="flex items-start gap-2 pt-1 text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-lg">
                   <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
                   <div>
-                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
+                    <span className="font-bold">Check your Inbox & Spam:</span> If you don't see the email within 1-2 minutes, please be sure to <strong>check your Spam / Junk mail folder</strong>!
                   </div>
                 </div>
               </div>
@@ -1327,4 +1327,5 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
 

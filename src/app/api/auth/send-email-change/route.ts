@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const rawLink = await adminAuth.generateVerifyAndChangeEmailLink(email, newEmail, actionCodeSettings);
     const urlObj = new URL(rawLink);
     const oobCode = urlObj.searchParams.get('oobCode');
-    const changeLink = "https://brillliantacademy.site/login?mode=verifyAndChangeEmail&oobCode=";
+    const changeLink = \`https://brillliantacademy.site/login?mode=verifyAndChangeEmail&oobCode=\${oobCode}\`;
 
     // Create our custom branded HTML email
     const htmlContent = `
