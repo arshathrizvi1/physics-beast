@@ -1370,22 +1370,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               </p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {activeVideo && activeVideo.originalYoutubeUrl && activeVideo.type !== 'resource' && (
-                <div className="flex items-center gap-1 bg-secondary/30 p-1 rounded-lg border border-secondary/50">
-                  <button
-                    onClick={() => setActiveServer('bunny')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'bunny' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
-                  >
-                    Server 1 (Bunny)
-                  </button>
-                  <button
-                    onClick={() => setActiveServer('youtube')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'youtube' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
-                  >
-                    Server 2 (YouTube)
-                  </button>
-                </div>
-              )}
+
               {activeVideo && activeVideo.type !== 'resource' && (
                 <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
                   <Eye className="w-4 h-4" />
