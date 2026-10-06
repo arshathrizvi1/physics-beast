@@ -17,8 +17,11 @@ import { uploadToCloudinary, formatPdfViewerUrl } from "@/lib/cloudinary";
 import { uploadToS3 } from "@/lib/s3Storage";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
 
-export default function ExamPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ExamPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  const isPromise = params && typeof (params as any).then === 'function';
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const resolvedParams = isPromise ? use(params as any) : params;
+  const id = (resolvedParams as any).id;
   const router = useRouter();
   const { user, recordStudyMinute } = useAuth();
   

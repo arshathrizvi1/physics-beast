@@ -14,8 +14,11 @@ import { uploadToS3 } from "@/lib/s3Storage";
 import { PdfViewer } from "@/components/ui/pdf-viewer";
 import { calculateExamXp } from "@/lib/xp";
 
-export default function ExamResultsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ExamResultsPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  const isPromise = params && typeof (params as any).then === 'function';
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const resolvedParams = isPromise ? use(params as any) : params;
+  const id = (resolvedParams as any).id;
   const { user } = useAuth();
   
   const [exam, setExam] = useState<any>(null);

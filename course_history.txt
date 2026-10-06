@@ -1,0 +1,526 @@
+commit 516cd777863ff28c2ac313631b3e43e8ff817161
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Tue Oct 6 12:40:07 2026 +0530
+
+    UI: Remove Server 2 (YouTube) option from video player to enforce BunnyCDN security
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 83ff8e4..d792883 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -1370,22 +1370,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+               </p>
+             </div>
+             <div className="flex flex-col items-end gap-3">
+-              {activeVideo && activeVideo.originalYoutubeUrl && activeVideo.type !== 'resource' && (
+-                <div className="flex items-center gap-1 bg-secondary/30 p-1 rounded-lg border border-secondary/50">
+-                  <button
+-                    onClick={() => setActiveServer('bunny')}
+-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'bunny' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+-                  >
+-                    Server 1 (Bunny)
+-                  </button>
+-                  <button
+-                    onClick={() => setActiveServer('youtube')}
+-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${activeServer === 'youtube' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'}`}
+-                  >
+-                    Server 2 (YouTube)
+-                  </button>
+-                </div>
+-              )}
++
+               {activeVideo && activeVideo.type !== 'resource' && (
+                 <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
+                   <Eye className="w-4 h-4" />
+
+commit e0e96cc27dc90ff68f5981eb924e384dd42fb602
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:51:32 2026 +0530
+
+    UI: Rename Payable to Payments.lk in student checkout UI
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index f71e33e..83ff8e4 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -1965,8 +1965,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+                           <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                             <CreditCard className="w-8 h-8" />
+                           </div>
+-                          <h3 className="font-bold text-lg text-foreground">Payable Secure Checkout</h3>
+-                          <p className="text-sm text-muted-foreground">You will be redirected to the secure Payable.lk payment gateway to complete your transaction.</p>
++                          <h3 className="font-bold text-lg text-foreground">Secure Online Checkout</h3>
++                          <p className="text-sm text-muted-foreground">You will be redirected to the secure payments.lk gateway to complete your transaction.</p>
+                         </div>
+                       ) : (
+                       <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-400 font-medium">
+
+commit 4a89b630001aa1a7c4315f6eee2b6cd43c132ead
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:47:53 2026 +0530
+
+    Feat: Ensure revenue dashboard updates and course unlocks upon successful Payable checkout by delegating Firestore writes to authenticated frontend
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 2ddbe72..f71e33e 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -330,16 +330,39 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+           });
+           const data = await res.json();
+           if (data.success) {
+-            // Update local user state immediately
+             if (user) {
+-                const now = Date.now();
+-                const folderAccess = user.folderAccess || {};
+-                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+-                
++                try {
++                  const now = Date.now();
++                  
++                  // 1. Update user folder access in Firestore
++                  const userRef = doc(db, 'users', user.uid);
++                  const folderAccess = user.folderAccess || {};
++                  folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
++                  await updateDoc(userRef, { folderAccess });
++
++                  // 2. Add to payments collection for revenue tab
++                  await addDoc(collection(db, 'payments'), {
++                    studentId: user.uid,
++                    studentName: user.name || "Student",
++                    studentEmail: user.email,
++                    folderId: id,
++                    folderName: course?.name || "Course",
++                    courseId: id,
++                    courseName: course?.name || "Course",
++                    amount: data.amount || 1000,
++                    method: 'card',
++                    status: 'approved',
++                    createdAt: now,
++                    gateway: 'payable',
++                    transactionId: data.paymentId
++                  });
++                } catch (dbError) {
++                  console.error("Error saving payment to database:", dbError);
++                }
++
+                 // Clear URL params
+                 window.history.replaceState({}, document.title, window.location.pathname);
+                 alert("Payment Successful! Access granted.");
+-                // Reload course data implicitly if needed, or window reload
+                 window.location.reload();
+             }
+           } else {
+
+commit d22c287a4ebd9084cc25c2b9230543c0de5fbb44
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:44:15 2026 +0530
+
+    Feat: Auto-fill Payable checkout form with student email, name, and phone
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 296dde0..2ddbe72 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -609,6 +609,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+             price: checkoutFolder.price,
+             userId: user.uid,
+             userEmail: user.email,
++            userPhone: user.phone,
+             studentId: user.studentId,
+             userName: user.name
+           })
+
+commit 15a59bab6b28a6742df52011c8932dd09d5a3141
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:31:57 2026 +0530
+
+    Fix: Add missing CreditCard icon import for Payable checkout UI
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index c93c92e..296dde0 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
+ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Separator } from "@/components/ui/separator";
+ import { ScrollArea } from "@/components/ui/scroll-area";
+-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare } from "lucide-react";
++import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard } from "lucide-react";
+ import Link from "next/link";
+ import { useAuth } from "@/lib/AuthContext";
+ import { useEffect, useState, use, useRef, useCallback } from "react";
+
+commit ba0682ae1c2dd44df1cf1fd1be949b7b081f2fe0
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:26:50 2026 +0530
+
+    Fix: Remove scroll lock on checkout view and correct Payable checkout UI injection
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index a9448f6..c93c92e 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -64,20 +64,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+   const [paymentSuccess, setPaymentSuccess] = useState(false);
+   const [paymentConfig, setPaymentConfig] = useState<any>(null);
+ 
+-  // Lock body scroll when checkout modal is open to prevent double scrollbars
+-  useEffect(() => {
+-    if (checkoutFolder) {
+-      document.body.style.overflow = 'hidden';
+-      document.documentElement.style.overflow = 'hidden';
+-    } else {
+-      document.body.style.overflow = '';
+-      document.documentElement.style.overflow = '';
+-    }
+-    return () => {
+-      document.body.style.overflow = '';
+-      document.documentElement.style.overflow = '';
+-    };
+-  }, [checkoutFolder]);
++
+ 
+   // Doubt / Question to Teacher State
+   const [doubtText, setDoubtText] = useState("");
+@@ -1950,35 +1937,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+                           </div>
+                         </div>
+                       ) : (paymentConfig?.cardEnabled !== false) ? (
+-                      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
+-                        <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 mb-4">
+-                          <p className="text-xs text-orange-400 font-medium flex items-start gap-2">
+-                            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+-                            This is a secure mock payment gateway. No real charges will be made.
+-                          </p>
+-                        </div>
+-                        <div className="space-y-3">
+-                          <div className="space-y-1">
+-                            <Label>Card Number</Label>
+-                            <Input placeholder="0000 0000 0000 0000" className="font-mono" />
+-                          </div>
+-                          <div className="grid grid-cols-2 gap-4">
+-                            <div className="space-y-1">
+-                              <Label>Expiry Date</Label>
+-                              <Input placeholder="MM/YY" className="font-mono" />
+-                            </div>
+-                            <div className="space-y-1">
+-                              <Label>CVC</Label>
+-                              <Input placeholder="123" type="password" maxLength={3} className="font-mono" />
+-                            </div>
+-                          </div>
+-                          <div className="space-y-1">
+-                            <Label>Cardholder Name</Label>
+-                            <Input placeholder="Name on card" />
++                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4 text-center py-8">
++                          <div className="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
++                            <CreditCard className="w-8 h-8" />
+                           </div>
++                          <h3 className="font-bold text-lg text-foreground">Payable Secure Checkout</h3>
++                          <p className="text-sm text-muted-foreground">You will be redirected to the secure Payable.lk payment gateway to complete your transaction.</p>
+                         </div>
+-                      </div>
+-                    ) : (
++                      ) : (
+                       <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center text-red-400 font-medium">
+                         No payment methods are currently available. Please contact the administrator.
+                       </div>
+
+commit e2622f0c41071771bce5bbe1a3eb27ea40d415b1
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 22:09:44 2026 +0530
+
+    Fix: Resolve Invalid Hook Call caused by nested useEffect in course page
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 9144671..a9448f6 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -326,6 +326,49 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+     return () => cancelAnimationFrame(animationFrameId);
+   }, []);
+ 
++  // Check for successful Payable return
++  useEffect(() => {
++    const urlParams = new URLSearchParams(window.location.search);
++    const paymentStatus = urlParams.get('payment');
++    const sessionId = urlParams.get('session_id');
++
++    if (paymentStatus === 'success' && sessionId && user) {
++      // Show processing state
++      const verifyPayment = async () => {
++        try {
++          const res = await fetch('/api/payable/verify', {
++            method: 'POST',
++            headers: { 'Content-Type': 'application/json' },
++            body: JSON.stringify({ checkoutId: sessionId })
++          });
++          const data = await res.json();
++          if (data.success) {
++            // Update local user state immediately
++            if (user) {
++                const now = Date.now();
++                const folderAccess = user.folderAccess || {};
++                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
++                
++                // Clear URL params
++                window.history.replaceState({}, document.title, window.location.pathname);
++                alert("Payment Successful! Access granted.");
++                // Reload course data implicitly if needed, or window reload
++                window.location.reload();
++            }
++          } else {
++            alert("Payment verification failed: " + (data.status || data.error));
++          }
++        } catch (err) {
++          console.error(err);
++        }
++      };
++      verifyPayment();
++    } else if (paymentStatus === 'cancelled') {
++      alert("Payment was cancelled.");
++      window.history.replaceState({}, document.title, window.location.pathname);
++    }
++  }, [user, id]);
++
+   useEffect(() => {
+     if (!id) return;
+ 
+@@ -398,48 +441,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+     setupListeners();
+ 
+     
+-  // Check for successful Payable return
+-  useEffect(() => {
+-    const urlParams = new URLSearchParams(window.location.search);
+-    const paymentStatus = urlParams.get('payment');
+-    const sessionId = urlParams.get('session_id');
+ 
+-    if (paymentStatus === 'success' && sessionId && user) {
+-      // Show processing state
+-      const verifyPayment = async () => {
+-        try {
+-          const res = await fetch('/api/payable/verify', {
+-            method: 'POST',
+-            headers: { 'Content-Type': 'application/json' },
+-            body: JSON.stringify({ checkoutId: sessionId })
+-          });
+-          const data = await res.json();
+-          if (data.success) {
+-            // Update local user state immediately
+-            if (user) {
+-                const now = Date.now();
+-                const folderAccess = user.folderAccess || {};
+-                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
+-                
+-                // Clear URL params
+-                window.history.replaceState({}, document.title, window.location.pathname);
+-                alert("Payment Successful! Access granted.");
+-                // Reload course data implicitly if needed, or window reload
+-                window.location.reload();
+-            }
+-          } else {
+-            alert("Payment verification failed: " + (data.status || data.error));
+-          }
+-        } catch (err) {
+-          console.error(err);
+-        }
+-      };
+-      verifyPayment();
+-    } else if (paymentStatus === 'cancelled') {
+-      alert("Payment was cancelled.");
+-      window.history.replaceState({}, document.title, window.location.pathname);
+-    }
+-  }, [user, id]);
+ 
+ 
+       // Anti-IDM / Downloader Extension DOM removal
+
+commit 9ec7977609f3a31dffc4148e859cd9a108fd0fdd
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 21:49:20 2026 +0530
+
+    Feat: Integrate payments.lk (Payable) for real online checkout processing
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 6cc7989..9144671 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -397,7 +397,52 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+     };
+     setupListeners();
+ 
+-    // Anti-IDM / Downloader Extension DOM removal
++    
++  // Check for successful Payable return
++  useEffect(() => {
++    const urlParams = new URLSearchParams(window.location.search);
++    const paymentStatus = urlParams.get('payment');
++    const sessionId = urlParams.get('session_id');
++
++    if (paymentStatus === 'success' && sessionId && user) {
++      // Show processing state
++      const verifyPayment = async () => {
++        try {
++          const res = await fetch('/api/payable/verify', {
++            method: 'POST',
++            headers: { 'Content-Type': 'application/json' },
++            body: JSON.stringify({ checkoutId: sessionId })
++          });
++          const data = await res.json();
++          if (data.success) {
++            // Update local user state immediately
++            if (user) {
++                const now = Date.now();
++                const folderAccess = user.folderAccess || {};
++                folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
++                
++                // Clear URL params
++                window.history.replaceState({}, document.title, window.location.pathname);
++                alert("Payment Successful! Access granted.");
++                // Reload course data implicitly if needed, or window reload
++                window.location.reload();
++            }
++          } else {
++            alert("Payment verification failed: " + (data.status || data.error));
++          }
++        } catch (err) {
++          console.error(err);
++        }
++      };
++      verifyPayment();
++    } else if (paymentStatus === 'cancelled') {
++      alert("Payment was cancelled.");
++      window.history.replaceState({}, document.title, window.location.pathname);
++    }
++  }, [user, id]);
++
++
++      // Anti-IDM / Downloader Extension DOM removal
+     const observer = new MutationObserver((mutations) => {
+       mutations.forEach((mutation) => {
+         mutation.addedNodes.forEach((node: any) => {
+@@ -562,6 +607,38 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+ 
+   const handlePaymentSubmit = async () => {
+     if (!user || !checkoutFolder) return;
++
++    if (paymentMethod === 'card') {
++      setIsSubmittingPayment(true);
++      try {
++        const res = await fetch('/api/payable/create-checkout', {
++          method: 'POST',
++          headers: { 'Content-Type': 'application/json' },
++          body: JSON.stringify({
++            courseId: id,
++            courseName: course.name || checkoutFolder.name,
++            price: checkoutFolder.price,
++            userId: user.uid,
++            userEmail: user.email,
++            studentId: user.studentId,
++            userName: user.name
++          })
++        });
++        const data = await res.json();
++        if (data.url) {
++          window.location.href = data.url;
++        } else {
++          alert("Payment gateway error: " + (data.error || "Unknown error"));
++          setIsSubmittingPayment(false);
++        }
++      } catch (err) {
++        console.error(err);
++        alert("Failed to connect to payment gateway.");
++        setIsSubmittingPayment(false);
++      }
++      return;
++    }
++
+     
+     if (paymentMethod === 'bank' && !receiptFile) {
+       alert("Please upload your bank transfer receipt.");
+
+commit 4fa60f775b93ab2a2dfa870dde84d23efda2392f
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Mon Oct 5 21:39:08 2026 +0530
+
+    Feat: Add Lanka QR manual payment option with admin QR image upload support
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index c377b6d..6cc7989 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -1825,7 +1825,52 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+                           </div>
+                         </div>
+                       </div>
+-                    ) : (paymentConfig?.cardEnabled !== false) ? (
++                    ) : (paymentConfig && paymentMethod === 'qr' && paymentConfig.qrEnabled) ? (
++                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
++                          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 space-y-4 text-center">
++                            <p className="text-sm font-medium text-green-400">Please scan the Lanka QR code to transfer Rs. {checkoutFolder.price}</p>
++                            
++                            {paymentConfig.qrImageUrl ? (
++                              <div className="w-48 h-48 mx-auto bg-white p-2 rounded-xl border border-green-500/30 shadow-lg relative overflow-hidden group flex items-center justify-center">
++                                <img src={paymentConfig.qrImageUrl} alt="Lanka QR" className="w-full h-full object-contain" />
++                              </div>
++                            ) : (
++                              <p className="text-sm text-zinc-500 py-8">QR Code not uploaded by admin yet.</p>
++                            )}
++                          </div>
++
++                          <div className="space-y-2">
++                            <Label>Upload Payment Receipt</Label>
++                            <div className="border-2 border-dashed border-secondary rounded-lg p-6 text-center hover:bg-secondary/10 transition-colors cursor-pointer relative">
++                              {receiptFile ? (
++                                <div className="space-y-2">
++                                  <FileText className="w-8 h-8 text-primary mx-auto" />
++                                  <p className="text-sm font-medium text-primary">{receiptFile.name}</p>
++                                  <p className="text-xs text-muted-foreground">Click to change file</p>
++                                </div>
++                              ) : (
++                                <div className="space-y-2">
++                                  <div className="w-12 h-12 bg-secondary/30 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
++                                    <ChevronDown className="w-6 h-6" />
++                                  </div>
++                                  <p className="text-sm font-medium">Click to upload deposit slip</p>
++                                  <p className="text-xs text-muted-foreground">JPEG, PNG, or PDF</p>
++                                </div>
++                              )}
++                              <input 
++                                type="file" 
++                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
++                                accept="image/*,.pdf"
++                                onChange={(e) => {
++                                  if (e.target.files && e.target.files[0]) {
++                                    setReceiptFile(e.target.files[0]);
++                                  }
++                                }}
++                              />
++                            </div>
++                          </div>
++                        </div>
++                      ) : (paymentConfig?.cardEnabled !== false) ? (
+                       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 pb-4">
+                         <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 mb-4">
+                           <p className="text-xs text-orange-400 font-medium flex items-start gap-2">
+
+commit 926e0d7aa1f595a3ebeea79fd6d27146ea5c3a78
+Author: Arshath Rizvi <arshathrizvi1@users.noreply.github.com>
+Date:   Thu Oct 1 11:18:33 2026 +0530
+
+    Fix: Remove hardcoded vercel fetch URL causing CORS errors for Bunny Stream signatures on custom domain
+
+diff --git a/src/app/course/[id]/page.tsx b/src/app/course/[id]/page.tsx
+index 8e952b5..c377b6d 100644
+--- a/src/app/course/[id]/page.tsx
++++ b/src/app/course/[id]/page.tsx
+@@ -145,7 +145,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
+             headers['x-app-platform'] = 'web';
+           }
+           
+-          const res = await fetch(`https://brilliantacademy.vercel.app/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
++          const res = await fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
+           if (!res.ok) {
+               if (res.status === 403) { const errData = await res.json().catch(() => ({})); setBunnyEmbedUrl('CRACKED:' + (errData.error || 'Unknown 403')); return; }
+               else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);

@@ -29,8 +29,12 @@ const getDailymotionId = (url: string) => {
   return match ? match[1] : null;
 };
 
-export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function CoursePage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  const isPromise = params && typeof (params as any).then === 'function';
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const resolvedParams = isPromise ? use(params as any) : params;
+  const id = (resolvedParams as any).id;
+  
   const { user, updateVideoProgress, recordStudyMinute } = useAuth();
   
   const [course, setCourse] = useState<any>(null);
