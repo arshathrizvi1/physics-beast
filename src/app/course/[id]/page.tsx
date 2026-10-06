@@ -173,7 +173,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       const storageKey = user?.uid ? `user_progress_${user.uid}` : 'guest_video_progress';
       const raw = localStorage.getItem(storageKey);
       if (raw) {
-        setLocalVideoProgress(prev => ({ ...JSON.parse(raw), ...prev }));
+        const parsed = JSON.parse(raw); setLocalVideoProgress(prev => ({ ...parsed, ...prev }));
       }
     } catch {}
   }, [user?.uid]);
