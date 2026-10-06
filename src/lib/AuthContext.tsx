@@ -36,8 +36,10 @@ const decryptData = (data: string) => {
   try {
     const bytes = CryptoJS.AES.decrypt(data, STORAGE_SECRET);
     const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+    if (!decrypted && data.startsWith('U2FsdGVkX1')) return null;
     return decrypted || data; // Fallback to raw data if it was unencrypted
   } catch {
+    if (data.startsWith('U2FsdGVkX1')) return null;
     return data;
   }
 };
@@ -447,7 +449,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const cachedProfile = safeStorage.local.getItem('cachedUserProfile');
             if (cachedProfile) {
               // Keep the cached profile instead of overwriting with a dummy one!
-              setUser(JSON.parse(cachedProfile));
+              try {
+                setUser(JSON.parse(cachedProfile));
+              } catch (e) {
+                console.error("Failed to parse cached profile fallback:", e);
+                setUser(null);
+              }
               setLoading(false);
               return;
             }
