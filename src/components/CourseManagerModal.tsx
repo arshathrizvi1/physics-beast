@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, User, Image as ImageIcon, Video, Edit2, FolderOpen, Trash2 } from "lucide-react";
+import { Search, Plus, User, Image as ImageIcon, Video, Edit2, FolderOpen, Trash2, Copy } from "lucide-react";
+import { TargetTeacherModal } from "./TargetTeacherModal";
 import { collection, doc, setDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -38,6 +39,59 @@ export default function CourseManagerModal({
   const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
   const [filterTeacherId, setFilterTeacherId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCopyCourseModalOpen, setIsCopyCourseModalOpen] = useState(false);
+  const [courseToCopy, setCourseToCopy] = useState(null);
+  
+  const handleCopyCourseSubmit = async (targetTeacherId, targetSubjectId, targetBatchId) => {
+    if (!courseToCopy) return;
+    try {
+      const newCourseId = doc(collection(db, 'courses')).id;
+      const coursePayload = {
+        ...courseToCopy,
+        id: newCourseId,
+        name: courseToCopy.name + " (Copy)",
+        teacherId: targetTeacherId,
+        subjectId: targetSubjectId,
+        batchId: targetBatchId,
+        createdAt: Date.now()
+      };
+      
+      const batchOp = writeBatch(db);
+      batchOp.set(doc(db, 'courses', newCourseId), coursePayload);
+      
+      // Also copy all folders and videos
+      const courseFolders = folders.filter(f => f.courseId === courseToCopy.id);
+      for (const folder of courseFolders) {
+        const newFolderId = doc(collection(db, 'folders')).id;
+        batchOp.set(doc(db, 'folders', newFolderId), {
+          ...folder,
+          id: newFolderId,
+          courseId: newCourseId,
+          batchId: targetBatchId,
+          createdAt: Date.now()
+        });
+        
+        const folderVideos = videos.filter(v => v.folderId === folder.id);
+        for (const vid of folderVideos) {
+          const newVidId = doc(collection(db, 'videos')).id;
+          batchOp.set(doc(db, 'videos', newVidId), {
+            ...vid,
+            id: newVidId,
+            folderId: newFolderId,
+            courseId: newCourseId,
+            batchId: targetBatchId,
+            createdAt: Date.now()
+          });
+        }
+      }
+      
+      await batchOp.commit();
+      alert("Course, folders, and videos copied successfully!");
+    } catch (e) {
+      console.error(e);
+      alert("Copy failed.");
+    }
+  };
   
   useEffect(() => {
     if (isOpen) {
@@ -376,6 +430,9 @@ export default function CourseManagerModal({
                         <Button variant="secondary" size="sm" className="flex-1" onClick={() => onManageFolders(course.id)}>
                           <FolderOpen className="w-4 h-4 mr-2" /> Folders
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setCourseToCopy(course); setIsCopyCourseModalOpen(true); }} className="flex-none px-2" title="Copy Course">
+                          <Copy className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditForm(course)}>
                           <Edit2 className="w-4 h-4 text-muted-foreground" />
                         </Button>
@@ -391,6 +448,13 @@ export default function CourseManagerModal({
           </div>
         )}
       </div>
+      <TargetTeacherModal 
+        isOpen={isCopyCourseModalOpen} 
+        onClose={() => setIsCopyCourseModalOpen(false)} 
+        onSelect={handleCopyCourseSubmit} 
+        batches={batches} 
+        title="Copy Course to Target" 
+      />
     </div>
   );
 }

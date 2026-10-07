@@ -256,6 +256,14 @@ export default function FolderManagerModal({
           </div>
         )}
       </div>
+      <TargetCourseModal 
+        isOpen={isCopyModalOpen} 
+        onClose={() => setIsCopyModalOpen(false)} 
+        onSelect={handleCopySubmit} 
+        batches={allBatches} 
+        courses={allCourses} 
+        title="Copy Folder to Target Course" 
+      />
     </div>
   );
 }
