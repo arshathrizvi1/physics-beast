@@ -26,7 +26,7 @@ export default function AdminStudio({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchClass = async () => {
       try {
-        const docRef = doc(db, 'liveClasses', params.id);
+        const docRef = doc(db, 'live_classes', params.id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setClassData({ id: docSnap.id, ...docSnap.data() });
