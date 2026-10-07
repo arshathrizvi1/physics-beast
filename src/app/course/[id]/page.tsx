@@ -589,7 +589,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const visibleFolders = visibleFolders.filter(f => user?.role === 'admin' || user?.role === 'teacher' || !f.isHidden || (user?.folderAccess?.[f.id] && user.folderAccess[f.id] > Date.now()));
+  const visibleFolders = folders.filter(f => user?.role === 'admin' || user?.role === 'teacher' || !f.isHidden || (user?.folderAccess?.[f.id] && user.folderAccess[f.id] > Date.now()));
   const legacyCourseAccess = user?.accessibleCourses && user.accessibleCourses.includes(id);
   const courseFolders = visibleFolders;
   const hasFolderAccess = courseFolders.some(f => {
@@ -847,7 +847,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   // Filter sidebar folders if isolated to a month
   const sidebarFolders = (course.isMonthly && selectedMonthlyFolderId) 
     ? visibleFolders.filter(f => f.id === selectedMonthlyFolderId) 
-    : folders;
+    : visibleFolders;
 
   return (
     <>
