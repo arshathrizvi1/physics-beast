@@ -259,7 +259,9 @@ export default function StudentLivePortal() {
       return streams;
     } else {
       const fallbackStreams = [];
-      fallbackStreams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
+      if (cls.platform !== 'webrtc') {
+        fallbackStreams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
+      }
       if (cls.platform === 'youtube' && !isAndroidApp) {
         fallbackStreams.push({ id: 'blocked', label: 'App Only', link: '' });
       } else {
@@ -387,7 +389,7 @@ export default function StudentLivePortal() {
                   </div>
                   
                   {/* Action Buttons for non-youtube links */}
-                  {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && (
+                  {cls.status === 'live' && cls.platform !== 'youtube' && cls.platform !== 'rtmp' && cls.platform !== 'zoom' && cls.platform !== 'webrtc' && (
                     cls.allowDirectJoin !== false ? (
                       <a href={cls.link} target="_blank" rel="noreferrer" className="shrink-0">
                         <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white font-bold w-full md:w-auto h-14 px-8 text-lg animate-pulse shadow-lg">

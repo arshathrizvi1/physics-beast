@@ -740,10 +740,19 @@ export default function AdminLiveStudio() {
                       </Button>
                     )}
                     {cls.status === 'live' && (
-                      <Button size="sm" onClick={() => updateStatus(cls.id, 'ended')} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-foreground w-full">
-                        <StopCircle className="w-4 h-4 mr-2" /> End Broadcast
-                      </Button>
-                    )}
+                        <Button size="sm" onClick={() => updateStatus(cls.id, 'ended')} variant="outline" className="border-red-500/50 text-red-500 hover:bg-red-500 hover:text-foreground w-full">
+                          <StopCircle className="w-4 h-4 mr-2" /> End Broadcast
+                        </Button>
+                      )}
+                      
+                      {cls.status === 'live' && cls.platform === 'webrtc' && (
+                        <Link href="/live" target="_blank" className="w-full">
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white w-full animate-pulse shadow-lg font-bold border-2 border-emerald-400">
+                            <Video className="w-4 h-4 mr-2" /> Enter WebRTC Studio
+                          </Button>
+                        </Link>
+                      )}
+
                     {cls.status === 'ended' && (
                       <div className="space-y-2 w-full">
                         <Button size="sm" onClick={() => updateStatus(cls.id, 'scheduled')} variant="secondary" className="w-full">

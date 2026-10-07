@@ -1,0 +1,101 @@
+{
+  "logging": {
+    "logs": {
+      "default": {
+        "level": "INFO"
+      }
+    }
+  },
+  "storage": {
+    "module": "file_system",
+    "root": "/data"
+  },
+  "apps": {
+    "tls": {
+      "certificates": {
+        "automate": [
+          "live.brillliantacademy.site",
+          "turn.brillliantacademy.site"
+        ]
+      }
+    },
+    "layer4": {
+      "servers": {
+        "turn": {
+          "listen": [":5349"],
+          "routes": [
+            {
+              "match": [
+                {
+                  "tls": {
+                    "sni": ["turn.brillliantacademy.site"]
+                  }
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "tls"
+                },
+                {
+                  "handler": "proxy",
+                  "upstreams": [
+                    {
+                      "dial": ["localhost:3478"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "http": {
+      "servers": {
+        "https": {
+          "listen": [":443"],
+          "routes": [
+            {
+              "match": [
+                {
+                  "host": ["live.brillliantacademy.site"]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "reverse_proxy",
+                  "upstreams": [
+                    {
+                      "dial": "localhost:7880"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "http": {
+          "listen": [":80"],
+          "routes": [
+            {
+              "match": [
+                {
+                  "host": ["live.brillliantacademy.site", "turn.brillliantacademy.site"]
+                }
+              ],
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "headers": {
+                    "Location": ["https://{http.request.host}{http.request.uri}"]
+                  },
+                  "status_code": 301
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
