@@ -14,7 +14,7 @@ import {
   useLocalParticipantPermissions,
   useRoomContext,
 } from '@livekit/components-react';
-import { Track, RoomEvent } from 'livekit-client';
+import { Track, RoomEvent, VideoPresets, ScreenSharePresets } from 'livekit-client';
 import '@livekit/components-styles';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import {
@@ -779,6 +779,16 @@ export default function LiveKitPlayer({ roomName, user }: LiveKitPlayerProps) {
       video={isAdmin}
       audio={isAdmin}
       token={conn.token}
+      options={{
+        publishDefaults: {
+          videoEncoding: VideoPresets.h1080.encoding,
+          screenShareEncoding: ScreenSharePresets.h1080fps30.encoding,
+          videoSimulcast: true, // Enables adaptive quality for students with bad internet
+        },
+        videoCaptureDefaults: {
+          resolution: VideoPresets.h1080.resolution,
+        }
+      }}
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://live.brillliantacademy.site'}
       data-lk-theme="default"
       className="h-full w-full overflow-hidden"
