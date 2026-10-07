@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Edit2, Trash2, Folder, Users, DollarSign } from "lucide-react";
+import { Plus, Edit2, Trash2, Folder, Users, DollarSign, Eye, EyeOff, Copy } from "lucide-react";
+import { TargetCourseModal } from "./TargetCourseModal";
+import { getDocs } from "firebase/firestore";
 import { collection, doc, setDoc, updateDoc, deleteDoc, writeBatch, query, where, getCountFromServer } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -27,6 +29,49 @@ export default function FolderManagerModal({
   const [formPrice, setFormPrice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [formIsHidden, setFormIsHidden] = useState(false);
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+  const [folderToCopy, setFolderToCopy] = useState(null);
+  const [allBatches, setAllBatches] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
+  
+  useEffect(() => {
+    if (isCopyModalOpen && allBatches.length === 0) {
+      getDocs(collection(db, 'batches')).then(snap => setAllBatches(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+      getDocs(collection(db, 'courses')).then(snap => setAllCourses(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+    }
+  }, [isCopyModalOpen]);
+  
+  const handleCopySubmit = async (targetCourseId, targetBatchId) => {
+    if (!folderToCopy) return;
+    try {
+      const newFolderId = doc(collection(db, 'folders')).id;
+      const payload = {
+        name: folderToCopy.name + " (Copy)",
+        price: folderToCopy.price || 0,
+        courseId: targetCourseId,
+        batchId: targetBatchId,
+        isHidden: folderToCopy.isHidden || false,
+        createdAt: Date.now()
+      };
+      
+      const batchOp = writeBatch(db);
+      batchOp.set(doc(db, 'folders', newFolderId), payload);
+      
+      const folderVideos = videos.filter(v => v.folderId === folderToCopy.id);
+      for (const vid of folderVideos) {
+        const newVidId = doc(collection(db, 'videos')).id;
+        const vidPayload = { ...vid, id: newVidId, folderId: newFolderId, courseId: targetCourseId, batchId: targetBatchId, createdAt: Date.now() };
+        batchOp.set(doc(db, 'videos', newVidId), vidPayload);
+      }
+      
+      await batchOp.commit();
+      alert("Folder and videos copied successfully!");
+    } catch(e) {
+      console.error(e);
+      alert("Copy failed.");
+    }
+  };
   
   const [folderStats, setFolderStats] = useState<Record<string, number>>({});
 
@@ -56,6 +101,7 @@ export default function FolderManagerModal({
   }, [isOpen, courseFolders.length]);
 
   const openCreateForm = () => {
+    setFormIsHidden(false);
     setEditingFolderId(null);
     setFormName("");
     setFormPrice("");
@@ -63,6 +109,7 @@ export default function FolderManagerModal({
   };
 
   const openEditForm = (folder: any) => {
+    setFormIsHidden(folder.isHidden || false);
     setEditingFolderId(folder.id);
     setFormName(folder.name || "");
     setFormPrice(folder.price ? String(folder.price) : "");
@@ -170,7 +217,10 @@ export default function FolderManagerModal({
                   return (
                     <div key={folder.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-secondary/10 p-4 rounded-xl border border-secondary/20 gap-4">
                       <div>
-                        <h4 className="font-bold text-lg">{folder.name}</h4>
+                        <h4 className="font-bold text-lg flex items-center gap-2">
+                          {folder.isHidden && <EyeOff className="w-4 h-4 text-orange-500" title="Hidden from students" />}
+                          {folder.name}
+                        </h4>
                         <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                           <span className="font-medium text-primary">Rs. {folder.price || 0}</span>
                           <span className="flex items-center gap-1">

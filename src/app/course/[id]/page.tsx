@@ -589,8 +589,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     );
   }
 
+  const visibleFolders = visibleFolders.filter(f => user?.role === 'admin' || user?.role === 'teacher' || !f.isHidden || (user?.folderAccess?.[f.id] && user.folderAccess[f.id] > Date.now()));
   const legacyCourseAccess = user?.accessibleCourses && user.accessibleCourses.includes(id);
-  const courseFolders = folders;
+  const courseFolders = visibleFolders;
   const hasFolderAccess = courseFolders.some(f => {
     const exp = user?.folderAccess?.[f.id];
     return exp && exp > Date.now();
@@ -803,13 +804,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   }
 
     // Monthly Course Interceptor
-  let displayFolders = folders;
+  let displayFolders = visibleFolders;
   let virtualNextMonth = null;
   if (course.isMonthly) {
     const now = new Date();
     
     // Filter out expired folders if user doesn't have access
-    displayFolders = folders.filter(folder => {
+    displayFolders = visibleFolders.filter(folder => {
       const hasAccess = user?.role === 'admin' || user?.role === 'teacher' || (user?.folderAccess && user.folderAccess[folder.id] && user.folderAccess[folder.id] > now.getTime());
       if (hasAccess) return true; // Always show if they have access
 
@@ -830,13 +831,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (now.getDate() >= daysInMonth - 5) {
       const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       const nextMonthName = nextMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-      const nextMonthExists = folders.some(f => f.name === nextMonthName);
+      const nextMonthExists = visibleFolders.some(f => f.name === nextMonthName);
       if (!nextMonthExists) {
         virtualNextMonth = {
           id: `month_${course.id}_${nextMonthDate.getFullYear()}_${nextMonthDate.getMonth()}`,
           name: nextMonthName,
           isVirtual: true,
-          price: folders.find(f => f.price > 0)?.price || 0
+          price: visibleFolders.find(f => f.price > 0)?.price || 0
         };
         displayFolders = [...displayFolders, virtualNextMonth];
       }
@@ -845,7 +846,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   // Filter sidebar folders if isolated to a month
   const sidebarFolders = (course.isMonthly && selectedMonthlyFolderId) 
-    ? folders.filter(f => f.id === selectedMonthlyFolderId) 
+    ? visibleFolders.filter(f => f.id === selectedMonthlyFolderId) 
     : folders;
 
   return (
@@ -1482,7 +1483,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             })()}
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea id="syllabus-scroll-area" data-lenis-prevent="true" className="h-[520px]"> <div className="p-2 flex flex-col gap-2"> {folders.length === 0 ? (
+            <ScrollArea id="syllabus-scroll-area" data-lenis-prevent="true" className="h-[520px]"> <div className="p-2 flex flex-col gap-2"> {visibleFolders.length === 0 ? (
                   <p className="p-4 text-muted-foreground text-sm text-center">No folders available for this course yet.</p>
                 ) : (
                   sidebarFolders.map((folder) => {
