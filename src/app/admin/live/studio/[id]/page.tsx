@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from '@/lib/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 
 const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
 
-export default function AdminStudio({ params }: { params: { id: string } }) {
+export default function AdminStudio(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params);
   const { user, loading } = useAuth();
   const router = useRouter();
   const [classData, setClassData] = useState<any>(null);
@@ -37,7 +38,7 @@ export default function AdminStudio({ params }: { params: { id: string } }) {
         setLoadingClass(false);
       }
     };
-    if (user && (user.role === 'admin' || user.role === 'teacher')) {
+    if (user && (user.role === 'admin' || user.role === 'teacher') && params.id) {
       fetchClass();
     }
   }, [params.id, user]);
