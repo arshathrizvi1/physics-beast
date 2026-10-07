@@ -8,9 +8,9 @@ const client = new PaymentsLk(PAYABLE_KEY);
 
 export async function POST(req: Request) {
   try {
-    const { courseId, courseName, price, userId, userEmail, userPhone, studentId, userName } = await req.json();
+    const { courseId, folderId, courseName, price, userId, userEmail, userPhone, studentId, userName } = await req.json();
 
-    if (!courseId || !userId || !price) {
+    if (!courseId || !folderId || !userId || !price) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -19,8 +19,8 @@ export async function POST(req: Request) {
     const baseUrl = `${protocol}://${host}`;
 
     // Pack the data tightly to fit within Payable's strict 64-char reference limit!
-    // courseId (20 chars), userId (28 chars). Total JSON: ~55 chars.
-    const reference = JSON.stringify([courseId, userId]);
+    // folderId (20 chars), userId (28 chars). Total JSON: ~55 chars.
+    const reference = JSON.stringify([folderId, userId]);
 
     // Build the customer object for auto-filling the Payable hosted checkout
     const customerPayload: any = {

@@ -608,6 +608,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             courseId: id,
+              folderId: checkoutFolder.id,
             courseName: course.name || checkoutFolder.name,
             price: checkoutFolder.price,
             userId: user.uid,

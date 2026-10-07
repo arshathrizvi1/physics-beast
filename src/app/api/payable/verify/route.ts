@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid reference data format" }, { status: 400 });
     }
 
-    const courseId = parsedRef[0];
+    const folderId = parsedRef[0];
     const userId = parsedRef[1];
     const price = checkout.payment.amountCents / 100;
 
@@ -40,12 +40,12 @@ export async function POST(req: Request) {
     if (!userDoc.exists) throw new Error("User not found");
     const userData = userDoc.data() || {};
     
-    const courseDoc = await adminDb.collection('folders').doc(courseId).get();
+    const courseDoc = await adminDb.collection('folders').doc(folderId).get();
     const courseName = courseDoc.exists ? courseDoc.data()?.name : "Course";
 
     const now = Date.now();
     const folderAccess = userData.folderAccess || {};
-    folderAccess[courseId] = now + (30 * 24 * 60 * 60 * 1000); // 30 days access
+    folderAccess[folderId] = now + (30 * 24 * 60 * 60 * 1000); // 30 days access
 
     // 1. Unlock course securely
     await adminDb.collection('users').doc(userId).update({ folderAccess });
@@ -59,9 +59,9 @@ export async function POST(req: Request) {
         studentId: userId,
         studentName: userData.name || "Student",
         studentEmail: userData.email || "",
-        folderId: courseId,
+        folderId: folderId,
         folderName: courseName,
-        courseId: courseId,
+        folderId: folderId,
         courseName: courseName,
         amount: price,
         method: 'card',
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ 
       success: true,
-      courseId,
+      folderId,
       userId,
       amount: price,
       paymentId: checkout.payment.id

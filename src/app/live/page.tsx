@@ -144,7 +144,8 @@ export default function StudentLivePortal() {
             }
 
             // Course / Folder access filtering
-            if (!cls.courseId || cls.courseId === "all") return true; 
+            if (cls.audienceFolderId && cls.audienceFolderId !== "all" && cls.audienceFolderId !== "none") { const expiry = user.folderAccess?.[cls.audienceFolderId]; return !!(expiry && expiry > Date.now()); }
+              if (!cls.courseId || cls.courseId === "all") return true; 
             return activeCourseIds.has(cls.courseId);
           });
           

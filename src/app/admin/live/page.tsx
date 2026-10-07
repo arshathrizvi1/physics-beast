@@ -17,6 +17,7 @@ import LiveAdminMonitor from "@/components/LiveAdminMonitor";
 import AdminLiveChat from "@/components/AdminLiveChat";
 import { FolderSelectModal } from "@/components/FolderSelectModal";
 import { CourseSelectModal } from "@/components/CourseSelectModal";
+import { TargetAudienceModal } from "@/components/TargetAudienceModal";
 import { ZoomSettingsModal } from "@/components/ZoomSettingsModal";
 
 export default function AdminLiveStudio() {
@@ -44,6 +45,7 @@ export default function AdminLiveStudio() {
   const [endTime, setEndTime] = useState("");
   const [courseId, setCourseId] = useState("all");
   const [batchId, setBatchId] = useState("all");
+  const [audienceFolderId, setAudienceFolderId] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
   const [targetFolderId, setTargetFolderId] = useState("none");
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -70,6 +72,7 @@ export default function AdminLiveStudio() {
   const [editAllowDirectJoin, setEditAllowDirectJoin] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isTargetFolderModalOpen, setIsTargetFolderModalOpen] = useState(false);
+  const [isTargetAudienceModalOpen, setIsTargetAudienceModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [isEditTargetFolderModalOpen, setIsEditTargetFolderModalOpen] = useState(false);
 
@@ -199,6 +202,7 @@ export default function AdminLiveStudio() {
         courseId: courseId === "all" ? null : courseId,
         batchId: batchId === "all" ? null : batchId,
         targetFolderId: targetFolderId === "none" ? null : targetFolderId,
+          audienceFolderId: audienceFolderId === "all" ? null : audienceFolderId,
         allowDirectJoin,
           enableSecondaryZoom: platform !== 'zoom' ? enableSecondaryZoom : false,
           secondaryZoomLink: platform !== 'zoom' ? secondaryZoomLink : "",
@@ -993,7 +997,21 @@ export default function AdminLiveStudio() {
         </div>
       )}
 
-      <FolderSelectModal
+      <TargetAudienceModal
+          isOpen={isTargetAudienceModalOpen}
+          onClose={() => setIsTargetAudienceModalOpen(false)}
+          onSelect={(folderId, cId, bId) => {
+            setAudienceFolderId(folderId);
+            setCourseId(cId);
+            setBatchId(bId);
+          }}
+          batches={batches}
+          courses={courses}
+          folders={folders}
+          defaultBatchId={batchId === "all" ? "all" : (batches.find(b => b.year === batchId)?.id || "all")}
+        />
+        
+        <FolderSelectModal
         isOpen={isTargetFolderModalOpen}
         onClose={() => setIsTargetFolderModalOpen(false)}
         onSelect={(folderId) => setTargetFolderId(folderId)}
