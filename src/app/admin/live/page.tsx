@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
@@ -272,7 +272,7 @@ export default function AdminLiveStudio() {
         const cls = liveClasses.find(c => c.id === id);
         if (cls) {
           await addDoc(collection(db, 'notifications'), {
-            title: "🔴 LIVE Class Started!",
+            title: "ðŸ”´ LIVE Class Started!",
             message: `"${cls.title}" is now LIVE! Click here to join the broadcast.`,
             type: "live_class",
             target: "all_students",
@@ -466,7 +466,7 @@ export default function AdminLiveStudio() {
                       className="flex h-10 flex-1 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
                     >
                       <span className="truncate text-foreground font-medium">
-                        {batchId === "all" ? "Global (All Batches)" : batchId} • {courseId === "all" || courseId === "none" ? "All Courses" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
+                        {batchId === "all" ? "Global (All Batches)" : batchId} â€¢ {courseId === "all" || courseId === "none" ? "All Courses" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
                       </span>
                       <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
                     </button>
@@ -490,8 +490,8 @@ export default function AdminLiveStudio() {
                     }} disabled={editingClass?.status === 'draft'}>
                   <SelectTrigger><SelectValue placeholder="Platform" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rtmp">📡 RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
-                    <SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
+                    <SelectItem value="rtmp">ðŸ“¡ RTMP Stream (OBS / Zoom Pro / StreamYard)</SelectItem>
+                    <SelectItem value="webrtc">🎙️ Interactive Room (LiveKit WebRTC)</SelectItem><SelectItem value="youtube">YouTube Live (OBS Recommended)</SelectItem>
                     <SelectItem value="zoom">Zoom App Integration (Auto-Draft)</SelectItem>
                   </SelectContent>
                 </Select>
@@ -500,16 +500,16 @@ export default function AdminLiveStudio() {
               {platform === "youtube" && (
                 <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl text-xs space-y-2">
                   <div className="font-bold text-primary flex items-center gap-1.5 text-sm">
-                    <span>🚀</span> OBS Streaming (Internet Worldwide)
+                    <span>ðŸš€</span> OBS Streaming (Internet Worldwide)
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
                     Uses YouTube RTMPS as the backend. Vercel cannot host RTMP. Students get high-speed adaptive quality (1080p, 720p).
                   </p>
                   <div className="bg-background/80 p-2.5 rounded-lg border border-border/50 space-y-1.5">
-                    <div><strong>🎥 From OBS:</strong> Settings &rarr; Stream &rarr; Select <em>YouTube - RTMPS</em> &rarr; Paste your YouTube stream key &rarr; Click <em>Start Streaming</em>.</div>
+                    <div><strong>ðŸŽ¥ From OBS:</strong> Settings &rarr; Stream &rarr; Select <em>YouTube - RTMPS</em> &rarr; Paste your YouTube stream key &rarr; Click <em>Start Streaming</em>.</div>
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    👉 Then paste your YouTube unlisted video link in the <strong>Live Link</strong> box below.
+                    ðŸ‘‰ Then paste your YouTube unlisted video link in the <strong>Live Link</strong> box below.
                   </div>
                 </div>
               )}
@@ -517,7 +517,7 @@ export default function AdminLiveStudio() {
               {platform === "zoom" && (
                 <div className="p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs space-y-2">
                   <div className="font-bold text-blue-500 flex items-center gap-1.5 text-sm">
-                    <span>📹</span> Zoom Webhook Integration
+                    <span>ðŸ“¹</span> Zoom Webhook Integration
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
                     When you start a meeting in your Zoom account, the link is <strong>automatically drafted</strong> here via webhook.
@@ -529,7 +529,7 @@ export default function AdminLiveStudio() {
               {platform === "rtmp" && (
                 <div className="p-3.5 bg-green-500/10 border border-green-500/30 rounded-xl text-xs space-y-3">
                   <div className="font-bold text-green-500 flex items-center gap-1.5 text-sm">
-                    <span>📡</span> RTMP Direct Stream (Auto-Record & Auto-Upload)
+                    <span>ðŸ“¡</span> RTMP Direct Stream (Auto-Record & Auto-Upload)
                   </div>
                   <p className="text-muted-foreground leading-relaxed">
                     Stream directly from <strong>OBS</strong>, <strong>Zoom Pro</strong> (Custom Live Streaming), or <strong>StreamYard</strong> to your own server. When you end the stream, the recording is <strong>automatically uploaded to BunnyCDN</strong> and appears in your course folder!
@@ -543,7 +543,7 @@ export default function AdminLiveStudio() {
                       </div>
                       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
                         onClick={() => { navigator.clipboard.writeText(rtmpServerUrl); }}
-                      >📋 Copy</Button>
+                      >ðŸ“‹ Copy</Button>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
@@ -552,14 +552,14 @@ export default function AdminLiveStudio() {
                       </div>
                       <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[10px]"
                         onClick={() => { navigator.clipboard.writeText(rtmpStreamKey); }}
-                      >📋 Copy</Button>
+                      >ðŸ“‹ Copy</Button>
                     </div>
                   </div>
                   
                   <div className="text-[11px] text-muted-foreground space-y-1">
-                    <div><strong>🎥 OBS:</strong> Settings → Stream → Select <em>Custom</em> → Paste Server URL & Stream Key → Start Streaming</div>
-                    <div><strong>📹 Zoom Pro:</strong> More (...) → Live on Custom Live Streaming → Paste Server URL & Stream Key → Go Live</div>
-                    <div><strong>🎬 StreamYard:</strong> Add Destination → Custom RTMP → Paste Server URL & Stream Key → Go Live</div>
+                    <div><strong>ðŸŽ¥ OBS:</strong> Settings â†’ Stream â†’ Select <em>Custom</em> â†’ Paste Server URL & Stream Key â†’ Start Streaming</div>
+                    <div><strong>ðŸ“¹ Zoom Pro:</strong> More (...) â†’ Live on Custom Live Streaming â†’ Paste Server URL & Stream Key â†’ Go Live</div>
+                    <div><strong>ðŸŽ¬ StreamYard:</strong> Add Destination â†’ Custom RTMP â†’ Paste Server URL & Stream Key â†’ Go Live</div>
                   </div>
                 </div>
               )}
@@ -588,7 +588,7 @@ export default function AdminLiveStudio() {
                 />
                 {platform === "zoom" && (
                   <p className="text-[11px] text-muted-foreground">
-                    💡 <em>Tip: If you start a meeting directly in Zoom, this link is <strong>automatically filled</strong> for you!</em>
+                    ðŸ’¡ <em>Tip: If you start a meeting directly in Zoom, this link is <strong>automatically filled</strong> for you!</em>
                   </p>
                 )}
               </div>
@@ -626,7 +626,7 @@ export default function AdminLiveStudio() {
                 <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
                   <div className="space-y-0.5 pr-3">
                     <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
-                      <span>📹</span> Zoom Embedded Player
+                      <span>ðŸ“¹</span> Zoom Embedded Player
                     </Label>
                     <p className="text-[11px] text-muted-foreground leading-tight">
                       {allowDirectJoin ? "Enabled: Embeds Zoom Player directly inside the website." : "Disabled: Forces students to open the native Zoom App on their device."}
@@ -643,7 +643,7 @@ export default function AdminLiveStudio() {
                     }`}
                     onClick={() => setAllowDirectJoin(!allowDirectJoin)}
                   >
-                    {allowDirectJoin ? "✓ Enabled" : "✕ Disabled"}
+                    {allowDirectJoin ? "âœ“ Enabled" : "âœ• Disabled"}
                   </Button>
                 </div>
               )}
@@ -777,7 +777,7 @@ export default function AdminLiveStudio() {
                             await updateDoc(doc(db, 'live_classes', cls.id), { allowDirectJoin: newVal });
                           }}
                         >
-                          {cls.allowDirectJoin !== false ? "✅ Embedded Zoom: Enabled" : "❌ Embedded Zoom: Disabled"}
+                          {cls.allowDirectJoin !== false ? "âœ… Embedded Zoom: Enabled" : "âŒ Embedded Zoom: Disabled"}
                         </Button>
                       </div>
                     )}
@@ -865,7 +865,7 @@ export default function AdminLiveStudio() {
                   <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5">
                     <div className="space-y-0.5 pr-3">
                       <Label className="text-xs font-bold flex items-center gap-1.5 text-blue-500">
-                        <span>📹</span> Zoom Embedded Player
+                        <span>ðŸ“¹</span> Zoom Embedded Player
                       </Label>
                       <p className="text-[11px] text-muted-foreground leading-tight">
                         {editAllowDirectJoin ? "Enabled: Embeds Zoom Player directly inside the website." : "Disabled: Forces students to open the native Zoom App on their device."}
@@ -882,7 +882,7 @@ export default function AdminLiveStudio() {
                       }`}
                       onClick={() => setEditAllowDirectJoin(!editAllowDirectJoin)}
                     >
-                      {editAllowDirectJoin ? "✓ Enabled" : "✕ Disabled"}
+                      {editAllowDirectJoin ? "âœ“ Enabled" : "âœ• Disabled"}
                     </Button>
                   </div>
                 )}
