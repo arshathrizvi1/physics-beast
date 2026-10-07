@@ -746,7 +746,7 @@ export default function AdminLiveStudio() {
                       )}
                       
                       {cls.status === 'live' && cls.platform === 'webrtc' && (
-                        <Link href="/live" target="_blank" className="w-full">
+                        <Link href={`/admin/live/studio/${cls.id}`} target="_blank" className="w-full">
                           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white w-full animate-pulse shadow-lg font-bold border-2 border-emerald-400">
                             <Video className="w-4 h-4 mr-2" /> Enter WebRTC Studio
                           </Button>
