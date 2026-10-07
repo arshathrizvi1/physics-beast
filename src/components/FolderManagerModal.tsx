@@ -190,6 +190,10 @@ export default function FolderManagerModal({
                   <Input type="number" min="0" value={formPrice} onChange={e => setFormPrice(e.target.value)} className="pl-9" placeholder="0 for Free" />
                 </div>
               </div>
+              <div className="flex items-center gap-2 pt-2">
+                <input type="checkbox" id="isHidden" checked={formIsHidden} onChange={e => setFormIsHidden(e.target.checked)} className="w-4 h-4" />
+                <label htmlFor="isHidden" className="text-sm font-medium">Hide from students (Old batch / Archiving)</label>
+              </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
                 <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
                 <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Folder"}</Button>
