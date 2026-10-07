@@ -1,41 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccessToken } from 'livekit-server-sdk';
+import { LIVEKIT_API_KEY, LIVEKIT_API_SECRET, verifyCaller } from '@/lib/livekitServer';
 
 export async function POST(req: NextRequest) {
   try {
-    const { roomName, participantIdentity, participantName, isAdmin } = await req.json();
+    const caller = await verifyCaller(req);
+    if (!caller) {
+      return NextResponse.json({ error: 'Please log in again to join the class.' }, { status: 401 });
+    }
 
-    if (!roomName || !participantIdentity) {
+    const { roomName, participantName, sessionId } = await req.json();
+    if (!roomName || typeof roomName !== 'string') {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const apiKey = "APIbrilliant"; // hardcoded to bypass vercel typos
-    const apiSecret = "esDs-h5uEpAMt5oGWOJXx20TO5kcP7-mQPYVXwbBwro"; // hardcoded to bypass vercel typos
+    const safeSession = String(sessionId || 'main').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) || 'main';
+    const identity = `${caller.uid}~${safeSession}`;
 
-    if (!apiKey || !apiSecret) {
-      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-    }
-
-    // Create a new token for the participant
-    const at = new AccessToken(apiKey, apiSecret, {
-      identity: participantIdentity,
-      name: participantName || participantIdentity,
+    const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity,
+      name: participantName || caller.email || 'Student',
+      metadata: JSON.stringify({ role: caller.role, uid: caller.uid }),
+      ttl: '6h',
     });
 
-    // Determine permissions based on role
-    // Admins can publish audio/video and screen share
-    // Students can only subscribe by default (until they raise hand and are granted mic)
+    // Admins/teachers publish freely. Students join as viewers only; the teacher
+    // grants mic / camera / screen-share per student via /api/livekit/permissions.
     at.addGrant({
       room: roomName,
       roomJoin: true,
-      canPublish: isAdmin === true,
-      canPublishData: true, // Needed for chat and raise hand
+      canPublish: caller.isAdmin,
+      canPublishData: caller.isAdmin,
       canSubscribe: true,
     });
 
     const token = await at.toJwt();
-
-    return NextResponse.json({ token });
+    return NextResponse.json({ token, role: caller.role, identity });
   } catch (error: any) {
     console.error('Error generating token:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

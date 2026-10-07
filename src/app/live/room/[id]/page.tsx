@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import FullscreenShell from '@/components/FullscreenShell';
 
 const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
 
@@ -27,8 +28,7 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
   useEffect(() => {
     const fetchClass = async () => {
       try {
-        const docRef = doc(db, 'live_classes', params.id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDoc(doc(db, 'live_classes', params.id));
         if (docSnap.exists()) {
           setClassData({ id: docSnap.id, ...docSnap.data() });
         }
@@ -45,34 +45,40 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
 
   if (loading || loadingClass) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-black">
-        <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-      </div>
+      <FullscreenShell>
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+        </div>
+      </FullscreenShell>
     );
   }
 
   if (!classData || classData.status !== 'live') {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-zinc-950 text-white gap-4">
-        <h1 className="text-2xl font-bold">Class is not active</h1>
-        <Button onClick={() => window.close()} variant="outline">Close Tab</Button>
-      </div>
+      <FullscreenShell>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+          <h1 className="text-2xl font-bold">Class is not active</h1>
+          <Button onClick={() => router.push('/live')} variant="outline" className="text-black">
+            Back to Live Classes
+          </Button>
+        </div>
+      </FullscreenShell>
     );
   }
 
   return (
-    <div className="h-screen w-full bg-black overflow-hidden flex flex-col">
-      <div className="p-3 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center text-white shrink-0">
-        <h1 className="font-bold">{classData.title}</h1>
-        <Button variant="destructive" size="sm" onClick={() => window.close()}>Leave Class</Button>
+    <FullscreenShell>
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 py-2">
+        <h1 className="truncate text-sm font-bold">{classData.title}</h1>
+        <span className="flex items-center gap-2 rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold uppercase text-red-500">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500"></span> Live
+        </span>
       </div>
-      <div className="flex-1 w-full relative">
-        <LiveKitPlayer 
-          roomName={classData.id} 
-          user={user} 
-          isAdmin={user.role === 'admin' || user.role === 'teacher'} 
-        />
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
+          <LiveKitPlayer roomName={classData.id} user={user} />
+        </div>
       </div>
-    </div>
+    </FullscreenShell>
   );
 }

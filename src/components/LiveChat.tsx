@@ -35,6 +35,9 @@ export default function LiveChat({ liveClassId }: { liveClassId: string }) {
     try {
       await setDoc(presenceRef, {
         handRaised: !handRaised,
+        handRaisedAt: !handRaised ? Date.now() : null,
+        liveClassId,
+        userId: user.uid,
         studentName: user.name || user.email?.split('@')[0] || "Student",
         lastActive: Date.now()
       }, { merge: true });
