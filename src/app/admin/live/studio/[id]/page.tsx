@@ -61,7 +61,7 @@ export default function AdminStudio(props: { params: Promise<{ id: string }> }) 
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col text-white">
+    <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col text-white">
       {/* Studio Header */}
       <header className="flex items-center justify-between px-6 py-4 bg-zinc-900 border-b border-zinc-800">
         <div className="flex items-center gap-4">
