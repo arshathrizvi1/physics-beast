@@ -466,11 +466,20 @@ export default function AdminLiveStudio() {
                   <div className="flex gap-2">
                     <button 
                       type="button"
-                      onClick={() => setIsCourseModalOpen(true)}
+                      onClick={() => setIsTargetAudienceModalOpen(true)}
                       className="flex h-10 flex-1 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-left hover:bg-secondary/10 transition-colors"
                     >
-                      <span className="truncate text-foreground font-medium">
-                        {batchId === "all" ? "Global (All Batches)" : batchId} • {courseId === "all" || courseId === "none" ? "All Courses" : (courses.find(c => c.id === courseId)?.name || 'Select Course...')}
+                      <span className="truncate text-foreground font-medium flex items-center gap-2">
+                        {audienceFolderId === "all" ? (
+                          "Global (All Students)"
+                        ) : (
+                          <>
+                            <span className="text-primary">{folders.find(f => f.id === audienceFolderId)?.name || 'Select Folder...'}</span>
+                            <span className="text-muted-foreground text-xs font-normal">
+                              {courseId !== "all" && "(" + (courses.find(c => c.id === courseId)?.name || "") + ")"}
+                            </span>
+                          </>
+                        )}
                       </span>
                       <ChevronDown className="w-4 h-4 opacity-50 shrink-0" />
                     </button>
