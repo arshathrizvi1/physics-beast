@@ -31,9 +31,24 @@ function cleanPrivateKey(key: string | undefined): string | undefined {
   return cleaned.replace(/\\n/g, '\n');
 }
 
-const projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^["']|["']$/g, '');
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^["']|["']$/g, '');
-const privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+let projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^["']|["']$/g, '');
+let clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^["']|["']$/g, '');
+let privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+if (!projectId && !clientEmail && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  try {
+    let saJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+    if ((saJson.startsWith("'") && saJson.endsWith("'")) || (saJson.startsWith('"') && saJson.endsWith('"'))) {
+      saJson = saJson.slice(1, -1);
+    }
+    const sa = JSON.parse(saJson);
+    projectId = sa.project_id;
+    clientEmail = sa.client_email;
+    privateKey = cleanPrivateKey(sa.private_key);
+  } catch (e) {
+    console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY json");
+  }
+}
 
 if (!getApps().length) {
   if (projectId && clientEmail && privateKey) {
@@ -101,6 +116,13 @@ const clientDbFallback = {
             data: () => d.data(),
           })),
         };
+      },
+      add: async (data: any) => {
+        const parts = colPath.split('/').filter(Boolean);
+        const colRef = fsCollection(db, parts[0], ...parts.slice(1));
+        const newDocRef = fsDoc(colRef);
+        await fsSetDoc(newDocRef, data);
+        return { id: newDocRef.id };
       },
     };
   },

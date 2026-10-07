@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PaymentsLk } from '@payments-lk/node';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 const PAYABLE_KEY = process.env.PAYABLE_SECRET_KEY || 'sk_test_3B0zeLlZeUHIwJxvkesJic2vyGGq70i7';
 const client = new PaymentsLk(PAYABLE_KEY);
@@ -14,15 +13,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing checkoutId" }, { status: 400 });
     }
 
-    // Retrieve checkout session directly from Payable
     const checkout = await client.checkouts.retrieve(checkoutId);
     
     if (checkout.payment?.status !== 'succeeded') {
         return NextResponse.json({ success: false, status: checkout.payment?.status || 'unpaid' });
     }
 
-    // Decode the tightly packed reference JSON array!
-    // reference is exactly: '["courseId", "userId"]'
     const refDataStr = checkout.payment.reference;
     if (!refDataStr) {
       return NextResponse.json({ error: "No reference data found on payment" }, { status: 400 });
@@ -39,7 +35,43 @@ export async function POST(req: Request) {
     const userId = parsedRef[1];
     const price = checkout.payment.amountCents / 100;
 
-    // Return the validated data to the frontend so it can save the records using the authenticated user session!
+    // Retrieve user & course info from DB securely
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+    if (!userDoc.exists) throw new Error("User not found");
+    const userData = userDoc.data() || {};
+    
+    const courseDoc = await adminDb.collection('folders').doc(courseId).get();
+    const courseName = courseDoc.exists ? courseDoc.data()?.name : "Course";
+
+    const now = Date.now();
+    const folderAccess = userData.folderAccess || {};
+    folderAccess[courseId] = now + (30 * 24 * 60 * 60 * 1000); // 30 days access
+
+    // 1. Unlock course securely
+    await adminDb.collection('users').doc(userId).update({ folderAccess });
+
+    // 2. Add to payments collection for revenue tab
+    // We check if this payment ID already exists to prevent duplicate entries if the user refreshes
+    const existingPayment = await adminDb.collection('payments').where('transactionId', '==', checkout.payment.id).limit(1).get();
+    
+    if (existingPayment.empty) {
+      await adminDb.collection('payments').add({
+        studentId: userId,
+        studentName: userData.name || "Student",
+        studentEmail: userData.email || "",
+        folderId: courseId,
+        folderName: courseName,
+        courseId: courseId,
+        courseName: courseName,
+        amount: price,
+        method: 'card',
+        status: 'approved',
+        createdAt: now,
+        gateway: 'payable',
+        transactionId: checkout.payment.id
+      });
+    }
+
     return NextResponse.json({ 
       success: true,
       courseId,

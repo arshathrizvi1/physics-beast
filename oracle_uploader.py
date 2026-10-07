@@ -11,8 +11,8 @@ def download_video(url):
     print(f"Downloading video from {url}...")
     output_template = "video_%(id)s.%(ext)s"
     ydl_opts = {
-        'impersonate': 'chrome',
-        'cookiefile': '/home/opc/cookies.txt',
+        'username': 'oauth2',
+        'password': '',
         'extractor_args': {'youtube': ['player_client=ios,tv']},
         'format': 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best',
         'outtmpl': output_template,

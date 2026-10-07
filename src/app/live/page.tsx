@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -14,6 +14,7 @@ import { useRef } from 'react';
 
 const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
+const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
@@ -245,14 +246,20 @@ export default function StudentLivePortal() {
 
   // Utility to extract secure HTTPS HLS stream URL for RTMP broadcasts
   const getAvailableStreams = (cls: any) => {
+    const isAndroidApp = typeof window !== 'undefined' && !!(window as any).AndroidNative;
+
     if (cls.multiStreams) {
       const streams = [];
       if (cls.multiStreams.rtmp?.enabled) streams.push({ id: 'rtmp', label: 'App Stream', link: cls.multiStreams.rtmp.link, icon: 'PlayCircle' });
-      if (cls.multiStreams.youtube?.enabled) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
+      if (cls.multiStreams.webrtc?.enabled) streams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
+      if (cls.multiStreams.youtube?.enabled && isAndroidApp) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
       if (cls.multiStreams.zoom?.enabled) streams.push({ id: 'zoom', label: 'Zoom', link: cls.multiStreams.zoom.link, icon: 'Video' });
       if (cls.multiStreams.direct?.enabled) streams.push({ id: 'direct', label: 'Direct', link: cls.multiStreams.direct.link, icon: 'ExternalLink' });
       return streams;
     } else {
+      if (cls.platform === 'youtube' && !isAndroidApp) {
+        return [{ id: 'blocked', label: 'App Only', link: '' }];
+      }
       return [{ id: cls.platform, label: cls.platform?.toUpperCase(), link: cls.link }];
     }
   };
@@ -460,6 +467,29 @@ export default function StudentLivePortal() {
                           </a>
                         </div>
                   )}
+                </div>
+              )}
+
+              {/* Blocked Stream Warning */}
+              {getActiveStream(cls).id === 'blocked' && cls.status === 'live' && (
+                <div className="p-12 bg-zinc-900 min-h-[300px] flex flex-col items-center justify-center text-center">
+                  <div className="text-xl font-bold text-red-500 flex items-center justify-center gap-2 mb-4">
+                    App Required for Playback
+                  </div>
+                  <p className="text-muted-foreground max-w-md">
+                    YouTube playback has been restricted to the Mobile App to protect course content. Please download and use the official Android App to watch this live stream.
+                  </p>
+                </div>
+              )}
+
+              {/* Interactive WebRTC Room */}
+              {getActiveStream(cls).id === 'webrtc' && cls.status === 'live' && (
+                <div className="w-full mb-4">
+                  <LiveKitPlayer 
+                    roomName={cls.id} 
+                    user={user} 
+                    isAdmin={user?.role === 'admin' || user?.isAdmin} 
+                  />
                 </div>
               )}
 

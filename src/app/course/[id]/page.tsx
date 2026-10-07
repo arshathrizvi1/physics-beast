@@ -334,41 +334,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           });
           const data = await res.json();
           if (data.success) {
-            if (user) {
-                try {
-                  const now = Date.now();
-                  
-                  // 1. Update user folder access in Firestore
-                  const userRef = doc(db, 'users', user.uid);
-                  const folderAccess = user.folderAccess || {};
-                  folderAccess[id] = now + (30 * 24 * 60 * 60 * 1000); // 30 days
-                  await updateDoc(userRef, { folderAccess });
-
-                  // 2. Add to payments collection for revenue tab
-                  await addDoc(collection(db, 'payments'), {
-                    studentId: user.uid,
-                    studentName: user.name || "Student",
-                    studentEmail: user.email,
-                    folderId: id,
-                    folderName: course?.name || "Course",
-                    courseId: id,
-                    courseName: course?.name || "Course",
-                    amount: data.amount || 1000,
-                    method: 'card',
-                    status: 'approved',
-                    createdAt: now,
-                    gateway: 'payable',
-                    transactionId: data.paymentId
-                  });
-                } catch (dbError) {
-                  console.error("Error saving payment to database:", dbError);
-                }
-
-                // Clear URL params
-                window.history.replaceState({}, document.title, window.location.pathname);
-                alert("Payment Successful! Access granted.");
-                window.location.reload();
-            }
+            // Backend now securely updates the database!
+            window.history.replaceState({}, document.title, window.location.pathname);
+            alert("Payment Successful! Access granted.");
+            window.location.reload();
           } else {
             alert("Payment verification failed: " + (data.status || data.error));
           }
@@ -519,7 +488,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const playingRef = useRef(playing);
   useEffect(() => { playingRef.current = playing; }, [playing]);
   const activeVideoRef = useRef(activeVideo);
-  useEffect(() => { activeVideoRef.current = activeVideo; setActiveServer('bunny'); }, [activeVideo]);
+  useEffect(() => { 
+    activeVideoRef.current = activeVideo; 
+    if (typeof window !== 'undefined' && (window as any).AndroidNative && activeVideo?.originalYoutubeUrl) {
+      setActiveServer('youtube');
+    } else {
+      setActiveServer('bunny'); 
+    }
+  }, [activeVideo]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {

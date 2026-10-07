@@ -11,7 +11,10 @@ export async function POST(request: Request) {
     }
 
     const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
-    const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+    
+    // Route everything to the configured RTMP proxy server (AWS)
+    let serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+
     const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
     const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
     const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
