@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const apiKey = process.env.LIVEKIT_API_KEY;
-    const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const apiKey = "APIbrilliant"; // hardcoded to bypass vercel typos
+    const apiSecret = "esDs-h5uEpAMt5oGWOJXx20TO5kcP7-mQPYVXwbBwro"; // hardcoded to bypass vercel typos
 
     if (!apiKey || !apiSecret) {
       return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
