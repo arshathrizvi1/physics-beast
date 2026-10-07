@@ -234,9 +234,12 @@ export default function FolderManagerModal({
                         </div>
                       </div>
                       <div className="flex gap-2 w-full sm:w-auto">
-                        <Button variant="secondary" size="sm" onClick={() => openEditForm(folder)} className="flex-1 sm:flex-none">
-                          <Edit2 className="w-4 h-4 mr-2" /> Edit
-                        </Button>
+                        <Button variant="secondary" size="sm" onClick={() => { setFolderToCopy(folder); setIsCopyModalOpen(true); }} className="flex-1 sm:flex-none" title="Copy Folder">
+    <Copy className="w-4 h-4" /> 
+  </Button>
+  <Button variant="secondary" size="sm" onClick={() => openEditForm(folder)} className="flex-1 sm:flex-none">
+    <Edit2 className="w-4 h-4 mr-2" /> Edit
+  </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDelete(folder.id)} className="flex-1 sm:flex-none hover:bg-destructive/10 hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                         </Button>
