@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   RoomAudioRenderer,
@@ -23,6 +23,37 @@ interface LiveKitPlayerProps {
 }
 
 function CustomStudioLayout() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isFull, setIsFull] = useState(false);
+  const [pseudoFull, setPseudoFull] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFull(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const el = rootRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else if (pseudoFull) {
+        setPseudoFull(false);
+      } else if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else {
+        // Fallback (e.g. iPhone Safari): cover the whole viewport
+        setPseudoFull(true);
+      }
+    } catch {
+      setPseudoFull(true);
+    }
+  };
+
+  const showingFull = isFull || pseudoFull;
+
   // Only grab tracks from participants who are actively broadcasting video or screen share!
   // This completely eliminates the empty grey avatars for audio-only or spectator students.
   const tracks = useTracks(
@@ -35,7 +66,11 @@ function CustomStudioLayout() {
 
   return (
     <LayoutContextProvider>
-      <div className="flex h-full w-full bg-black relative" style={{ height: '100%' }}>
+      <div
+        ref={rootRef}
+        className={`flex w-full bg-black relative ${pseudoFull ? 'fixed inset-0 z-[9999]' : ''}`}
+        style={{ height: pseudoFull ? '100dvh' : '100%' }}
+      >
         <div className="flex-1 flex flex-col h-full relative border-r border-zinc-800">
           <div className="flex-1 w-full p-2 h-full flex flex-col">
             {tracks.length === 0 ? (
@@ -57,8 +92,16 @@ function CustomStudioLayout() {
           </div>
           
           {/* Universal Control Bar */}
-          <div className="shrink-0 p-3 bg-zinc-950 border-t border-zinc-900 flex justify-center">
+          <div className="shrink-0 p-3 bg-zinc-950 border-t border-zinc-900 flex justify-center items-center gap-2">
             <ControlBar variation="minimal" controls={{ camera: true, microphone: true, screenShare: true, chat: false, leave: true }} />
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="lk-button"
+              title={showingFull ? 'Exit full screen' : 'Full screen'}
+            >
+              {showingFull ? 'Exit Full Screen' : 'Full Screen'}
+            </button>
           </div>
         </div>
         
