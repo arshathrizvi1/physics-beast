@@ -18,6 +18,7 @@ export default function AdminStudio(props: { params: Promise<{ id: string }> }) 
   const [classData, setClassData] = useState<any>(null);
   const [loadingClass, setLoadingClass] = useState(true);
 
+  useEffect(() => { const h = document.querySelector('header'); const f = document.querySelector('footer'); if(h) h.style.display='none'; if(f) f.style.display='none'; return () => { if(h) h.style.display=''; if(f) f.style.display=''; }; }, []);
   useEffect(() => {
     if (!loading && (!user || (user.role !== 'admin' && user.role !== 'teacher'))) {
       router.push('/login');
