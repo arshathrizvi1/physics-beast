@@ -3,17 +3,74 @@
 import { useEffect, useState } from 'react';
 import {
   LiveKitRoom,
-  VideoConference,
   RoomAudioRenderer,
   ControlBar,
-  useRoomContext
+  useTracks,
+  GridLayout,
+  ParticipantTile,
+  ConnectionStateToast,
+  Chat,
+  LayoutContextProvider,
+  FocusLayoutContainer
 } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 import '@livekit/components-styles';
 
 interface LiveKitPlayerProps {
   roomName: string;
   user: any;
   isAdmin?: boolean;
+}
+
+function CustomStudioLayout() {
+  // Only grab tracks from participants who are actively broadcasting video or screen share!
+  // This completely eliminates the empty grey avatars for audio-only or spectator students.
+  const tracks = useTracks(
+    [
+      { source: Track.Source.Camera, withPlaceholder: false },
+      { source: Track.Source.ScreenShare, withPlaceholder: false },
+    ],
+    { onlySubscribed: false }
+  );
+
+  return (
+    <LayoutContextProvider>
+      <div className="flex h-full w-full bg-black relative" style={{ height: '100%' }}>
+        <div className="flex-1 flex flex-col h-full relative border-r border-zinc-800">
+          <div className="flex-1 w-full p-2 h-full flex flex-col">
+            {tracks.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 font-medium bg-zinc-950 rounded-xl border border-zinc-900 border-dashed m-4">
+                <div className="w-16 h-16 mb-4 rounded-full bg-zinc-900 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                Waiting for broadcaster to turn on camera...
+              </div>
+            ) : (
+              <FocusLayoutContainer>
+                <GridLayout tracks={tracks} style={{ height: '100%' }}>
+                  <ParticipantTile />
+                </GridLayout>
+              </FocusLayoutContainer>
+            )}
+          </div>
+          
+          {/* Universal Control Bar */}
+          <div className="shrink-0 p-3 bg-zinc-950 border-t border-zinc-900 flex justify-center">
+            <ControlBar variation="minimal" controls={{ camera: true, microphone: true, screenShare: true, chat: false, leave: true }} />
+          </div>
+        </div>
+        
+        {/* Chat sidebar fixed on the right */}
+        <div className="w-80 h-full bg-zinc-950 flex flex-col hidden md:flex">
+          <Chat className="flex-1 border-none bg-transparent" />
+        </div>
+        
+        <ConnectionStateToast />
+      </div>
+    </LayoutContextProvider>
+  );
 }
 
 export default function LiveKitPlayer({ roomName, user, isAdmin }: LiveKitPlayerProps) {
@@ -59,21 +116,16 @@ export default function LiveKitPlayer({ roomName, user, isAdmin }: LiveKitPlayer
 
   return (
     <LiveKitRoom
-      video={isAdmin} // Automatically turn on camera if admin
-      audio={isAdmin} // Automatically turn on mic if admin
+      video={isAdmin}
+      audio={isAdmin}
       token={token}
       serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
       data-lk-theme="default"
-      className="h-[600px] w-full rounded-xl overflow-hidden border border-zinc-800 shadow-2xl"
+      className="h-full w-full rounded-xl overflow-hidden shadow-2xl"
+      style={{ height: '100%', minHeight: '600px' }}
     >
-      {/* The default VideoConference component handles grid layout, chat, and participants */}
-      <VideoConference />
-      
-      {/* Render audio from the room */}
+      <CustomStudioLayout />
       <RoomAudioRenderer />
-      
-      {/* If it's a student, we can optionally hide the control bar entirely or customize it. 
-          By default, LiveKit handles permissions gracefully (buttons will be disabled if no publish grants) */}
     </LiveKitRoom>
   );
 }
