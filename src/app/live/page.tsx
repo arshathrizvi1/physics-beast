@@ -251,16 +251,21 @@ export default function StudentLivePortal() {
     if (cls.multiStreams) {
       const streams = [];
       if (cls.multiStreams.rtmp?.enabled) streams.push({ id: 'rtmp', label: 'App Stream', link: cls.multiStreams.rtmp.link, icon: 'PlayCircle' });
-      if (cls.multiStreams.webrtc?.enabled) streams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
+      // Always show Interactive tab for testing
+      streams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
       if (cls.multiStreams.youtube?.enabled && isAndroidApp) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
       if (cls.multiStreams.zoom?.enabled) streams.push({ id: 'zoom', label: 'Zoom', link: cls.multiStreams.zoom.link, icon: 'Video' });
       if (cls.multiStreams.direct?.enabled) streams.push({ id: 'direct', label: 'Direct', link: cls.multiStreams.direct.link, icon: 'ExternalLink' });
       return streams;
     } else {
+      const fallbackStreams = [];
+      fallbackStreams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
       if (cls.platform === 'youtube' && !isAndroidApp) {
-        return [{ id: 'blocked', label: 'App Only', link: '' }];
+        fallbackStreams.push({ id: 'blocked', label: 'App Only', link: '' });
+      } else {
+        fallbackStreams.push({ id: cls.platform, label: cls.platform?.toUpperCase(), link: cls.link });
       }
-      return [{ id: cls.platform, label: cls.platform?.toUpperCase(), link: cls.link }];
+      return fallbackStreams;
     }
   };
 

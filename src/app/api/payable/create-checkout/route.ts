@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       description: `Course: ${courseName}`,
       reference: reference,
       customer: customerPayload,
-      successUrl: `${baseUrl}/course/${courseId}?payment=success&session_id={CHECKOUT_ID}`,
+      successUrl: `${baseUrl}/course/${courseId}?payment=success`,
       cancelUrl: `${baseUrl}/course/${courseId}?payment=cancelled`
     });
 

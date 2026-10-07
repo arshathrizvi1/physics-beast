@@ -321,7 +321,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
-    const sessionId = urlParams.get('session_id');
+    const sessionId = urlParams.get('checkout') || urlParams.get('session_id');
 
     if (paymentStatus === 'success' && sessionId && user) {
       // Show processing state

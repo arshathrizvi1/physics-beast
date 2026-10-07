@@ -37,7 +37,8 @@ export default function AdminLiveStudio() {
     youtube: { enabled: false, link: "" },
     zoom: { enabled: false, link: "" },
     rtmp: { enabled: false, link: "" },
-    direct: { enabled: false, link: "" }
+    direct: { enabled: false, link: "" },
+    webrtc: { enabled: false, link: "" }
   });
   const [scheduledFor, setScheduledFor] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -221,7 +222,8 @@ export default function AdminLiveStudio() {
         youtube: { enabled: false, link: "" },
         zoom: { enabled: false, link: "" },
         rtmp: { enabled: false, link: "" },
-        direct: { enabled: false, link: "" }
+        direct: { enabled: false, link: "" },
+        webrtc: { enabled: false, link: "" }
       });
       setScheduledFor("");
         setEndTime("");
