@@ -277,7 +277,7 @@ export default function PaymentSettingsPage() {
                         alert("Failed to upload image.");
                       }
                     }}
-                    className="bg-black border-border file:text-primary file:bg-primary/10 file:border-0 file:rounded-md file:px-2 file:py-1 cursor-pointer" 
+                    className="bg-background border-border text-foreground file:text-primary file:bg-primary/10 file:border-0 file:rounded-md file:px-2 file:py-1 cursor-pointer" 
                   />
                 </div>
               </div>

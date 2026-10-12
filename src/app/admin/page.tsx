@@ -1956,7 +1956,7 @@ export default function AdminDashboard() {
   if (!user || (user.role !== "admin" && user.role !== "teacher")) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center bg-zinc-950 -mx-4 -my-8 px-4 py-8">
-        <Card className="w-full max-w-md border-primary/30 bg-black shadow-2xl shadow-primary/20">
+        <Card className="w-full max-w-md border-primary/30 bg-card shadow-2xl shadow-primary/20">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
               <Settings className="w-6 h-6" /> Admin Portal
@@ -1973,11 +1973,11 @@ export default function AdminDashboard() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="admin-email" className="text-foreground/90">Admin Email</Label>
-                <Input id="admin-email" type="email" placeholder="admin@physicsbeast.com" className="bg-zinc-900 border-border text-foreground" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input id="admin-email" type="email" placeholder="admin@physicsbeast.com" className="bg-background border-border text-foreground" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="admin-password" className="text-foreground/90">Password</Label>
-                <Input id="admin-password" type="password" className="bg-zinc-900 border-border text-foreground" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Input id="admin-password" type="password" className="bg-background border-border text-foreground" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full bg-primary hover:bg-primary/80 text-black font-bold">Authenticate</Button>
             </form>
@@ -3921,7 +3921,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               {/* Category Switcher Buttons */}
-              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-zinc-900 border border-white/10 rounded-xl">
+              <div className="flex flex-wrap items-center gap-2 p-1.5 bg-secondary/30 border border-border rounded-xl">
                 <Button 
                   type="button"
                   size="sm"

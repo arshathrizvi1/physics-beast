@@ -105,6 +105,9 @@
   html {
     @apply font-sans;
   }
+  input, textarea, select {
+    @apply text-foreground;
+  }
 }
 
 /* Anti-IDM Download Panel */

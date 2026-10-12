@@ -142,7 +142,7 @@ export default function AboutAdminPage() {
                   value={data.tagline} 
                   onChange={e => setData({...data, tagline: e.target.value})} 
                   placeholder="Empowering students with quality education..."
-                  className="bg-black border-border min-h-[80px]"
+                  className="bg-background border-border min-h-[80px]"
                 />
               </div>
               <div className="space-y-2">
@@ -150,7 +150,7 @@ export default function AboutAdminPage() {
                 <Textarea 
                   value={data.mission} 
                   onChange={e => setData({...data, mission: e.target.value})} 
-                  className="bg-black border-border min-h-[100px]"
+                  className="bg-background border-border min-h-[100px]"
                 />
               </div>
               <div className="space-y-2">
@@ -158,7 +158,7 @@ export default function AboutAdminPage() {
                 <Textarea 
                   value={data.vision} 
                   onChange={e => setData({...data, vision: e.target.value})} 
-                  className="bg-black border-border min-h-[100px]"
+                  className="bg-background border-border min-h-[100px]"
                 />
               </div>
               <div className="space-y-2">
@@ -166,7 +166,7 @@ export default function AboutAdminPage() {
                 <Textarea 
                   value={data.whyChooseUs} 
                   onChange={e => setData({...data, whyChooseUs: e.target.value})} 
-                  className="bg-black border-border min-h-[80px]"
+                  className="bg-background border-border min-h-[80px]"
                 />
               </div>
             </CardContent>
@@ -183,7 +183,7 @@ export default function AboutAdminPage() {
                 <Input 
                   value={data.contact.email} 
                   onChange={e => updateContact('email', e.target.value)} 
-                  className="bg-black border-border" 
+                  className="bg-background border-border" 
                 />
               </div>
               <div className="space-y-2">
@@ -191,7 +191,7 @@ export default function AboutAdminPage() {
                 <Input 
                   value={data.contact.phone} 
                   onChange={e => updateContact('phone', e.target.value)} 
-                  className="bg-black border-border" 
+                  className="bg-background border-border" 
                 />
               </div>
               <div className="space-y-2">
@@ -199,7 +199,7 @@ export default function AboutAdminPage() {
                 <Input 
                   value={data.contact.location} 
                   onChange={e => updateContact('location', e.target.value)} 
-                  className="bg-black border-border" 
+                  className="bg-background border-border" 
                 />
               </div>
               <div className="space-y-2">
@@ -207,7 +207,7 @@ export default function AboutAdminPage() {
                 <Input 
                   value={data.contact.website} 
                   onChange={e => updateContact('website', e.target.value)} 
-                  className="bg-black border-border" 
+                  className="bg-background border-border" 
                 />
               </div>
             </CardContent>
@@ -219,26 +219,26 @@ export default function AboutAdminPage() {
                 <CardTitle className="text-foreground">Features</CardTitle>
                 <CardDescription>3 key benefits shown in the "Why Choose Us" grid.</CardDescription>
               </div>
-              <Button onClick={addFeature} variant="outline" size="sm" className="border-zinc-700 text-foreground/90">
+              <Button onClick={addFeature} variant="outline" size="sm" className="border-border text-foreground/90">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Feature
               </Button>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
               {data.features.map((feature, index) => (
-                <div key={index} className="flex gap-4 p-4 border border-border rounded-lg bg-black/50">
+                <div key={index} className="flex gap-4 p-4 border border-border rounded-lg bg-secondary/10">
                   <div className="flex-1 space-y-4">
                     <Input 
                       placeholder="Feature Title (e.g., Expert Instructors)" 
                       value={feature.title} 
                       onChange={e => updateFeature(index, 'title', e.target.value)} 
-                      className="bg-black border-border font-bold"
+                      className="bg-background border-border font-bold"
                     />
                     <Textarea 
                       placeholder="Feature Description" 
                       value={feature.description} 
                       onChange={e => updateFeature(index, 'description', e.target.value)} 
-                      className="bg-black border-border h-20"
+                      className="bg-background border-border h-20"
                     />
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => removeFeature(index)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10 shrink-0">
