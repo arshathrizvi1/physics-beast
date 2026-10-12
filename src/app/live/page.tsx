@@ -99,6 +99,59 @@ export default function StudentLivePortal() {
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
+  // Anti-DevTools Security & Inspection Lock (Students only)
+  useEffect(() => {
+    if (!user || user.role === 'admin' || user.role === 'teacher') return;
+
+    // 1. Prevent Right-Click Context Menu across live portal
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    // 2. Block DevTools Keyboard Shortcuts (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      if (
+        e.key === "F12" ||
+        (isCmdOrCtrl && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
+        (isCmdOrCtrl && e.key.toLowerCase() === "u")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    // 3. Timing-Based Debugger Trap (Freezes / blurs player if DevTools is opened)
+    const trapInterval = setInterval(() => {
+      const t0 = performance.now();
+      // This debugger statement pauses execution ONLY when DevTools is open
+      (function () {}.constructor("debugger")());
+      const t1 = performance.now();
+      
+      if (t1 - t0 > 100) {
+        if (playerContainerRef.current) {
+          playerContainerRef.current.style.filter = "blur(40px)";
+          playerContainerRef.current.style.opacity = "0.05";
+        }
+      } else {
+        if (playerContainerRef.current && playerContainerRef.current.style.filter === "blur(40px)") {
+          playerContainerRef.current.style.filter = "none";
+          playerContainerRef.current.style.opacity = "1";
+        }
+      }
+    }, 1000);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+      clearInterval(trapInterval);
+    };
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     
@@ -524,7 +577,7 @@ export default function StudentLivePortal() {
                   ) : (
                     <>
                       {/* Video Player Container */}
-                      <div className="absolute inset-0 w-full h-full z-0">
+                      <div className={`absolute inset-0 w-full h-full z-0 overflow-hidden ${getActiveStream(cls).id === 'youtube' ? 'scale-[1.10] origin-center pointer-events-none select-none' : ''}`}>
                         <ReactPlayer
                           ref={playerRef}
                           url={getStreamUrl(cls)}
