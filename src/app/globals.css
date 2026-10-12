@@ -258,3 +258,16 @@ body {
   --silver: #D8D8D8;
 }
 
+
+/* Unbypassable DevTools Lockdown */
+body.devtools-locked > *:not(#security-violation-modal) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+@media print {
+  body.devtools-locked, body.devtools-locked * {
+    display: none !important;
+  }
+}

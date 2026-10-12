@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { IsRoot } from '@capgo/capacitor-is-root';
 import { App } from '@capacitor/app';
 import { ShieldAlert } from 'lucide-react';
@@ -10,6 +10,7 @@ export function SecurityEnforcer() {
   const { user } = useAuth();
   const [isCompromised, setIsCompromised] = useState(false);
   const [isDevToolsDetected, setIsDevToolsDetected] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // 1. Native Root / Jailbreak Security (Mobile Apps)
   useEffect(() => {
@@ -34,87 +35,122 @@ export function SecurityEnforcer() {
     checkSecurity();
   }, []);
 
-  // 2. Instant Anti-DevTools & Anti-Inspection (Students & Guests Only)
+  // 2. Unbypassable Anti-DevTools & Anti-Inspection Engine (Students & Guests)
   useEffect(() => {
-    // Admins and Teachers are completely exempt so they can manage the site
+    // Admins and Teachers are completely exempt
     if (user?.role === 'admin' || user?.role === 'teacher') {
       setIsDevToolsDetected(false);
+      document.body.classList.remove('devtools-locked');
       return;
     }
 
-    // A. Prevent Right-Click Context Menu across entire website
-    const handleContextMenu = (e: MouseEvent) => {
+    // A. Intercept Right-Click Context Menu everywhere
+    const blockContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       return false;
     };
-    document.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("contextmenu", blockContextMenu, true);
+    document.addEventListener("contextmenu", blockContextMenu, true);
 
-    // B. Block DevTools Shortcuts (F12, Ctrl/Cmd + Shift + I/J/C, Ctrl/Cmd + U, Ctrl/Cmd + S)
-    const handleKeyDown = (e: KeyboardEvent) => {
+    // B. Block DevTools, Inspect, and Source Shortcuts
+    const blockShortcuts = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
       const key = e.key.toUpperCase();
 
       if (
         e.key === "F12" ||
         (isCmdOrCtrl && e.shiftKey && ["I", "J", "C"].includes(key)) ||
-        (isCmdOrCtrl && key === "U") ||
-        (isCmdOrCtrl && key === "S")
+        (isCmdOrCtrl && ["U", "S", "P"].includes(key)) // U: Source, S: Save, P: Print
       ) {
         e.preventDefault();
         e.stopPropagation();
         return false;
       }
     };
-    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("keydown", blockShortcuts, true);
 
-    // C. Instant DevTools Detection (Zero Delay - No "Paused in Debugger" prompt)
+    // C. Multi-Vector DevTools Detection
     const threshold = 160;
-    
-    // Console getter detector (for undocked DevTools)
-    let consoleOpen = false;
-    const element = new Image();
-    Object.defineProperty(element, 'id', {
+
+    // Vector 1: Undocked Console Formatters
+    let consoleOpened = false;
+    const detectorReg = /./;
+    detectorReg.toString = () => {
+      consoleOpened = true;
+      return '';
+    };
+
+    const dateObj = new Date();
+    Object.defineProperty(dateObj, 'toString', {
       get: () => {
-        consoleOpen = true;
+        consoleOpened = true;
+        return '';
       }
     });
 
     const checkDevTools = () => {
-      consoleOpen = false;
-      // Trigger getter if console is open
+      consoleOpened = false;
       try {
-        console.debug(element);
+        console.debug(detectorReg);
+        console.debug(dateObj);
         console.clear();
       } catch (e) {}
 
-      // Check docked window dimensions (instant on F12 / inspect)
+      // Vector 2: Docked Window Size Differential Check
       const widthDiff = window.outerWidth - window.innerWidth > threshold;
       const heightDiff = window.outerHeight - window.innerHeight > threshold;
 
-      if (widthDiff || heightDiff || consoleOpen) {
+      const isDetected = widthDiff || heightDiff || consoleOpened;
+
+      if (isDetected) {
         setIsDevToolsDetected(true);
+        document.body.classList.add('devtools-locked');
       } else {
         setIsDevToolsDetected(false);
+        document.body.classList.remove('devtools-locked');
       }
     };
 
-    // Instant event listeners
-    window.addEventListener("resize", checkDevTools);
-    const interval = setInterval(checkDevTools, 300);
+    // Instant Event Listeners
+    window.addEventListener("resize", checkDevTools, { passive: true });
+    const interval = setInterval(checkDevTools, 250);
     checkDevTools();
 
+    // D. Anti-Tamper MutationObserver (Prevents deleting modal in DevTools)
+    const observer = new MutationObserver(() => {
+      if (document.body.classList.contains('devtools-locked')) {
+        const modal = document.getElementById('security-violation-modal');
+        if (!modal) {
+          // Student attempted to delete the security warning using DevTools!
+          // Force immediate page blank / redirect to protect content
+          window.location.replace('/login?reason=tamper_detected');
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    });
+
     return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
-      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("contextmenu", blockContextMenu, true);
+      document.removeEventListener("contextmenu", blockContextMenu, true);
+      window.removeEventListener("keydown", blockShortcuts, true);
       window.removeEventListener("resize", checkDevTools);
       clearInterval(interval);
+      observer.disconnect();
+      document.body.classList.remove('devtools-locked');
     };
   }, [user]);
 
   // Screen for Rooted/Jailbroken devices
   if (isCompromised) {
     return (
-      <div className="fixed inset-0 z-[999999] bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none">
+      <div className="fixed inset-0 z-[9999999] bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none">
         <ShieldAlert className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
         <h1 className="text-2xl font-bold text-red-500 mb-4">Security Violation Detected</h1>
         <p className="text-gray-300 max-w-md">
@@ -124,10 +160,15 @@ export function SecurityEnforcer() {
     );
   }
 
-  // Instant Screen for Students trying to open DevTools / Inspect Element
+  // Hardened Security Screen for DevTools Violation
   if (isDevToolsDetected) {
     return (
-      <div className="fixed inset-0 z-[999999] bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-md">
+      <div 
+        id="security-violation-modal"
+        ref={modalRef}
+        className="fixed inset-0 z-[9999999] bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-3xl"
+        style={{ pointerEvents: 'auto' }}
+      >
         <ShieldAlert className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
         <h1 className="text-2xl font-bold text-red-500 mb-4">Developer Tools Prohibited</h1>
         <p className="text-gray-300 max-w-md">
