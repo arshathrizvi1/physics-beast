@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { IsRoot } from '@capgo/capacitor-is-root';
 import { App } from '@capacitor/app';
 import { ShieldAlert } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 
 export function SecurityEnforcer() {
   const { user } = useAuth();
+  const pathname = usePathname();
   const [isCompromised, setIsCompromised] = useState(false);
   const [isDevToolsDetected, setIsDevToolsDetected] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -35,16 +37,23 @@ export function SecurityEnforcer() {
     checkSecurity();
   }, []);
 
-  // 2. Unbypassable Anti-DevTools & Anti-Inspection Engine (Students & Guests)
+  // 2. Anti-DevTools & Anti-Inspection Engine (Students & Guests)
   useEffect(() => {
-    // Admins and Teachers are completely exempt
+    // A. Admins & Teachers are completely exempt
     if (user?.role === 'admin' || user?.role === 'teacher') {
       setIsDevToolsDetected(false);
       document.body.classList.remove('devtools-locked');
       return;
     }
 
-    // A. Intercept Right-Click Context Menu everywhere
+    // B. Never lock authentication pages (login / register)
+    if (pathname?.startsWith('/login') || pathname?.startsWith('/signup') || pathname?.startsWith('/register')) {
+      setIsDevToolsDetected(false);
+      document.body.classList.remove('devtools-locked');
+      return;
+    }
+
+    // C. Intercept Right-Click Context Menu everywhere
     const blockContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -53,7 +62,7 @@ export function SecurityEnforcer() {
     window.addEventListener("contextmenu", blockContextMenu, true);
     document.addEventListener("contextmenu", blockContextMenu, true);
 
-    // B. Block DevTools, Inspect, and Source Shortcuts
+    // D. Block DevTools, Inspect, and Source Shortcuts
     const blockShortcuts = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
       const key = e.key.toUpperCase();
@@ -61,7 +70,7 @@ export function SecurityEnforcer() {
       if (
         e.key === "F12" ||
         (isCmdOrCtrl && e.shiftKey && ["I", "J", "C"].includes(key)) ||
-        (isCmdOrCtrl && ["U", "S", "P"].includes(key)) // U: Source, S: Save, P: Print
+        (isCmdOrCtrl && ["U", "S", "P"].includes(key))
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -70,40 +79,18 @@ export function SecurityEnforcer() {
     };
     window.addEventListener("keydown", blockShortcuts, true);
 
-    // C. Multi-Vector DevTools Detection
-    const threshold = 160;
-
-    // Vector 1: Undocked Console Formatters
-    let consoleOpened = false;
-    const detectorReg = /./;
-    detectorReg.toString = () => {
-      consoleOpened = true;
-      return '';
-    };
-
-    const dateObj = new Date();
-    Object.defineProperty(dateObj, 'toString', {
-      get: () => {
-        consoleOpened = true;
-        return '';
-      }
-    });
-
+    // E. Accurate DevTools Dimension Detection
+    // Normal browser toolbars/borders: width diff is ~16px, height diff is ~140-190px (title+tabs+URL+bookmarks).
+    // Docked DevTools drawer is at least 250px on width, and adds at least 250px on height.
     const checkDevTools = () => {
-      consoleOpened = false;
-      try {
-        console.debug(detectorReg);
-        console.debug(dateObj);
-        console.clear();
-      } catch (e) {}
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
 
-      // Vector 2: Docked Window Size Differential Check
-      const widthDiff = window.outerWidth - window.innerWidth > threshold;
-      const heightDiff = window.outerHeight - window.innerHeight > threshold;
+      // DevTools docked to side (>220px) OR DevTools docked to bottom (>320px)
+      const isDockedSide = widthDiff > 220;
+      const isDockedBottom = heightDiff > 320;
 
-      const isDetected = widthDiff || heightDiff || consoleOpened;
-
-      if (isDetected) {
+      if (isDockedSide || isDockedBottom) {
         setIsDevToolsDetected(true);
         document.body.classList.add('devtools-locked');
       } else {
@@ -112,29 +99,9 @@ export function SecurityEnforcer() {
       }
     };
 
-    // Instant Event Listeners
     window.addEventListener("resize", checkDevTools, { passive: true });
-    const interval = setInterval(checkDevTools, 250);
+    const interval = setInterval(checkDevTools, 400);
     checkDevTools();
-
-    // D. Anti-Tamper MutationObserver (Prevents deleting modal in DevTools)
-    const observer = new MutationObserver(() => {
-      if (document.body.classList.contains('devtools-locked')) {
-        const modal = document.getElementById('security-violation-modal');
-        if (!modal) {
-          // Student attempted to delete the security warning using DevTools!
-          // Force immediate page blank / redirect to protect content
-          window.location.replace('/login?reason=tamper_detected');
-        }
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style']
-    });
 
     return () => {
       window.removeEventListener("contextmenu", blockContextMenu, true);
@@ -142,10 +109,9 @@ export function SecurityEnforcer() {
       window.removeEventListener("keydown", blockShortcuts, true);
       window.removeEventListener("resize", checkDevTools);
       clearInterval(interval);
-      observer.disconnect();
       document.body.classList.remove('devtools-locked');
     };
-  }, [user]);
+  }, [user, pathname]);
 
   // Screen for Rooted/Jailbroken devices
   if (isCompromised) {
@@ -160,7 +126,7 @@ export function SecurityEnforcer() {
     );
   }
 
-  // Hardened Security Screen for DevTools Violation
+  // Security Screen for DevTools Violation
   if (isDevToolsDetected) {
     return (
       <div 
