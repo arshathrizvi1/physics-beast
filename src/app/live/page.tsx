@@ -125,25 +125,21 @@ export default function StudentLivePortal() {
     };
     window.addEventListener("keydown", handleKeyDown);
 
-    // 3. Timing-Based Debugger Trap (Freezes / blurs player if DevTools is opened)
-    const trapInterval = setInterval(() => {
-      const t0 = performance.now();
-      // This debugger statement pauses execution ONLY when DevTools is open
-      (function () {}.constructor("debugger")());
-      const t1 = performance.now();
-      
-      if (t1 - t0 > 100) {
-        if (playerContainerRef.current) {
+    // 3. Instant DevTools Blur (Zero-Delay)
+    const checkLiveDevTools = () => {
+      const isDevTools = (window.outerWidth - window.innerWidth > 160) || (window.outerHeight - window.innerHeight > 160);
+      if (playerContainerRef.current) {
+        if (isDevTools) {
           playerContainerRef.current.style.filter = "blur(40px)";
           playerContainerRef.current.style.opacity = "0.05";
-        }
-      } else {
-        if (playerContainerRef.current && playerContainerRef.current.style.filter === "blur(40px)") {
+        } else if (playerContainerRef.current.style.filter === "blur(40px)") {
           playerContainerRef.current.style.filter = "none";
           playerContainerRef.current.style.opacity = "1";
         }
       }
-    }, 1000);
+    };
+    window.addEventListener("resize", checkLiveDevTools);
+    const trapInterval = setInterval(checkLiveDevTools, 400);
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);

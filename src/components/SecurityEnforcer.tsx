@@ -34,7 +34,7 @@ export function SecurityEnforcer() {
     checkSecurity();
   }, []);
 
-  // 2. Global Anti-DevTools & Anti-Inspection (Students & Guests Only)
+  // 2. Instant Anti-DevTools & Anti-Inspection (Students & Guests Only)
   useEffect(() => {
     // Admins and Teachers are completely exempt so they can manage the site
     if (user?.role === 'admin' || user?.role === 'teacher') {
@@ -67,24 +67,47 @@ export function SecurityEnforcer() {
     };
     window.addEventListener("keydown", handleKeyDown, true);
 
-    // C. Continuous Timing Trap (Pauses execution and detects open DevTools)
-    const trapInterval = setInterval(() => {
-      const t0 = performance.now();
-      // This debugger statement halts JavaScript execution ONLY when DevTools is open
-      (function () {}.constructor("debugger")());
-      const t1 = performance.now();
+    // C. Instant DevTools Detection (Zero Delay - No "Paused in Debugger" prompt)
+    const threshold = 160;
+    
+    // Console getter detector (for undocked DevTools)
+    let consoleOpen = false;
+    const element = new Image();
+    Object.defineProperty(element, 'id', {
+      get: () => {
+        consoleOpen = true;
+      }
+    });
 
-      if (t1 - t0 > 100) {
+    const checkDevTools = () => {
+      consoleOpen = false;
+      // Trigger getter if console is open
+      try {
+        console.debug(element);
+        console.clear();
+      } catch (e) {}
+
+      // Check docked window dimensions (instant on F12 / inspect)
+      const widthDiff = window.outerWidth - window.innerWidth > threshold;
+      const heightDiff = window.outerHeight - window.innerHeight > threshold;
+
+      if (widthDiff || heightDiff || consoleOpen) {
         setIsDevToolsDetected(true);
       } else {
         setIsDevToolsDetected(false);
       }
-    }, 1000);
+    };
+
+    // Instant event listeners
+    window.addEventListener("resize", checkDevTools);
+    const interval = setInterval(checkDevTools, 300);
+    checkDevTools();
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("keydown", handleKeyDown, true);
-      clearInterval(trapInterval);
+      window.removeEventListener("resize", checkDevTools);
+      clearInterval(interval);
     };
   }, [user]);
 
@@ -101,7 +124,7 @@ export function SecurityEnforcer() {
     );
   }
 
-  // Screen for Students trying to open DevTools / Inspect Element
+  // Instant Screen for Students trying to open DevTools / Inspect Element
   if (isDevToolsDetected) {
     return (
       <div className="fixed inset-0 z-[999999] bg-black text-white flex flex-col items-center justify-center p-6 text-center select-none backdrop-blur-md">
