@@ -12,7 +12,7 @@ export function SecurityEnforcer() {
   const pathname = usePathname();
   const [isCompromised, setIsCompromised] = useState(false);
 
-  // 1. Native Root / Jailbreak Security (Mobile Apps)
+  // 1. Native Mobile Security (Root/Jailbreak detection)
   useEffect(() => {
     const checkSecurity = async () => {
       try {
@@ -35,14 +35,14 @@ export function SecurityEnforcer() {
     checkSecurity();
   }, []);
 
-  // 2. Hard DOM Purge & Lock on DevTools / Inspect Tampering (Students & Guests)
+  // 2. Complete Anti-Recording, Anti-Screenshot, & Anti-Inspect Suite
   useEffect(() => {
-    // A. Admins and Teachers are completely exempt
+    // Admins and Teachers are completely exempt
     if (user?.role === 'admin' || user?.role === 'teacher') {
       return;
     }
 
-    // B. Never lock authentication pages
+    // Never lock authentication pages
     if (pathname?.startsWith('/login') || pathname?.startsWith('/signup') || pathname?.startsWith('/register')) {
       return;
     }
@@ -54,10 +54,8 @@ export function SecurityEnforcer() {
       if (isPurged) return;
       isPurged = true;
 
-      // Stop all media streams and pending network fetches immediately
       try { window.stop(); } catch (e) {}
 
-      // Completely ERASE document.body: No background elements, no iframes, no React code left in memory
       document.body.innerHTML = `
         <div style="position:fixed;inset:0;background:#050505;color:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;padding:24px;user-select:none;">
           <div style="width:84px;height:84px;margin-bottom:24px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(239,68,68,0.2);">
@@ -67,7 +65,7 @@ export function SecurityEnforcer() {
           </div>
           <h1 style="color:#ef4444;font-size:26px;font-weight:800;letter-spacing:-0.5px;margin:0 0 12px 0;">Security Violation: Content Erased</h1>
           <p style="color:#a1a1aa;max-width:520px;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
-            Developer tools or element inspection has been detected. All video streams, source code, and page content have been completely erased from memory to protect copyright.
+            Developer tools or screen capture tampering has been detected. All video streams, source code, and page content have been completely erased from memory to protect copyright.
           </p>
           <div style="background:#18181b;border:1px solid #27272a;padding:12px 28px;border-radius:12px;color:#71717a;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,0.5);">
             Please close Developer Tools and <strong style="color:#ffffff;">refresh the page</strong> to return to normal.
@@ -76,7 +74,7 @@ export function SecurityEnforcer() {
       `;
     };
 
-    // C. Intercept Right-Click Context Menu everywhere
+    // A. Intercept Right-Click Context Menu everywhere
     const blockContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -85,7 +83,7 @@ export function SecurityEnforcer() {
     window.addEventListener("contextmenu", blockContextMenu, true);
     document.addEventListener("contextmenu", blockContextMenu, true);
 
-    // D. Block Shortcuts & Trigger Purge if Inspect is pressed
+    // B. Block Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S, Ctrl+P)
     const blockShortcuts = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
       const key = e.key.toUpperCase();
@@ -103,12 +101,62 @@ export function SecurityEnforcer() {
     };
     window.addEventListener("keydown", blockShortcuts, true);
 
-    // E. DevTools Dimension Detection (Triggers purge if docked drawer opens)
+    // C. Anti-Snipping Tool & Window Focus Blackout
+    // When a student opens Snipping Tool (Win+Shift+S) or clicks outside to an external recorder,
+    // the window immediately loses focus. We blackout all videos and media instantly!
+    const handleBlur = () => {
+      document.body.classList.add('window-unfocused-blur');
+    };
+    const handleFocus = () => {
+      document.body.classList.remove('window-unfocused-blur');
+    };
+    const handleVisibility = () => {
+      if (document.hidden) {
+        document.body.classList.add('window-unfocused-blur');
+      } else {
+        document.body.classList.remove('window-unfocused-blur');
+      }
+    };
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // D. Clipboard Poisoning on PrintScreen Key
+    // If student presses PrintScreen, overwrite the clipboard with a copyright warning
+    const handlePrintScreen = (e: KeyboardEvent) => {
+      if (e.key === "PrintScreen" || e.keyCode === 44) {
+        try {
+          const warningMsg = `⚠️ COPYRIGHT WARNING: Screen capture and distribution is strictly prohibited on Brilliant Academy. User: ${user?.email || user?.phone || 'Student'}`;
+          navigator.clipboard.writeText(warningMsg);
+        } catch (err) {}
+      }
+    };
+    window.addEventListener("keyup", handlePrintScreen);
+    window.addEventListener("keydown", handlePrintScreen);
+
+    // E. Block Browser Screen Recording Extensions (navigator.mediaDevices.getDisplayMedia)
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
+      try {
+        navigator.mediaDevices.getDisplayMedia = () => {
+          purgeAndLockdown();
+          return Promise.reject(new DOMException("Screen recording is prohibited by security policy", "NotAllowedError"));
+        };
+      } catch (err) {}
+    }
+
+    // F. Prevent Dragging Media Out of Window
+    const blockDrag = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
+    };
+    window.addEventListener("dragstart", blockDrag);
+
+    // G. DevTools Dimension Detection (Triggers purge if docked drawer opens)
     const checkDevTools = () => {
       const widthDiff = window.outerWidth - window.innerWidth;
       const heightDiff = window.outerHeight - window.innerHeight;
 
-      // DevTools docked side (>220px) OR DevTools docked bottom (>320px)
       if (widthDiff > 220 || heightDiff > 320) {
         purgeAndLockdown();
       }
@@ -117,8 +165,7 @@ export function SecurityEnforcer() {
     window.addEventListener("resize", checkDevTools, { passive: true });
     const interval = setInterval(checkDevTools, 400);
 
-    // F. The "Single Letter Change in Inspect" Detector:
-    // If a student in DevTools edits any text (characterData) or modifies nodes in Inspect
+    // H. Anti-Tamper Observer: Catches modifications made in DevTools
     const observer = new MutationObserver((mutations) => {
       if (isPurged) return;
       const isDevToolsOpen = (window.outerWidth - window.innerWidth > 220) || (window.outerHeight - window.innerHeight > 320);
@@ -142,9 +189,16 @@ export function SecurityEnforcer() {
       window.removeEventListener("contextmenu", blockContextMenu, true);
       document.removeEventListener("contextmenu", blockContextMenu, true);
       window.removeEventListener("keydown", blockShortcuts, true);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("keyup", handlePrintScreen);
+      window.removeEventListener("keydown", handlePrintScreen);
+      window.removeEventListener("dragstart", blockDrag);
       window.removeEventListener("resize", checkDevTools);
       clearInterval(interval);
       observer.disconnect();
+      document.body.classList.remove('window-unfocused-blur');
     };
   }, [user, pathname]);
 

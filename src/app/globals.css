@@ -271,3 +271,20 @@ body.devtools-locked > *:not(#security-violation-modal) {
     display: none !important;
   }
 }
+
+/* Anti-Snipping Tool & Background Capture Blackout */
+body.window-unfocused-blur video,
+body.window-unfocused-blur iframe,
+body.window-unfocused-blur canvas {
+  filter: brightness(0) blur(40px) !important;
+  opacity: 0.05 !important;
+  pointer-events: none !important;
+  transition: filter 0.08s ease-in-out, opacity 0.08s ease-in-out;
+}
+
+/* Global Anti-Selection on Media */
+video, iframe, canvas {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-user-drag: none !important;
+}
