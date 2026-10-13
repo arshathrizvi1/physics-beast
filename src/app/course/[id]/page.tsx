@@ -156,8 +156,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           
           const res = await fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
           if (!res.ok) {
-              if (res.status === 403) { const errData = await res.json().catch(() => ({})); setBunnyEmbedUrl('CRACKED:' + (errData.error || 'Unknown 403')); return; }
-              else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
+              setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
               return;
           }
           const data = await res.json();
@@ -1023,27 +1022,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           )}
 
                           {activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' && (
-                          bunnyEmbedUrl.startsWith('CRACKED') ? (
-                                <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto relative z-[60]">
-                                    <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
-                                    <p className="text-zinc-400">Video playback has been permanently blocked due to unauthorized modification of the app.</p><p className="text-red-500 mt-4 text-xs">{bunnyEmbedUrl}</p>
-                                </div>
-                            ) : (
-                                <iframe 
-                                  src={bunnyEmbedUrl || activeVideo.url} 
-                                  className="w-full h-full border-0 relative z-[50]"
-                                  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
-                                  allowFullScreen={true}
-                                />
-                            )
+                            <iframe 
+                              src={(bunnyEmbedUrl && !bunnyEmbedUrl.startsWith('CRACKED')) ? bunnyEmbedUrl : activeVideo.url} 
+                              className="w-full h-full border-0 relative z-[50]"
+                              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                              allowFullScreen={true}
+                            />
                         )}
                         <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
-                          {typeof window !== 'undefined' && (window as any).AndroidNative?.checkAppIntegrity?.() === 'CRACKED' ? (
-                              <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
-                                  <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
-                                  <p className="text-zinc-400">YouTube playback has been permanently blocked due to unauthorized modification of the app.</p>
-                              </div>
-                          ) : (
                           <ReactPlayer
                             ref={playerRef}
                         url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
@@ -1143,7 +1129,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                     />
-                  )}
                   </div>
                     </>
 

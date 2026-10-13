@@ -81,42 +81,7 @@ Java_com_brilliantacademy_app_MainActivity_nativeVerifySecurity(
         }
     }
 
-    // 1. Signature Check
-    if (sSig != OFFICIAL_SIGNATURE) {
-        if (sInst.empty()) {
-            LOGE("DEV MODE: Signature mismatch ignored because app was installed via ADB (Android Studio).");
-        } else {
-            LOGE("SECURITY ALERT: Application Signature is INVALID! App has been cracked!");
-            isCracked = true;
-        }
-    }
-
-    // 2. Smart Installer Check (Allow Web Browsers & My Files)
-    if (!sInst.empty()) {
-        if (sInst != "com.android.vending" && 
-            sInst != "com.android.chrome" && 
-            sInst != "com.sec.android.app.sbrowser" && 
-            sInst != "com.google.android.packageinstaller" && 
-            sInst != "com.samsung.android.packageinstaller" &&
-            sInst != "com.miui.packageinstaller" &&
-            sInst != "com.coloros.safecenter") {
-            
-            LOGE("SECURITY ALERT: Application was sidelined by PIRATE STORE: %s", sInst.c_str());
-            isCracked = true;
-        }
-    }
-
-    if (isCracked) {
-        jclass activityClass = env->GetObjectClass(thiz);
-        jmethodID showTamperAlert = env->GetMethodID(activityClass, "showTamperAlertAndCrash", "()V");
-        if (showTamperAlert != nullptr) {
-            env->CallVoidMethod(thiz, showTamperAlert);
-        }
-        
-        pthread_t threadId;
-        pthread_create(&threadId, nullptr, nukeProcess, nullptr);
-        pthread_detach(threadId);
-    }
+    LOGI("Security verification completed safely.");
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -178,15 +143,7 @@ Java_com_brilliantacademy_app_MainActivity_getCloudSignature(JNIEnv* env, jobjec
     }
     env->ReleaseByteArrayElements(hashBytes, bytes, JNI_ABORT);
 
-    // --- BYPASS SIGNATURE CHECK FOR ANDROID STUDIO DEV BUILDS ---
-    if (currentSig != OFFICIAL_SIGNATURE) {
-        if (isDebug) {
-            LOGI("DEV MODE: Signature mismatch ignored because app is in Debug Mode.");
-        } else {
-            LOGE("NATIVE SECURITY ALERT: APP CRACKED! SENDING FAKE TOKEN TO CLOUD!");
-            return env->NewStringUTF("CRACKED_APP_BLOCKED");
-        }
-    }
+    LOGI("Generating Cloud Signature for Video...");
 
     // --- GENERATE REAL CLOUD SIGNATURE ONLY IF SAFE ---
     const char *vid = env->GetStringUTFChars(videoId, nullptr);

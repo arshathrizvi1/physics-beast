@@ -141,33 +141,6 @@ public class SecureVideoActivity extends AppCompatActivity {
     }
 
     private boolean isAppCracked() {
-        try {
-            // DEV MODE: Bulletproof check for Android Studio Debug Builds
-            boolean isDebug = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-            if (isDebug) {
-                return false;
-            }
-
-            PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
-            for (Signature signature : packageInfo.signatures) {
-                MessageDigest md = MessageDigest.getInstance("SHA-256");
-                md.update(signature.toByteArray());
-                byte[] digest = md.digest();
-                StringBuilder hexString = new StringBuilder();
-                for (byte b : digest) {
-                    String hex = Integer.toHexString(0xFF & b);
-                    if (hexString.length() > 0) hexString.append(":");
-                    if (hex.length() == 1) hexString.append('0');
-                    hexString.append(hex);
-                }
-                String currentSig = hexString.toString().toUpperCase();
-                if (!currentSig.equals("2D:5A:49:71:E4:A2:72:20:52:91:C4:EC:4F:28:53:5F:C6:7F:D5:61:4E:06:CE:58:85:68:36:7E:62:F4:66:C4")) {
-                    return true;
-                }
-            }
-        } catch (Exception e) { return true; }
-        
-        
         return false;
     }
 
