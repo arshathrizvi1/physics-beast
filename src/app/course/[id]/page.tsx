@@ -1163,13 +1163,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               allowFullScreen={true}
                             />
                         )}
-                        <div className={`absolute inset-0 pointer-events-none w-full h-full overflow-hidden ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
-                          <div className={`w-full h-full origin-center transition-transform duration-300 ${
-                            (activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be'))))
-                              ? 'scale-x-[1.18] scale-y-[1.28]'
-                              : 'scale-100'
-                          }`}>
-                            <ReactPlayer
+                        <div className={`absolute inset-0 pointer-events-none w-full h-full ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                          <ReactPlayer
                             ref={playerRef}
                         url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
                       width="100%"
@@ -1288,16 +1283,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                     />
-                  </div>
 
-                  {/* Top and Bottom Protective Guard Strips for YouTube Player */}
-                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
-                    <>
-                      <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black/90 to-transparent pointer-events-none z-10" />
-                      <div className="absolute bottom-0 right-0 w-36 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-10" />
-                    </>
-                  )}
-                </div>
+                    {/* Top and Bottom Protective Guard Strips for YouTube Player (Clean original format) */}
+                    {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
+                      <>
+                        <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none z-10 flex items-center px-4">
+                          <span className="text-xs sm:text-sm font-semibold text-white/90 drop-shadow-md truncate">
+                            {activeVideo?.title || course?.name || ''}
+                          </span>
+                        </div>
+                        <div className="absolute bottom-0 right-0 w-44 h-14 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none z-10" />
+                      </>
+                    )}
+                  </div>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}
