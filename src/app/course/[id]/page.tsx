@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard } from "lucide-react";
+import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard, RotateCcw, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback, useMemo } from "react";
@@ -90,7 +90,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [quality, setQuality] = useState('Auto');
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
-  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ side: 'left' | 'right' | null; time: number }>({ side: null, time: 0 });
+  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [seekFeedback, setSeekFeedback] = useState<{ side: 'left' | 'right'; text: string } | null>(null);
+  const seekFeedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
   const readyFiredRef = useRef<Set<string>>(new Set());
   const syllabusScrollRef = useRef<HTMLDivElement>(null);
@@ -305,6 +308,106 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (hh) return `${hh}:${mm.toString().padStart(2, '0')}:${ss}`;
     return `${mm}:${ss}`;
   };
+
+  // Safe Double-Tap Seek Handler (prevents clamping to 0 when duration is loading/unknown)
+  const handleSeekDelta = useCallback((deltaSeconds: number) => {
+    if (!playerRef.current) return;
+
+    try {
+      // 1. Determine current playback time safely
+      let ct = 0;
+      if (typeof playerRef.current.getCurrentTime === 'function') {
+        const time = playerRef.current.getCurrentTime();
+        if (typeof time === 'number' && !isNaN(time) && isFinite(time)) {
+          ct = time;
+        }
+      }
+      if (ct === 0 && played > 0 && duration > 0) {
+        ct = played * duration;
+      }
+
+      // 2. Determine duration safely from player instance or state
+      let dur = 0;
+      if (typeof playerRef.current.getDuration === 'function') {
+        const d = playerRef.current.getDuration();
+        if (typeof d === 'number' && !isNaN(d) && isFinite(d) && d > 0) {
+          dur = d;
+        }
+      }
+      if (dur === 0 && typeof duration === 'number' && duration > 0) {
+        dur = duration;
+      }
+
+      // 3. Compute new target seek position
+      let target = ct + deltaSeconds;
+      if (deltaSeconds < 0) {
+        target = Math.max(0, target);
+      } else {
+        // Forward seeking:
+        // If duration is known (> 0), cap at dur - 0.5 to avoid hitting stream-end replay loop
+        if (dur > 0) {
+          target = Math.min(Math.max(0, dur - 0.5), target);
+        }
+        // If dur is unknown or 0, NEVER clamp to 0! target remains ct + deltaSeconds
+      }
+
+      playerRef.current.seekTo(target, 'seconds');
+
+      if (dur > 0) {
+        setPlayed(Math.max(0, Math.min(1, target / dur)));
+      }
+    } catch (err) {
+      console.warn("Seek error:", err);
+    }
+  }, [played, duration]);
+
+  const showSeekFeedback = useCallback((side: 'left' | 'right', text: string) => {
+    if (seekFeedbackTimerRef.current) {
+      clearTimeout(seekFeedbackTimerRef.current);
+    }
+    setSeekFeedback({ side, text });
+    seekFeedbackTimerRef.current = setTimeout(() => {
+      setSeekFeedback(null);
+      seekFeedbackTimerRef.current = null;
+    }, 700);
+  }, []);
+
+  const handleTap = useCallback((side: 'left' | 'right') => {
+    const now = Date.now();
+    const isDoubleTap = lastTapRef.current.side === side && (now - lastTapRef.current.time) < 320;
+
+    if (isDoubleTap) {
+      // Double tap confirmed! Cancel pending single-tap action (e.g. play/pause toggle)
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      // Update tap time to support rapid consecutive taps (+10s, +20s, etc.)
+      lastTapRef.current = { side, time: now };
+
+      if (side === 'left') {
+        handleSeekDelta(-10);
+        showSeekFeedback('left', '-10s');
+      } else {
+        handleSeekDelta(10);
+        showSeekFeedback('right', '+10s');
+      }
+    } else {
+      // First tap: register side and timestamp, trigger single tap action after grace period
+      lastTapRef.current = { side, time: now };
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+      singleTapTimerRef.current = setTimeout(() => {
+        lastTapRef.current = { side: null, time: 0 };
+        singleTapTimerRef.current = null;
+        setPlaying(prev => !prev);
+        setShowControls(prev => !prev);
+        setShowSpeedMenu(false);
+        setShowQualityMenu(false);
+      }, 300);
+    }
+  }, [handleSeekDelta, showSeekFeedback]);
 
   // DVD-style bouncing watermark ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â covers full player
   useEffect(() => {
@@ -1153,48 +1256,47 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 )}
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
-                <div className={`absolute inset-0 z-10 cursor-pointer flex ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                <div 
+                  className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}
+                >
                   <div 
                     className="w-1/2 h-full"
                     onClick={(e) => {
-                      if (clickTimeoutRef.current) {
-                        clearTimeout(clickTimeoutRef.current);
-                        clickTimeoutRef.current = null;
-                        // Double click Left: Seek -10s
-                        if (playerRef.current) {
-                          const ct = playerRef.current.getCurrentTime();
-                          playerRef.current.seekTo(Math.max(0, ct - 10), 'seconds');
-                        }
-                      } else {
-                        clickTimeoutRef.current = setTimeout(() => {
-                          clickTimeoutRef.current = null;
-                          setPlaying(!playing);
-                          setShowSpeedMenu(false);
-                        }, 250);
-                      }
+                      e.stopPropagation();
+                      handleTap('left');
                     }}
                   />
                   <div 
                     className="w-1/2 h-full"
                     onClick={(e) => {
-                      if (clickTimeoutRef.current) {
-                        clearTimeout(clickTimeoutRef.current);
-                        clickTimeoutRef.current = null;
-                        // Double click Right: Seek +10s
-                        if (playerRef.current) {
-                          const ct = playerRef.current.getCurrentTime();
-                          playerRef.current.seekTo(Math.min(duration, ct + 10), 'seconds');
-                        }
-                      } else {
-                        clickTimeoutRef.current = setTimeout(() => {
-                          clickTimeoutRef.current = null;
-                          setPlaying(!playing);
-                          setShowSpeedMenu(false);
-                        }, 250);
-                      }
+                      e.stopPropagation();
+                      handleTap('right');
                     }}
                   />
                 </div>
+
+                {/* Double Tap Seek Visual Feedback Overlay */}
+                {seekFeedback && (
+                  <div 
+                    className={`absolute top-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center transition-all animate-in zoom-in-75 fade-in duration-150 ${
+                      seekFeedback.side === 'left' ? 'left-[12%] sm:left-[18%]' : 'right-[12%] sm:right-[18%]'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center justify-center px-4 py-3 rounded-2xl bg-black/80 backdrop-blur-md border border-white/20 text-white shadow-2xl">
+                      {seekFeedback.side === 'left' ? (
+                        <>
+                          <RotateCcw className="w-7 h-7 mb-1 text-primary animate-pulse" />
+                          <span className="text-xs font-bold tracking-wider">{seekFeedback.text}</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCw className="w-7 h-7 mb-1 text-primary animate-pulse" />
+                          <span className="text-xs font-bold tracking-wider">{seekFeedback.text}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Floating Email Watermark - Enhanced for Anti-Piracy */}
                 <div
@@ -1230,6 +1332,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         const percentage = Math.max(0, Math.min(1, x / rect.width));
                         setPlayed(percentage);
                         playerRef.current?.seekTo(percentage, 'fraction');
+                      }}
+                      onTouchStart={(e) => {
+                        if (e.touches && e.touches[0]) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const x = e.touches[0].clientX - rect.left;
+                          const percentage = Math.max(0, Math.min(1, x / rect.width));
+                          setPlayed(percentage);
+                          playerRef.current?.seekTo(percentage, 'fraction');
+                        }
                       }}
                     >
                       <div className="absolute w-full h-1 bg-white/20 rounded-full group-hover/progress:h-2 transition-all" />
