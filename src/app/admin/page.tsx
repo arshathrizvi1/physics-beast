@@ -170,6 +170,7 @@ export default function AdminDashboard() {
   const [editVideoPlayerSettings, setEditVideoPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
   const [globalPlayerSettings, setGlobalPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
   const [isSavingGlobalPlayer, setIsSavingGlobalPlayer] = useState(false);
+  const [showPlayerSettingsModal, setShowPlayerSettingsModal] = useState(false);
 
   // Content Browser --- which folder is expanded in the Content tab
   const [contentBrowseBatchId, setContentBrowseBatchId] = useState<string | null>("all");
@@ -2958,38 +2959,30 @@ export default function AdminDashboard() {
 
         {/* CONTENT & VIDEO TAB */}
         <TabsContent value="content" className="space-y-6">
-          {/* GLOBAL VIDEO PLAYER & DEVICE ACCESS CONTROL CARD */}
-          <Card className="border-primary/40 shadow-md">
-            <CardHeader className="bg-primary/5 border-b border-primary/20 pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
-                    Global Video Player & Device Access Controls
-                  </CardTitle>
-                  <CardDescription>
-                    Configure default permissions for Bunny Cloud and YouTube players across PC Web, Mobile Web, and the Android App.
-                  </CardDescription>
-                </div>
-                <Button 
-                  onClick={handleSaveGlobalPlayerSettings}
-                  disabled={isSavingGlobalPlayer}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 shrink-0 gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isSavingGlobalPlayer ? "Saving..." : "Save Default Settings"}
-                </Button>
+          {/* GLOBAL VIDEO PLAYER & DEVICE ACCESS CONTROL BANNER */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-primary/30 bg-primary/5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <PlayerSettingsEditor 
-                value={globalPlayerSettings}
-                onChange={setGlobalPlayerSettings}
-                title="Default Player Permissions for all Videos"
-                description="These rules apply across all courses and videos. You can also customize permissions individually for any specific video below."
-              />
-            </CardContent>
-          </Card>
+              <div>
+                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                  Global Video Player & Device Access Controls
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Configure default permissions for Bunny Cloud and YouTube players across PC Web, Mobile Web, and the Android App.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowPlayerSettingsModal(true)}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shrink-0 gap-2 h-9 shadow-sm"
+            >
+              <Settings className="w-4 h-4" />
+              Configure Player Controls
+            </Button>
+          </div>
 
           <Card className="border-primary/50 shadow-md">
             <CardHeader className="bg-primary/5 border-b border-primary/20">
@@ -6202,6 +6195,64 @@ export default function AdminDashboard() {
                 <Button type="submit">Save Changes</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GLOBAL VIDEO PLAYER & DEVICE ACCESS CONTROL MODAL */}
+      {showPlayerSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-background border border-primary/30 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-5 border-b border-border/50 bg-secondary/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground">Global Video Player & Device Controls</h3>
+                  <p className="text-xs text-muted-foreground">Select which players students can watch on each device type.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPlayerSettingsModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-secondary/60 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+              <PlayerSettingsEditor 
+                value={globalPlayerSettings}
+                onChange={setGlobalPlayerSettings}
+                title="Default Player Permissions for all Videos"
+                description="These rules apply across all courses and videos. You can also customize permissions individually for any specific video in the Content Browser."
+              />
+            </div>
+
+            <div className="p-4 border-t border-border/50 bg-secondary/10 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowPlayerSettingsModal(false)}
+                className="h-9 px-4 text-xs font-semibold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  await handleSaveGlobalPlayerSettings();
+                  setShowPlayerSettingsModal(false);
+                }}
+                disabled={isSavingGlobalPlayer}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 px-5 text-xs gap-2 shadow-sm"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {isSavingGlobalPlayer ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
