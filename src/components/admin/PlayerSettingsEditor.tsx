@@ -58,6 +58,54 @@ export function PlayerSettingsEditor({
         )}
       </div>
 
+      {/* Primary Default Player Selector */}
+      <div className="p-3.5 rounded-xl border border-primary/20 bg-background/70 shadow-sm space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <span>⭐</span> Default Primary Player (Opens First)
+          </label>
+          <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded bg-primary/10">
+            {(current.defaultPlayer || 'bunny') === 'bunny' ? 'Cloud Player' : 'YouTube Player'}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-tight">
+          Select which player is loaded by default when a student opens a video. If both players are enabled for their device, students can switch using the Source tabs.
+        </p>
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <button
+            type="button"
+            onClick={() => onChange({ ...current, defaultPlayer: 'bunny' })}
+            className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-medium text-left transition-all ${
+              (current.defaultPlayer || 'bunny') === 'bunny'
+                ? 'border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary'
+                : 'border-border/60 bg-secondary/20 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <PlayCircle className="w-4 h-4 shrink-0 text-primary" />
+            <div>
+              <p className="font-bold text-xs">Bunny Cloud Player</p>
+              <p className="text-[10px] opacity-80 font-normal">Primary (Recommended)</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...current, defaultPlayer: 'youtube' })}
+            className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-medium text-left transition-all ${
+              current.defaultPlayer === 'youtube'
+                ? 'border-red-500 bg-red-500/10 text-red-500 shadow-sm ring-1 ring-red-500'
+                : 'border-border/60 bg-secondary/20 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <YoutubeIcon className="w-4 h-4 shrink-0 text-red-500" />
+            <div>
+              <p className="font-bold text-xs">YouTube Player</p>
+              <p className="text-[10px] opacity-80 font-normal">Secondary / Alternative</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Bunny / Cloud Player Card */}
         <div className={`p-3.5 rounded-lg border transition-all ${current.bunny?.enabled !== false ? 'border-primary/40 bg-background/80 shadow-sm' : 'border-border/40 bg-secondary/20 opacity-70'}`}>

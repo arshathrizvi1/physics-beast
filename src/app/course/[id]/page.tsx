@@ -105,6 +105,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (snap.exists()) {
         const data = snap.data() as any;
         setGlobalPlayerSettings({
+          defaultPlayer: data.defaultPlayer || 'bunny',
           bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
           youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
         });
@@ -508,6 +509,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const activeSettings: VideoPlayerSettings = useMemo(() => {
     if (activeVideo?.playerSettings) {
       return {
+        defaultPlayer: activeVideo.playerSettings.defaultPlayer || globalPlayerSettings?.defaultPlayer || 'bunny',
         bunny: { ...defaultPlayerSettings.bunny, ...(globalPlayerSettings?.bunny || {}), ...(activeVideo.playerSettings.bunny || {}) },
         youtube: { ...defaultPlayerSettings.youtube, ...(globalPlayerSettings?.youtube || {}), ...(activeVideo.playerSettings.youtube || {}) },
       };
@@ -530,14 +532,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const activeVideoRef = useRef(activeVideo);
   useEffect(() => { 
     activeVideoRef.current = activeVideo; 
+    const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
+
     if (isYoutubePermitted && !isBunnyPermitted) {
       setActiveServer('youtube');
     } else if (!isYoutubePermitted && isBunnyPermitted) {
       setActiveServer('bunny');
     } else if (isYoutubePermitted && isBunnyPermitted) {
-      setActiveServer(activeVideo?.originalYoutubeUrl ? 'youtube' : 'bunny');
+      if (preferredPlayer === 'youtube') {
+        setActiveServer('youtube');
+      } else {
+        // Bunny is Primary by default!
+        setActiveServer('bunny');
+      }
     }
-  }, [activeVideo, isYoutubePermitted, isBunnyPermitted]);
+  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
@@ -1228,7 +1237,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       <div className="absolute h-3 w-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 shadow-md" style={{ left: `calc(${played * 100}% - 6px)` }} />
                     </div>
 
-                    <div className="flex items-center justify-between text-foreground mt-1">
+                    <div className="flex items-center justify-between text-white mt-1">
                       <div className="flex items-center gap-5">
                         <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
                           {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
@@ -1270,16 +1279,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             </button>
                             {showQualityMenu && (
                               <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                                <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
-                                  <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
-                                    <span className="text-xs text-foreground/50 font-medium py-2">Quality</span>
-                                    <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
+                                <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-28 text-white backdrop-blur-md">
+                                  <div className="flex justify-between items-center border-b border-white/10 mb-1 px-3 py-1.5">
+                                    <span className="text-xs text-zinc-400 font-semibold">Quality</span>
+                                    <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
                                   {['Auto', '1080p', '720p', '480p', '360p', '144p'].map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
-                                      className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
+                                      className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
                                       {q}
                                     </button>
@@ -1304,16 +1313,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </button>
                           {showSpeedMenu && (
                             <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                              <div className="bg-black/90 rounded border border-white/10 overflow-hidden shadow-2xl pb-1 w-28">
-                                <div className="flex justify-between items-center border-b border-white/10 mb-1 px-2">
-                                  <span className="text-xs text-foreground/50 font-medium py-2">Speed</span>
-                                  <X className="w-3 h-3 text-foreground/50 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(false); }} />
+                              <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-28 text-white backdrop-blur-md">
+                                <div className="flex justify-between items-center border-b border-white/10 mb-1 px-3 py-1.5">
+                                  <span className="text-xs text-zinc-400 font-semibold">Speed</span>
+                                  <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(false); }} />
                                 </div>
                                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
                                   <button 
                                     key={rate} 
                                     onClick={(e) => { e.stopPropagation(); setPlaybackRate(rate); setShowSpeedMenu(false); }}
-                                    className={`w-full px-4 py-2 text-sm text-left hover:bg-white/10 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/10' : 'text-foreground'}`}
+                                    className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${playbackRate === rate ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                   >
                                     {rate === 1 ? 'Normal' : `${rate}x`}
                                   </button>
@@ -1399,6 +1408,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 <div className="flex items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
                   <span className="text-muted-foreground px-1.5 font-medium">Source:</span>
                   <button
+                    onClick={() => setActiveServer('bunny')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      activeServer === 'bunny'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Cloud (Primary)
+                  </button>
+                  <button
                     onClick={() => setActiveServer('youtube')}
                     className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                       activeServer === 'youtube'
@@ -1407,16 +1426,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     }`}
                   >
                     YouTube
-                  </button>
-                  <button
-                    onClick={() => setActiveServer('bunny')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      activeServer === 'bunny'
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Cloud
                   </button>
                 </div>
               )}

@@ -296,6 +296,7 @@ export default function AdminDashboard() {
       if (snap.exists()) {
         const data = snap.data() as any;
         setGlobalPlayerSettings({
+          defaultPlayer: data.defaultPlayer || 'bunny',
           bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
           youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
         });
