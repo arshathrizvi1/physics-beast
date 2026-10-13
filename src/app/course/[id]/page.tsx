@@ -1348,29 +1348,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
 
-                    {/* Top and Bottom Protective Guard Strips for YouTube Player (Clean original format) */}
-                    {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && !pipedCleanStream && (
-                      <>
-                        {/* 100% Solid Opaque Top Shield: Obliterates YouTube avatar, video title, channel name & share button */}
-                        <div className="absolute top-0 left-0 right-0 h-[74px] sm:h-[78px] bg-black pointer-events-none z-20 flex items-center justify-between px-4 border-b border-white/5 select-none">
-                          <div className="flex items-center gap-2.5 truncate max-w-[80%]">
-                            <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 animate-pulse" />
-                            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate">
-                              {activeVideo?.title || course?.name || 'Class Video'}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-white/10 uppercase tracking-wider">
-                              Brilliant Player
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* 100% Solid Opaque Bottom-Right Shield: Obliterates YouTube logo & "More videos" popup */}
-                        <div className="absolute bottom-0 right-0 w-80 h-24 bg-black pointer-events-none z-20 select-none" />
-                      </>
-                    )}
-                  </div>
+                    </div>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}

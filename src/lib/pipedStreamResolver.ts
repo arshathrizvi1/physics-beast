@@ -27,7 +27,7 @@ const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
  */
 export async function resolvePipedStream(
   videoIdOrUrl: string,
-  timeoutMs = 3500
+  timeoutMs = 4500
 ): Promise<PipedResolvedStream | null> {
   const videoId = extractYoutubeId(videoIdOrUrl);
   if (!videoId) return null;
