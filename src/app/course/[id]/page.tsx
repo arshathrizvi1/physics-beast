@@ -277,6 +277,28 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           }
           return true; // Applied successfully
         }
+
+        // Try YouTube internal player quality hint
+        const internal = playerRef.current.getInternalPlayer();
+        if (internal && typeof internal.setPlaybackQuality === 'function') {
+          const ytQualityMap: Record<string, string> = {
+            'Auto': 'auto',
+            '1080p': 'hd1080',
+            '720p': 'hd720',
+            '480p': 'large',
+            '360p': 'medium',
+            '240p': 'small',
+            '144p': 'tiny'
+          };
+          const targetQ = ytQualityMap[quality] || 'auto';
+          try {
+            internal.setPlaybackQuality(targetQ);
+            if (typeof internal.setPlaybackQualityRange === 'function') {
+              internal.setPlaybackQualityRange(targetQ, targetQ);
+            }
+          } catch (e) {}
+          return true;
+        }
       }
       return false;
     };
@@ -1141,8 +1163,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               allowFullScreen={true}
                             />
                         )}
-                        <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
-                          <ReactPlayer
+                        <div className={`absolute inset-0 pointer-events-none w-full h-full overflow-hidden ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                          <div className={`w-full h-full origin-center transition-transform duration-300 ${
+                            (activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be'))))
+                              ? 'scale-x-[1.18] scale-y-[1.28]'
+                              : 'scale-100'
+                          }`}>
+                            <ReactPlayer
                             ref={playerRef}
                         url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
                       width="100%"
@@ -1206,6 +1233,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             }
                           }
                         }
+
+                        if (internal && typeof internal.setPlaybackQuality === 'function') {
+                          const ytQualityMap: Record<string, string> = {
+                            'Auto': 'auto',
+                            '1080p': 'hd1080',
+                            '720p': 'hd720',
+                            '480p': 'large',
+                            '360p': 'medium',
+                            '240p': 'small',
+                            '144p': 'tiny'
+                          };
+                          try {
+                            internal.setPlaybackQuality(ytQualityMap[quality] || 'auto');
+                            if (typeof internal.setPlaybackQualityRange === 'function') {
+                              internal.setPlaybackQualityRange(ytQualityMap[quality] || 'auto', ytQualityMap[quality] || 'auto');
+                            }
+                          } catch (e) {}
+                        }
                       }}
                       config={{
                         dailymotion: {
@@ -1223,7 +1268,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             modestbranding: 1,
                             disablekb: 1,
                             iv_load_policy: 3,
-                            cc_load_policy: 3
+                            cc_load_policy: 0,
+                            cc_lang_pref: 'none',
+                            fs: 0
                           }
                         },
                         file: {
@@ -1242,6 +1289,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
                   </div>
+
+                  {/* Top and Bottom Protective Guard Strips for YouTube Player */}
+                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
+                    <>
+                      <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black/90 to-transparent pointer-events-none z-10" />
+                      <div className="absolute bottom-0 right-0 w-36 h-12 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-10" />
+                    </>
+                  )}
+                </div>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}
