@@ -19,6 +19,8 @@ import { FolderSelectModal } from "@/components/FolderSelectModal";
 import { CourseSelectModal } from "@/components/CourseSelectModal";
 import { TargetAudienceModal } from "@/components/TargetAudienceModal";
 import { ZoomSettingsModal } from "@/components/ZoomSettingsModal";
+import { PlayerSettingsEditor } from "@/components/admin/PlayerSettingsEditor";
+import { VideoPlayerSettings, defaultPlayerSettings } from "@/lib/playerDeviceControl";
 
 export default function AdminLiveStudio() {
   const { user, loading: authLoading } = useAuth();
@@ -55,6 +57,8 @@ export default function AdminLiveStudio() {
   const [allowDirectJoin, setAllowDirectJoin] = useState(true);
   const [rtmpStreamKey, setRtmpStreamKey] = useState("");
   const [rtmpServerUrl, setRtmpServerUrl] = useState("rtmp://13.60.252.104:1935/live");
+  const [playerSettings, setPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
+  const [editPlayerSettings, setEditPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -153,10 +157,12 @@ export default function AdminLiveStudio() {
               youtube: { enabled: draft.platform === 'youtube', link: draft.platform === 'youtube' ? draft.link : '' },
               zoom: { enabled: draft.platform === 'zoom', link: draft.platform === 'zoom' ? draft.link : '' },
               rtmp: { enabled: draft.platform === 'rtmp', link: draft.platform === 'rtmp' ? draft.link : '' },
-              direct: { enabled: draft.platform === 'direct', link: draft.platform === 'direct' ? draft.link : '' }
+              direct: { enabled: draft.platform === 'direct', link: draft.platform === 'direct' ? draft.link : '' },
+              webrtc: { enabled: draft.platform === 'webrtc', link: '' }
             });
           }
           setAllowDirectJoin(draft.allowDirectJoin !== false);
+          setPlayerSettings(draft.playerSettings || defaultPlayerSettings);
           
           if (draft.scheduledFor) {
             const date = new Date(draft.scheduledFor);
@@ -197,6 +203,7 @@ export default function AdminLiveStudio() {
         description,
         platform,
         link,
+        playerSettings,
         scheduledFor: new Date(scheduledFor).getTime(),
           endTime: endTime ? new Date(endTime).getTime() : null,
         courseId: courseId === "all" ? null : courseId,
@@ -235,6 +242,7 @@ export default function AdminLiveStudio() {
       setAllowDirectJoin(true);
       setRtmpStreamKey("");
       setRtmpServerUrl("");
+      setPlayerSettings(defaultPlayerSettings);
       router.push('/admin/live'); // clear draftId from URL if present
     } catch (error) {
       alert("Failed to create class.");
@@ -254,7 +262,8 @@ export default function AdminLiveStudio() {
         description: editDescription,
         link: editLink,
         targetFolderId: editTargetFolderId === "none" ? null : editTargetFolderId,
-        allowDirectJoin: editAllowDirectJoin
+        allowDirectJoin: editAllowDirectJoin,
+        playerSettings: editPlayerSettings
       });
       setEditingClass(null);
     } catch (err) {
@@ -667,6 +676,14 @@ export default function AdminLiveStudio() {
                   </Button>
                 </div>
               )}
+              <div className="pt-2">
+                <PlayerSettingsEditor
+                  value={playerSettings}
+                  onChange={setPlayerSettings}
+                  title="Live Stream Device & Player Controls"
+                  description="Choose which stream players (App Stream / YouTube) students can view on PC Web, Mobile Web, and Android App."
+                />
+              </div>
             </CardContent>
             <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
@@ -834,6 +851,7 @@ export default function AdminLiveStudio() {
                         }
                         setEditTargetFolderId(cls.targetFolderId || "none");
                         setEditAllowDirectJoin(cls.allowDirectJoin !== false);
+                        setEditPlayerSettings(cls.playerSettings || defaultPlayerSettings);
                       }} className="text-blue-500 border-blue-500/20 hover:bg-blue-500/10 px-2 h-8">
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
@@ -857,7 +875,7 @@ export default function AdminLiveStudio() {
       {/* Edit Modal */}
       {editingClass && editingClass.status !== 'draft' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md shadow-2xl border-primary/20">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border-primary/20">
             <form onSubmit={handleUpdateClass}>
               <CardHeader>
                 <CardTitle>Edit Live Session</CardTitle>
@@ -915,6 +933,14 @@ export default function AdminLiveStudio() {
                     </Button>
                   </div>
                 )}
+                <div className="pt-2">
+                  <PlayerSettingsEditor
+                    value={editPlayerSettings}
+                    onChange={setEditPlayerSettings}
+                    title="Live Stream Device & Player Controls"
+                    description="Choose which stream players students can view on PC Web, Mobile Web, and Android App."
+                  />
+                </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setEditingClass(null)}>Cancel</Button>

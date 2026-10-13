@@ -15,6 +15,7 @@ import { useRef } from 'react';
 const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
 const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
+import { detectDeviceType, isPlayerPermitted, defaultPlayerSettings, VideoPlayerSettings, DeviceType } from "@/lib/playerDeviceControl";
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
@@ -25,6 +26,22 @@ export default function StudentLivePortal() {
   
   const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
   const [oldRecordsSearch, setOldRecordsSearch] = useState("");
+  const [deviceType, setDeviceType] = useState<DeviceType>('pc_web');
+  const [globalPlayerSettings, setGlobalPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
+
+  useEffect(() => {
+    setDeviceType(detectDeviceType());
+    const unsubPlayer = onSnapshot(doc(db, 'siteConfig', 'playerSettings'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setGlobalPlayerSettings({
+          bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
+          youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
+        });
+      }
+    });
+    return () => unsubPlayer();
+  }, []);
 
   // Video Player States
   const [playing, setPlaying] = useState(true);
@@ -296,24 +313,38 @@ export default function StudentLivePortal() {
 
   // Utility to extract secure HTTPS HLS stream URL for RTMP broadcasts
   const getAvailableStreams = (cls: any) => {
-    const isAndroidApp = typeof window !== 'undefined' && !!(window as any).AndroidNative;
+    const isYoutubeAllowed = isPlayerPermitted(cls.playerSettings?.youtube || globalPlayerSettings?.youtube, deviceType);
+    const isBunnyAllowed = isPlayerPermitted(cls.playerSettings?.bunny || globalPlayerSettings?.bunny, deviceType);
 
     if (cls.multiStreams) {
       const streams = [];
-      if (cls.multiStreams.rtmp?.enabled) streams.push({ id: 'rtmp', label: 'App Stream', link: cls.multiStreams.rtmp.link, icon: 'PlayCircle' });
-      // Always show Interactive tab for testing
-      streams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
-      if (cls.multiStreams.youtube?.enabled && isAndroidApp) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
+      if (cls.multiStreams.rtmp?.enabled && isBunnyAllowed) streams.push({ id: 'rtmp', label: 'App Stream', link: cls.multiStreams.rtmp.link, icon: 'PlayCircle' });
+      if (cls.multiStreams.webrtc?.enabled || cls.platform === 'webrtc') {
+        streams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
+      }
+      if (cls.multiStreams.youtube?.enabled && isYoutubeAllowed) streams.push({ id: 'youtube', label: 'YouTube', link: cls.multiStreams.youtube.link, icon: 'Play' });
       if (cls.multiStreams.zoom?.enabled) streams.push({ id: 'zoom', label: 'Zoom', link: cls.multiStreams.zoom.link, icon: 'Video' });
       if (cls.multiStreams.direct?.enabled) streams.push({ id: 'direct', label: 'Direct', link: cls.multiStreams.direct.link, icon: 'ExternalLink' });
+      if (streams.length === 0) {
+        streams.push({ id: 'blocked', label: 'Restricted', link: '' });
+      }
       return streams;
     } else {
       const fallbackStreams = [];
-      if (cls.platform !== 'webrtc') {
+      if (cls.platform === 'webrtc') {
         fallbackStreams.push({ id: 'webrtc', label: 'Interactive', link: '', icon: 'Video' });
-      }
-      if (cls.platform === 'youtube' && !isAndroidApp) {
-        fallbackStreams.push({ id: 'blocked', label: 'App Only', link: '' });
+      } else if (cls.platform === 'youtube') {
+        if (isYoutubeAllowed) {
+          fallbackStreams.push({ id: 'youtube', label: 'YOUTUBE', link: cls.link });
+        } else {
+          fallbackStreams.push({ id: 'blocked', label: 'Restricted', link: '' });
+        }
+      } else if (cls.platform === 'rtmp') {
+        if (isBunnyAllowed) {
+          fallbackStreams.push({ id: 'rtmp', label: 'APP STREAM', link: cls.link });
+        } else {
+          fallbackStreams.push({ id: 'blocked', label: 'Restricted', link: '' });
+        }
       } else {
         fallbackStreams.push({ id: cls.platform, label: cls.platform?.toUpperCase(), link: cls.link });
       }
@@ -530,11 +561,11 @@ export default function StudentLivePortal() {
               {/* Blocked Stream Warning */}
               {getActiveStream(cls).id === 'blocked' && cls.status === 'live' && (
                 <div className="p-12 bg-zinc-900 min-h-[300px] flex flex-col items-center justify-center text-center">
-                  <div className="text-xl font-bold text-red-500 flex items-center justify-center gap-2 mb-4">
-                    App Required for Playback
+                  <div className="text-xl font-bold text-amber-500 flex items-center justify-center gap-2 mb-4">
+                    Stream Restricted on this Device
                   </div>
                   <p className="text-muted-foreground max-w-md">
-                    YouTube playback has been restricted to the Mobile App to protect course content. Please download and use the official Android App to watch this live stream.
+                    Playback for this live stream is currently not allowed on your device according to academy stream settings. Please join from an approved device.
                   </p>
                 </div>
               )}

@@ -21,6 +21,8 @@ import { ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "firebase
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { uploadToS3 } from "@/lib/s3Storage";
 import PasskeySettings from "@/components/PasskeySettings";
+import { PlayerSettingsEditor } from "@/components/admin/PlayerSettingsEditor";
+import { VideoPlayerSettings, defaultPlayerSettings } from "@/lib/playerDeviceControl";
 
 export default function AdminDashboard() {
   const { user, login, loading, updateProfilePicture, updateProfileName } = useAuth();
@@ -164,6 +166,10 @@ export default function AdminDashboard() {
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
   const [editVideoTitle, setEditVideoTitle] = useState("");
   const [editVideoUrl, setEditVideoUrl] = useState("");
+  const [editVideoYoutubeUrl, setEditVideoYoutubeUrl] = useState("");
+  const [editVideoPlayerSettings, setEditVideoPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
+  const [globalPlayerSettings, setGlobalPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
+  const [isSavingGlobalPlayer, setIsSavingGlobalPlayer] = useState(false);
 
   // Content Browser --- which folder is expanded in the Content tab
   const [contentBrowseBatchId, setContentBrowseBatchId] = useState<string | null>("all");
@@ -285,6 +291,16 @@ export default function AdminDashboard() {
       setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
+    const unsubPlayerConfig = onSnapshot(doc(db, 'siteConfig', 'playerSettings'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setGlobalPlayerSettings({
+          bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
+          youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
+        });
+      }
+    });
+
     return () => {
       unsubStudents();
       unsubMessages();
@@ -297,6 +313,7 @@ export default function AdminDashboard() {
       unsubPayments();
       unsubAllPayments();
       unsubExams();
+      unsubPlayerConfig();
     };
   }, [user]);
 
@@ -1063,19 +1080,40 @@ export default function AdminDashboard() {
 
   const handleEditVideo = (v: any) => {
     setEditingVideoId(v.id);
-    setEditVideoTitle(v.title);
-    setEditVideoUrl(v.url);
+    setEditVideoTitle(v.title || "");
+    setEditVideoUrl(v.url || "");
+    setEditVideoYoutubeUrl(v.originalYoutubeUrl || "");
+    setEditVideoPlayerSettings(v.playerSettings ? {
+      bunny: { ...defaultPlayerSettings.bunny, ...(v.playerSettings.bunny || {}) },
+      youtube: { ...defaultPlayerSettings.youtube, ...(v.playerSettings.youtube || {}) },
+    } : (globalPlayerSettings || defaultPlayerSettings));
   };
 
   const handleSaveVideo = async (id: string) => {
     try {
       await updateDoc(doc(db, 'videos', id), {
         title: editVideoTitle,
-        url: editVideoUrl
+        url: editVideoUrl,
+        originalYoutubeUrl: editVideoYoutubeUrl.trim() ? editVideoYoutubeUrl.trim() : null,
+        playerSettings: editVideoPlayerSettings
       });
       setEditingVideoId(null);
     } catch (e) {
       console.error(e);
+      alert("Failed to update video: " + (e as any)?.message);
+    }
+  };
+
+  const handleSaveGlobalPlayerSettings = async () => {
+    try {
+      setIsSavingGlobalPlayer(true);
+      await setDoc(doc(db, 'siteConfig', 'playerSettings'), globalPlayerSettings, { merge: true });
+      alert("Global Player & Device Settings saved successfully!");
+    } catch (e: any) {
+      console.error(e);
+      alert("Failed to save global player settings: " + e.message);
+    } finally {
+      setIsSavingGlobalPlayer(false);
     }
   };
 
@@ -2920,6 +2958,39 @@ export default function AdminDashboard() {
 
         {/* CONTENT & VIDEO TAB */}
         <TabsContent value="content" className="space-y-6">
+          {/* GLOBAL VIDEO PLAYER & DEVICE ACCESS CONTROL CARD */}
+          <Card className="border-primary/40 shadow-md">
+            <CardHeader className="bg-primary/5 border-b border-primary/20 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                    Global Video Player & Device Access Controls
+                  </CardTitle>
+                  <CardDescription>
+                    Configure default permissions for Bunny Cloud and YouTube players across PC Web, Mobile Web, and the Android App.
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={handleSaveGlobalPlayerSettings}
+                  disabled={isSavingGlobalPlayer}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-9 shrink-0 gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSavingGlobalPlayer ? "Saving..." : "Save Default Settings"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <PlayerSettingsEditor 
+                value={globalPlayerSettings}
+                onChange={setGlobalPlayerSettings}
+                title="Default Player Permissions for all Videos"
+                description="These rules apply across all courses and videos. You can also customize permissions individually for any specific video below."
+              />
+            </CardContent>
+          </Card>
+
           <Card className="border-primary/50 shadow-md">
             <CardHeader className="bg-primary/5 border-b border-primary/20">
               <CardTitle className="flex items-center gap-2"><Video className="w-5 h-5 text-primary" /> Upload & Link Course Video</CardTitle>
@@ -3120,12 +3191,30 @@ export default function AdminDashboard() {
                     {videos.filter(v => v.folderId === videoFolderId).map(v => (
                       <div key={v.id} className="p-4 rounded-md flex flex-col sm:flex-row justify-between sm:items-center bg-secondary/20 gap-4 border border-border/50">
                         {editingVideoId === v.id ? (
-                          <div className="flex-1 space-y-2">
-                            <Input value={editVideoTitle || ""} onChange={e => setEditVideoTitle(e.target.value)} placeholder="Video Title" className="h-8" />
-                            <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Video URL" className="h-8" />
+                          <div className="flex-1 space-y-3 p-3 bg-background rounded-lg border border-primary/30">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Video Title</Label>
+                              <Input value={editVideoTitle || ""} onChange={e => setEditVideoTitle(e.target.value)} placeholder="Video Title" className="h-8 mt-1" />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Bunny / Stream URL</Label>
+                                <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Video URL / Video ID" className="h-8 font-mono text-xs mt-1" />
+                              </div>
+                              <div>
+                                <Label className="text-xs text-muted-foreground">YouTube URL (Optional)</Label>
+                                <Input value={editVideoYoutubeUrl || ""} onChange={e => setEditVideoYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="h-8 font-mono text-xs mt-1" />
+                              </div>
+                            </div>
+                            <PlayerSettingsEditor 
+                              value={editVideoPlayerSettings}
+                              onChange={setEditVideoPlayerSettings}
+                              title="Player & Device Permissions for this Video"
+                              description="Configure which player(s) and devices are enabled for this specific video."
+                            />
                             <div className="flex gap-2 pt-1">
-                              <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save</Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-7">Cancel</Button>
+                              <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-8 bg-green-600 hover:bg-green-700 text-white font-semibold">Save Video</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-8">Cancel</Button>
                             </div>
                           </div>
                         ) : (
@@ -3234,18 +3323,30 @@ export default function AdminDashboard() {
                               videos.filter(v => v.folderId === folder.id).map((v, idx) => (
                                 <div key={v.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:bg-secondary/5 transition-colors">
                                   {editingVideoId === v.id ? (
-                                    <div className="flex-1 space-y-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground w-12 shrink-0">Title</span>
-                                        <Input value={editVideoTitle || ""} onChange={e => setEditVideoTitle(e.target.value)} placeholder="Video Title" className="h-8 flex-1" autoFocus />
+                                    <div className="flex-1 space-y-3 p-3 bg-background rounded-lg border border-primary/30">
+                                      <div>
+                                        <Label className="text-xs text-muted-foreground">Video Title</Label>
+                                        <Input value={editVideoTitle || ""} onChange={e => setEditVideoTitle(e.target.value)} placeholder="Video Title" className="h-8 mt-1" autoFocus />
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground w-12 shrink-0">URL</span>
-                                        <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Stream URL" className="h-8 flex-1 font-mono text-xs" />
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div>
+                                          <Label className="text-xs text-muted-foreground">Bunny / Stream URL</Label>
+                                          <Input value={editVideoUrl || ""} onChange={e => setEditVideoUrl(e.target.value)} placeholder="Stream URL / Video ID" className="h-8 font-mono text-xs mt-1" />
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs text-muted-foreground">YouTube URL (Optional)</Label>
+                                          <Input value={editVideoYoutubeUrl || ""} onChange={e => setEditVideoYoutubeUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="h-8 font-mono text-xs mt-1" />
+                                        </div>
                                       </div>
+                                      <PlayerSettingsEditor 
+                                        value={editVideoPlayerSettings}
+                                        onChange={setEditVideoPlayerSettings}
+                                        title="Player & Device Permissions for this Video"
+                                        description="Configure which player(s) and devices are enabled for this specific video."
+                                      />
                                       <div className="flex gap-2 pt-1">
-                                        <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-7 bg-green-600 hover:bg-green-700 text-foreground">Save Changes</Button>
-                                        <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-7">Cancel</Button>
+                                        <Button size="sm" onClick={() => handleSaveVideo(v.id)} className="h-8 bg-green-600 hover:bg-green-700 text-white font-semibold">Save Changes</Button>
+                                        <Button size="sm" variant="outline" onClick={() => setEditingVideoId(null)} className="h-8">Cancel</Button>
                                       </div>
                                     </div>
                                   ) : (
@@ -3258,7 +3359,7 @@ export default function AdminDashboard() {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1 shrink-0">
-                                        <button title="Edit title & URL" onClick={() => { setEditingVideoId(v.id); setEditVideoTitle(v.title); setEditVideoUrl(v.url); }} className="p-2 hover:bg-primary/10 rounded-md text-primary transition-colors">
+                                        <button title="Edit video & player settings" onClick={() => handleEditVideo(v)} className="p-2 hover:bg-primary/10 rounded-md text-primary transition-colors">
                                           <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button title="Delete video" onClick={() => handleDeleteVideo(v.id)} className="p-2 hover:bg-destructive/10 rounded-md text-destructive transition-colors">

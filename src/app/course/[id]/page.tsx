@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
-import { useEffect, useState, use, useRef, useCallback } from "react";
+import { useEffect, useState, use, useRef, useCallback, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { uploadToS3 } from "@/lib/s3Storage";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, increment, onSnapshot, addDoc } from "firebase/firestore";
@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
+import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType } from "@/lib/playerDeviceControl";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -94,6 +95,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const readyFiredRef = useRef<Set<string>>(new Set());
   const syllabusScrollRef = useRef<HTMLDivElement>(null);
   const [bunnyEmbedUrl, setBunnyEmbedUrl] = useState<string>('');
+  const [deviceType, setDeviceType] = useState<DeviceType>('pc_web');
+  const [globalPlayerSettings, setGlobalPlayerSettings] = useState<VideoPlayerSettings>(defaultPlayerSettings);
+
+  // Detect current client device and listen to global player permissions
+  useEffect(() => {
+    setDeviceType(detectDeviceType());
+    const unsubPlayerConfig = onSnapshot(doc(db, 'siteConfig', 'playerSettings'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setGlobalPlayerSettings({
+          bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
+          youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
+        });
+      }
+    });
+    return () => unsubPlayerConfig();
+  }, []);
 
   // Fetch signed embed URL for Bunny videos (supports Token Authentication if enabled)
   useEffect(() => {
@@ -487,15 +505,40 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const playingRef = useRef(playing);
   useEffect(() => { playingRef.current = playing; }, [playing]);
+  // Video Player Device Permissions
+  const activeSettings: VideoPlayerSettings = useMemo(() => {
+    if (activeVideo?.playerSettings) {
+      return {
+        bunny: { ...defaultPlayerSettings.bunny, ...(globalPlayerSettings?.bunny || {}), ...(activeVideo.playerSettings.bunny || {}) },
+        youtube: { ...defaultPlayerSettings.youtube, ...(globalPlayerSettings?.youtube || {}), ...(activeVideo.playerSettings.youtube || {}) },
+      };
+    }
+    return globalPlayerSettings || defaultPlayerSettings;
+  }, [activeVideo, globalPlayerSettings]);
+
+  const isBunnyPermitted = useMemo(() => {
+    if (!activeVideo) return false;
+    const hasBunnyContent = activeVideo.platform === 'bunny' || !!bunnyEmbedUrl || (!!activeVideo.url && !activeVideo.url.includes('youtube') && !activeVideo.url.includes('youtu.be'));
+    return hasBunnyContent && isPlayerPermitted(activeSettings.bunny, deviceType);
+  }, [activeVideo, bunnyEmbedUrl, activeSettings, deviceType]);
+
+  const isYoutubePermitted = useMemo(() => {
+    if (!activeVideo) return false;
+    const hasYoutubeContent = !!activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')));
+    return hasYoutubeContent && isPlayerPermitted(activeSettings.youtube, deviceType);
+  }, [activeVideo, activeSettings, deviceType]);
+
   const activeVideoRef = useRef(activeVideo);
   useEffect(() => { 
     activeVideoRef.current = activeVideo; 
-    if (typeof window !== 'undefined' && (window as any).AndroidNative && activeVideo?.originalYoutubeUrl) {
+    if (isYoutubePermitted && !isBunnyPermitted) {
       setActiveServer('youtube');
-    } else {
-      setActiveServer('bunny'); 
+    } else if (!isYoutubePermitted && isBunnyPermitted) {
+      setActiveServer('bunny');
+    } else if (isYoutubePermitted && isBunnyPermitted) {
+      setActiveServer(activeVideo?.originalYoutubeUrl ? 'youtube' : 'bunny');
     }
-  }, [activeVideo]);
+  }, [activeVideo, isYoutubePermitted, isBunnyPermitted]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
@@ -954,6 +997,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ2 minutes after uploading. It will start playing automatically once ready!
                   </p>
                 </div>
+              ) : (!isBunnyPermitted && !isYoutubePermitted && activeVideo.platform !== 'zoom' && activeVideo.type !== 'resource') ? (
+                <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
+                  <ShieldAlert className="w-12 h-12 text-amber-500 mb-4 animate-pulse" />
+                  <h3 className="text-xl font-bold text-white mb-2">Playback Restricted on this Device</h3>
+                  <p className="text-sm text-zinc-400 max-w-md">
+                    Playback for this lesson has been disabled on <strong>{getDeviceLabel(deviceType)}</strong> according to academy settings. Please access this lesson from an approved device.
+                  </p>
+                </div>
               ) : (
                 <div 
                   ref={playerContainerRef} 
@@ -971,7 +1022,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               />
                           )}
 
-                          {activeServer === 'bunny' && activeVideo.platform === 'bunny' && (
+                          {activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' && (
                           bunnyEmbedUrl.startsWith('CRACKED') ? (
                                 <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto relative z-[60]">
                                     <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
@@ -986,7 +1037,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                 />
                             )
                         )}
-                        <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+                        <div className={`absolute inset-0 pointer-events-none w-full h-full scale-[1.05] ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
                           {typeof window !== 'undefined' && (window as any).AndroidNative?.checkAppIntegrity?.() === 'CRACKED' ? (
                               <div className="w-full h-full bg-black flex flex-col items-center justify-center p-6 text-center pointer-events-auto">
                                   <h3 className="text-2xl font-bold text-red-600 mb-2">APP INTEGRITY COMPROMISED</h3>
@@ -1357,6 +1408,31 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 <div className="flex items-center gap-2 text-sm text-primary font-medium bg-primary/10 px-3 py-1.5 rounded-full animate-pulse">
                   <Eye className="w-4 h-4" />
                   {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
+                </div>
+              )}
+              {isYoutubePermitted && isBunnyPermitted && (
+                <div className="flex items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
+                  <span className="text-muted-foreground px-1.5 font-medium">Source:</span>
+                  <button
+                    onClick={() => setActiveServer('youtube')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      activeServer === 'youtube'
+                        ? 'bg-red-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    YouTube
+                  </button>
+                  <button
+                    onClick={() => setActiveServer('bunny')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      activeServer === 'bunny'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Cloud
+                  </button>
                 </div>
               )}
             </div>
