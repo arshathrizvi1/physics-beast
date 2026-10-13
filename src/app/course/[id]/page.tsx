@@ -1218,6 +1218,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       playbackRate={playbackRate}
                       volume={volume}
                       muted={muted}
+                      onPlay={() => setPlaying(true)}
+                      onPause={() => setPlaying(false)}
                       onProgress={(state) => {
                         setPlayed(state.played);
                         playedSecondsRef.current = state.playedSeconds;
@@ -1349,12 +1351,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* Top and Bottom Protective Guard Strips for YouTube Player (Clean original format) */}
                     {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && !pipedCleanStream && (
                       <>
-                        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/85 to-transparent pointer-events-none z-10 flex items-center px-4">
-                          <span className="text-xs sm:text-sm font-semibold text-white/90 drop-shadow-md truncate">
-                            {activeVideo?.title || course?.name || ''}
-                          </span>
+                        {/* 100% Solid Opaque Top Shield: Obliterates YouTube avatar, video title, channel name & share button */}
+                        <div className="absolute top-0 left-0 right-0 h-[74px] sm:h-[78px] bg-black pointer-events-none z-20 flex items-center justify-between px-4 border-b border-white/5 select-none">
+                          <div className="flex items-center gap-2.5 truncate max-w-[80%]">
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 animate-pulse" />
+                            <span className="text-xs sm:text-sm font-bold text-white drop-shadow truncate">
+                              {activeVideo?.title || course?.name || 'Class Video'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-white/10 uppercase tracking-wider">
+                              Brilliant Player
+                            </span>
+                          </div>
                         </div>
-                        <div className="absolute bottom-0 right-0 w-48 h-16 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none z-10" />
+
+                        {/* 100% Solid Opaque Bottom-Right Shield: Obliterates YouTube logo & "More videos" popup */}
+                        <div className="absolute bottom-0 right-0 w-80 h-24 bg-black pointer-events-none z-20 select-none" />
                       </>
                     )}
                   </div>
@@ -1440,7 +1453,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-20 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"

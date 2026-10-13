@@ -66,9 +66,11 @@ export async function resolvePipedStream(
         };
       }
 
-      // Check for combined audio+video MP4 streams
+      // Check for combined audio+video MP4 streams (exclude LBRY / odycdn which return 401)
       if (Array.isArray(data.videoStreams) && data.videoStreams.length > 0) {
-        const playable = data.videoStreams.filter((s: any) => s.url && !s.videoOnly);
+        const playable = data.videoStreams.filter(
+          (s: any) => s.url && !s.videoOnly && !s.quality?.includes('LBRY') && !s.url.includes('odycdn')
+        );
 
         if (playable.length > 0) {
           const sorted = [...playable].sort((a: any, b: any) => {
