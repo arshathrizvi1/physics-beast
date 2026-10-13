@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
-import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId, getPipedEmbedUrl, PIPED_INSTANCES } from "@/lib/playerDeviceControl";
+import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId } from "@/lib/playerDeviceControl";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -63,7 +63,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   
   // Checkout States
   const [checkoutFolder, setCheckoutFolder] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card'>('bank');
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | 'qr'>('bank');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -84,8 +84,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube' | 'piped'>('bunny');
-  const [pipedNodeIndex, setPipedNodeIndex] = useState<number>(0);
+  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
+  const playedSecondsRef = useRef(0);
+  const durationRef = useRef(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
@@ -332,7 +333,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return `${mm}:${ss}`;
   };
 
-  // Safe Double-Tap Seek Handler (prevents clamping to 0 when duration is loading/unknown)
+  // Safe Double-Tap Seek Handler (prevents clamping to 0 and eliminates forward seek loops)
   const handleSeekDelta = useCallback((deltaSeconds: number) => {
     if (!playerRef.current) return;
 
@@ -341,24 +342,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       let ct = 0;
       if (typeof playerRef.current.getCurrentTime === 'function') {
         const time = playerRef.current.getCurrentTime();
-        if (typeof time === 'number' && !isNaN(time) && isFinite(time)) {
+        if (typeof time === 'number' && !isNaN(time) && isFinite(time) && time > 0) {
           ct = time;
         }
       }
-      if (ct === 0 && played > 0 && duration > 0) {
+      if (ct === 0 && playedSecondsRef.current > 0) {
+        ct = playedSecondsRef.current;
+      } else if (ct === 0 && played > 0 && duration > 0) {
         ct = played * duration;
       }
 
-      // 2. Determine duration safely from player instance or state
-      let dur = 0;
+      // 2. Determine duration safely from player instance, ref, or state
+      let dur = durationRef.current || duration || 0;
       if (typeof playerRef.current.getDuration === 'function') {
         const d = playerRef.current.getDuration();
         if (typeof d === 'number' && !isNaN(d) && isFinite(d) && d > 0) {
           dur = d;
         }
-      }
-      if (dur === 0 && typeof duration === 'number' && duration > 0) {
-        dur = duration;
       }
 
       // 3. Compute new target seek position
@@ -366,14 +366,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (deltaSeconds < 0) {
         target = Math.max(0, target);
       } else {
-        // Forward seeking:
-        // If duration is known (> 0), cap at dur - 0.5 to avoid hitting stream-end replay loop
+        // Forward seeking: cap safely at dur - 1s if duration is known
         if (dur > 0) {
-          target = Math.min(Math.max(0, dur - 0.5), target);
+          target = Math.min(Math.max(0, dur - 1), target);
         }
-        // If dur is unknown or 0, NEVER clamp to 0! target remains ct + deltaSeconds
       }
 
+      // Update playedSecondsRef immediately so consecutive rapid double-taps accumulate (+10s, +20s, ...)
+      playedSecondsRef.current = target;
       playerRef.current.seekTo(target, 'seconds');
 
       if (dur > 0) {
@@ -664,27 +664,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => { 
     activeVideoRef.current = activeVideo; 
     const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
-    const preferPiped = activeSettings?.usePipedForYoutube !== false;
 
     if (isYoutubePermitted && !isBunnyPermitted) {
-      if (activeYoutubeId && preferPiped) {
-        setActiveServer('piped');
-      } else {
-        setActiveServer('youtube');
-      }
+      setActiveServer('youtube');
     } else if (!isYoutubePermitted && isBunnyPermitted) {
       setActiveServer('bunny');
     } else if (isYoutubePermitted && isBunnyPermitted) {
-      if (preferredPlayer === 'piped' && activeYoutubeId) {
-        setActiveServer('piped');
-      } else if (preferredPlayer === 'youtube') {
-        setActiveServer(preferPiped && activeYoutubeId ? 'piped' : 'youtube');
+      if (preferredPlayer === 'youtube') {
+        setActiveServer('youtube');
       } else {
-        // Bunny is Primary by default!
+        // Bunny Cloud is Primary by default!
         setActiveServer('bunny');
       }
     }
-  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings, activeYoutubeId]);
+  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
@@ -1177,19 +1170,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        {/* Piped Format Player */}
-                        {activeServer === 'piped' && activeYoutubeId && (
-                          <iframe 
-                            src={getPipedEmbedUrl(activeYoutubeId, pipedNodeIndex)} 
-                            className="w-full h-full border-0 relative z-[50] bg-black"
-                            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                            allowFullScreen={true}
-                          />
-                        )}
-
                         <div className={`absolute inset-0 pointer-events-none w-full h-full ${
-                          (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny') ||
-                          (activeServer === 'piped' && activeYoutubeId)
+                          (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                             ? 'hidden'
                             : ''
                         }`}>
@@ -1204,6 +1186,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       muted={muted}
                       onProgress={(state) => {
                         setPlayed(state.played);
+                        playedSecondsRef.current = state.playedSeconds;
                         if (activeVideo && user?.uid) {
                           localStorage.setItem(`video_progress_${activeVideo.id}_${user.uid}`, state.playedSeconds.toString());
                         }
@@ -1212,7 +1195,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           recordProgress(activeVideo.id, pct);
                         }
                       }}
-                      onDuration={(dur) => setDuration(dur)}
+                      onDuration={(dur) => {
+                        durationRef.current = dur;
+                        setDuration(dur);
+                      }}
+                      onError={(err) => {
+                        console.warn("Playback error encountered:", err);
+                        if (activeServer === 'bunny' && isYoutubePermitted) {
+                          console.info("Bunny playback failed, automatically falling over to YouTube source...");
+                          setActiveServer('youtube');
+                        } else if (activeServer === 'youtube' && isBunnyPermitted) {
+                          console.info("YouTube playback failed, automatically falling over to Bunny source...");
+                          setActiveServer('bunny');
+                        }
+                      }}
                       onReady={() => {
                         if (activeVideo && user?.uid && playerRef.current) {
                           if (!readyFiredRef.current.has(activeVideo.id)) {
@@ -1316,19 +1312,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* Top and Bottom Protective Guard Strips for YouTube Player (Clean original format) */}
                     {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
                       <>
-                        <div className="absolute top-0 left-0 right-0 h-14 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none z-10 flex items-center px-4">
+                        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/85 to-transparent pointer-events-none z-10 flex items-center px-4">
                           <span className="text-xs sm:text-sm font-semibold text-white/90 drop-shadow-md truncate">
                             {activeVideo?.title || course?.name || ''}
                           </span>
                         </div>
-                        <div className="absolute bottom-0 right-0 w-44 h-14 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none z-10" />
+                        <div className="absolute bottom-0 right-0 w-48 h-16 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none z-10" />
                       </>
                     )}
                   </div>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && activeServer !== 'piped' && (
+                {!playing && (
                   <div 
                     className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
                   >
@@ -1341,7 +1337,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
                   className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${
-                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') || activeServer === 'piped' ? 'hidden' : ''
+                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') ? 'hidden' : ''
                   }`}
                 >
                   <div 
@@ -1600,54 +1596,29 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
                 </div>
               )}
-              {activeVideo && (
+              {activeVideo && isBunnyPermitted && (activeVideo.platform === 'bunny' || !!bunnyEmbedUrl) && isYoutubePermitted && (!!activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
                 <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
                   <span className="text-muted-foreground px-1 font-medium">Source:</span>
-                  {isBunnyPermitted && (activeVideo.platform === 'bunny' || !!bunnyEmbedUrl) && (
-                    <button
-                      onClick={() => setActiveServer('bunny')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'bunny'
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Cloud (Bunny)
-                    </button>
-                  )}
-                  {activeYoutubeId && (
-                    <button
-                      onClick={() => setActiveServer('piped')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'piped'
-                          ? 'bg-purple-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Piped Format
-                    </button>
-                  )}
-                  {isYoutubePermitted && (
-                    <button
-                      onClick={() => setActiveServer('youtube')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'youtube'
-                          ? 'bg-red-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      YouTube
-                    </button>
-                  )}
-                  {activeServer === 'piped' && (
-                    <button
-                      onClick={() => setPipedNodeIndex((prev) => (prev + 1) % PIPED_INSTANCES.length)}
-                      className="ml-auto text-[11px] text-muted-foreground hover:text-white px-2 py-0.5 rounded border border-white/10 hover:bg-white/10 transition-all flex items-center gap-1"
-                      title="Switch to next Piped mirror server"
-                    >
-                      🔄 Server {(pipedNodeIndex % PIPED_INSTANCES.length) + 1}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setActiveServer('bunny')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      activeServer === 'bunny'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Cloud (Bunny)
+                  </button>
+                  <button
+                    onClick={() => setActiveServer('youtube')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                      activeServer === 'youtube'
+                        ? 'bg-red-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    YouTube
+                  </button>
                 </div>
               )}
             </div>

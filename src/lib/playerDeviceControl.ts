@@ -8,15 +8,13 @@ export interface PlayerTargetDevices {
 }
 
 export interface VideoPlayerSettings {
-  defaultPlayer?: 'bunny' | 'youtube' | 'piped'; // The primary player that opens first when both are allowed
-  usePipedForYoutube?: boolean; // When true, YouTube videos load via Piped Clean Proxy with multi-server failover
+  defaultPlayer?: 'bunny' | 'youtube'; // The primary player that opens first when both are allowed
   bunny: PlayerTargetDevices;
   youtube: PlayerTargetDevices;
 }
 
 export const defaultPlayerSettings: VideoPlayerSettings = {
   defaultPlayer: 'bunny',
-  usePipedForYoutube: true,
   bunny: {
     enabled: true,
     pcWeb: true,
@@ -31,24 +29,12 @@ export const defaultPlayerSettings: VideoPlayerSettings = {
   },
 };
 
-export const PIPED_INSTANCES = [
-  'https://piped.video',
-  'https://piped.private.coffee',
-  'https://piped.ducks.party',
-  'https://piped.adminforge.de',
-];
-
 export function extractYoutubeId(url: string | undefined | null): string | null {
   if (!url) return null;
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
   return match ? match[1] : null;
 }
 
-export function getPipedEmbedUrl(youtubeId: string, instanceIndex: number = 0): string {
-  const index = Math.abs(instanceIndex) % PIPED_INSTANCES.length;
-  const base = PIPED_INSTANCES[index];
-  return `${base}/embed/${youtubeId}`;
-}
 
 /**
  * Accurately detects whether the client is:
