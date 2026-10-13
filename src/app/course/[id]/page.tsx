@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
 import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId } from "@/lib/playerDeviceControl";
+import { resolvePipedStream } from "@/lib/pipedStreamResolver";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -85,6 +86,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
+  const [pipedCleanStream, setPipedCleanStream] = useState<string | null>(null);
   const playedSecondsRef = useRef(0);
   const durationRef = useRef(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -177,6 +179,34 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setBunnyEmbedUrl('');
     }
   }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user?.email]);
+
+  // Automatically resolve clean Piped stream for YouTube playback
+  useEffect(() => {
+    let isCancelled = false;
+    const targetYtId = extractYoutubeId(activeVideo?.originalYoutubeUrl) || extractYoutubeId(activeVideo?.url);
+
+    if (activeServer === 'youtube' && targetYtId) {
+      resolvePipedStream(targetYtId).then((result) => {
+        if (!isCancelled) {
+          if (result?.streamUrl) {
+            setPipedCleanStream(result.streamUrl);
+          } else {
+            setPipedCleanStream(null); // Fall back to direct YouTube
+          }
+        }
+      }).catch(() => {
+        if (!isCancelled) {
+          setPipedCleanStream(null);
+        }
+      });
+    } else {
+      setPipedCleanStream(null);
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeVideo?.id, activeVideo?.url, activeVideo?.originalYoutubeUrl, activeServer]);
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
@@ -852,7 +882,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           amount: checkoutFolder.price || 0,
           method: paymentMethod,
           receiptUrl: receiptUrl,
-          status: paymentMethod === 'card' ? 'approved' : 'pending',
+          status: (paymentMethod as string) === 'card' ? 'approved' : 'pending',
           createdAt: Date.now()
         });
 
@@ -862,7 +892,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         
         addDoc(collection(db, "notifications"), {
           target: "admin",
-          title: paymentMethod === 'bank' ? "New Pending Payment Receipt ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â³" : "Payment Received (Card) ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢Ãƒâ€šÃ‚Â³",
+          title: paymentMethod === 'bank' ? "New Pending Payment Receipt 🧾" : "Payment Received (Card) 🧾",
           message: `${studentLabel} submitted a ${paymentTypeLabel} payment of Rs. ${checkoutFolder.price || 0} for "${checkoutFolder.name}". Pending payment verification.`,
           link: "/admin#payments",
           timestamp: Date.now(),
@@ -871,14 +901,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         }).catch(err => console.error("Failed to notify admin of payment:", err));
       } catch (writeError: any) {
         if (writeError.code === 'permission-denied') {
-          alert("ÃƒÆ’Ã‚Â¢Ãƒâ€šÃ‚ÂÃƒâ€¦Ã¢â‚¬â„¢ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");
+          alert("⛔ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");
           setIsSubmittingPayment(false);
           return;
         }
         throw writeError;
       }
 
-      if (paymentMethod === 'card') {
+      if ((paymentMethod as string) === 'card') {
         try {
           const userRef = doc(db, 'users', user.uid);
           const folderAccess = user.folderAccess || {};
@@ -1177,7 +1207,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }`}>
                           <ReactPlayer
                             ref={playerRef}
-                        url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
+                        url={
+                          activeServer === 'youtube'
+                            ? (pipedCleanStream || (activeVideo.originalYoutubeUrl || activeVideo.url))
+                            : activeVideo.url
+                        }
                       width="100%"
                       height="100%"
                       playing={playing}
@@ -1201,7 +1235,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                       onError={(err) => {
                         console.warn("Playback error encountered:", err);
-                        if (activeServer === 'bunny' && isYoutubePermitted) {
+                        if (activeServer === 'youtube' && pipedCleanStream) {
+                          console.info("Piped stream dropped, seamlessly falling back to direct YouTube stream...");
+                          setPipedCleanStream(null);
+                        } else if (activeServer === 'bunny' && isYoutubePermitted) {
                           console.info("Bunny playback failed, automatically falling over to YouTube source...");
                           setActiveServer('youtube');
                         } else if (activeServer === 'youtube' && isBunnyPermitted) {
@@ -1310,7 +1347,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     />
 
                     {/* Top and Bottom Protective Guard Strips for YouTube Player (Clean original format) */}
-                    {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
+                    {(activeServer === 'youtube' || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && !pipedCleanStream && (
                       <>
                         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/85 to-transparent pointer-events-none z-10 flex items-center px-4">
                           <span className="text-xs sm:text-sm font-semibold text-white/90 drop-shadow-md truncate">
