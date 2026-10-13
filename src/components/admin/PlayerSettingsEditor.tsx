@@ -65,13 +65,13 @@ export function PlayerSettingsEditor({
             <span>⭐</span> Default Primary Player (Opens First)
           </label>
           <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded bg-primary/10">
-            {(current.defaultPlayer || 'bunny') === 'bunny' ? 'Cloud Player' : 'YouTube Player'}
+            {current.defaultPlayer === 'piped' ? 'Piped Clean Player' : (current.defaultPlayer === 'youtube' ? 'YouTube Player' : 'Bunny Cloud')}
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-tight">
           Select which player is loaded by default when a student opens a video. If both players are enabled for their device, students can switch using the Source tabs.
         </p>
-        <div className="grid grid-cols-2 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
           <button
             type="button"
             onClick={() => onChange({ ...current, defaultPlayer: 'bunny' })}
@@ -83,8 +83,24 @@ export function PlayerSettingsEditor({
           >
             <PlayCircle className="w-4 h-4 shrink-0 text-primary" />
             <div>
-              <p className="font-bold text-xs">Bunny Cloud Player</p>
+              <p className="font-bold text-xs">Bunny Cloud</p>
               <p className="text-[10px] opacity-80 font-normal">Primary (Recommended)</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...current, defaultPlayer: 'piped' })}
+            className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-medium text-left transition-all ${
+              current.defaultPlayer === 'piped'
+                ? 'border-purple-500 bg-purple-500/10 text-purple-400 shadow-sm ring-1 ring-purple-500'
+                : 'border-border/60 bg-secondary/20 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <PlayCircle className="w-4 h-4 shrink-0 text-purple-400" />
+            <div>
+              <p className="font-bold text-xs">Piped Format</p>
+              <p className="text-[10px] opacity-80 font-normal">Clean Proxy (No Logo)</p>
             </div>
           </button>
 
@@ -99,8 +115,8 @@ export function PlayerSettingsEditor({
           >
             <YoutubeIcon className="w-4 h-4 shrink-0 text-red-500" />
             <div>
-              <p className="font-bold text-xs">YouTube Player</p>
-              <p className="text-[10px] opacity-80 font-normal">Secondary / Alternative</p>
+              <p className="font-bold text-xs">YouTube</p>
+              <p className="text-[10px] opacity-80 font-normal">Direct YouTube</p>
             </div>
           </button>
         </div>

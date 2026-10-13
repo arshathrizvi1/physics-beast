@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
-import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType } from "@/lib/playerDeviceControl";
+import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId, getPipedEmbedUrl, PIPED_INSTANCES } from "@/lib/playerDeviceControl";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -84,7 +84,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
+  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube' | 'piped'>('bunny');
+  const [pipedNodeIndex, setPipedNodeIndex] = useState<number>(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
@@ -648,6 +649,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return hasBunnyContent && isPlayerPermitted(activeSettings.bunny, deviceType);
   }, [activeVideo, bunnyEmbedUrl, activeSettings, deviceType]);
 
+  const activeYoutubeId = useMemo(() => {
+    if (!activeVideo) return null;
+    return extractYoutubeId(activeVideo.originalYoutubeUrl) || extractYoutubeId(activeVideo.url);
+  }, [activeVideo]);
+
   const isYoutubePermitted = useMemo(() => {
     if (!activeVideo) return false;
     const hasYoutubeContent = !!activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')));
@@ -658,20 +664,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => { 
     activeVideoRef.current = activeVideo; 
     const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
+    const preferPiped = activeSettings?.usePipedForYoutube !== false;
 
     if (isYoutubePermitted && !isBunnyPermitted) {
-      setActiveServer('youtube');
+      if (activeYoutubeId && preferPiped) {
+        setActiveServer('piped');
+      } else {
+        setActiveServer('youtube');
+      }
     } else if (!isYoutubePermitted && isBunnyPermitted) {
       setActiveServer('bunny');
     } else if (isYoutubePermitted && isBunnyPermitted) {
-      if (preferredPlayer === 'youtube') {
-        setActiveServer('youtube');
+      if (preferredPlayer === 'piped' && activeYoutubeId) {
+        setActiveServer('piped');
+      } else if (preferredPlayer === 'youtube') {
+        setActiveServer(preferPiped && activeYoutubeId ? 'piped' : 'youtube');
       } else {
         // Bunny is Primary by default!
         setActiveServer('bunny');
       }
     }
-  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings]);
+  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings, activeYoutubeId]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
@@ -1163,7 +1176,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               allowFullScreen={true}
                             />
                         )}
-                        <div className={`absolute inset-0 pointer-events-none w-full h-full ${activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}>
+
+                        {/* Piped Format Player */}
+                        {activeServer === 'piped' && activeYoutubeId && (
+                          <iframe 
+                            src={getPipedEmbedUrl(activeYoutubeId, pipedNodeIndex)} 
+                            className="w-full h-full border-0 relative z-[50] bg-black"
+                            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                            allowFullScreen={true}
+                          />
+                        )}
+
+                        <div className={`absolute inset-0 pointer-events-none w-full h-full ${
+                          (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny') ||
+                          (activeServer === 'piped' && activeYoutubeId)
+                            ? 'hidden'
+                            : ''
+                        }`}>
                           <ReactPlayer
                             ref={playerRef}
                         url={activeServer === 'youtube' && activeVideo.originalYoutubeUrl ? activeVideo.originalYoutubeUrl : activeVideo.url}
@@ -1299,7 +1328,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && (
+                {!playing && activeServer !== 'piped' && (
                   <div 
                     className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
                   >
@@ -1311,7 +1340,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
-                  className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''}`}
+                  className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${
+                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') || activeServer === 'piped' ? 'hidden' : ''
+                  }`}
                 >
                   <div 
                     className="w-1/2 h-full"
@@ -1569,29 +1600,54 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
                 </div>
               )}
-              {isYoutubePermitted && isBunnyPermitted && (
-                <div className="flex items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
-                  <span className="text-muted-foreground px-1.5 font-medium">Source:</span>
-                  <button
-                    onClick={() => setActiveServer('bunny')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      activeServer === 'bunny'
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Cloud (Primary)
-                  </button>
-                  <button
-                    onClick={() => setActiveServer('youtube')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      activeServer === 'youtube'
-                        ? 'bg-red-600 text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    YouTube
-                  </button>
+              {activeVideo && (
+                <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
+                  <span className="text-muted-foreground px-1 font-medium">Source:</span>
+                  {isBunnyPermitted && (activeVideo.platform === 'bunny' || !!bunnyEmbedUrl) && (
+                    <button
+                      onClick={() => setActiveServer('bunny')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'bunny'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Cloud (Bunny)
+                    </button>
+                  )}
+                  {activeYoutubeId && (
+                    <button
+                      onClick={() => setActiveServer('piped')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'piped'
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Piped Format
+                    </button>
+                  )}
+                  {isYoutubePermitted && (
+                    <button
+                      onClick={() => setActiveServer('youtube')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'youtube'
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      YouTube
+                    </button>
+                  )}
+                  {activeServer === 'piped' && (
+                    <button
+                      onClick={() => setPipedNodeIndex((prev) => (prev + 1) % PIPED_INSTANCES.length)}
+                      className="ml-auto text-[11px] text-muted-foreground hover:text-white px-2 py-0.5 rounded border border-white/10 hover:bg-white/10 transition-all flex items-center gap-1"
+                      title="Switch to next Piped mirror server"
+                    >
+                      🔄 Server {(pipedNodeIndex % PIPED_INSTANCES.length) + 1}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
