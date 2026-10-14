@@ -1353,32 +1353,49 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
 
-                    {/* 100% Invisible Anti-Leak Top Shield (Blocks Title & Share clicks - ZERO black boxes) */}
+                    {/* 100% Invisible Bottom Shield: Completely blocks YouTube's red scrubber, time, share, more videos, and YouTube logo */}
                     <div 
-                      className="absolute top-0 left-0 right-0 h-14 bg-transparent z-20 pointer-events-auto select-none"
-                      onClick={(e) => { e.stopPropagation(); }}
-                      onDoubleClick={(e) => { e.stopPropagation(); }}
-                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    />
-
-                    {/* 100% Invisible Logo Shield over 'Watch on YouTube' (ZERO black boxes) */}
-                    <div 
-                      className="absolute bottom-0 right-0 w-24 h-12 bg-transparent z-20 pointer-events-auto select-none"
+                      className="absolute bottom-0 left-0 right-0 h-28 bg-transparent z-30 pointer-events-auto select-none"
                       onClick={(e) => { e.stopPropagation(); }}
                       onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                     />
 
-                    {/* Quality Adjusting Helper Banner */}
+                    {/* 100% Invisible Left & Center Shield: Blocks clicks on Title, channel, and whiteboard, leaving ONLY top-right corner open */}
+                    <div 
+                      className="absolute top-0 left-0 right-[260px] sm:right-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    />
+
+                    {/* 100% Invisible Below-Menu Shield: Blocks clicks below the top-right settings popup */}
+                    <div 
+                      className="absolute top-[340px] right-0 w-[260px] sm:w-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    />
+
+                    {/* Top-Right Settings Guidance Notification Popup */}
                     {isAdjustingQuality && (
-                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-black/85 backdrop-blur-md border border-primary/50 px-4 py-2 rounded-full text-white text-xs shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto">
-                        <Settings className="w-3.5 h-3.5 text-primary animate-spin" />
-                        <span className="font-medium">Tap YouTube <strong>⚙️ gear</strong> at bottom to pick 720p or 480p</span>
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+                          <Settings className="w-4 h-4 animate-spin-slow" />
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            Click the ⚙️ Gear in the Top-Right Corner
+                            <span className="inline-block animate-bounce text-primary text-sm font-black">↗</span>
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            Select <strong>Quality</strong> (720p, 480p, 360p), then click <strong>Done</strong>.
+                          </span>
+                        </div>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             setIsAdjustingQuality(false);
+                            setPlaying(true);
                           }}
-                          className="bg-primary hover:bg-primary/80 text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] transition-all ml-1 shadow cursor-pointer"
+                          className="bg-primary hover:bg-primary/80 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
                         >
                           Done ✓
                         </button>
@@ -1544,7 +1561,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   {['Auto', '720p', '480p', '360p', '240p', '144p'].map(q => (
                                     <button 
                                       key={q} 
-                                      onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        setQuality(q); 
+                                        setShowQualityMenu(false); 
+                                        if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
+                                          setPlaying(false);
+                                          setIsAdjustingQuality(true);
+                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                          qualityAdjustTimerRef.current = setTimeout(() => {
+                                            setIsAdjustingQuality(false);
+                                          }, 20000);
+                                        }
+                                      }}
                                       className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
                                       {q === '720p' ? '720p (HD Max)' : q}
@@ -1556,16 +1585,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setShowQualityMenu(false);
+                                          setPlaying(false);
                                           setIsAdjustingQuality(true);
                                           if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
                                           qualityAdjustTimerRef.current = setTimeout(() => {
                                             setIsAdjustingQuality(false);
-                                          }, 12000);
+                                          }, 20000);
                                         }}
                                         className="w-full px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 rounded transition-colors text-left flex items-center gap-1.5 cursor-pointer"
                                       >
                                         <Settings className="w-3.5 h-3.5 animate-spin-slow" />
-                                        ⚙️ Open Quality Gear
+                                        ⚙️ Open Quality Gear (↗)
                                       </button>
                                     </div>
                                   )}
