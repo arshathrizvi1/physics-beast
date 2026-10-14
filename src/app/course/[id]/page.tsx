@@ -1221,6 +1221,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                       onReady={() => {
+                        if (playerRef.current && playedSecondsRef.current > 0) {
+                          playerRef.current.seekTo(playedSecondsRef.current, 'seconds');
+                        }
                         if (activeVideo && user?.uid && playerRef.current) {
                           if (!readyFiredRef.current.has(activeVideo.id)) {
                             readyFiredRef.current.add(activeVideo.id);
@@ -1294,14 +1297,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: 1, 
+                            controls: isAdjustingQuality ? 1 : 0, 
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
                             iv_load_policy: 3,
                             cc_load_policy: 0,
                             cc_lang_pref: 'none',
-                            fs: 0
+                            fs: 0,
+                            start: Math.floor(playedSecondsRef.current || 0)
                           }
                         },
                         file: {
@@ -1521,17 +1525,32 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setShowQualityMenu(!showQualityMenu);
-                                setShowSpeedMenu(false);
+                                if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
+                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly (no dummy popup)
+                                  setPlaying(false);
+                                  setIsAdjustingQuality(true);
+                                  setShowQualityMenu(false);
+                                  setShowSpeedMenu(false);
+                                  if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                  qualityAdjustTimerRef.current = setTimeout(() => {
+                                    setIsAdjustingQuality(false);
+                                  }, 30000);
+                                } else {
+                                  // For Bunny Stream / HLS: toggle native quality menu
+                                  setShowQualityMenu(!showQualityMenu);
+                                  setShowSpeedMenu(false);
+                                }
                               }}
                             >
                               {quality} <Settings className="w-4 h-4 ml-1" />
                             </button>
-                            {showQualityMenu && (
+
+                            {/* Dropdown Menu for Bunny / HLS ONLY */}
+                            {showQualityMenu && activeServer !== 'youtube' && activeVideo.platform !== 'youtube' && (
                               <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
                                 <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-36 text-white backdrop-blur-md">
                                   <div className="flex justify-between items-center border-b border-white/10 mb-1 px-3 py-1.5">
-                                    <span className="text-xs text-zinc-400 font-semibold">Quality (Max 720p)</span>
+                                    <span className="text-xs text-zinc-400 font-semibold">Quality</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
                                   {['Auto', '720p', '480p', '360p', '240p', '144p'].map(q => (
@@ -1541,40 +1560,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         e.stopPropagation(); 
                                         setQuality(q); 
                                         setShowQualityMenu(false); 
-                                        if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
-                                          setPlaying(false);
-                                          setIsAdjustingQuality(true);
-                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
-                                          qualityAdjustTimerRef.current = setTimeout(() => {
-                                            setIsAdjustingQuality(false);
-                                          }, 20000);
-                                        }
                                       }}
                                       className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
-                                      {q === '720p' ? '720p (HD Max)' : q}
+                                      {q}
                                     </button>
                                   ))}
-                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube') && (
-                                    <div className="border-t border-white/10 mt-1 pt-1 px-1">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setShowQualityMenu(false);
-                                          setPlaying(false);
-                                          setIsAdjustingQuality(true);
-                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
-                                          qualityAdjustTimerRef.current = setTimeout(() => {
-                                            setIsAdjustingQuality(false);
-                                          }, 20000);
-                                        }}
-                                        className="w-full px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 rounded transition-colors text-left flex items-center gap-1.5 cursor-pointer"
-                                      >
-                                        <Settings className="w-3.5 h-3.5 animate-spin-slow" />
-                                        ⚙️ Open Quality Gear (↗)
-                                      </button>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             )}
