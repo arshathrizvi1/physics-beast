@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
 import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId } from "@/lib/playerDeviceControl";
-import { resolvePipedStream } from "@/lib/pipedStreamResolver";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -86,7 +85,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
-  const [pipedCleanStream, setPipedCleanStream] = useState<string | null>(null);
   const playedSecondsRef = useRef(0);
   const durationRef = useRef(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -181,34 +179,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setBunnyEmbedUrl('');
     }
   }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user?.email]);
-
-  // Automatically resolve clean Piped stream for YouTube playback
-  useEffect(() => {
-    let isCancelled = false;
-    const targetYtId = extractYoutubeId(activeVideo?.originalYoutubeUrl) || extractYoutubeId(activeVideo?.url);
-
-    if (activeServer === 'youtube' && targetYtId) {
-      resolvePipedStream(targetYtId).then((result) => {
-        if (!isCancelled) {
-          if (result?.streamUrl) {
-            setPipedCleanStream(result.streamUrl);
-          } else {
-            setPipedCleanStream(null); // Fall back to direct YouTube
-          }
-        }
-      }).catch(() => {
-        if (!isCancelled) {
-          setPipedCleanStream(null);
-        }
-      });
-    } else {
-      setPipedCleanStream(null);
-    }
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [activeVideo?.id, activeVideo?.url, activeVideo?.originalYoutubeUrl, activeServer]);
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
@@ -1214,7 +1184,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
-                            ? (pipedCleanStream || (activeVideo.originalYoutubeUrl || activeVideo.url))
+                            ? (activeVideo.originalYoutubeUrl || activeVideo.url)
                             : activeVideo.url
                         }
                       width="100%"
@@ -1242,10 +1212,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                       onError={(err) => {
                         console.warn("Playback error encountered:", err);
-                        if (activeServer === 'youtube' && pipedCleanStream) {
-                          console.info("Piped stream dropped, seamlessly falling back to direct YouTube stream...");
-                          setPipedCleanStream(null);
-                        } else if (activeServer === 'bunny' && isYoutubePermitted) {
+                        if (activeServer === 'bunny' && isYoutubePermitted) {
                           console.info("Bunny playback failed, automatically falling over to YouTube source...");
                           setActiveServer('youtube');
                         } else if (activeServer === 'youtube' && isBunnyPermitted) {
@@ -1353,53 +1320,56 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
 
-                    {/* 100% Invisible Bottom Shield: Completely blocks YouTube's red scrubber, time, share, more videos, and YouTube logo */}
-                    <div 
-                      className="absolute bottom-0 left-0 right-0 h-28 bg-transparent z-30 pointer-events-auto select-none"
-                      onClick={(e) => { e.stopPropagation(); }}
-                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    />
-
-                    {/* 100% Invisible Left & Center Shield: Blocks clicks on Title, channel, and whiteboard, leaving ONLY top-right corner open */}
-                    <div 
-                      className="absolute top-0 left-0 right-[260px] sm:right-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
-                      onClick={(e) => { e.stopPropagation(); }}
-                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    />
-
-                    {/* 100% Invisible Below-Menu Shield: Blocks clicks below the top-right settings popup */}
-                    <div 
-                      className="absolute top-[340px] right-0 w-[260px] sm:w-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
-                      onClick={(e) => { e.stopPropagation(); }}
-                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    />
-
-                    {/* Top-Right Settings Guidance Notification Popup */}
+                    {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
-                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
-                          <Settings className="w-4 h-4 animate-spin-slow" />
+                      <>
+                        {/* 1. Bottom Shield: Blocks YouTube's red scrubber, time, share, more videos, and YouTube logo */}
+                        <div 
+                          className="absolute bottom-0 left-0 right-0 h-28 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
+
+                        {/* 2. Left & Center Shield: Blocks clicks on Title, channel, and whiteboard, leaving ONLY top-right corner open */}
+                        <div 
+                          className="absolute top-0 left-0 right-[260px] sm:right-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
+
+                        {/* 3. Below-Menu Shield: Blocks clicks below the top-right settings popup */}
+                        <div 
+                          className="absolute top-[340px] right-0 w-[260px] sm:w-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
+
+                        {/* 4. Top-Right Settings Guidance Notification Popup */}
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+                            <Settings className="w-4 h-4 animate-spin-slow" />
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                              Click the ⚙️ Gear in the Top-Right Corner
+                              <span className="inline-block animate-bounce text-primary text-sm font-black">↗</span>
+                            </span>
+                            <span className="text-[11px] text-zinc-400">
+                              Select <strong>Quality</strong> (720p, 480p, 360p), then click <strong>Done</strong>.
+                            </span>
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsAdjustingQuality(false);
+                              setPlaying(true);
+                            }}
+                            className="bg-primary hover:bg-primary/80 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
+                          >
+                            Done ✓
+                          </button>
                         </div>
-                        <div className="flex flex-col text-left">
-                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                            Click the ⚙️ Gear in the Top-Right Corner
-                            <span className="inline-block animate-bounce text-primary text-sm font-black">↗</span>
-                          </span>
-                          <span className="text-[11px] text-zinc-400">
-                            Select <strong>Quality</strong> (720p, 480p, 360p), then click <strong>Done</strong>.
-                          </span>
-                        </div>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAdjustingQuality(false);
-                            setPlaying(true);
-                          }}
-                          className="bg-primary hover:bg-primary/80 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
-                        >
-                          Done ✓
-                        </button>
-                      </div>
+                      </>
                     )}
 
                     </div>
@@ -1408,7 +1378,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && !isAdjustingQuality && (
                   <div 
-                    className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+                    className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
                   >
                     <div className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center pl-2 shadow-2xl drop-shadow-2xl">
                       <Play className="w-10 h-10 fill-current" />
@@ -1418,7 +1388,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
-                  className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${
+                  className={`absolute inset-0 z-20 select-none touch-manipulation cursor-pointer flex ${
                     (activeServer === 'bunny' && activeVideo.platform === 'bunny') || isAdjustingQuality ? 'hidden' : ''
                   }`}
                 >
