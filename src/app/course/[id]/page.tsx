@@ -1360,37 +1360,34 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Top-Left Shield: Blocks clicking Title, channel name, and avatar */}
+                        {/* 1. Full Left Shield: Blocks Title, Avatar, Share, Watch Later, and left screen entirely */}
                         <div 
-                          className="absolute top-0 left-0 w-1/2 h-14 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 bottom-0 z-30 pointer-events-auto bg-transparent select-none"
+                          style={{ width: 'max(160px, calc(50% - 140px))' }}
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 2. Bottom-Left Shield: Blocks clicking Share and Watch Later buttons */}
+                        {/* 2. Full Right Shield: Blocks YouTube logo mark, More videos shelf, Thumbnail, and right screen entirely (below top 55px) */}
                         <div 
-                          className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute right-0 bottom-0 z-30 pointer-events-auto bg-transparent select-none"
+                          style={{ width: 'max(160px, calc(50% - 140px))', top: '55px' }}
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Bottom-Right Shield: Blocks clicking the YouTube logo mark, thumbnail, and More Videos (288px wide) */}
+                        {/* 3. Center-Top Shield: Blocks the center Play button and video surface above settings card */}
                         <div 
-                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-1/2 -translate-x-1/2 w-[280px] max-w-[85%] z-30 pointer-events-auto bg-transparent select-none"
+                          style={{ bottom: '165px' }}
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Bottom-Sheet Protection Shield: 
-                             Surgically blocks clicking '... More options' (which exposes 'Copy video URL'),
-                             'Captions', and 'Speed'.
-                             Leaves Row 1 ('Quality') 100% accessible at the top of the card.
-                             When the student clicks 'Quality', this shield lifts so any resolution
-                             (720p, 480p, 360p, 240p) can be selected!
-                        */}
+                        {/* 4. Center-Bottom Shield: Blocks '... More options' (Copy URL), Captions, Speed, and scrubber bar */}
                         {qualityStep !== 'quality_list' && (
                           <div 
-                            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[320px] max-w-[85%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[280px] max-w-[85%] h-[115px] bg-transparent z-30 pointer-events-auto select-none"
                             onClick={(e) => { e.stopPropagation(); }}
                             onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                           />
