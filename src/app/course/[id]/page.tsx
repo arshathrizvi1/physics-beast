@@ -1360,31 +1360,34 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Top-Left Shield: Blocks Title, channel name, and avatar */}
+                        {/* 1. Danger Zone 1: Top-Left Title, Avatar, & Channel link */}
                         <div 
-                          className="absolute top-0 left-0 w-64 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 w-80 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 2. Bottom-Left Shield: Blocks Share and Watch Later buttons */}
+                        {/* 2. Danger Zone 2: Bottom-Left Share & Watch Later buttons */}
                         <div 
                           className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Bottom-Right Shield: Blocks YouTube logo mark, thumbnail, and More Videos (288px wide) */}
+                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark, More videos button, & thumbnail (288px wide) */}
                         <div 
                           className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Center-Bottom Shield: Blocks '... More options' (Copy URL), Captions, Speed, and scrubber bar */}
+                        {/* 4. Danger Zone 4: Bottom-Sheet Menu Rows 2-4 ('... More options', 'Captions', 'Speed')
+                             Leaves Row 1 ('Quality 720p >') directly clickable above 115px!
+                             Lifts when qualityStep === 'quality_list' so any resolution can be selected.
+                        */}
                         {qualityStep !== 'quality_list' && (
                           <div 
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-72 max-w-[85%] h-[115px] bg-transparent z-30 pointer-events-auto select-none"
+                            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[300px] max-w-[85%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
                             onClick={(e) => { e.stopPropagation(); }}
                             onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                           />
