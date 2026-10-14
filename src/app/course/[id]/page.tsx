@@ -1213,7 +1213,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             : ''
                         }`}>
                           <ReactPlayer
-                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
+                            key={`player_${activeVideo.id}_${activeServer}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1330,7 +1330,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: isAdjustingQuality ? 1 : 0, 
+                            controls: 1, 
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
@@ -1360,26 +1360,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Full Left Shield: Blocks Title, Avatar, Share, Watch Later, and left screen entirely */}
+                        {/* 1. Top-Left Shield: Blocks Title, channel name, and avatar */}
                         <div 
-                          className="absolute top-0 left-0 bottom-0 z-30 pointer-events-auto bg-transparent select-none"
-                          style={{ width: 'max(160px, calc(50% - 140px))' }}
+                          className="absolute top-0 left-0 w-64 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 2. Full Right Shield: Blocks YouTube logo mark, More videos shelf, Thumbnail, and right screen entirely (below top 55px) */}
+                        {/* 2. Bottom-Left Shield: Blocks Share and Watch Later buttons */}
                         <div 
-                          className="absolute right-0 bottom-0 z-30 pointer-events-auto bg-transparent select-none"
-                          style={{ width: 'max(160px, calc(50% - 140px))', top: '55px' }}
+                          className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Center-Top Shield: Blocks the center Play button and video surface above settings card */}
+                        {/* 3. Bottom-Right Shield: Blocks YouTube logo mark, thumbnail, and More Videos (288px wide) */}
                         <div 
-                          className="absolute top-0 left-1/2 -translate-x-1/2 w-[280px] max-w-[85%] z-30 pointer-events-auto bg-transparent select-none"
-                          style={{ bottom: '165px' }}
+                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
@@ -1387,7 +1384,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         {/* 4. Center-Bottom Shield: Blocks '... More options' (Copy URL), Captions, Speed, and scrubber bar */}
                         {qualityStep !== 'quality_list' && (
                           <div 
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[280px] max-w-[85%] h-[115px] bg-transparent z-30 pointer-events-auto select-none"
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-72 max-w-[85%] h-[115px] bg-transparent z-30 pointer-events-auto select-none"
                             onClick={(e) => { e.stopPropagation(); }}
                             onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                           />
