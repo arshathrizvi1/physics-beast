@@ -91,7 +91,48 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
+  const [qualityStep, setQualityStep] = useState<'menu' | 'quality_list'>('menu');
+  const focusAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const iframeClicksRef = useRef(0);
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // YouTube Quality adjustment click progression:
+  // Shields Rows 2-4 (Speed, Captions, More options / Copy URL) initially.
+  // Click 1 is the Gear icon -> opens YouTube settings bottom sheet.
+  // Click 2 is the Quality row -> lifts shield so all resolutions (720p, 480p, 360p, 240p) are clickable.
+  useEffect(() => {
+    if (!isAdjustingQuality) {
+      setQualityStep('menu');
+      iframeClicksRef.current = 0;
+      return;
+    }
+
+    // Refocus parent on start so blur detection works
+    focusAnchorRef.current?.focus();
+
+    const handleBlur = () => {
+      iframeClicksRef.current += 1;
+
+      if (iframeClicksRef.current === 1) {
+        // Click 1 was the Gear icon. YouTube is opening the bottom sheet menu.
+        // Regain focus to parent so Click 2 (Quality row) can also trigger a blur event.
+        setTimeout(() => {
+          focusAnchorRef.current?.focus();
+        }, 150);
+      } else {
+        // Click 2 was on the Quality row!
+        // Lift the bottom shield so any resolution (720p, 480p, 360p, 240p) can be selected.
+        setTimeout(() => {
+          setQualityStep('quality_list');
+        }, 150);
+      }
+    };
+
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isAdjustingQuality]);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<{ side: 'left' | 'right' | null; time: number }>({ side: null, time: 0 });
@@ -1327,6 +1368,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
+                        {/* Hidden focus anchor to capture window blur cycles when clicking iframe */}
+                        <button ref={focusAnchorRef} className="sr-only" tabIndex={-1} aria-hidden="true" />
+
                         {/* 1. Top-Left Shield: Blocks clicking Title, channel name, and avatar */}
                         <div 
                           className="absolute top-0 left-0 w-1/2 h-20 bg-transparent z-30 pointer-events-auto select-none"
@@ -1348,24 +1392,57 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Top Settings Guidance Notification Popup */}
+                        {/* 4. Bottom-Sheet Protection Shield: 
+                             Surgically blocks clicking '... More options' (which exposes 'Copy video URL'),
+                             'Captions', and 'Speed'.
+                             Leaves Row 1 ('Quality') 100% accessible at the top of the card.
+                             When the student clicks 'Quality', this shield lifts so any resolution
+                             (720p, 480p, 360p, 240p) can be selected!
+                        */}
+                        {qualityStep !== 'quality_list' && (
+                          <div 
+                            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[320px] max-w-[85%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
+                            onClick={(e) => { e.stopPropagation(); }}
+                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          />
+                        )}
+
+                        {/* 5. Top Settings Guidance Notification Popup */}
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              Click the ⚙️ Gear (Top-Right) or Menu Below
-                              <span className="inline-block animate-bounce text-primary text-sm font-black">↗</span>
+                              {qualityStep === 'quality_list'
+                                ? "✓ Quality Options Open"
+                                : "Click ⚙️ Gear (Top-Right) → Quality"}
+                              <span className="inline-block animate-bounce text-primary text-sm font-black">
+                                {qualityStep === 'quality_list' ? "↓" : "↗"}
+                              </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
-                              Select <strong>Quality</strong> (720p, 480p, 360p), then click <strong>Done</strong>.
+                              {qualityStep === 'quality_list'
+                                ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
+                                : "Select Quality in the menu below to pick resolution."}
                             </span>
                           </div>
+                          {qualityStep !== 'quality_list' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQualityStep('quality_list');
+                              }}
+                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
+                            >
+                              Unlock Choices
+                            </button>
+                          )}
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               setIsAdjustingQuality(false);
+                              setQualityStep('menu');
                               setPlaying(true);
                               try {
                                 const internal = playerRef.current?.getInternalPlayer();
@@ -1529,6 +1606,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly (no dummy popup)
                                   setPlaying(false);
                                   setIsAdjustingQuality(true);
+                                  setQualityStep('menu');
                                   setShowQualityMenu(false);
                                   setShowSpeedMenu(false);
                                   if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
