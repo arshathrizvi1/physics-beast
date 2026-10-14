@@ -92,6 +92,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
+  const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
+  const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<{ side: 'left' | 'right' | null; time: number }>({ side: null, time: 0 });
@@ -1177,9 +1179,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               ) : (
                 <div 
                   ref={playerContainerRef} 
-                  className="w-full h-full absolute inset-0 z-0 bg-black group/player overflow-hidden"
+                  className="w-full h-full absolute inset-0 z-0 bg-black group/player overflow-hidden select-none"
+                  onContextMenu={(e) => e.preventDefault()}
                   onMouseEnter={() => setShowControls(true)}
-                  onMouseLeave={() => setShowControls(false)}
+                  onMouseLeave={() => {
+                    if (!isAdjustingQuality) setShowControls(false);
+                  }}
                 >
                       <>
                         {activeVideo.platform === 'zoom' && (
@@ -1200,7 +1205,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        <div className={`absolute inset-0 pointer-events-none w-full h-full ${
+                        <div className={`absolute inset-0 ${isAdjustingQuality ? 'pointer-events-auto' : 'pointer-events-none'} w-full h-full ${
                           (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                             ? 'hidden'
                             : ''
@@ -1322,7 +1327,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: 0, 
+                            controls: 1, 
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
@@ -1348,11 +1353,43 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                     />
 
+                    {/* 100% Invisible Anti-Leak Top Shield (Blocks Title & Share clicks - ZERO black boxes) */}
+                    <div 
+                      className="absolute top-0 left-0 right-0 h-14 bg-transparent z-20 pointer-events-auto select-none"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      onDoubleClick={(e) => { e.stopPropagation(); }}
+                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    />
+
+                    {/* 100% Invisible Logo Shield over 'Watch on YouTube' (ZERO black boxes) */}
+                    <div 
+                      className="absolute bottom-0 right-0 w-24 h-12 bg-transparent z-20 pointer-events-auto select-none"
+                      onClick={(e) => { e.stopPropagation(); }}
+                      onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                    />
+
+                    {/* Quality Adjusting Helper Banner */}
+                    {isAdjustingQuality && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-black/85 backdrop-blur-md border border-primary/50 px-4 py-2 rounded-full text-white text-xs shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto">
+                        <Settings className="w-3.5 h-3.5 text-primary animate-spin" />
+                        <span className="font-medium">Tap YouTube <strong>⚙️ gear</strong> at bottom to pick 720p or 480p</span>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsAdjustingQuality(false);
+                          }}
+                          className="bg-primary hover:bg-primary/80 text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] transition-all ml-1 shadow cursor-pointer"
+                        >
+                          Done ✓
+                        </button>
+                      </div>
+                    )}
+
                     </div>
                     </>
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && (
+                {!playing && !isAdjustingQuality && (
                   <div 
                     className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
                   >
@@ -1365,7 +1402,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
                   className={`absolute inset-0 z-10 select-none touch-manipulation cursor-pointer flex ${
-                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') ? 'hidden' : ''
+                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') || isAdjustingQuality ? 'hidden' : ''
                   }`}
                 >
                   <div 
@@ -1431,7 +1468,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
@@ -1499,20 +1536,39 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             </button>
                             {showQualityMenu && (
                               <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
-                                <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-28 text-white backdrop-blur-md">
+                                <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-36 text-white backdrop-blur-md">
                                   <div className="flex justify-between items-center border-b border-white/10 mb-1 px-3 py-1.5">
-                                    <span className="text-xs text-zinc-400 font-semibold">Quality</span>
+                                    <span className="text-xs text-zinc-400 font-semibold">Quality (Max 720p)</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {['Auto', '1080p', '720p', '480p', '360p', '144p'].map(q => (
+                                  {['Auto', '720p', '480p', '360p', '240p', '144p'].map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { e.stopPropagation(); setQuality(q); setShowQualityMenu(false); }}
                                       className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
-                                      {q}
+                                      {q === '720p' ? '720p (HD Max)' : q}
                                     </button>
                                   ))}
+                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube') && (
+                                    <div className="border-t border-white/10 mt-1 pt-1 px-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowQualityMenu(false);
+                                          setIsAdjustingQuality(true);
+                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                          qualityAdjustTimerRef.current = setTimeout(() => {
+                                            setIsAdjustingQuality(false);
+                                          }, 12000);
+                                        }}
+                                        className="w-full px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/20 rounded transition-colors text-left flex items-center gap-1.5 cursor-pointer"
+                                      >
+                                        <Settings className="w-3.5 h-3.5 animate-spin-slow" />
+                                        ⚙️ Open Quality Gear
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
