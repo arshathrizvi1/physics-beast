@@ -1323,35 +1323,35 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Bottom Shield: Blocks YouTube's red scrubber, time, share, more videos, and YouTube logo */}
+                        {/* 1. Top-Left Shield: Blocks clicking Title, channel name, and avatar */}
                         <div 
-                          className="absolute bottom-0 left-0 right-0 h-28 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 w-1/2 h-20 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 2. Left & Center Shield: Blocks clicks on Title, channel, and whiteboard, leaving ONLY top-right corner open */}
+                        {/* 2. Bottom-Left Shield: Blocks clicking Share and Watch Later buttons */}
                         <div 
-                          className="absolute top-0 left-0 right-[260px] sm:right-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 left-0 w-36 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Below-Menu Shield: Blocks clicks below the top-right settings popup */}
+                        {/* 3. Bottom-Right Shield: Blocks clicking the YouTube logo and More Videos */}
                         <div 
-                          className="absolute top-[340px] right-0 w-[260px] sm:w-[320px] bottom-28 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-36 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Top-Right Settings Guidance Notification Popup */}
+                        {/* 4. Top Settings Guidance Notification Popup */}
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              Click the ⚙️ Gear in the Top-Right Corner
+                              Click the ⚙️ Gear (Top-Right) or Menu Below
                               <span className="inline-block animate-bounce text-primary text-sm font-black">↗</span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
@@ -1363,8 +1363,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               e.stopPropagation();
                               setIsAdjustingQuality(false);
                               setPlaying(true);
+                              try {
+                                const internal = playerRef.current?.getInternalPlayer();
+                                if (internal && typeof internal.playVideo === 'function') {
+                                  internal.playVideo();
+                                }
+                              } catch (err) {}
                             }}
-                            className="bg-primary hover:bg-primary/80 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
+                            className="bg-primary hover:bg-primary/80 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
                           >
                             Done ✓
                           </button>
