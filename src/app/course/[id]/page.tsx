@@ -107,21 +107,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       return;
     }
 
-    // Refocus parent on start so blur detection works
-    focusAnchorRef.current?.focus();
-
     const handleBlur = () => {
       iframeClicksRef.current += 1;
 
-      if (iframeClicksRef.current === 1) {
-        // Click 1 was the Gear icon. YouTube is opening the bottom sheet menu.
-        // Regain focus to parent so Click 2 (Quality row) can also trigger a blur event.
-        setTimeout(() => {
-          focusAnchorRef.current?.focus();
-        }, 150);
-      } else {
-        // Click 2 was on the Quality row!
-        // Lift the bottom shield so any resolution (720p, 480p, 360p, 240p) can be selected.
+      // When the student clicks inside the iframe:
+      // If it's click 2 or more (Quality clicked), lift the bottom sheet shield
+      if (iframeClicksRef.current >= 2) {
         setTimeout(() => {
           setQualityStep('quality_list');
         }, 150);
@@ -1222,6 +1213,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             : ''
                         }`}>
                           <ReactPlayer
+                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1368,26 +1360,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* Hidden focus anchor to capture window blur cycles when clicking iframe */}
-                        <button ref={focusAnchorRef} className="sr-only" tabIndex={-1} aria-hidden="true" />
-
                         {/* 1. Top-Left Shield: Blocks clicking Title, channel name, and avatar */}
                         <div 
-                          className="absolute top-0 left-0 w-1/2 h-20 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 w-1/2 h-14 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
                         {/* 2. Bottom-Left Shield: Blocks clicking Share and Watch Later buttons */}
                         <div 
-                          className="absolute bottom-0 left-0 w-36 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Bottom-Right Shield: Blocks clicking the YouTube logo and More Videos */}
+                        {/* 3. Bottom-Right Shield: Blocks clicking the YouTube logo mark, thumbnail, and More Videos (288px wide) */}
                         <div 
-                          className="absolute bottom-0 right-0 w-36 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
@@ -1407,8 +1396,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           />
                         )}
 
-                        {/* 5. Top Settings Guidance Notification Popup */}
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
+                        {/* 5. Top Settings Guidance Notification Popup (Positioned at top-14 so it never covers the top-right Gear icon) */}
+                        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
@@ -1612,7 +1601,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
                                   qualityAdjustTimerRef.current = setTimeout(() => {
                                     setIsAdjustingQuality(false);
-                                  }, 30000);
+                                    setQualityStep('menu');
+                                  }, 60000);
                                 } else {
                                   // For Bunny Stream / HLS: toggle native quality menu
                                   setShowQualityMenu(!showQualityMenu);
