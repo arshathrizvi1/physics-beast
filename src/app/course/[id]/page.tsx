@@ -1373,9 +1373,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Permanently blocks '... More options' button place */}
+                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Big block permanently shielding '... More options' & 'CC' without any edge gaps */}
                         <div 
-                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[320px] max-w-[90%] h-[70px] bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[460px] max-w-[95%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
