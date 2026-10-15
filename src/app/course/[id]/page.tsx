@@ -1200,23 +1200,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         )}
 
                         <div 
-                          className={`absolute left-0 w-full transition-all duration-300 ${
+                          className={`absolute inset-0 w-full h-full ${
                             (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                               ? 'hidden'
                               : ''
                           }`}
                           style={{
-                            top: (activeServer === 'youtube' || activeVideo?.platform === 'youtube')
-                              ? (isAdjustingQuality ? '0px' : '-38px')
-                              : '0px',
-                            height: (activeServer === 'youtube' || activeVideo?.platform === 'youtube')
-                              ? (isAdjustingQuality ? '100%' : 'calc(100% + 76px)')
-                              : '100%',
                             pointerEvents: isAdjustingQuality ? 'auto' : 'none'
                           }}
                         >
                           <ReactPlayer
-                            key={`player_${activeVideo.id}_${activeServer}`}
+                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1271,6 +1265,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                         
                         const internal = playerRef.current?.getInternalPlayer();
+                        if (isAdjustingQuality && internal) {
+                          try {
+                            internal.playVideo();
+                            setTimeout(() => {
+                              try { internal.pauseVideo(); } catch (err) {}
+                            }, 350);
+                          } catch (err) {}
+                        }
+
                         if (internal && typeof internal.unloadModule === 'function') {
                           try {
                             internal.unloadModule("captions");
@@ -1333,7 +1336,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: 1, 
+                            controls: isAdjustingQuality ? 1 : 0, 
+                            autoplay: isAdjustingQuality ? 1 : (playing ? 1 : 0),
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
