@@ -458,6 +458,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   }, [handleSeekDelta, showSeekFeedback]);
 
+  const handleDoneQuality = useCallback(() => {
+    setIsAdjustingQuality(false);
+    setQualityStep('menu');
+    setPlaying(true);
+    if (typeof document !== 'undefined' && document.activeElement) {
+      (document.activeElement as HTMLElement)?.blur?.();
+    }
+    if (typeof window !== 'undefined') {
+      window.focus();
+    }
+    try {
+      const internal = playerRef.current?.getInternalPlayer();
+      if (internal && typeof internal.playVideo === 'function') {
+        internal.playVideo();
+      }
+    } catch (err) {}
+  }, []);
+
   // DVD-style bouncing watermark ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â covers full player
   useEffect(() => {
     let x = 10 + Math.random() * 60;
@@ -1210,7 +1228,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           }}
                         >
                           <ReactPlayer
-                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
+                            key={`player_${activeVideo.id}_${activeServer}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1265,15 +1283,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                         
                         const internal = playerRef.current?.getInternalPlayer();
-                        if (isAdjustingQuality && internal) {
-                          try {
-                            internal.playVideo();
-                            setTimeout(() => {
-                              try { internal.pauseVideo(); } catch (err) {}
-                            }, 350);
-                          } catch (err) {}
-                        }
-
                         if (internal && typeof internal.unloadModule === 'function') {
                           try {
                             internal.unloadModule("captions");
@@ -1336,8 +1345,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: isAdjustingQuality ? 1 : 0, 
-                            autoplay: isAdjustingQuality ? 1 : (playing ? 1 : 0),
+                            controls: 1, 
+                            autoplay: playing ? 1 : 0,
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
@@ -1367,9 +1376,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, & Channel link; leaves top-right Gear accessible) */}
+                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, Channel link, Share, Watch Later) */}
                         <div 
-                          className="absolute top-0 left-0 right-32 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 right-0 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
@@ -1381,9 +1390,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark, More videos button, & thumbnail (288px wide) */}
+                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark & More videos button
+                             - Blocks YouTube logo mark & fullscreen on the rightmost edge (w-20)
+                             - Blocks "More videos" button & thumbnail on the left of controls (right-36 w-56)
+                             - Leaves the "Auto ⚙" / "⚙" button (right-20 to right-36) clickable so resolution can be changed!
+                        */}
                         <div 
-                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-20 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
+                        <div 
+                          className="absolute bottom-0 right-36 w-56 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
@@ -1400,8 +1418,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           />
                         )}
 
-                        {/* 5. Top Settings Guidance Notification Popup (Positioned at top-14 so it never covers the top-right Gear icon) */}
-                        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
+                        {/* 5. Pulsing visual indicator over Auto ⚙ in the bottom-right so student sees exactly where to click */}
+                        {qualityStep !== 'quality_list' && (
+                          <div className="absolute bottom-2 right-[84px] w-12 h-9 border-2 border-primary/90 bg-primary/20 rounded-lg pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.7)]">
+                            <span className="text-[11px] font-black text-primary animate-bounce">⚙</span>
+                          </div>
+                        )}
+
+                        {/* 6. Top Settings Guidance Notification Popup */}
+                        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
@@ -1409,15 +1434,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
                               {qualityStep === 'quality_list'
                                 ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear (Top-Right) → Quality"}
+                                : "Click ⚙️ Gear (Bottom-Right) → Quality"}
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "↗"}
+                                {qualityStep === 'quality_list' ? "↓" : "↘"}
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
                               {qualityStep === 'quality_list'
                                 ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
-                                : "Select Quality in the menu below to pick resolution."}
+                                : "Click the highlighted ⚙ icon at bottom-right → Quality."}
                             </span>
                           </div>
                           {qualityStep !== 'quality_list' && (
@@ -1434,15 +1459,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              setIsAdjustingQuality(false);
-                              setQualityStep('menu');
-                              setPlaying(true);
-                              try {
-                                const internal = playerRef.current?.getInternalPlayer();
-                                if (internal && typeof internal.playVideo === 'function') {
-                                  internal.playVideo();
-                                }
-                              } catch (err) {}
+                              handleDoneQuality();
                             }}
                             className="bg-primary hover:bg-primary/80 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
                           >
@@ -1454,6 +1471,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     </div>
                     </>
+
+                {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
+                {!isAdjustingQuality && (activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black z-20 pointer-events-none" />
+                )}
 
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && !isAdjustingQuality && (
@@ -1534,8 +1556,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </div>
                 </div>
 
+                {/* Clean Course Title Header (fades in on hover/pause, covering YouTube title; fades out during playback) */}
+                <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0' : ''}`}>
+                  <span className="text-sm font-semibold text-white/90 drop-shadow truncate">{activeVideo.title}</span>
+                </div>
+
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
