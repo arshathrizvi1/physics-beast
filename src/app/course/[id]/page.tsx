@@ -91,31 +91,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
-  const [qualityStep, setQualityStep] = useState<'menu' | 'quality_list'>('menu');
-  const iframeClicksRef = useRef(0);
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (!isAdjustingQuality) {
-      setQualityStep('menu');
-      iframeClicksRef.current = 0;
-      return;
-    }
-
-    const handleBlur = () => {
-      iframeClicksRef.current += 1;
-      if (iframeClicksRef.current >= 2) {
-        setTimeout(() => {
-          setQualityStep('quality_list');
-        }, 150);
-      }
-    };
-
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, [isAdjustingQuality]);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<{ side: 'left' | 'right' | null; time: number }>({ side: null, time: 0 });
@@ -460,7 +437,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const handleDoneQuality = useCallback(() => {
     setIsAdjustingQuality(false);
-    setQualityStep('menu');
     setPlaying(true);
     if (typeof document !== 'undefined' && document.activeElement) {
       (document.activeElement as HTMLElement)?.blur?.();
@@ -1397,30 +1373,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Blocks '... More options' (Copy URL), Captions, Speed */}
-                        {qualityStep !== 'quality_list' && (
-                          <div 
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[320px] max-w-[90%] h-[110px] bg-transparent z-30 pointer-events-auto select-none"
-                            onClick={(e) => { e.stopPropagation(); }}
-                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          />
-                        )}
+                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Permanently blocks '... More options' button place */}
+                        <div 
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[320px] max-w-[90%] h-[70px] bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
 
-                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode - Blocks '... More options' (Copy URL), Captions, Speed */}
-                        {qualityStep !== 'quality_list' && (
-                          <div 
-                            className="absolute top-24 right-2 w-72 h-40 bg-transparent z-30 pointer-events-auto select-none"
-                            onClick={(e) => { e.stopPropagation(); }}
-                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          />
-                        )}
+                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode - Permanently blocks '... More options' (Copy URL), Captions, Speed */}
+                        <div 
+                          className="absolute top-24 right-2 w-72 h-40 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
 
                         {/* 6. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
-                        {qualityStep !== 'quality_list' && (
-                          <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
-                            <span className="text-xs font-black text-primary animate-bounce">⚙</span>
-                          </div>
-                        )}
+                        <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                          <span className="text-xs font-black text-primary animate-bounce">⚙</span>
+                        </div>
 
                         {/* 7. Top Settings Guidance Notification Popup */}
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
@@ -1429,30 +1399,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              {qualityStep === 'quality_list'
-                                ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear (Top-Right) → Quality"}
+                              Click ⚙️ Gear (Top-Right) → Quality
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "↗"}
+                                ↗
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
-                              {qualityStep === 'quality_list'
-                                ? "Select your resolution (1080p, 720p, 480p, 360p, 240p), then click Done."
-                                : "Click the highlighted ⚙ icon at top-right → Quality, then click Unlock Choices."}
+                              Click the highlighted ⚙ icon at top-right → select Quality → pick your resolution, then click Done.
                             </span>
                           </div>
-                          {qualityStep !== 'quality_list' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setQualityStep('quality_list');
-                              }}
-                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
-                            >
-                              Unlock Choices
-                            </button>
-                          )}
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1635,13 +1590,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   }
                                   setPlaying(false);
                                   setIsAdjustingQuality(true);
-                                  setQualityStep('menu');
                                   setShowQualityMenu(false);
                                   setShowSpeedMenu(false);
                                   if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
                                   qualityAdjustTimerRef.current = setTimeout(() => {
                                     setIsAdjustingQuality(false);
-                                    setQualityStep('menu');
                                   }, 60000);
                                 } else {
                                   // For Bunny Stream / HLS: toggle native quality menu
