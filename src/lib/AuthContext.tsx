@@ -1466,10 +1466,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storageKey = user?.uid ? `user_progress_${user.uid}` : 'guest_video_progress';
       const raw = safeStorage.local.getItem(storageKey);
       const existing = raw ? JSON.parse(raw) : {};
-      if (cleanPercent > (existing[videoId] || 0)) {
-        existing[videoId] = cleanPercent;
-        safeStorage.local.setItem(storageKey, JSON.stringify(existing));
-      }
+      existing[videoId] = cleanPercent;
+      safeStorage.local.setItem(storageKey, JSON.stringify(existing));
     } catch {}
 
     // Update state & Firestore if user is authenticated
@@ -1477,7 +1475,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(prev => {
         if (!prev) return prev;
         const current = prev.videoProgress?.[videoId] || 0;
-        if (cleanPercent <= current) return prev;
+        if (cleanPercent === current) return prev;
         return {
           ...prev,
           videoProgress: {

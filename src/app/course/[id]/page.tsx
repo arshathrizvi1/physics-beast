@@ -204,21 +204,25 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     } catch {}
   }, [user?.uid]);
 
-  // Record progress callback with throttling
+  // Record progress callback with accurate percentage tracking
   const recordProgress = useCallback((videoId: string, percent: number) => {
     if (!videoId) return;
     const clean = Math.min(100, Math.max(0, Math.round(percent)));
-    // If student watched 90% or more, count as 100% completed
-    const finalPct = clean >= 90 ? 100 : clean;
+    // Genuinely record true percentage; only 100% when video is actually completed
+    const finalPct = clean >= 100 ? 100 : clean;
 
     setLocalVideoProgress(prev => {
       const current = prev[videoId] || 0;
+      // If previously falsely marked as 100% by the old >=90% bug, correct it back to actual watched progress
+      if (current === 100 && clean < 98) {
+        return { ...prev, [videoId]: finalPct };
+      }
       if (finalPct <= current) return prev;
       return { ...prev, [videoId]: finalPct };
     });
 
     const prevSaved = lastSavedProgressRef.current[videoId] || 0;
-    if (finalPct - prevSaved >= 3 || finalPct === 100) {
+    if (Math.abs(finalPct - prevSaved) >= 2 || finalPct === 100 || (prevSaved === 100 && clean < 98)) {
       lastSavedProgressRef.current[videoId] = finalPct;
       updateVideoProgress?.(videoId, finalPct);
     }
@@ -239,6 +243,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             const pct = Math.min(100, Math.round((seconds / duration) * 100));
             recordProgress(activeVideoRef.current.id, pct);
           }
+        }
+        if (data?.event === 'ended' && activeVideoRef.current?.id) {
+          recordProgress(activeVideoRef.current.id, 100);
         }
       } catch {}
     };
@@ -1283,6 +1290,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       muted={muted}
                       onPlay={() => setPlaying(true)}
                       onPause={() => setPlaying(false)}
+                      onEnded={() => {
+                        setPlaying(false);
+                        if (activeVideo?.id) {
+                          recordProgress(activeVideo.id, 100);
+                        }
+                      }}
                       onProgress={(state) => {
                         setPlayed(state.played);
                         playedSecondsRef.current = state.playedSeconds;
@@ -2101,7 +2114,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                                   </span>
                                                 </div>
                                                 <span className={`text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded ${
-                                                  vPct >= 90
+                                                  vPct >= 100
                                                     ? 'bg-green-500/10 text-green-500'
                                                     : vPct > 0
                                                       ? 'bg-primary/10 text-primary'
