@@ -1207,13 +1207,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        <div className={`absolute inset-0 ${isAdjustingQuality ? 'pointer-events-auto' : 'pointer-events-none'} w-full h-full ${
-                          (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
-                            ? 'hidden'
-                            : ''
-                        }`}>
+                        <div 
+                          className={`absolute left-0 w-full transition-all duration-300 ${
+                            (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
+                              ? 'hidden'
+                              : ''
+                          }`}
+                          style={{
+                            top: (activeServer === 'youtube' || activeVideo?.platform === 'youtube')
+                              ? (isAdjustingQuality ? '0%' : '-16%')
+                              : '0%',
+                            height: (activeServer === 'youtube' || activeVideo?.platform === 'youtube')
+                              ? (isAdjustingQuality ? '100%' : '132%')
+                              : '100%',
+                            pointerEvents: isAdjustingQuality ? 'auto' : 'none'
+                          }}
+                        >
                           <ReactPlayer
-                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
+                            key={`player_${activeVideo.id}_${activeServer}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1330,7 +1341,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: isAdjustingQuality ? 1 : 0, 
+                            controls: 1, 
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
@@ -1374,9 +1385,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark, More videos button, & thumbnail (288px wide) */}
+                        {/* 3. Danger Zone 3: Bottom-Right Shields
+                             - Blocks YouTube logo mark & fullscreen on the rightmost edge (w-20)
+                             - Blocks "More videos" button & thumbnail on the left of controls (right-32 w-56)
+                             - Leaves the "Auto ⚙" button (right-20 to right-32) clickable so resolution can be changed!
+                        */}
                         <div 
-                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-20 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); }}
+                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                        />
+                        <div 
+                          className="absolute bottom-0 right-32 w-56 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
@@ -1402,15 +1422,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
                               {qualityStep === 'quality_list'
                                 ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear (Top-Right) → Quality"}
+                                : "Click ⚙️ Gear → Quality"}
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "↗"}
+                                {qualityStep === 'quality_list' ? "↓" : "⚙"}
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
                               {qualityStep === 'quality_list'
                                 ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
-                                : "Select Quality in the menu below to pick resolution."}
+                                : "Click Gear (bottom or top) → Quality to pick resolution."}
                             </span>
                           </div>
                           {qualityStep !== 'quality_list' && (
