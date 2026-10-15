@@ -1376,86 +1376,48 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, Channel link, Share, Watch Later) */}
+                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, & Channel link; leaves top-right Gear accessible) */}
                         <div 
-                          className="absolute top-0 left-0 right-0 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 right-28 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
                         {/* 2. Danger Zone 2: Bottom-Left Share & Watch Later buttons */}
                         <div 
-                          className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 left-0 w-48 h-20 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark & More videos button
-                             - Blocks YouTube logo mark & fullscreen on the rightmost edge (w-20)
-                             - Blocks "More videos" button & thumbnail on the left of controls (right-36 w-56)
-                             - Leaves the "Auto ⚙" / "⚙" button (right-20 to right-36) clickable so resolution can be changed!
-                        */}
+                        {/* 3. Danger Zone 3: Bottom-Right - COMPLETELY BLOCKS YouTube logo button, More Videos shelf, and thumbnail */}
                         <div 
-                          className="absolute bottom-0 right-0 w-20 h-16 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-                        <div 
-                          className="absolute bottom-0 right-36 w-56 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-80 h-24 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Danger Zone 4: Bottom-Sheet Menu Rows 2-4 ('... More options', 'Captions', 'Speed')
-                             Leaves Row 1 ('Quality 720p >') directly clickable above 115px!
-                             Lifts when qualityStep === 'quality_list' so any resolution can be selected.
-                        */}
-                        {qualityStep !== 'quality_list' && (
-                          <div 
-                            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[300px] max-w-[85%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
-                            onClick={(e) => { e.stopPropagation(); }}
-                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          />
-                        )}
+                        {/* 4. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
+                        <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                          <span className="text-xs font-black text-primary animate-bounce">⚙</span>
+                        </div>
 
-                        {/* 5. Pulsing visual indicator over Auto ⚙ in the bottom-right so student sees exactly where to click */}
-                        {qualityStep !== 'quality_list' && (
-                          <div className="absolute bottom-2 right-[84px] w-12 h-9 border-2 border-primary/90 bg-primary/20 rounded-lg pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.7)]">
-                            <span className="text-[11px] font-black text-primary animate-bounce">⚙</span>
-                          </div>
-                        )}
-
-                        {/* 6. Top Settings Guidance Notification Popup */}
+                        {/* 5. Top Settings Guidance Notification Popup */}
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              {qualityStep === 'quality_list'
-                                ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear (Bottom-Right) → Quality"}
+                              Click ⚙️ Gear (Top-Right) → Quality
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "↘"}
+                                ↗
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
-                              {qualityStep === 'quality_list'
-                                ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
-                                : "Click the highlighted ⚙ icon at bottom-right → Quality."}
+                              Click the highlighted ⚙ icon at top-right, choose your resolution, then click Done.
                             </span>
                           </div>
-                          {qualityStep !== 'quality_list' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setQualityStep('quality_list');
-                              }}
-                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
-                            >
-                              Unlock Choices
-                            </button>
-                          )}
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
