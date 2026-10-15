@@ -1397,27 +1397,62 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
-                        <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
-                          <span className="text-xs font-black text-primary animate-bounce">⚙</span>
-                        </div>
+                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Blocks '... More options' (Copy URL), Captions, Speed */}
+                        {qualityStep !== 'quality_list' && (
+                          <div 
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[320px] max-w-[90%] h-[110px] bg-transparent z-30 pointer-events-auto select-none"
+                            onClick={(e) => { e.stopPropagation(); }}
+                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          />
+                        )}
 
-                        {/* 5. Top Settings Guidance Notification Popup */}
+                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode - Blocks '... More options' (Copy URL), Captions, Speed */}
+                        {qualityStep !== 'quality_list' && (
+                          <div 
+                            className="absolute top-24 right-2 w-72 h-40 bg-transparent z-30 pointer-events-auto select-none"
+                            onClick={(e) => { e.stopPropagation(); }}
+                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          />
+                        )}
+
+                        {/* 6. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
+                        {qualityStep !== 'quality_list' && (
+                          <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                            <span className="text-xs font-black text-primary animate-bounce">⚙</span>
+                          </div>
+                        )}
+
+                        {/* 7. Top Settings Guidance Notification Popup */}
                         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              Click ⚙️ Gear (Top-Right) → Quality
+                              {qualityStep === 'quality_list'
+                                ? "✓ Quality Options Open"
+                                : "Click ⚙️ Gear (Top-Right) → Quality"}
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                ↗
+                                {qualityStep === 'quality_list' ? "↓" : "↗"}
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
-                              Click the highlighted ⚙ icon at top-right, choose your resolution, then click Done.
+                              {qualityStep === 'quality_list'
+                                ? "Select your resolution (1080p, 720p, 480p, 360p, 240p), then click Done."
+                                : "Click the highlighted ⚙ icon at top-right → Quality, then click Unlock Choices."}
                             </span>
                           </div>
+                          {qualityStep !== 'quality_list' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQualityStep('quality_list');
+                              }}
+                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
+                            >
+                              Unlock Choices
+                            </button>
+                          )}
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
