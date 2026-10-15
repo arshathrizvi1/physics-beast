@@ -1213,7 +1213,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             : ''
                         }`}>
                           <ReactPlayer
-                            key={`player_${activeVideo.id}_${activeServer}`}
+                            key={`player_${activeVideo.id}_${activeServer}_${isAdjustingQuality ? 'quality' : 'normal'}`}
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
@@ -1330,7 +1330,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         youtube: {
                           playerVars: { 
                             showinfo: 0, 
-                            controls: 1, 
+                            controls: isAdjustingQuality ? 1 : 0, 
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
