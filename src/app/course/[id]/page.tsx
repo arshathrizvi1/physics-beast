@@ -481,6 +481,70 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
+  // Anti-Downloader / IDM Extension Defense (Neutralizes extension hooks and injected DOM elements)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const stripIdmAttributes = (node: Element) => {
+      const attrs = ['__idm_id__', '__idm_frm__', '__idm_displayed__'];
+      attrs.forEach(a => {
+        if (node.hasAttribute(a)) {
+          try { node.removeAttribute(a); } catch (e) {}
+        }
+      });
+    };
+
+    const cleanupNodes = () => {
+      try {
+        const idmEls = document.querySelectorAll('[id*="idm"], [class*="idm"], [__idm_id__], [__idm_frm__]');
+        idmEls.forEach(el => {
+          stripIdmAttributes(el);
+          if (el.id?.toLowerCase().includes('idm') || el.className?.toString().toLowerCase().includes('idm')) {
+            try { el.remove(); } catch (e) {}
+          }
+        });
+      } catch (e) {}
+    };
+
+    cleanupNodes();
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes') {
+          const attr = mutation.attributeName;
+          if (attr && (attr.startsWith('__idm') || attr.toLowerCase().includes('idm'))) {
+            try { (mutation.target as Element).removeAttribute(attr); } catch (e) {}
+          }
+        } else if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof Element) {
+              const id = node.id || '';
+              const cls = typeof node.className === 'string' ? node.className : '';
+              if (id.toLowerCase().includes('idm') || cls.toLowerCase().includes('idm')) {
+                try { node.remove(); } catch (e) {}
+              }
+              stripIdmAttributes(node);
+            }
+          });
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_displayed__']
+    });
+
+    const interval = setInterval(cleanupNodes, 1500);
+
+    return () => {
+      observer.disconnect();
+      clearInterval(interval);
+    };
+  }, []);
+
   // Check for successful Payable return
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);

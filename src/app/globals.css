@@ -288,3 +288,27 @@ video, iframe, canvas {
   -webkit-user-select: none !important;
   -webkit-user-drag: none !important;
 }
+
+/* Anti-Downloader & IDM Injected Panel Suppression */
+#idm_panel,
+.idm_panel,
+[id*="idm"],
+[class*="idm_"],
+[id^="__idm"],
+div[id^="idm"],
+div[class^="idm"],
+#idm-downloader,
+.idm-downloader,
+#idm_download_popup {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: -99999 !important;
+}
+
