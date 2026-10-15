@@ -1422,15 +1422,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
                               {qualityStep === 'quality_list'
                                 ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear → Quality"}
+                                : "Click ⚙️ Gear (Bottom-Right) → Quality"}
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "⚙"}
+                                {qualityStep === 'quality_list' ? "↓" : "↘"}
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
                               {qualityStep === 'quality_list'
                                 ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
-                                : "Click Gear (bottom or top) → Quality to pick resolution."}
+                                : "Click the highlighted ⚙ icon at bottom-right → Quality."}
                             </span>
                           </div>
                           {qualityStep !== 'quality_list' && (
@@ -1462,6 +1462,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             Done ✓
                           </button>
                         </div>
+
+                        {/* Pulsing visual glow over Auto ⚙ in the bottom-right so student sees exactly where to click */}
+                        {qualityStep !== 'quality_list' && (
+                          <div className="absolute bottom-2 right-[84px] w-12 h-9 border-2 border-primary/90 bg-primary/20 rounded-lg pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.7)]">
+                            <span className="text-[11px] font-black text-primary animate-bounce">⚙</span>
+                          </div>
+                        )}
                       </>
                     )}
 
@@ -1609,7 +1616,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
-                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly (no dummy popup)
+                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly
+                                  const internal = playerRef.current?.getInternalPlayer();
+                                  if (internal && typeof internal.getPlayerState === 'function') {
+                                    const state = internal.getPlayerState();
+                                    if (state === -1 || state === 5) {
+                                      // Unstarted or cued: briefly start playback to initialize controls and video frame
+                                      try {
+                                        internal.playVideo();
+                                        setTimeout(() => {
+                                          try { internal.pauseVideo(); } catch (err) {}
+                                        }, 250);
+                                      } catch (err) {}
+                                    }
+                                  }
                                   setPlaying(false);
                                   setIsAdjustingQuality(true);
                                   setQualityStep('menu');
