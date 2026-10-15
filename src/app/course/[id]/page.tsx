@@ -92,14 +92,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [quality, setQuality] = useState('Auto');
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
   const [qualityStep, setQualityStep] = useState<'menu' | 'quality_list'>('menu');
-  const focusAnchorRef = useRef<HTMLButtonElement | null>(null);
   const iframeClicksRef = useRef(0);
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // YouTube Quality adjustment click progression:
-  // Shields Rows 2-4 (Speed, Captions, More options / Copy URL) initially.
-  // Click 1 is the Gear icon -> opens YouTube settings bottom sheet.
-  // Click 2 is the Quality row -> lifts shield so all resolutions (720p, 480p, 360p, 240p) are clickable.
   useEffect(() => {
     if (!isAdjustingQuality) {
       setQualityStep('menu');
@@ -109,9 +104,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     const handleBlur = () => {
       iframeClicksRef.current += 1;
-
-      // When the student clicks inside the iframe:
-      // If it's click 2 or more (Quality clicked), lift the bottom sheet shield
       if (iframeClicksRef.current >= 2) {
         setTimeout(() => {
           setQualityStep('quality_list');
@@ -465,6 +457,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       }, 300);
     }
   }, [handleSeekDelta, showSeekFeedback]);
+
+  const handleDoneQuality = useCallback(() => {
+    setIsAdjustingQuality(false);
+    setQualityStep('menu');
+    setPlaying(true);
+    if (typeof document !== 'undefined' && document.activeElement) {
+      (document.activeElement as HTMLElement)?.blur?.();
+    }
+    if (typeof window !== 'undefined') {
+      window.focus();
+    }
+    try {
+      const internal = playerRef.current?.getInternalPlayer();
+      if (internal && typeof internal.playVideo === 'function') {
+        internal.playVideo();
+      }
+    } catch (err) {}
+  }, []);
 
   // DVD-style bouncing watermark ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â covers full player
   useEffect(() => {
@@ -1207,11 +1217,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        <div className={`absolute inset-0 ${isAdjustingQuality ? 'pointer-events-auto' : 'pointer-events-none'} w-full h-full ${
-                          (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
-                            ? 'hidden'
-                            : ''
-                        }`}>
+                        <div 
+                          className={`absolute inset-0 w-full h-full ${
+                            (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
+                              ? 'hidden'
+                              : ''
+                          }`}
+                          style={{
+                            pointerEvents: isAdjustingQuality ? 'auto' : 'none'
+                          }}
+                        >
                           <ReactPlayer
                             key={`player_${activeVideo.id}_${activeServer}`}
                             ref={playerRef}
@@ -1331,6 +1346,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           playerVars: { 
                             showinfo: 0, 
                             controls: 1, 
+                            autoplay: playing ? 1 : 0,
                             rel: 0, 
                             modestbranding: 1,
                             disablekb: 1,
@@ -1360,82 +1376,52 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
                     {isAdjustingQuality && (
                       <>
-                        {/* 1. Danger Zone 1: Top-Left Title, Avatar, & Channel link */}
+                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, & Channel link; leaves top-right Gear accessible) */}
                         <div 
-                          className="absolute top-0 left-0 w-80 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute top-0 left-0 right-28 h-16 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
                         {/* 2. Danger Zone 2: Bottom-Left Share & Watch Later buttons */}
                         <div 
-                          className="absolute bottom-0 left-0 w-48 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 left-0 w-48 h-20 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Danger Zone 3: Bottom-Right YouTube logo mark, More videos button, & thumbnail (288px wide) */}
+                        {/* 3. Danger Zone 3: Bottom-Right - COMPLETELY BLOCKS YouTube logo button, More Videos shelf, and thumbnail */}
                         <div 
-                          className="absolute bottom-0 right-0 w-72 h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          className="absolute bottom-0 right-0 w-80 h-24 bg-transparent z-30 pointer-events-auto select-none"
                           onClick={(e) => { e.stopPropagation(); }}
                           onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Danger Zone 4: Bottom-Sheet Menu Rows 2-4 ('... More options', 'Captions', 'Speed')
-                             Leaves Row 1 ('Quality 720p >') directly clickable above 115px!
-                             Lifts when qualityStep === 'quality_list' so any resolution can be selected.
-                        */}
-                        {qualityStep !== 'quality_list' && (
-                          <div 
-                            className="absolute bottom-3 left-1/2 -translate-x-1/2 w-[300px] max-w-[85%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
-                            onClick={(e) => { e.stopPropagation(); }}
-                            onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          />
-                        )}
+                        {/* 4. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
+                        <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                          <span className="text-xs font-black text-primary animate-bounce">⚙</span>
+                        </div>
 
-                        {/* 5. Top Settings Guidance Notification Popup (Positioned at top-14 so it never covers the top-right Gear icon) */}
-                        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
+                        {/* 5. Top Settings Guidance Notification Popup */}
+                        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
                           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
                             <Settings className="w-4 h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              {qualityStep === 'quality_list'
-                                ? "✓ Quality Options Open"
-                                : "Click ⚙️ Gear (Top-Right) → Quality"}
+                              Click ⚙️ Gear (Top-Right) → Quality
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                {qualityStep === 'quality_list' ? "↓" : "↗"}
+                                ↗
                               </span>
                             </span>
                             <span className="text-[11px] text-zinc-400">
-                              {qualityStep === 'quality_list'
-                                ? "Select your resolution (720p, 480p, 360p, 240p), then click Done."
-                                : "Select Quality in the menu below to pick resolution."}
+                              Click the highlighted ⚙ icon at top-right, choose your resolution, then click Done.
                             </span>
                           </div>
-                          {qualityStep !== 'quality_list' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setQualityStep('quality_list');
-                              }}
-                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all shadow cursor-pointer flex-shrink-0"
-                            >
-                              Unlock Choices
-                            </button>
-                          )}
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              setIsAdjustingQuality(false);
-                              setQualityStep('menu');
-                              setPlaying(true);
-                              try {
-                                const internal = playerRef.current?.getInternalPlayer();
-                                if (internal && typeof internal.playVideo === 'function') {
-                                  internal.playVideo();
-                                }
-                              } catch (err) {}
+                              handleDoneQuality();
                             }}
                             className="bg-primary hover:bg-primary/80 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
                           >
@@ -1447,6 +1433,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     </div>
                     </>
+
+                {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
+                {!isAdjustingQuality && (activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black z-20 pointer-events-none" />
+                )}
 
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && !isAdjustingQuality && (
@@ -1527,8 +1518,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </div>
                 </div>
 
+                {/* Clean Course Title Header (fades in on hover/pause, covering YouTube title; fades out during playback) */}
+                <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0' : ''}`}>
+                  <span className="text-sm font-semibold text-white/90 drop-shadow truncate">{activeVideo.title}</span>
+                </div>
+
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
+                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
@@ -1589,7 +1585,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
-                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly (no dummy popup)
+                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly
+                                  const internal = playerRef.current?.getInternalPlayer();
+                                  if (internal && typeof internal.getPlayerState === 'function') {
+                                    const state = internal.getPlayerState();
+                                    if (state === -1 || state === 5) {
+                                      try {
+                                        internal.playVideo();
+                                        setTimeout(() => {
+                                          try { internal.pauseVideo(); } catch (err) {}
+                                        }, 250);
+                                      } catch (err) {}
+                                    }
+                                  }
                                   setPlaying(false);
                                   setIsAdjustingQuality(true);
                                   setQualityStep('menu');
@@ -1625,6 +1633,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         e.stopPropagation(); 
                                         setQuality(q); 
                                         setShowQualityMenu(false); 
+                                        try {
+                                          const hls = playerRef.current?.getInternalPlayer('hls');
+                                          if (hls && hls.levels && hls.levels.length > 0) {
+                                            if (q === 'Auto') {
+                                              hls.nextLevel = -1;
+                                            } else {
+                                              const height = parseInt(q);
+                                              const levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+                                              if (levelIndex !== -1) hls.nextLevel = levelIndex;
+                                            }
+                                          }
+                                        } catch (err) {}
                                       }}
                                       className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
