@@ -2818,7 +2818,16 @@ export default function AdminDashboard() {
                           onClick={() => { setSelectedSubjectId(s.id); setIsCourseManagerOpen(true); }}
                           className={`p-3 rounded-md cursor-pointer flex justify-between items-center transition-colors ${selectedSubjectId === s.id ? 'bg-primary text-primary-foreground' : 'bg-secondary/20 hover:bg-secondary/40'}`}
                         >
-                          <p className="font-bold text-sm">{s.name}</p>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {s.imageUrl ? (
+                              <img src={s.imageUrl} alt={s.name} className="w-8 h-8 rounded-md object-cover border border-border/50 shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-md bg-secondary/50 flex items-center justify-center text-xs font-bold shrink-0 opacity-70">
+                                {s.name?.charAt(0)?.toUpperCase()}
+                              </div>
+                            )}
+                            <p className="font-bold text-sm truncate">{s.name}</p>
+                          </div>
                           <div className="flex gap-1">
                             <button onClick={(e) => { e.stopPropagation(); setSubjectToEdit(s); setIsSubjectModalOpen(true); }} className={`p-1.5 rounded-md transition-colors ${selectedSubjectId === s.id ? 'hover:bg-primary-foreground/20 text-primary-foreground' : 'hover:bg-secondary/60 text-primary'}`}>
                               <Edit2 className="w-4 h-4" />

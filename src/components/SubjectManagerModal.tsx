@@ -3,9 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Save, Plus } from "lucide-react";
+import { Trash2, Save, Plus, Image as ImageIcon, Upload, X, Loader2 } from "lucide-react";
 import { collection, doc, setDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToS3 } from "@/lib/s3Storage";
 
 interface SubjectManagerModalProps {
   isOpen: boolean;
@@ -24,6 +27,8 @@ export default function SubjectManagerModal({
 }: SubjectManagerModalProps) {
   const [formName, setFormName] = useState("");
   const [formStreamIds, setFormStreamIds] = useState<string[]>([]);
+  const [formImageUrl, setFormImageUrl] = useState("");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -31,12 +36,42 @@ export default function SubjectManagerModal({
       if (editSubject) {
         setFormName(editSubject.name || "");
         setFormStreamIds(editSubject.streamIds || []);
+        setFormImageUrl(editSubject.imageUrl || "");
       } else {
         setFormName("");
         setFormStreamIds([]);
+        setFormImageUrl("");
       }
     }
   }, [isOpen, editSubject]);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      let url = "";
+      try {
+        url = await uploadToCloudinary(file);
+      } catch (cErr) {
+        console.warn("Cloudinary upload failed, attempting S3 fallback...", cErr);
+        try {
+          url = await uploadToS3(file, "subjects");
+        } catch (s3Err) {
+          console.warn("S3 upload failed, attempting Firebase Storage fallback...", s3Err);
+          const storageRef = ref(storage, `subjects/${Date.now()}_${file.name}`);
+          await uploadBytes(storageRef, file);
+          url = await getDownloadURL(storageRef);
+        }
+      }
+      setFormImageUrl(url);
+    } catch (err: any) {
+      console.error("All upload providers failed:", err);
+      alert("Failed to upload image. Please try again or provide an image URL.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!editSubject) return;
@@ -57,9 +92,10 @@ export default function SubjectManagerModal({
     setIsSubmitting(true);
     
     try {
-      const payload = {
-        name: formName,
-        streamIds: formStreamIds
+      const payload: any = {
+        name: formName.trim(),
+        streamIds: formStreamIds,
+        imageUrl: formImageUrl.trim() || null
       };
 
       if (editSubject) {
@@ -95,6 +131,75 @@ export default function SubjectManagerModal({
           <div>
             <label className="text-xs font-bold text-muted-foreground uppercase mb-1.5 block">Subject Name</label>
             <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Physics" required />
+          </div>
+
+          {/* Subject Cover Image */}
+          <div>
+            <label className="text-xs font-bold text-muted-foreground uppercase mb-1.5 block">
+              Subject Cover Image (Optional)
+            </label>
+            
+            {formImageUrl ? (
+              <div className="relative group rounded-xl overflow-hidden border border-border/80 bg-secondary/20 aspect-video w-full max-h-48 flex items-center justify-center">
+                <img 
+                  src={formImageUrl} 
+                  alt="Subject Preview" 
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <label className="cursor-pointer px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-medium backdrop-blur-sm transition-colors flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" /> Change
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingImage}
+                      onChange={handleImageFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setFormImageUrl("")}
+                    className="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium backdrop-blur-sm transition-colors flex items-center gap-1.5"
+                  >
+                    <X className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border/80 hover:border-primary/60 rounded-xl p-5 cursor-pointer bg-secondary/10 hover:bg-secondary/20 transition-all text-center group">
+                  {isUploadingImage ? (
+                    <div className="flex flex-col items-center py-2">
+                      <Loader2 className="w-6 h-6 text-primary animate-spin mb-1.5" />
+                      <span className="text-xs text-muted-foreground">Uploading image...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center py-2">
+                      <ImageIcon className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors mb-1.5" />
+                      <span className="text-xs font-semibold text-foreground">Click to upload subject image</span>
+                      <span className="text-[11px] text-muted-foreground mt-0.5">Supports PNG, JPG, WebP</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploadingImage}
+                    onChange={handleImageFileChange}
+                    className="hidden"
+                  />
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground shrink-0">or Image URL:</span>
+                  <Input 
+                    value={formImageUrl} 
+                    onChange={e => setFormImageUrl(e.target.value)} 
+                    placeholder="https://.../subject-cover.png"
+                    className="h-8 text-xs bg-background"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

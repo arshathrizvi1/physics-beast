@@ -407,10 +407,18 @@ function CoursesContent() {
                       : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
                   }`}
                 >
-                  <div className={`w-full aspect-video flex items-center justify-center ${selectedSubjectId === subject.id ? "bg-primary/20" : "bg-secondary/20"}`}>
-                    <span className={`text-4xl font-bold ${selectedSubjectId === subject.id ? "text-primary/60" : "text-muted-foreground/30"}`}>
-                      {subject.name.charAt(0).toUpperCase()}
-                    </span>
+                  <div className={`w-full aspect-video flex items-center justify-center relative overflow-hidden ${selectedSubjectId === subject.id ? "bg-primary/20" : "bg-secondary/20"}`}>
+                    {subject.imageUrl ? (
+                      <img 
+                        src={subject.imageUrl} 
+                        alt={subject.name} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <span className={`text-4xl font-bold ${selectedSubjectId === subject.id ? "text-primary/60" : "text-muted-foreground/30"}`}>
+                        {subject.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                   <div className={`p-3 ${selectedSubjectId === subject.id ? "bg-gradient-to-r from-[#d4af37] to-zinc-300 text-black" : "bg-secondary/10"}`}>
                     <p className="font-bold text-sm leading-tight truncate">{subject.name}</p>
