@@ -175,8 +175,33 @@ async function findStudent(identifier: string) {
     if (matches.length > 0) return matches[0];
   } catch (err: any) {
     console.error("Error in findStudent:", err);
-    throw err;
   }
+
+  // 4. Fallback search across all users regardless of role (in case role is missing)
+  try {
+    const allUsersSnap = await adminDb.collection('users').get();
+    const cleanLower = clean.toLowerCase();
+    const allUsers = allUsersSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    const match = allUsers.find(u => {
+      const n = (u.name || '').toLowerCase();
+      const e = (u.email || '').toLowerCase();
+      const p = (u.phone || '').toString();
+      return n.includes(cleanLower) || cleanLower.includes(n) || e === cleanLower || p === clean;
+    });
+    if (match) return match;
+  } catch {}
+
+  // 5. Fallback search in 'students' collection
+  try {
+    const stSnap = await adminDb.collection('students').get();
+    const cleanLower = clean.toLowerCase();
+    const stList = stSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    const match = stList.find(s => {
+      const n = (s.name || '').toLowerCase();
+      return n.includes(cleanLower) || cleanLower.includes(n);
+    });
+    if (match) return match;
+  } catch {}
 
   return null;
 }
@@ -186,14 +211,30 @@ async function executeTool(name: string, args: any) {
   switch (name) {
     case 'search_student': {
       const query = (args.query || '').trim().toLowerCase();
-      const snap = await adminDb.collection('users').where('role', '==', 'student').get();
-      const allStudents = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      
+      // Query users collection
+      let allStudents: any[] = [];
+      try {
+        const snap = await adminDb.collection('users').get();
+        allStudents = snap.docs
+          .map(d => ({ id: d.id, ...(d.data() as any) }))
+          .filter(u => !u.role || u.role === 'student');
+      } catch (e) {
+        console.warn("Failed to fetch users:", e);
+      }
+
+      // Also include students collection if any
+      try {
+        const stSnap = await adminDb.collection('students').get();
+        const stList = stSnap.docs.map(d => ({ id: d.id, isStudentDoc: true, ...(d.data() as any) }));
+        allStudents = [...allStudents, ...stList];
+      } catch {}
 
       const results = allStudents.filter(s => {
         const sName = (s.name || '').toLowerCase();
         const sEmail = (s.email || '').toLowerCase();
         const sPhone = (s.phone || '').toString();
-        const sBatch = (s.graduationYear || '').toString();
+        const sBatch = (s.graduationYear || s.grade || '').toString();
 
         const matchQuery = !query || sName.includes(query) || sEmail.includes(query) || sPhone.includes(query);
         const matchBatch = !args.batchYear || sBatch === args.batchYear;
@@ -201,7 +242,7 @@ async function executeTool(name: string, args: any) {
       }).slice(0, 10);
 
       if (results.length === 0) {
-        return `No students found matching "${args.query}". Total registered students checked: ${allStudents.length}.`;
+        return `No students found matching "${args.query}". Checked ${allStudents.length} student records in database.`;
       }
 
       return JSON.stringify(
@@ -295,7 +336,8 @@ async function executeTool(name: string, args: any) {
       }
 
       // Perform update with Admin privileges
-      await adminDb.collection('users').doc(student.id).update({
+      const targetCol = student.isStudentDoc ? 'students' : 'users';
+      await adminDb.collection(targetCol).doc(student.id).update({
         arrears: updatedArrearsValue,
         subjectArrears: subjectArrears,
         lastArrearsUpdate: {

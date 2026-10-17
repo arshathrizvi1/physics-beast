@@ -54,6 +54,29 @@ if (!projectId && !clientEmail && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   }
 }
 
+// Fallback: Check local service account JSON files in server environment
+if (!projectId && !clientEmail && typeof window === 'undefined') {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const candidatePaths = [
+      path.join(process.cwd(), 'serviceAccountKey.json'),
+      path.join(process.cwd(), 'firebase-admin-key.json'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        const sa = JSON.parse(fs.readFileSync(p, 'utf8'));
+        projectId = sa.project_id;
+        clientEmail = sa.client_email;
+        privateKey = cleanPrivateKey(sa.private_key);
+        break;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 if (!getApps().length) {
   if (projectId && clientEmail && privateKey) {
     try {

@@ -45,3 +45,6 @@ next-env.d.ts
 android-app.zip  
 oracle_bot.js
 test_oracle.js
+serviceAccountKey.json
+firebase-admin-key.json
+*firebase-adminsdk*.json
