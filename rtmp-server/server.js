@@ -273,16 +273,29 @@ async function handleStreamEnded(streamKey) {
     console.log('[Pipeline] ⚠️ Bunny credentials not configured. Skipping upload.');
   }
   
+  // Upload to Cloudflare R2
+  let r2VideoUrl = null;
+  try {
+    const r2FileName = `live_${streamKey}_${Date.now()}.mp4`;
+    r2VideoUrl = await uploadToR2(mp4File, r2FileName, 'video/mp4');
+    if (r2VideoUrl) {
+      console.log(`[Pipeline] ✅ Uploaded to Cloudflare R2: ${r2VideoUrl}`);
+    }
+  } catch (err) {
+    console.error(`[Pipeline] ❌ Cloudflare R2 upload failed:`, err.message);
+  }
+  
   // Notify website
   await notifyWebsite('stream_ended', { 
     streamKey, 
-    hasRecording: true,
+    hasRecording: !!(bunnyVideoId || r2VideoUrl),
     bunnyVideoId,
-    bunnyLibraryId: BUNNY_LIBRARY_ID
+    bunnyLibraryId: BUNNY_LIBRARY_ID,
+    r2Url: r2VideoUrl
   });
   
   // Clean up the recording file after upload
-  if (bunnyVideoId) {
+  if (bunnyVideoId || r2VideoUrl) {
     try {
       fs.unlinkSync(mp4File);
       console.log(`[Pipeline] 🧹 Cleaned up local recording: ${mp4File}`);

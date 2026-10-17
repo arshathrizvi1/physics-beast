@@ -11,7 +11,7 @@ import { adminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event, streamKey, secret, hasRecording, bunnyVideoId, bunnyLibraryId } = body;
+    const { event, streamKey, secret, hasRecording, bunnyVideoId, bunnyLibraryId, r2Url } = body;
 
     // Validate the shared secret
     const expectedSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
@@ -67,12 +67,13 @@ export async function POST(request: Request) {
       // Update status to "ended"
       await liveDoc.ref.update({ 
         status: 'ended',
-        vodUploaded: !!bunnyVideoId,
-        vodVideoId: bunnyVideoId || null
+        vodUploaded: !!(bunnyVideoId || r2Url),
+        vodVideoId: bunnyVideoId || null,
+        vodR2Url: r2Url || null
       });
 
-      // If recording was uploaded to Bunny AND there's a target folder, create the video
-      if (hasRecording && bunnyVideoId && liveData.targetFolderId) {
+      // If recording was uploaded to Bunny or R2 AND there's a target folder, create the video
+      if (hasRecording && (bunnyVideoId || r2Url) && liveData.targetFolderId) {
         const folderRef = adminDb.collection('folders').doc(liveData.targetFolderId);
         const folderSnap = await folderRef.get();
 
@@ -87,10 +88,11 @@ export async function POST(request: Request) {
             id: videoRef.id,
             title: `${liveData.title} (Recorded Live)`,
             description: liveData.description || '',
-            videoId: bunnyVideoId,
-            libraryId: libraryId,
-            url: `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}?autoplay=true`,
-            platform: 'bunny',
+            videoId: bunnyVideoId || null,
+            libraryId: bunnyVideoId ? libraryId : null,
+            url: bunnyVideoId ? `https://iframe.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}?autoplay=true` : (r2Url || ''),
+            r2Url: r2Url || null,
+            platform: bunnyVideoId ? 'bunny' : 'r2',
             courseId: actualCourseId,
             folderId: liveData.targetFolderId,
             type: 'video',
@@ -111,9 +113,10 @@ export async function POST(request: Request) {
           console.log(`[RTMP Callback] ✅ Video created in folder: ${videoRef.id}`);
 
           // Notify admin
+          const targets = [bunnyVideoId ? 'Bunny' : null, r2Url ? 'Cloudflare R2' : null].filter(Boolean).join(' & ');
           await adminDb.collection('notifications').add({
             title: "🎬 Live Recording Uploaded!",
-            message: `Recording of "${liveData.title}" has been automatically uploaded to BunnyCDN and added to the course folder. It will be ready to watch in 1-2 minutes.`,
+            message: `Recording of "${liveData.title}" has been automatically uploaded (${targets}) and added to the course folder.`,
             type: "admin_alert",
             target: "admin",
             link: actualCourseId ? `/course/${actualCourseId}` : "/admin",
@@ -122,7 +125,7 @@ export async function POST(request: Request) {
             readBy: []
           });
         }
-      } else if (!bunnyVideoId && liveData.targetFolderId) {
+      } else if (!bunnyVideoId && !r2Url && liveData.targetFolderId) {
         // Stream ended but no recording uploaded — notify admin
         await adminDb.collection('notifications').add({
           title: "⚠️ Live Recording Not Available",
@@ -133,7 +136,6 @@ export async function POST(request: Request) {
           timestamp: Date.now(),
           createdAt: Date.now(),
           readBy: []
-        });
       }
 
       return NextResponse.json({ success: true, action: 'stream_ended' });
