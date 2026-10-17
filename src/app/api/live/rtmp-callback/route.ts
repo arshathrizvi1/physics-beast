@@ -136,6 +136,7 @@ export async function POST(request: Request) {
           timestamp: Date.now(),
           createdAt: Date.now(),
           readBy: []
+        });
       }
 
       return NextResponse.json({ success: true, action: 'stream_ended' });
