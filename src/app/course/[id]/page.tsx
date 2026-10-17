@@ -84,7 +84,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [activeServer, setActiveServer] = useState<'bunny' | 'youtube'>('bunny');
+  const [activeServer, setActiveServer] = useState<'bunny' | 'r2' | 'youtube'>('bunny');
   const playedSecondsRef = useRef(0);
   const durationRef = useRef(0);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -726,8 +726,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const activeSettings: VideoPlayerSettings = useMemo(() => {
     if (activeVideo?.playerSettings) {
       return {
-        defaultPlayer: activeVideo.playerSettings.defaultPlayer || globalPlayerSettings?.defaultPlayer || 'bunny',
+        defaultPlayer: activeVideo.playerSettings.defaultPlayer || globalPlayerSettings?.defaultPlayer || defaultPlayerSettings.defaultPlayer,
         bunny: { ...defaultPlayerSettings.bunny, ...(globalPlayerSettings?.bunny || {}), ...(activeVideo.playerSettings.bunny || {}) },
+        r2: { ...defaultPlayerSettings.r2, ...(globalPlayerSettings?.r2 || {}), ...(activeVideo.playerSettings.r2 || {}) },
         youtube: { ...defaultPlayerSettings.youtube, ...(globalPlayerSettings?.youtube || {}), ...(activeVideo.playerSettings.youtube || {}) },
       };
     }
@@ -736,9 +737,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const isBunnyPermitted = useMemo(() => {
     if (!activeVideo) return false;
-    const hasBunnyContent = activeVideo.platform === 'bunny' || !!bunnyEmbedUrl || (!!activeVideo.url && !activeVideo.url.includes('youtube') && !activeVideo.url.includes('youtu.be'));
+    const hasBunnyContent = activeVideo.platform === 'bunny' || !!bunnyEmbedUrl || (!!activeVideo.url && !activeVideo.url.includes('youtube') && !activeVideo.url.includes('youtu.be') && !activeVideo.url.includes('r2.cloudflarestorage.com') && !activeVideo.url.includes('r2.dev'));
     return hasBunnyContent && isPlayerPermitted(activeSettings.bunny, deviceType);
   }, [activeVideo, bunnyEmbedUrl, activeSettings, deviceType]);
+
+  const isR2Permitted = useMemo(() => {
+    if (!activeVideo) return false;
+    const hasR2Content = !!activeVideo.r2Url || activeVideo.platform === 'r2' || (!!activeVideo.url && (activeVideo.url.includes('r2.cloudflarestorage.com') || activeVideo.url.includes('r2.dev') || activeVideo.url.includes('.site/videos/')));
+    return hasR2Content && isPlayerPermitted(activeSettings.r2, deviceType);
+  }, [activeVideo, activeSettings, deviceType]);
 
   const activeYoutubeId = useMemo(() => {
     if (!activeVideo) return null;
@@ -756,19 +763,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     activeVideoRef.current = activeVideo; 
     const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
 
-    if (isYoutubePermitted && !isBunnyPermitted) {
-      setActiveServer('youtube');
-    } else if (!isYoutubePermitted && isBunnyPermitted) {
-      setActiveServer('bunny');
-    } else if (isYoutubePermitted && isBunnyPermitted) {
-      if (preferredPlayer === 'youtube') {
-        setActiveServer('youtube');
-      } else {
-        // Bunny Cloud is Primary by default!
-        setActiveServer('bunny');
-      }
+    const permittedList: ('bunny' | 'r2' | 'youtube')[] = [];
+    if (isBunnyPermitted) permittedList.push('bunny');
+    if (isR2Permitted) permittedList.push('r2');
+    if (isYoutubePermitted) permittedList.push('youtube');
+
+    if (permittedList.length === 0) return;
+
+    if (permittedList.includes(preferredPlayer as any)) {
+      setActiveServer(preferredPlayer as any);
+    } else {
+      setActiveServer(permittedList[0]);
     }
-  }, [activeVideo, isYoutubePermitted, isBunnyPermitted, activeSettings]);
+  }, [activeVideo, isBunnyPermitted, isR2Permitted, isYoutubePermitted, activeSettings]);
 
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
@@ -1280,6 +1287,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         url={
                           activeServer === 'youtube'
                             ? (activeVideo.originalYoutubeUrl || activeVideo.url)
+                            : activeServer === 'r2'
+                            ? (activeVideo.r2Url || activeVideo.url)
                             : activeVideo.url
                         }
                       width="100%"
@@ -1827,29 +1836,45 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
                 </div>
               )}
-              {activeVideo && isBunnyPermitted && (activeVideo.platform === 'bunny' || !!bunnyEmbedUrl) && isYoutubePermitted && (!!activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')))) && (
+              {activeVideo && activeVideo.type !== 'resource' && ((isBunnyPermitted ? 1 : 0) + (isR2Permitted ? 1 : 0) + (isYoutubePermitted ? 1 : 0)) > 1 && (
                 <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
                   <span className="text-muted-foreground px-1 font-medium">Source:</span>
-                  <button
-                    onClick={() => setActiveServer('bunny')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      activeServer === 'bunny'
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Cloud (Bunny)
-                  </button>
-                  <button
-                    onClick={() => setActiveServer('youtube')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      activeServer === 'youtube'
-                        ? 'bg-red-600 text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    YouTube
-                  </button>
+                  {isBunnyPermitted && (
+                    <button
+                      onClick={() => setActiveServer('bunny')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'bunny'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Cloud (Bunny)
+                    </button>
+                  )}
+                  {isR2Permitted && (
+                    <button
+                      onClick={() => setActiveServer('r2')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'r2'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Cloudflare R2
+                    </button>
+                  )}
+                  {isYoutubePermitted && (
+                    <button
+                      onClick={() => setActiveServer('youtube')}
+                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                        activeServer === 'youtube'
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      YouTube
+                    </button>
+                  )}
                 </div>
               )}
             </div>

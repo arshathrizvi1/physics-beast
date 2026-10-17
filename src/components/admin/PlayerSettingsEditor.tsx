@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { VideoPlayerSettings, defaultPlayerSettings } from "@/lib/playerDeviceControl";
-import { Monitor, Smartphone, TabletSmartphone, PlayCircle } from "lucide-react";
+import { VideoPlayerSettings, defaultPlayerSettings, PlayerTargetDevices } from "@/lib/playerDeviceControl";
+import { Monitor, Smartphone, TabletSmartphone, PlayCircle, Cloud } from "lucide-react";
 
 function YoutubeIcon({ className }: { className?: string }) {
   return (
@@ -23,7 +23,7 @@ export function PlayerSettingsEditor({
   value,
   onChange,
   title = "Player & Device Access Controls",
-  description = "Choose which players (Bunny Cloud or YouTube) students can view and which devices are allowed for each."
+  description = "Choose which players (Bunny Cloud, Cloudflare R2, or YouTube) students can view and which devices are allowed for each."
 }: Props) {
   const current = value || defaultPlayerSettings;
 
@@ -37,6 +37,18 @@ export function PlayerSettingsEditor({
     });
   };
 
+  const updateR2 = (key: keyof PlayerTargetDevices, val: boolean) => {
+    const r2Defaults = defaultPlayerSettings.r2 || { enabled: true, pcWeb: true, mobileWeb: true, androidApp: true };
+    onChange({
+      ...current,
+      r2: {
+        ...r2Defaults,
+        ...(current.r2 || {}),
+        [key]: val,
+      },
+    });
+  };
+
   const updateYoutube = (key: keyof typeof current.youtube, val: boolean) => {
     onChange({
       ...current,
@@ -45,6 +57,12 @@ export function PlayerSettingsEditor({
         [key]: val,
       },
     });
+  };
+
+  const defaultPlayerLabel = () => {
+    if (current.defaultPlayer === 'r2') return 'Cloudflare R2';
+    if (current.defaultPlayer === 'youtube') return 'YouTube Player';
+    return 'Bunny Cloud';
   };
 
   return (
@@ -65,13 +83,13 @@ export function PlayerSettingsEditor({
             <span>⭐</span> Default Primary Player (Opens First)
           </label>
           <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded bg-primary/10">
-            {(current.defaultPlayer || 'bunny') === 'bunny' ? 'Bunny Cloud' : 'YouTube Player'}
+            {defaultPlayerLabel()}
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-tight">
-          Select which player is loaded by default when a student opens a video. If both players are enabled for their device, students can switch using the Source tabs.
+          Select which player is loaded by default when a student opens a video. If multiple players are enabled for their device, students can switch using the Source tabs.
         </p>
-        <div className="grid grid-cols-2 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
           <button
             type="button"
             onClick={() => onChange({ ...current, defaultPlayer: 'bunny' })}
@@ -84,7 +102,23 @@ export function PlayerSettingsEditor({
             <PlayCircle className="w-4 h-4 shrink-0 text-primary" />
             <div>
               <p className="font-bold text-xs">Bunny Cloud</p>
-              <p className="text-[10px] opacity-80 font-normal">Primary (Recommended)</p>
+              <p className="text-[10px] opacity-80 font-normal">Primary (Bunny)</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onChange({ ...current, defaultPlayer: 'r2' })}
+            className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs font-medium text-left transition-all ${
+              current.defaultPlayer === 'r2'
+                ? 'border-amber-500 bg-amber-500/10 text-amber-500 shadow-sm ring-1 ring-amber-500'
+                : 'border-border/60 bg-secondary/20 text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Cloud className="w-4 h-4 shrink-0 text-amber-500" />
+            <div>
+              <p className="font-bold text-xs">Cloudflare R2</p>
+              <p className="text-[10px] opacity-80 font-normal">Fast / Zero Egress</p>
             </div>
           </button>
 
@@ -106,7 +140,7 @@ export function PlayerSettingsEditor({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {/* Bunny / Cloud Player Card */}
         <div className={`p-3.5 rounded-lg border transition-all ${current.bunny?.enabled !== false ? 'border-primary/40 bg-background/80 shadow-sm' : 'border-border/40 bg-secondary/20 opacity-70'}`}>
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
@@ -161,6 +195,67 @@ export function PlayerSettingsEditor({
                 checked={current.bunny?.androidApp !== false}
                 onChange={(e) => updateBunny('androidApp', e.target.checked)}
                 className="w-4 h-4 rounded text-primary accent-primary cursor-pointer disabled:opacity-40"
+              />
+              <TabletSmartphone className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-medium">Android App (Native APK)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Cloudflare R2 Player Card */}
+        <div className={`p-3.5 rounded-lg border transition-all ${current.r2?.enabled !== false ? 'border-amber-500/40 bg-background/80 shadow-sm' : 'border-border/40 bg-secondary/20 opacity-70'}`}>
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-amber-500" />
+              <span className="text-sm font-bold">Cloudflare R2 Player</span>
+            </div>
+            <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={current.r2?.enabled !== false}
+                onChange={(e) => updateR2('enabled', e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer"
+              />
+              <span>{current.r2?.enabled !== false ? 'Enabled' : 'Disabled'}</span>
+            </label>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground mb-3">
+            Allowed Devices for Cloudflare R2:
+          </p>
+
+          <div className="space-y-2 pl-1">
+            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={current.r2?.enabled === false}
+                checked={current.r2?.pcWeb !== false}
+                onChange={(e) => updateR2('pcWeb', e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer disabled:opacity-40"
+              />
+              <Monitor className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-medium">PC Web (Desktop Browser)</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={current.r2?.enabled === false}
+                checked={current.r2?.mobileWeb !== false}
+                onChange={(e) => updateR2('mobileWeb', e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer disabled:opacity-40"
+              />
+              <Smartphone className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-medium">Android / Mobile Web Browser</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                disabled={current.r2?.enabled === false}
+                checked={current.r2?.androidApp !== false}
+                onChange={(e) => updateR2('androidApp', e.target.checked)}
+                className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer disabled:opacity-40"
               />
               <TabletSmartphone className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="font-medium">Android App (Native APK)</span>

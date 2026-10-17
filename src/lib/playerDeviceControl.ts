@@ -8,14 +8,21 @@ export interface PlayerTargetDevices {
 }
 
 export interface VideoPlayerSettings {
-  defaultPlayer?: 'bunny' | 'youtube'; // The primary player that opens first when both are allowed
+  defaultPlayer?: 'bunny' | 'r2' | 'youtube'; // The primary player that opens first when allowed
   bunny: PlayerTargetDevices;
+  r2?: PlayerTargetDevices;
   youtube: PlayerTargetDevices;
 }
 
 export const defaultPlayerSettings: VideoPlayerSettings = {
   defaultPlayer: 'bunny',
   bunny: {
+    enabled: true,
+    pcWeb: true,
+    mobileWeb: true,
+    androidApp: true,
+  },
+  r2: {
     enabled: true,
     pcWeb: true,
     mobileWeb: true,

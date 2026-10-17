@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { secret, videoId, metadata, libraryId, error } = body;
+    const { secret, videoId, metadata, libraryId, error, r2Url } = body;
     const expectedSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
 
     if (secret !== expectedSecret) {
@@ -54,8 +54,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, noted: 'Error recorded, rolled back.' });
     }
 
-    if (!videoId) {
-      return NextResponse.json({ error: 'Missing videoId' }, { status: 400 });
+    if (!videoId && !r2Url) {
+      return NextResponse.json({ error: 'Missing videoId and r2Url' }, { status: 400 });
     }
 
     const targetFolderId = metadata.selectedItemType === 'course' 
@@ -65,20 +65,21 @@ export async function POST(request: Request) {
     const courseIdRaw = metadata.selectedCourseId || metadata.videoCourseId || 'none';
     const courseIdClean = (courseIdRaw === 'none' || !courseIdRaw) ? null : courseIdRaw;
 
-    const finalUrl = 'https://iframe.mediadelivery.net/embed/' + libraryId + '/' + videoId + '?autoplay=true';
+    const finalBunnyUrl = (libraryId && videoId) 
+      ? `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true` 
+      : null;
+
+    const primaryUrl = finalBunnyUrl || r2Url;
+    const primaryPlatform = finalBunnyUrl ? 'bunny' : 'r2';
 
     const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
     
-    // We fetch the existing video document first to preserve any data,
-    // although `set` with `{ merge: true }` is better.
-    const videoData = {
+    const videoData: any = {
       id: metadata.videoDocId,
       title: metadata.videoTitle || 'Untitled Video',
       description: '',
-      url: finalUrl,
-      videoId: videoId,
-      libraryId: libraryId,
-      platform: 'bunny',
+      url: primaryUrl,
+      platform: primaryPlatform,
       courseId: courseIdClean,
       folderId: targetFolderId,
       type: 'video',
@@ -86,6 +87,15 @@ export async function POST(request: Request) {
       processingStatus: 'ready',
       updatedAt: Date.now(),
     };
+
+    if (videoId) {
+      videoData.videoId = videoId;
+      videoData.libraryId = libraryId;
+    }
+
+    if (r2Url) {
+      videoData.r2Url = r2Url;
+    }
 
     if (metadata.originalYoutubeUrl) {
       (videoData as any).originalYoutubeUrl = metadata.originalYoutubeUrl;

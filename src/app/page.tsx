@@ -8,7 +8,7 @@ import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where, doc, getDoc } from "firebase/firestore";
-import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin, Smartphone, Download, Wifi, Battery, Bell, CheckCircle2 } from "lucide-react";
+import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin, Smartphone, Download, Wifi, Battery, Bell, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import PasskeySettings from "@/components/PasskeySettings";
 
@@ -71,34 +71,116 @@ export default function Home() {
  }
  }, []);
 
- // Courses Horizontal Scroll Drag State
- const scrollRef = useRef<HTMLDivElement>(null);
- const [isDragging, setIsDragging] = useState(false);
- const [startX, setStartX] = useState(0);
- const [scrollLeft, setScrollLeft] = useState(0);
+  // Courses Horizontal Scroll Drag State with Smooth Momentum Sweep
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
- const onMouseDown = (e: React.MouseEvent) => {
- if (!scrollRef.current) return;
- setIsDragging(true);
- setStartX(e.pageX - scrollRef.current.offsetLeft);
- setScrollLeft(scrollRef.current.scrollLeft);
- };
+  const dragInfo = useRef({
+    isDown: false,
+    startX: 0,
+    scrollLeft: 0,
+    lastX: 0,
+    lastTime: 0,
+    velocity: 0,
+    hasDragged: false,
+    rafId: 0,
+  });
 
- const onMouseLeave = () => {
- setIsDragging(false);
- };
+  const updateScrollButtons = () => {
+    if (!scrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+  };
 
- const onMouseUp = () => {
- setIsDragging(false);
- };
+  const scrollByAmount = (direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    const cardWidth = 340;
+    scrollRef.current.scrollBy({
+      left: direction === "left" ? -cardWidth : cardWidth,
+      behavior: "smooth",
+    });
+  };
 
- const onMouseMove = (e: React.MouseEvent) => {
- if (!isDragging || !scrollRef.current) return;
- e.preventDefault();
- const x = e.pageX - scrollRef.current.offsetLeft;
- const walk = (x - startX) * 2; // scroll-fast multiplier
- scrollRef.current.scrollLeft = scrollLeft - walk;
- };
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    cancelAnimationFrame(dragInfo.current.rafId);
+    dragInfo.current.isDown = true;
+    dragInfo.current.hasDragged = false;
+    dragInfo.current.startX = e.pageX - scrollRef.current.offsetLeft;
+    dragInfo.current.scrollLeft = scrollRef.current.scrollLeft;
+    dragInfo.current.lastX = e.pageX;
+    dragInfo.current.lastTime = performance.now();
+    dragInfo.current.velocity = 0;
+    setIsDragging(true);
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!dragInfo.current.isDown || !scrollRef.current) return;
+    e.preventDefault();
+
+    const now = performance.now();
+    const dt = Math.max(now - dragInfo.current.lastTime, 1);
+    const deltaX = e.pageX - dragInfo.current.lastX;
+
+    const instantVelocity = deltaX / dt;
+    dragInfo.current.velocity = dragInfo.current.velocity * 0.4 + instantVelocity * 0.6;
+    dragInfo.current.lastX = e.pageX;
+    dragInfo.current.lastTime = now;
+
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = x - dragInfo.current.startX;
+    if (Math.abs(walk) > 6) {
+      dragInfo.current.hasDragged = true;
+    }
+
+    scrollRef.current.scrollLeft = dragInfo.current.scrollLeft - walk;
+    updateScrollButtons();
+  };
+
+  const endDrag = () => {
+    if (!dragInfo.current.isDown || !scrollRef.current) return;
+    dragInfo.current.isDown = false;
+    setIsDragging(false);
+
+    // Smooth momentum glide physics
+    let vel = dragInfo.current.velocity * 18;
+    vel = Math.max(-50, Math.min(50, vel));
+
+    if (Math.abs(vel) > 1 && scrollRef.current) {
+      const momentumGlide = () => {
+        if (!scrollRef.current || dragInfo.current.isDown) return;
+        scrollRef.current.scrollLeft -= vel;
+        vel *= 0.94; // friction deceleration
+
+        updateScrollButtons();
+
+        if (Math.abs(vel) > 0.5) {
+          dragInfo.current.rafId = requestAnimationFrame(momentumGlide);
+        }
+      };
+      dragInfo.current.rafId = requestAnimationFrame(momentumGlide);
+    }
+
+    setTimeout(() => {
+      dragInfo.current.hasDragged = false;
+    }, 100);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollButtons();
+    el.addEventListener("scroll", updateScrollButtons, { passive: true });
+    window.addEventListener("resize", updateScrollButtons);
+    return () => {
+      el.removeEventListener("scroll", updateScrollButtons);
+      window.removeEventListener("resize", updateScrollButtons);
+      cancelAnimationFrame(dragInfo.current.rafId);
+    };
+  }, [courses]);
 
  useEffect(() => {
  const fetchAboutContact = async () => {
@@ -482,61 +564,96 @@ export default function Home() {
  <div>
  <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-2 md:mb-4">Popular Courses</h2>
  <p className="text-sm md:text-base text-muted-foreground">Explore our most in-demand courses and start learning today.</p>
- </div>
- <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors text-sm md:text-base shrink-0 ml-4">
- <span className="hidden sm:inline">View All Courses</span> <ArrowRight className="w-4 h-4" />
- </Link>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          {/* Smooth Sweep Navigation Buttons */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => scrollByAmount("left")}
+              disabled={!canScrollLeft}
+              aria-label="Scroll left"
+              className="w-9 h-9 rounded-full border border-border/70 bg-card hover:bg-[#d4af37]/10 hover:border-[#d4af37] text-foreground hover:text-[#d4af37] flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 shadow-sm"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => scrollByAmount("right")}
+              disabled={!canScrollRight}
+              aria-label="Scroll right"
+              className="w-9 h-9 rounded-full border border-border/70 bg-card hover:bg-[#d4af37]/10 hover:border-[#d4af37] text-foreground hover:text-[#d4af37] flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 shadow-sm"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <Link href="/courses" className="text-[#d4af37] hover:text-[#b5952f] flex items-center gap-2 font-medium transition-colors text-sm md:text-base">
+            <span className="hidden sm:inline">View All Courses</span> <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
  </motion.div>
  </div>
 
- <div className="relative w-full">
- <div 
- ref={scrollRef}
- onMouseDown={onMouseDown}
- onMouseLeave={onMouseLeave}
- onMouseUp={onMouseUp}
- onMouseMove={onMouseMove}
- className={`flex gap-4 md:gap-6 px-6 overflow-x-auto snap-x snap-mandatory pb-6 pt-2 md:pb-8 md:pt-4 -mt-2 md:-mt-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
- >
- {courses.length > 0 ? courses.map((course, i) => (
- <div
- key={course.id}
- className="group shrink-0 w-[220px] sm:w-[320px] snap-center sm:snap-start"
- >
- <Link href={`/course/${course.id}`} className="block h-full" draggable={false}>
- <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col" style={{ pointerEvents: isDragging ? 'none' : 'auto' }}>
- <div className="relative h-32 sm:h-48 overflow-hidden bg-zinc-900">
- {/* 11. Course Image Hover Animation (Fixed for Mobile Blinking) */}
- <img 
- src={course.image || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400`} 
- alt={course.name} 
- className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 ease-out" 
- draggable={false}
- />
- <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
- </div>
- <CardHeader className="p-4 sm:p-5 pb-0 flex-1">
- <CardTitle className="text-base sm:text-xl font-bold text-foreground group-hover:text-[#d4af37] transition-colors line-clamp-2">{course.name}</CardTitle>
- {course.description && (
- <CardDescription className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1 sm:mt-2">
- {course.description}
- </CardDescription>
- )}
- </CardHeader>
- <CardFooter className="p-4 sm:p-5 pt-3 sm:pt-4 flex justify-between items-center text-xs sm:text-sm border-t border-border/50 mt-3 sm:mt-4">
- <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
- <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
- <span className="truncate">{Math.floor(Math.random() * 200 + 50)} students</span>
- </div>
- <div className="flex items-center gap-1 text-[#d4af37] shrink-0">
- <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
- <span className="font-bold">{(Math.random() * 0.5 + 4.5).toFixed(1)}</span>
- </div>
- </CardFooter>
- </Card>
- </Link>
- </div>
- )) : (
+      <div className="relative w-full">
+
+        <div 
+          ref={scrollRef}
+          onMouseDown={onMouseDown}
+          onMouseLeave={endDrag}
+          onMouseUp={endDrag}
+          onMouseMove={onMouseMove}
+          className={`flex gap-4 md:gap-6 px-6 overflow-x-auto pb-6 pt-2 md:pb-8 md:pt-4 -mt-2 md:-mt-4 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] select-none ${isDragging ? "cursor-grabbing scroll-auto" : "cursor-grab scroll-smooth"}`}
+        >
+          {courses.length > 0 ? courses.map((course, i) => (
+            <motion.div
+              key={course.id}
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.6, delay: Math.min(i * 0.08, 0.4), ease: [0.25, 1, 0.5, 1] }}
+              className="group shrink-0 w-[220px] sm:w-[320px]"
+            >
+              <Link 
+                href={`/course/${course.id}`} 
+                className="block h-full" 
+                draggable={false}
+                onClick={(e) => {
+                  if (dragInfo.current.hasDragged) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <Card className="bg-card border-border hover:border-[#d4af37] hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:-translate-y-2 transition-all duration-300 overflow-hidden h-full flex flex-col">
+                  <div className="relative h-32 sm:h-48 overflow-hidden bg-zinc-900">
+                    {/* 11. Course Image Hover Animation (Fixed for Mobile Blinking) */}
+                    <img 
+                      src={course.image || `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400`} 
+                      alt={course.name} 
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 ease-out" 
+                      draggable={false}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
+                  </div>
+                  <CardHeader className="p-4 sm:p-5 pb-0 flex-1">
+                    <CardTitle className="text-base sm:text-xl font-bold text-foreground group-hover:text-[#d4af37] transition-colors line-clamp-2">{course.name}</CardTitle>
+                    {course.description && (
+                      <CardDescription className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1 sm:mt-2">
+                        {course.description}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardFooter className="p-4 sm:p-5 pt-3 sm:pt-4 flex justify-between items-center text-xs sm:text-sm border-t border-border/50 mt-3 sm:mt-4">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+                      <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                      <span className="truncate">{Math.floor(Math.random() * 200 + 50)} students</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#d4af37] shrink-0">
+                      <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                      <span className="font-bold">{(Math.random() * 0.5 + 4.5).toFixed(1)}</span>
+                    </div>
+                  </CardFooter>
+                </Card>
+              </Link>
+            </motion.div>
+          )) : (
  // Skeleton placeholders if no courses fetched yet
  [...Array(4)].map((_, i) => (
  <div key={i} className="shrink-0 w-[220px] sm:w-[320px] snap-start">
