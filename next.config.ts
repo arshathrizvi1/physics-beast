@@ -15,10 +15,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/mcp',
-        destination: '/api/mcp',
-      },
-      {
         source: '/__/auth/:path*',
         destination: 'https://physics-beastsl.firebaseapp.com/__/auth/:path*',
       },
