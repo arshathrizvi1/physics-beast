@@ -65,6 +65,11 @@ WEBSITE_URL=https://brilliantacademy.vercel.app
 CALLBACK_SECRET=${RANDOM_SECRET}
 BUNNY_STREAM_LIBRARY_ID=748058
 BUNNY_STREAM_API_KEY=PASTE_YOUR_BUNNY_API_KEY_HERE
+R2_ACCOUNT_ID=3365204e12bb493ecc9d5156f2dfbb60
+R2_ACCESS_KEY_ID=PASTE_YOUR_R2_ACCESS_KEY_ID_HERE
+R2_SECRET_ACCESS_KEY=PASTE_YOUR_R2_SECRET_ACCESS_KEY_HERE
+R2_BUCKET_NAME=brilliantacademy
+R2_PUBLIC_URL=https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev
 RTMP_PORT=1935
 HTTP_PORT=8000
 SERVER_HOST=${SERVER_IP}
@@ -75,7 +80,7 @@ EOF
   
   echo "✅ .env created with auto-detected IP: ${SERVER_IP}"
   echo ""
-  echo "⚠️  IMPORTANT: Edit .env and set your BUNNY_STREAM_API_KEY!"
+  echo "⚠️  IMPORTANT: Edit .env and set your BUNNY_STREAM_API_KEY and R2 credentials!"
   echo "   nano /opt/brilliant-academy-rtmp/.env"
   echo ""
   echo "Also add this CALLBACK_SECRET to your Vercel environment variables:"
