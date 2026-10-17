@@ -763,12 +763,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     activeVideoRef.current = activeVideo; 
     const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
 
-    const permittedList: ('bunny' | 'r2' | 'youtube')[] = [];
-    if (isBunnyPermitted) permittedList.push('bunny');
-    if (isR2Permitted) permittedList.push('r2');
-    if (isYoutubePermitted) permittedList.push('youtube');
+    const hasBunny = Boolean(activeVideo?.videoId || activeVideo?.platform === 'bunny');
+    const hasR2 = Boolean(activeVideo?.r2Url || activeVideo?.platform === 'r2');
+    const hasYoutube = Boolean(activeVideo?.originalYoutubeUrl || activeVideo?.platform === 'youtube');
 
-    if (permittedList.length === 0) return;
+    const permittedList: ('bunny' | 'r2' | 'youtube')[] = [];
+    if (isBunnyPermitted && (hasBunny || (!hasR2 && !hasYoutube))) permittedList.push('bunny');
+    if (isR2Permitted && hasR2) permittedList.push('r2');
+    if (isYoutubePermitted && hasYoutube) permittedList.push('youtube');
+
+    if (permittedList.length === 0) {
+      if (isR2Permitted && hasR2) permittedList.push('r2');
+      else if (isBunnyPermitted) permittedList.push('bunny');
+      else if (isYoutubePermitted) permittedList.push('youtube');
+      else return;
+    }
 
     if (permittedList.includes(preferredPlayer as any)) {
       setActiveServer(preferredPlayer as any);
@@ -1234,7 +1243,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ2 minutes after uploading. It will start playing automatically once ready!
                   </p>
                 </div>
-              ) : (!isBunnyPermitted && !isYoutubePermitted && activeVideo.platform !== 'zoom' && activeVideo.type !== 'resource') ? (
+              ) : (!isBunnyPermitted && !isR2Permitted && !isYoutubePermitted && activeVideo.platform !== 'zoom' && activeVideo.type !== 'resource') ? (
                 <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
                   <ShieldAlert className="w-12 h-12 text-amber-500 mb-4 animate-pulse" />
                   <h3 className="text-xl font-bold text-white mb-2">Playback Restricted on this Device</h3>
@@ -1322,10 +1331,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       }}
                       onError={(err) => {
                         console.warn("Playback error encountered:", err);
-                        if (activeServer === 'bunny' && isYoutubePermitted) {
+                        if (activeServer === 'bunny' && isR2Permitted && activeVideo?.r2Url) {
+                          console.info("Bunny playback failed, automatically falling over to R2 source...");
+                          setActiveServer('r2');
+                        } else if (activeServer === 'bunny' && isYoutubePermitted && (activeVideo?.originalYoutubeUrl || activeVideo?.platform === 'youtube')) {
                           console.info("Bunny playback failed, automatically falling over to YouTube source...");
                           setActiveServer('youtube');
-                        } else if (activeServer === 'youtube' && isBunnyPermitted) {
+                        } else if (activeServer === 'r2' && isBunnyPermitted && (activeVideo?.videoId || activeVideo?.platform === 'bunny')) {
+                          console.info("R2 playback failed, automatically falling over to Bunny source...");
+                          setActiveServer('bunny');
+                        } else if (activeServer === 'youtube' && isBunnyPermitted && (activeVideo?.videoId || activeVideo?.platform === 'bunny')) {
                           console.info("YouTube playback failed, automatically falling over to Bunny source...");
                           setActiveServer('bunny');
                         }
@@ -1836,47 +1851,55 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   {viewersCount} student{viewersCount !== 1 ? 's' : ''} watching right now
                 </div>
               )}
-              {activeVideo && activeVideo.type !== 'resource' && ((isBunnyPermitted ? 1 : 0) + (isR2Permitted ? 1 : 0) + (isYoutubePermitted ? 1 : 0)) > 1 && (
-                <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
-                  <span className="text-muted-foreground px-1 font-medium">Source:</span>
-                  {isBunnyPermitted && (
-                    <button
-                      onClick={() => setActiveServer('bunny')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'bunny'
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Cloud (Bunny)
-                    </button>
-                  )}
-                  {isR2Permitted && (
-                    <button
-                      onClick={() => setActiveServer('r2')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'r2'
-                          ? 'bg-amber-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Cloudflare R2
-                    </button>
-                  )}
-                  {isYoutubePermitted && (
-                    <button
-                      onClick={() => setActiveServer('youtube')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        activeServer === 'youtube'
-                          ? 'bg-red-600 text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      YouTube
-                    </button>
-                  )}
-                </div>
-              )}
+              {activeVideo && activeVideo.type !== 'resource' && (() => {
+                const hasBunnyOption = isBunnyPermitted && (activeVideo.videoId || activeVideo.platform === 'bunny');
+                const hasR2Option = isR2Permitted && (activeVideo.r2Url || activeVideo.platform === 'r2');
+                const hasYoutubeOption = isYoutubePermitted && (activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube');
+                const count = (hasBunnyOption ? 1 : 0) + (hasR2Option ? 1 : 0) + (hasYoutubeOption ? 1 : 0);
+                if (count <= 1) return null;
+
+                return (
+                  <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
+                    <span className="text-muted-foreground px-1 font-medium">Source:</span>
+                    {hasBunnyOption && (
+                      <button
+                        onClick={() => setActiveServer('bunny')}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                          activeServer === 'bunny'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Cloud (Bunny)
+                      </button>
+                    )}
+                    {hasR2Option && (
+                      <button
+                        onClick={() => setActiveServer('r2')}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                          activeServer === 'r2'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Cloudflare R2
+                      </button>
+                    )}
+                    {hasYoutubeOption && (
+                      <button
+                        onClick={() => setActiveServer('youtube')}
+                        className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                          activeServer === 'youtube'
+                            ? 'bg-red-600 text-white shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        YouTube
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
