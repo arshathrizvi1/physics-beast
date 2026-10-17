@@ -39,23 +39,23 @@ let projectId = process.env.FIREBASE_PROJECT_ID?.trim().replace(/^["']|["']$/g, 
 let clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim().replace(/^["']|["']$/g, '');
 let privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
 
-if (!projectId && !clientEmail && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+if ((!projectId || !clientEmail || !privateKey) && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   try {
     let saJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
     if ((saJson.startsWith("'") && saJson.endsWith("'")) || (saJson.startsWith('"') && saJson.endsWith('"'))) {
       saJson = saJson.slice(1, -1);
     }
     const sa = JSON.parse(saJson);
-    projectId = sa.project_id;
-    clientEmail = sa.client_email;
-    privateKey = cleanPrivateKey(sa.private_key);
+    projectId = sa.project_id || projectId;
+    clientEmail = sa.client_email || clientEmail;
+    privateKey = cleanPrivateKey(sa.private_key) || privateKey;
   } catch (e) {
     console.warn("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY json");
   }
 }
 
 // Fallback: Check local service account JSON files in server environment
-if (!projectId && !clientEmail && typeof window === 'undefined') {
+if ((!projectId || !clientEmail || !privateKey) && typeof window === 'undefined') {
   try {
     const fs = require('fs');
     const path = require('path');
