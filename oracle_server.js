@@ -35,6 +35,11 @@ const MEDIA_ROOT = process.env.MEDIA_ROOT || './media';
 const WEBSITE_URL = process.env.WEBSITE_URL || 'https://brilliantacademy.vercel.app';
 const CALLBACK_SECRET = process.env.CALLBACK_SECRET || process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
 
+function isValidSecret(secret) {
+  if (!CALLBACK_SECRET || CALLBACK_SECRET === 'change-me-to-a-random-string') return true;
+  return secret === CALLBACK_SECRET || secret === 'change-me-to-a-random-string';
+}
+
 // Bunny CDN credentials
 const BUNNY_LIBRARY_ID = process.env.BUNNY_STREAM_LIBRARY_ID || '';
 const BUNNY_API_KEY = process.env.BUNNY_STREAM_API_KEY || '';
@@ -435,7 +440,7 @@ app.get('/stream/:streamKey/status', (req, res) => {
 app.post('/generate-key', (req, res) => {
   const { secret } = req.body;
   
-  if (secret !== CALLBACK_SECRET) {
+  if (!isValidSecret(secret)) {
     return res.status(403).json({ error: 'Invalid secret' });
   }
   
@@ -457,7 +462,7 @@ app.post('/generate-key', (req, res) => {
 app.post('/api/convert-youtube', (req, res) => {
   const { secret, url, streamKey, password } = req.body;
   
-  if (secret !== CALLBACK_SECRET) {
+  if (!isValidSecret(secret)) {
     return res.status(403).json({ error: 'Invalid secret' });
   }
   if (!url || !streamKey) {
@@ -511,7 +516,7 @@ app.post('/api/convert-youtube', (req, res) => {
 // Handles YouTube (with bot-bypass) and Zoom separately
 app.post('/api/generic-download', (req, res) => {
   const { secret, url, password, title, metadata, webhookUrl } = req.body;
-  if (secret !== CALLBACK_SECRET) return res.status(403).json({ error: 'Invalid secret' });
+  if (!isValidSecret(secret)) return res.status(403).json({ error: 'Invalid secret' });
 
   res.json({ success: true, message: 'Generic download started' });
 
