@@ -19,7 +19,6 @@ import { FolderSelectModal } from "@/components/FolderSelectModal";
 import { CourseSelectModal } from "@/components/CourseSelectModal";
 import { TargetAudienceModal } from "@/components/TargetAudienceModal";
 import { ZoomSettingsModal } from "@/components/ZoomSettingsModal";
-import { PlayerSettingsEditor } from "@/components/admin/PlayerSettingsEditor";
 import { VideoPlayerSettings, defaultPlayerSettings } from "@/lib/playerDeviceControl";
 
 export default function AdminLiveStudio() {
@@ -676,14 +675,6 @@ export default function AdminLiveStudio() {
                   </Button>
                 </div>
               )}
-              <div className="pt-2">
-                <PlayerSettingsEditor
-                  value={playerSettings}
-                  onChange={setPlayerSettings}
-                  title="Live Stream Device & Player Controls"
-                  description="Choose which stream players (App Stream / YouTube) students can view on PC Web, Mobile Web, and Android App."
-                />
-              </div>
             </CardContent>
             <CardFooter className="bg-secondary/5 border-t border-border/50 py-4 flex gap-2">
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
@@ -933,14 +924,6 @@ export default function AdminLiveStudio() {
                     </Button>
                   </div>
                 )}
-                <div className="pt-2">
-                  <PlayerSettingsEditor
-                    value={editPlayerSettings}
-                    onChange={setEditPlayerSettings}
-                    title="Live Stream Device & Player Controls"
-                    description="Choose which stream players students can view on PC Web, Mobile Web, and Android App."
-                  />
-                </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setEditingClass(null)}>Cancel</Button>
