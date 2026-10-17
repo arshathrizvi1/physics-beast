@@ -9,6 +9,10 @@ import {
   setDoc as fsSetDoc,
   updateDoc as fsUpdateDoc,
   deleteDoc as fsDeleteDoc,
+  query as fsQuery,
+  where as fsWhere,
+  limit as fsLimit,
+  orderBy as fsOrderBy,
 } from 'firebase/firestore';
 
 function cleanPrivateKey(key: string | undefined): string | undefined {
@@ -70,25 +74,63 @@ if (!getApps().length) {
 }
 
 // Fallback client firestore adapter matching the admin firestore API used by routes
+const createQueryHelper = (colRef: any, constraints: any[] = []): any => {
+  return {
+    where: (field: string, op: any, val: any) => {
+      return createQueryHelper(colRef, [...constraints, fsWhere(field, op, val)]);
+    },
+    limit: (n: number) => {
+      return createQueryHelper(colRef, [...constraints, fsLimit(n)]);
+    },
+    orderBy: (field: string, dir: any = 'asc') => {
+      return createQueryHelper(colRef, [...constraints, fsOrderBy(field, dir)]);
+    },
+    get: async () => {
+      const q = constraints.length > 0 ? fsQuery(colRef, ...constraints) : colRef;
+      const snap = await fsGetDocs(q);
+      return {
+        empty: snap.empty,
+        size: snap.size,
+        docs: snap.docs.map((d) => ({
+          id: d.id,
+          ref: {
+            delete: async () => fsDeleteDoc(d.ref),
+            update: async (data: any) => fsUpdateDoc(d.ref, data),
+          },
+          data: () => d.data(),
+        })),
+      };
+    },
+  };
+};
+
 const clientDbFallback = {
   collection: (colPath: string) => {
+    const parts = colPath.split('/').filter(Boolean);
+    const colRef = fsCollection(db, parts[0], ...parts.slice(1));
+    const helper = createQueryHelper(colRef, []);
+
     return {
+      ...helper,
       doc: (docPath?: string) => {
         const fullPath = docPath ? `${colPath}/${docPath}` : colPath;
-        const parts = fullPath.split('/').filter(Boolean);
-        const docRef = fsDoc(db, parts[0], ...parts.slice(1));
+        const dParts = fullPath.split('/').filter(Boolean);
+        const docRef = fsDoc(db, dParts[0], ...dParts.slice(1));
         return {
           id: docPath || docRef.id,
           ref: {
             delete: async () => fsDeleteDoc(docRef),
+            update: async (data: any) => fsUpdateDoc(docRef, data),
           },
           get: async () => {
             const snap = await fsGetDoc(docRef);
             return {
+              id: snap.id,
               exists: snap.exists(),
               data: () => snap.data(),
               ref: {
                 delete: async () => fsDeleteDoc(docRef),
+                update: async (data: any) => fsUpdateDoc(docRef, data),
               },
             };
           },
@@ -103,23 +145,7 @@ const clientDbFallback = {
           },
         };
       },
-      get: async () => {
-        const parts = colPath.split('/').filter(Boolean);
-        const colRef = fsCollection(db, parts[0], ...parts.slice(1));
-        const snap = await fsGetDocs(colRef);
-        return {
-          docs: snap.docs.map((d) => ({
-            id: d.id,
-            ref: {
-              delete: async () => fsDeleteDoc(d.ref),
-            },
-            data: () => d.data(),
-          })),
-        };
-      },
       add: async (data: any) => {
-        const parts = colPath.split('/').filter(Boolean);
-        const colRef = fsCollection(db, parts[0], ...parts.slice(1));
         const newDocRef = fsDoc(colRef);
         await fsSetDoc(newDocRef, data);
         return { id: newDocRef.id };
