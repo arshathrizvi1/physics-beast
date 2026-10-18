@@ -20,10 +20,20 @@ export async function POST(request: Request) {
     const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
     const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
 
+    let targetUrl = url;
+    if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
+      try {
+        const u = new URL(targetUrl);
+        if (u.searchParams.has('v')) {
+          targetUrl = `https://www.youtube.com/watch?v=${u.searchParams.get('v')}`;
+        }
+      } catch (e) {}
+    }
+
     const res = await fetch(awsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, password, title, metadata, webhookUrl, secret: callbackSecret }),
+      body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
     });
 
     if (!res.ok) {

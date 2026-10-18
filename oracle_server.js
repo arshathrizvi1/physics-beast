@@ -730,13 +730,22 @@ app.post('/api/generic-download', (req, res) => {
   const cookiesPath = process.env.YT_COOKIES_PATH || '/opt/brilliant-academy-rtmp/cookies.txt';
   const cookiesExist = fs.existsSync(cookiesPath);
 
+  let cleanUrl = url;
   if (isYoutube) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.searchParams.has('v')) {
+        cleanUrl = `https://www.youtube.com/watch?v=${parsed.searchParams.get('v')}`;
+      }
+    } catch (e) {}
+
     // 🎥 YouTube: Full Bot-Bypass Configuration 
-    console.log(`[Generic] 🔴 YouTube URL detected - using bot-bypass mode`);
+    console.log(`[Generic] 🔴 YouTube URL detected - using bot-bypass mode for: ${cleanUrl}`);
 
     args = [
+      '--no-playlist',
       '--proxy', warpProxy,
-            ...(cookiesExist ? ['--cookies', cookiesPath] : []),
+      ...(cookiesExist ? ['--cookies', cookiesPath] : []),
       '--limit-rate', '5M',
       '-S', 'res:720,ext:mp4:m4a',
       '--ffmpeg-location', '/usr/bin/ffmpeg',
@@ -745,14 +754,14 @@ app.post('/api/generic-download', (req, res) => {
       '--fragment-retries', '5',
       '--add-header', 'Accept-Language:en-US,en;q=0.9',
       '-o', outputPath,
-      url
+      cleanUrl
     ];
 
     if (!cookiesExist) {
       console.log(`[Generic] ⚠️  No cookies.txt found at ${cookiesPath}. Downloads may fail for some videos. See setup instructions.`);
     }
 
-    runYtDlp(args, title, url, outputPath, req.body);
+    runYtDlp(args, title, cleanUrl, outputPath, req.body);
   } else if (isZoom) {
     console.log(`[Generic] 🔵 Zoom URL detected - running Playwright extractor...`);
     const { exec } = require('child_process');
@@ -801,6 +810,7 @@ app.post('/api/generic-download', (req, res) => {
 
   function runStandardMode(targetUrl, targetPassword, outPath, hasCookies, cPath, vidTitle, reqBody) {
     let stdArgs = [
+      '--no-playlist',
       '-S', 'res:720,ext:mp4:m4a',
       '--ffmpeg-location', '/usr/bin/ffmpeg',
       '--merge-output-format', 'mp4',
