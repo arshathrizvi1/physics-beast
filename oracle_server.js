@@ -149,51 +149,24 @@ function getVideoCodec(filePath) {
   });
 }
 
-async function convertToMultiQualityHls(inputMp4Path, outputDir) {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
-  }
+function getAudioCodec(filePath) {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    exec(`ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "${filePath}"`, (err, stdout) => {
+      if (err || !stdout) {
+        resolve('unknown');
+      } else {
+        resolve(stdout.trim().toLowerCase());
+      }
+    });
+  });
+}
 
-  const hasAudio = await checkHasAudio(inputMp4Path);
-  const videoCodec = await getVideoCodec(inputMp4Path);
-  const ffmpegCmd = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
-
+function runFfmpeg(ffmpegCmd, args, label) {
   return new Promise((resolve, reject) => {
-    console.log(`[HLS] 🎬 Starting HLS generation for: ${inputMp4Path} (videoCodec: "${videoCodec}", hasAudio: ${hasAudio})...`);
-
-    const stream720p = path.join(outputDir, 'stream_720p.m3u8');
-    const masterPath = path.join(outputDir, 'master.m3u8');
     const { spawn } = require('child_process');
-
-    const isH264 = videoCodec.includes('h264') || videoCodec.includes('avc');
-
-    // If source is already H.264, direct stream copy works in 3 seconds!
-    // If source is AV1/VP9 (common from YouTube), transcode video to standard H.264 so browsers can display picture (copy audio)
-    const hlsArgs = isH264 ? [
-      '-y',
-      '-i', inputMp4Path,
-      '-c', 'copy',
-      '-hls_time', '15',
-      '-hls_playlist_type', 'vod',
-      '-hls_flags', 'independent_segments',
-      '-hls_segment_filename', path.join(outputDir, 'segment_%04d.ts'),
-      stream720p
-    ] : [
-      '-y',
-      '-i', inputMp4Path,
-      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23',
-      '-pix_fmt', 'yuv420p',
-      ...(hasAudio ? ['-c:a', 'copy'] : []),
-      '-f', 'hls',
-      '-hls_time', '15',
-      '-hls_playlist_type', 'vod',
-      '-hls_flags', 'independent_segments',
-      '-hls_segment_filename', path.join(outputDir, 'segment_%04d.ts'),
-      stream720p
-    ];
-
-    console.log(`[HLS] 🚀 Running FFmpeg with ${isH264 ? 'STREAM COPY (H.264)' : 'FAST H.264 ENCODING (AV1/VP9 → H.264)'}...`);
-    const child = spawn(ffmpegCmd, hlsArgs);
+    console.log(`[HLS] 🚀 Running FFmpeg for ${label}...`);
+    const child = spawn(ffmpegCmd, args);
     let stderrText = '';
 
     child.stderr.on('data', (d) => {
@@ -202,64 +175,211 @@ async function convertToMultiQualityHls(inputMp4Path, outputDir) {
     });
 
     child.on('close', (code) => {
-      if (code === 0 && fs.existsSync(stream720p)) {
-        const masterContent = 
-`#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720,NAME="720p"
-stream_720p.m3u8
-`;
-        fs.writeFileSync(masterPath, masterContent);
-        console.log(`[HLS] ✅ HLS generation complete! master.m3u8 created successfully.`);
-        return resolve(masterPath);
+      if (code === 0) {
+        console.log(`[HLS] ✅ ${label} generated successfully.`);
+        resolve();
+      } else {
+        console.warn(`[HLS] ⚠️ ${label} exited with code ${code}`);
+        reject(new Error(`FFmpeg for ${label} failed with code ${code}: ${stderrText.slice(-300)}`));
       }
-
-      console.warn(`[HLS] ⚠️ Primary HLS generation exited with code ${code}, attempting fallback transcode...`);
-
-      // Emergency Fallback: Single-pass ultrafast 720p transcode
-      const transcodeArgs = [
-        '-y',
-        '-i', inputMp4Path,
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k', '-maxrate', '1800k', '-bufsize', '2400k',
-        '-pix_fmt', 'yuv420p',
-        ...(hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-ac', '2'] : []),
-        '-f', 'hls',
-        '-hls_time', '15',
-        '-hls_playlist_type', 'vod',
-        '-hls_flags', 'independent_segments',
-        '-hls_segment_filename', path.join(outputDir, 'segment_%04d.ts'),
-        stream720p
-      ];
-
-      const transcodeChild = spawn(ffmpegCmd, transcodeArgs);
-      let transcodeStderr = '';
-
-      transcodeChild.stderr.on('data', (d) => {
-        transcodeStderr += d.toString();
-        if (transcodeStderr.length > 5000) transcodeStderr = transcodeStderr.substring(transcodeStderr.length - 5000);
-      });
-
-      transcodeChild.on('close', (tCode) => {
-        if (tCode === 0 && fs.existsSync(stream720p)) {
-          const masterContent = 
-`#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720,NAME="720p"
-stream_720p.m3u8
-`;
-          fs.writeFileSync(masterPath, masterContent);
-          console.log(`[HLS] ✅ Transcoded HLS complete! master.m3u8 created.`);
-          resolve(masterPath);
-        } else {
-          reject(new Error(`FFmpeg failed with code ${tCode}: ${transcodeStderr.slice(-400)}`));
-        }
-      });
-
-      transcodeChild.on('error', (err) => reject(err));
     });
 
-    child.on('error', (err) => reject(err));
+    child.on('error', (err) => {
+      console.error(`[HLS] ❌ Error spawning FFmpeg for ${label}:`, err.message);
+      reject(err);
+    });
   });
+}
+
+async function convertToMultiQualityHls(inputMp4Path, outputDir) {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const hasAudio = await checkHasAudio(inputMp4Path);
+  const videoCodec = await getVideoCodec(inputMp4Path);
+  const audioCodec = await getAudioCodec(inputMp4Path);
+  const ffmpegCmd = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
+
+  console.log(`[HLS] 🎬 Starting multi-quality HLS generation for: ${inputMp4Path}`);
+  console.log(`[HLS] Video: "${videoCodec}", Audio: "${audioCodec}", Has Audio: ${hasAudio}`);
+
+  const masterPath = path.join(outputDir, 'master.m3u8');
+  const stream720p = path.join(outputDir, 'stream_720p.m3u8');
+  const stream480p = path.join(outputDir, 'stream_480p.m3u8');
+  const stream360p = path.join(outputDir, 'stream_360p.m3u8');
+
+  const isH264 = videoCodec.includes('h264') || videoCodec.includes('avc');
+  const isAac = audioCodec.includes('aac');
+
+  // Audio configuration for HLS TS segments:
+  // AAC audio can be copied directly (-c:a copy). Other audio codecs must be transcoded to AAC for HLS compatibility.
+  const audioCopyArgs = (hasAudio && isAac) ? ['-c:a', 'copy'] : (hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-ac', '2'] : []);
+
+  // ─── 1. Quality: 720p (Primary) ─────────────────────────────
+  // If source is already H.264 + AAC, direct stream copy finishes in 2-3 seconds!
+  // If video is AV1/VP9 or audio isn't AAC, transcode with ultrafast preset.
+  const canCopyDirectly = isH264 && (!hasAudio || isAac);
+  const hlsArgs720 = canCopyDirectly ? [
+    '-y',
+    '-i', inputMp4Path,
+    '-c', 'copy',
+    '-f', 'hls',
+    '-hls_time', '12',
+    '-hls_playlist_type', 'vod',
+    '-hls_flags', 'independent_segments',
+    '-hls_segment_filename', path.join(outputDir, 'segment_720p_%04d.ts'),
+    stream720p
+  ] : [
+    '-y',
+    '-i', inputMp4Path,
+    '-c:v', isH264 ? 'copy' : 'libx264',
+    ...(!isH264 ? ['-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p'] : []),
+    ...audioCopyArgs,
+    '-f', 'hls',
+    '-hls_time', '12',
+    '-hls_playlist_type', 'vod',
+    '-hls_flags', 'independent_segments',
+    '-hls_segment_filename', path.join(outputDir, 'segment_720p_%04d.ts'),
+    stream720p
+  ];
+
+  try {
+    await runFfmpeg(ffmpegCmd, hlsArgs720, '720p stream');
+  } catch (err720) {
+    console.warn(`[HLS] ⚠️ Fast 720p copy failed (${err720.message}), attempting fallback transcode...`);
+    const fallbackArgs720 = [
+      '-y',
+      '-i', inputMp4Path,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k', '-maxrate', '1800k', '-bufsize', '2400k',
+      '-pix_fmt', 'yuv420p',
+      ...(hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-ac', '2'] : []),
+      '-f', 'hls',
+      '-hls_time', '12',
+      '-hls_playlist_type', 'vod',
+      '-hls_flags', 'independent_segments',
+      '-hls_segment_filename', path.join(outputDir, 'segment_720p_%04d.ts'),
+      stream720p
+    ];
+    await runFfmpeg(ffmpegCmd, fallbackArgs720, '720p fallback transcode');
+  }
+
+  // ─── 2. Quality: 480p (Downscaled Ultrafast) ─────────────────
+  try {
+    console.log(`[HLS] 🎬 Generating 480p variant...`);
+    const hlsArgs480 = [
+      '-y',
+      '-i', inputMp4Path,
+      '-vf', 'scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '26',
+      '-pix_fmt', 'yuv420p',
+      ...audioCopyArgs,
+      '-f', 'hls',
+      '-hls_time', '12',
+      '-hls_playlist_type', 'vod',
+      '-hls_flags', 'independent_segments',
+      '-hls_segment_filename', path.join(outputDir, 'segment_480p_%04d.ts'),
+      stream480p
+    ];
+    await runFfmpeg(ffmpegCmd, hlsArgs480, '480p stream');
+  } catch (err480) {
+    console.warn(`[HLS] ⚠️ 480p generation failed or skipped: ${err480.message}`);
+    // If audio copy failed, retry once with AAC audio transcode
+    if (hasAudio) {
+      try {
+        const retryArgs480 = [
+          '-y',
+          '-i', inputMp4Path,
+          '-vf', 'scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '26',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
+          '-f', 'hls',
+          '-hls_time', '12',
+          '-hls_playlist_type', 'vod',
+          '-hls_flags', 'independent_segments',
+          '-hls_segment_filename', path.join(outputDir, 'segment_480p_%04d.ts'),
+          stream480p
+        ];
+        await runFfmpeg(ffmpegCmd, retryArgs480, '480p retry transcode');
+      } catch (e) {
+        console.warn(`[HLS] ⚠️ 480p retry also failed: ${e.message}`);
+      }
+    }
+  }
+
+  // ─── 3. Quality: 360p (Downscaled Ultrafast) ─────────────────
+  try {
+    console.log(`[HLS] 🎬 Generating 360p variant...`);
+    const hlsArgs360 = [
+      '-y',
+      '-i', inputMp4Path,
+      '-vf', 'scale=w=640:h=360:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '28',
+      '-pix_fmt', 'yuv420p',
+      ...audioCopyArgs,
+      '-f', 'hls',
+      '-hls_time', '12',
+      '-hls_playlist_type', 'vod',
+      '-hls_flags', 'independent_segments',
+      '-hls_segment_filename', path.join(outputDir, 'segment_360p_%04d.ts'),
+      stream360p
+    ];
+    await runFfmpeg(ffmpegCmd, hlsArgs360, '360p stream');
+  } catch (err360) {
+    console.warn(`[HLS] ⚠️ 360p generation failed or skipped: ${err360.message}`);
+    if (hasAudio) {
+      try {
+        const retryArgs360 = [
+          '-y',
+          '-i', inputMp4Path,
+          '-vf', 'scale=w=640:h=360:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '28',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac', '-b:a', '64k', '-ac', '2',
+          '-f', 'hls',
+          '-hls_time', '12',
+          '-hls_playlist_type', 'vod',
+          '-hls_flags', 'independent_segments',
+          '-hls_segment_filename', path.join(outputDir, 'segment_360p_%04d.ts'),
+          stream360p
+        ];
+        await runFfmpeg(ffmpegCmd, retryArgs360, '360p retry transcode');
+      } catch (e) {
+        console.warn(`[HLS] ⚠️ 360p retry also failed: ${e.message}`);
+      }
+    }
+  }
+
+  // ─── 4. Build Multi-Variant master.m3u8 ───────────────────────
+  const variants = [];
+  if (fs.existsSync(stream720p)) {
+    variants.push('#EXT-X-STREAM-INF:BANDWIDTH=2200000,RESOLUTION=1280x720,NAME="720p"\nstream_720p.m3u8');
+  }
+  if (fs.existsSync(stream480p)) {
+    variants.push('#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,NAME="480p"\nstream_480p.m3u8');
+  }
+  if (fs.existsSync(stream360p)) {
+    variants.push('#EXT-X-STREAM-INF:BANDWIDTH=500000,RESOLUTION=640x360,NAME="360p"\nstream_360p.m3u8');
+  }
+
+  if (variants.length === 0) {
+    throw new Error('HLS generation failed: no variant playlists were produced.');
+  }
+
+  const masterContent = `#EXTM3U\n#EXT-X-VERSION:3\n${variants.join('\n')}\n`;
+  fs.writeFileSync(masterPath, masterContent);
+  console.log(`[HLS] ✅ Multi-quality master playlist created with ${variants.length} variant(s): ${variants.map(v => v.split('NAME="')[1]?.split('"')[0]).join(', ')}`);
+
+  return masterPath;
 }
 
 async function uploadDirectoryToR2(dirPath, r2Prefix) {
@@ -721,8 +841,9 @@ app.post('/api/convert-youtube', (req, res) => {
   
   // Base yt-dlp args
   const args = [
-    '-S', 'res:720,ext:mp4:m4a',
-      '--ffmpeg-location', '/usr/bin/ffmpeg',
+    '--no-playlist',
+    '-S', 'res:720,vcodec:h264,ext:mp4:m4a',
+    '--ffmpeg-location', '/usr/bin/ffmpeg',
     '--merge-output-format', 'mp4',
     '-o', outputPath
   ];

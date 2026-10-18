@@ -92,6 +92,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
+  const [availableQualities, setAvailableQualities] = useState<string[]>(['Auto', '720p', '480p', '360p']);
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -263,8 +264,19 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (activeVideo && playerRef.current) {
         const hls = playerRef.current.getInternalPlayer('hls');
         if (hls && hls.levels && hls.levels.length > 0) {
+          // Discover available stream qualities
+          const heights = hls.levels
+            .filter((l: any) => l.height)
+            .map((l: any) => `${l.height}p`);
+          if (heights.length > 0) {
+            const sorted = (Array.from(new Set(heights)) as string[]).sort((a, b) => parseInt(b) - parseInt(a));
+            setAvailableQualities(['Auto', ...sorted]);
+          }
+
           if (quality === 'Auto') {
+            hls.currentLevel = -1;
             hls.nextLevel = -1;
+            hls.loadLevel = -1;
           } else {
             const height = parseInt(quality);
             // Try exact match first
@@ -285,8 +297,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             }
 
             if (levelIndex !== -1) {
-              // Use nextLevel to prevent video freeze and buffer flushing
+              hls.currentLevel = levelIndex;
               hls.nextLevel = levelIndex;
+              hls.loadLevel = levelIndex;
             }
           }
           return true; // Applied successfully
@@ -1381,11 +1394,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           } catch (e) {}
                         }
 
-                        // Apply quality on ready
+                        // Apply quality on ready & dynamically discover available stream qualities from HLS manifest
                         const hls = playerRef.current?.getInternalPlayer('hls');
                         if (hls && hls.levels && hls.levels.length > 0) {
+                          const heights = hls.levels
+                            .filter((l: any) => l.height)
+                            .map((l: any) => `${l.height}p`);
+                          if (heights.length > 0) {
+                            const sorted = (Array.from(new Set(heights)) as string[]).sort((a, b) => parseInt(b) - parseInt(a));
+                            setAvailableQualities(['Auto', ...sorted]);
+                          }
+
                           if (quality === 'Auto') {
+                            hls.currentLevel = -1;
                             hls.nextLevel = -1;
+                            hls.loadLevel = -1;
                           } else {
                             const height = parseInt(quality);
                             let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
@@ -1402,7 +1425,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                });
                             }
                             if (levelIndex !== -1) {
+                              hls.currentLevel = levelIndex;
                               hls.nextLevel = levelIndex;
+                              hls.loadLevel = levelIndex;
                             }
                           }
                         }
@@ -1743,7 +1768,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                     <span className="text-xs text-zinc-400 font-semibold">Quality</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {['Auto', '720p', '480p', '360p', '240p', '144p'].map(q => (
+                                  {availableQualities.map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { 
@@ -1754,11 +1779,29 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                           const hls = playerRef.current?.getInternalPlayer('hls');
                                           if (hls && hls.levels && hls.levels.length > 0) {
                                             if (q === 'Auto') {
+                                              hls.currentLevel = -1;
                                               hls.nextLevel = -1;
+                                              hls.loadLevel = -1;
                                             } else {
                                               const height = parseInt(q);
-                                              const levelIndex = hls.levels.findIndex((l: any) => l.height === height);
-                                              if (levelIndex !== -1) hls.nextLevel = levelIndex;
+                                              let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+                                              if (levelIndex === -1) {
+                                                let minDiff = Infinity;
+                                                hls.levels.forEach((l: any, idx: number) => {
+                                                  if (l.height) {
+                                                    const diff = Math.abs(l.height - height);
+                                                    if (diff < minDiff) {
+                                                      minDiff = diff;
+                                                      levelIndex = idx;
+                                                    }
+                                                  }
+                                                });
+                                              }
+                                              if (levelIndex !== -1) {
+                                                hls.currentLevel = levelIndex;
+                                                hls.nextLevel = levelIndex;
+                                                hls.loadLevel = levelIndex;
+                                              }
                                             }
                                           }
                                         } catch (err) {}
