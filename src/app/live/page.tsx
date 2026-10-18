@@ -17,6 +17,7 @@ const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: 
 const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
 import { detectDeviceType, isPlayerPermitted, defaultPlayerSettings, VideoPlayerSettings, DeviceType } from "@/lib/playerDeviceControl";
 import { startExtensionShield, scanForDownloadTools } from "@/lib/extensionShield";
+import { ShadowPlayerWrapper } from "@/components/ShadowPlayerWrapper";
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
@@ -646,8 +647,8 @@ export default function StudentLivePortal() {
                     />
                   ) : (
                     <>
-                      {/* Video Player Container */}
-                      <div className={`absolute inset-0 w-full h-full z-0 overflow-hidden ${getActiveStream(cls).id === 'youtube' ? 'scale-[1.10] origin-center pointer-events-none select-none' : ''}`}>
+                      {/* Video Player Container in Shadow DOM */}
+                      <ShadowPlayerWrapper className={`absolute inset-0 w-full h-full z-0 overflow-hidden ${getActiveStream(cls).id === 'youtube' ? 'scale-[1.10] origin-center pointer-events-none select-none' : ''}`}>
                         <ReactPlayer
                           ref={playerRef}
                           url={getStreamUrl(cls)}
@@ -695,7 +696,7 @@ export default function StudentLivePortal() {
                             }
                           }}
                         />
-                      </div>
+                      </ShadowPlayerWrapper>
                       
                       {/* Transparent Overlay to BLOCK all iframe interactions (YouTube logos, right clicks, links) */}
                       <div 

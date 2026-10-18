@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
 import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId } from "@/lib/playerDeviceControl";
 import { startExtensionShield, scanForDownloadTools } from "@/lib/extensionShield";
+import { ShadowPlayerWrapper } from "@/components/ShadowPlayerWrapper";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -1373,7 +1374,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        <div 
+                        <ShadowPlayerWrapper 
                           className={`absolute inset-0 w-full h-full ${
                             (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                               ? 'hidden'
@@ -1641,8 +1642,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </>
                     )}
 
-                    </div>
-                    </>
+                        </ShadowPlayerWrapper>
+                      </>
 
                 {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
                 {!isAdjustingQuality && (activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
