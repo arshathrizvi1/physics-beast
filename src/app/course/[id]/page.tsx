@@ -95,6 +95,41 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [availableQualities, setAvailableQualities] = useState<string[]>(['Auto', '720p', '480p', '360p']);
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetControlsTimeout = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = null;
+    }
+    // Auto-hide controls after 3 seconds of mouse inactivity while playing and menus closed
+    if (playing && !isAdjustingQuality && !showSpeedMenu && !showQualityMenu) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  }, [playing, isAdjustingQuality, showSpeedMenu, showQualityMenu]);
+
+  useEffect(() => {
+    if (!playing) {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+        controlsTimeoutRef.current = null;
+      }
+    } else {
+      resetControlsTimeout();
+    }
+  }, [playing, resetControlsTimeout]);
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -276,7 +311,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           }
 
           if (quality === 'Auto') {
-            hls.currentLevel = -1;
+            if (!playing || (hls.media && hls.media.paused)) {
+              hls.currentLevel = -1;
+            }
             hls.nextLevel = -1;
             hls.loadLevel = -1;
           } else {
@@ -299,7 +336,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             }
 
             if (levelIndex !== -1) {
-              hls.currentLevel = levelIndex;
+              // Seamless switch: keep playing old quality from buffer while new quality loads in background
+              if (!playing || (hls.media && hls.media.paused)) {
+                hls.currentLevel = levelIndex;
+              }
               hls.nextLevel = levelIndex;
               hls.loadLevel = levelIndex;
             }
@@ -696,11 +736,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Unlock orientation when exiting fullscreen (e.g. via hardware back button)
+    // Unlock orientation when exiting fullscreen and immediately reveal player controls
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && screen.orientation && screen.orientation.unlock) {
         screen.orientation.unlock();
       }
+      resetControlsTimeout();
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
@@ -1276,11 +1317,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               ) : (
                 <div 
                   ref={playerContainerRef} 
-                  className="w-full h-full absolute inset-0 z-0 bg-black group/player overflow-hidden select-none"
+                  className={`w-full h-full absolute inset-0 z-0 bg-black group/player overflow-hidden select-none ${
+                    !showControls && playing ? 'cursor-none' : 'cursor-auto'
+                  }`}
                   onContextMenu={(e) => e.preventDefault()}
-                  onMouseEnter={() => setShowControls(true)}
+                  onMouseMove={resetControlsTimeout}
+                  onMouseEnter={resetControlsTimeout}
                   onMouseLeave={() => {
-                    if (!isAdjustingQuality) setShowControls(false);
+                    if (playing && !isAdjustingQuality && !showSpeedMenu && !showQualityMenu) {
+                      setShowControls(false);
+                    }
                   }}
                 >
                       <>
@@ -1410,7 +1456,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           }
 
                           if (quality === 'Auto') {
-                            hls.currentLevel = -1;
+                            if (!playing || (hls.media && hls.media.paused)) {
+                              hls.currentLevel = -1;
+                            }
                             hls.nextLevel = -1;
                             hls.loadLevel = -1;
                           } else {
@@ -1429,7 +1477,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                });
                             }
                             if (levelIndex !== -1) {
-                              hls.currentLevel = levelIndex;
+                              if (!playing || (hls.media && hls.media.paused)) {
+                                hls.currentLevel = levelIndex;
+                              }
                               hls.nextLevel = levelIndex;
                               hls.loadLevel = levelIndex;
                             }
@@ -1589,6 +1639,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   className={`absolute inset-0 z-20 select-none touch-manipulation cursor-pointer flex ${
                     (activeServer === 'bunny' && activeVideo.platform === 'bunny') || isAdjustingQuality ? 'hidden' : ''
                   }`}
+                  onMouseMove={resetControlsTimeout}
+                  onMouseEnter={resetControlsTimeout}
                 >
                   <div 
                     className="w-1/2 h-full"
@@ -1658,7 +1710,25 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Custom Controls Overlay */}
-                <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}>
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}
+                  onMouseEnter={() => {
+                    if (controlsTimeoutRef.current) {
+                      clearTimeout(controlsTimeoutRef.current);
+                      controlsTimeoutRef.current = null;
+                    }
+                    setShowControls(true);
+                  }}
+                  onMouseMove={(e) => {
+                    e.stopPropagation();
+                    if (controlsTimeoutRef.current) {
+                      clearTimeout(controlsTimeoutRef.current);
+                      controlsTimeoutRef.current = null;
+                    }
+                    setShowControls(true);
+                  }}
+                  onMouseLeave={resetControlsTimeout}
+                >
                     
                     {/* Progress Bar */}
                     <div className="w-full flex items-center group/progress h-4 cursor-pointer relative"
@@ -1783,7 +1853,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                           const hls = playerRef.current?.getInternalPlayer('hls');
                                           if (hls && hls.levels && hls.levels.length > 0) {
                                             if (q === 'Auto') {
-                                              hls.currentLevel = -1;
+                                              if (!playing || (hls.media && hls.media.paused)) {
+                                                hls.currentLevel = -1;
+                                              }
                                               hls.nextLevel = -1;
                                               hls.loadLevel = -1;
                                             } else {
@@ -1802,13 +1874,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                                 });
                                               }
                                               if (levelIndex !== -1) {
-                                                hls.currentLevel = levelIndex;
+                                                // Seamless transition: keep playing old quality buffer while downloading new level
+                                                if (!playing || (hls.media && hls.media.paused)) {
+                                                  hls.currentLevel = levelIndex;
+                                                }
                                                 hls.nextLevel = levelIndex;
                                                 hls.loadLevel = levelIndex;
                                               }
                                             }
                                           }
                                         } catch (err) {}
+                                        resetControlsTimeout();
                                       }}
                                       className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                     >
@@ -1876,6 +1952,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               }
                             } catch (err) {
                               console.error("Fullscreen toggle failed", err);
+                            } finally {
+                              resetControlsTimeout();
                             }
                           }} 
                           className="hover:text-primary transition-colors opacity-80 hover:opacity-100 focus:outline-none ml-2"
