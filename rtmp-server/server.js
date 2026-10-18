@@ -119,6 +119,169 @@ async function uploadToR2(filePath, fileName, mimeType = 'video/mp4') {
   }
 }
 
+// ─── Cloudflare R2 Multi-Quality HLS Generator ──────────────────
+
+function checkHasAudio(filePath) {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    exec(`ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of default=nw=1:nk=1 "${filePath}"`, (err, stdout) => {
+      if (err || !stdout || !stdout.includes('audio')) {
+        exec(`ffmpeg -i "${filePath}" 2>&1`, (err2, stdout2) => {
+          resolve((stdout2 || '').includes('Audio:'));
+        });
+      } else {
+        resolve(true);
+      }
+    });
+  });
+}
+
+async function convertToMultiQualityHls(inputMp4Path, outputDir) {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const hasAudio = await checkHasAudio(inputMp4Path);
+  const ffmpegCmd = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
+
+  return new Promise((resolve, reject) => {
+    console.log(`[HLS] 🎬 Starting multi-quality HLS transcoding for: ${inputMp4Path} (hasAudio: ${hasAudio})...`);
+
+    // 720p: 1280x720, 480p: 854x480, 360p: 640x360
+    // 10-second segments for fast startup, smooth seeking, and reduced R2 API operations
+    const args = [
+      '-y',
+      '-i', inputMp4Path,
+      '-filter_complex',
+      '[0:v]split=3[v1][v2][v3]; ' +
+      '[v1]scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v1out]; ' +
+      '[v2]scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v2out]; ' +
+      '[v3]scale=w=640:h=360:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v3out]',
+
+      '-map', '[v1out]', '-c:v:0', 'libx264', '-preset', 'veryfast', '-b:v:0', '1500k', '-maxrate:v:0', '1800k', '-bufsize:v:0', '2400k',
+      '-map', '[v2out]', '-c:v:1', 'libx264', '-preset', 'veryfast', '-b:v:1', '800k', '-maxrate:v:1', '1000k', '-bufsize:v:1', '1400k',
+      '-map', '[v3out]', '-c:v:2', 'libx264', '-preset', 'veryfast', '-b:v:2', '400k', '-maxrate:v:2', '500k', '-bufsize:v:2', '800k',
+    ];
+
+    if (hasAudio) {
+      args.push(
+        '-map', '0:a', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+        '-var_stream_map', 'v:0,a:0,name:720p v:1,a:0,name:480p v:2,a:0,name:360p'
+      );
+    } else {
+      args.push(
+        '-var_stream_map', 'v:0,name:720p v:1,name:480p v:2,name:360p'
+      );
+    }
+
+    args.push(
+      '-f', 'hls',
+      '-hls_time', '10',
+      '-hls_playlist_type', 'vod',
+      '-hls_flags', 'independent_segments',
+      '-master_pl_name', 'master.m3u8',
+      path.join(outputDir, 'stream_%v.m3u8')
+    );
+
+    const { spawn } = require('child_process');
+    const child = spawn(ffmpegCmd, args);
+
+    let lastProgress = 0;
+    child.stderr.on('data', (d) => {
+      const line = d.toString();
+      const match = line.match(/time=(\d{2}:\d{2}:\d{2}\.\d{2})/);
+      if (match && Date.now() - lastProgress > 4000) {
+        lastProgress = Date.now();
+        console.log(`[HLS Transcode] Transcoding time: ${match[1]}`);
+      }
+    });
+
+    child.on('close', (code) => {
+      const masterPath = path.join(outputDir, 'master.m3u8');
+      if (code === 0 && fs.existsSync(masterPath)) {
+        console.log(`[HLS] ✅ Transcoding complete! master.m3u8 created successfully.`);
+        resolve(masterPath);
+      } else {
+        reject(new Error(`FFmpeg exited with code ${code}`));
+      }
+    });
+
+    child.on('error', (err) => reject(err));
+  });
+}
+
+async function uploadDirectoryToR2(dirPath, r2Prefix) {
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+    console.log('[R2] ℹ️ Cloudflare R2 environment variables not set, skipping R2 upload.');
+    return null;
+  }
+
+  const client = getS3Client();
+  if (!client) {
+    console.warn('[R2] ⚠️ S3 Client could not be initialized.');
+    return null;
+  }
+
+  const { PutObjectCommand } = require('@aws-sdk/client-s3');
+  const files = [];
+
+  function scanDir(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scanDir(fullPath);
+      } else {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  scanDir(dirPath);
+  if (files.length === 0) {
+    console.warn('[R2] ⚠️ No files found to upload in:', dirPath);
+    return null;
+  }
+
+  console.log(`[R2] 🚀 Uploading HLS stream (${files.length} files) to Cloudflare R2 ("${R2_BUCKET_NAME}/${r2Prefix}")...`);
+
+  // Parallel upload with batching (15 files concurrently)
+  const concurrency = 15;
+  let completed = 0;
+
+  for (let i = 0; i < files.length; i += concurrency) {
+    const batch = files.slice(i, i + concurrency);
+    await Promise.all(batch.map(async (filePath) => {
+      const relativePath = path.relative(dirPath, filePath).replace(/\\/g, '/');
+      const key = `${r2Prefix}/${relativePath}`;
+      const ext = path.extname(filePath).toLowerCase();
+      let contentType = 'application/octet-stream';
+      if (ext === '.m3u8') contentType = 'application/vnd.apple.mpegurl';
+      else if (ext === '.ts') contentType = 'video/mp2t';
+      else if (ext === '.mp4') contentType = 'video/mp4';
+
+      const fileBuffer = fs.readFileSync(filePath);
+      await client.send(new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType,
+        CacheControl: ext === '.m3u8' ? 'public, max-age=300' : 'public, max-age=31536000, immutable'
+      }));
+      completed++;
+    }));
+
+    if (completed % 50 === 0 || completed === files.length) {
+      const pct = Math.round((completed / files.length) * 100);
+      console.log(`[R2] HLS upload progress: ${completed}/${files.length} (${pct}%)`);
+    }
+  }
+
+  console.log(`[R2] ✅ Cloudflare R2 HLS upload complete: ${r2Prefix}/master.m3u8`);
+  const publicBase = R2_PUBLIC_URL || `https://${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+  return `${publicBase}/${r2Prefix}/master.m3u8`;
+}
+
 // Valid stream keys (comma-separated list, or 'any' to allow all)
 // These are generated by the admin panel and passed here
 const VALID_STREAM_KEYS = (process.env.VALID_STREAM_KEYS || 'any').split(',').map(k => k.trim());
@@ -126,7 +289,8 @@ const VALID_STREAM_KEYS = (process.env.VALID_STREAM_KEYS || 'any').split(',').ma
 // ─── Ensure media directories exist ────────────────────────────
 const hlsDir = path.join(MEDIA_ROOT, 'live');
 const recordingsDir = path.join(MEDIA_ROOT, 'recordings');
-[hlsDir, recordingsDir].forEach(dir => {
+const hlsTmpDir = path.join(MEDIA_ROOT, 'hls_tmp');
+[hlsDir, recordingsDir, hlsTmpDir].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -280,14 +444,26 @@ async function handleStreamEnded(streamKey) {
   
   // Upload to Cloudflare R2
   let r2VideoUrl = null;
+  const liveId = `live_${streamKey}_${Date.now()}`;
+  const hlsLiveDir = path.join(MEDIA_ROOT, 'hls_tmp', liveId);
   try {
-    const r2FileName = `live_${streamKey}_${Date.now()}.mp4`;
-    r2VideoUrl = await uploadToR2(mp4File, r2FileName, 'video/mp4');
+    console.log(`[Pipeline] Converting live recording to multi-quality HLS for Cloudflare R2...`);
+    await convertToMultiQualityHls(mp4File, hlsLiveDir);
+    r2VideoUrl = await uploadDirectoryToR2(hlsLiveDir, `videos/${liveId}`);
     if (r2VideoUrl) {
-      console.log(`[Pipeline] ✅ Uploaded to Cloudflare R2: ${r2VideoUrl}`);
+      console.log(`[Pipeline] ✅ Uploaded HLS to Cloudflare R2: ${r2VideoUrl}`);
     }
   } catch (err) {
-    console.error(`[Pipeline] ❌ Cloudflare R2 upload failed:`, err.message);
+    console.warn(`[Pipeline] ⚠️ HLS conversion failed (${err.message}), falling back to direct MP4 upload...`);
+    try {
+      r2VideoUrl = await uploadToR2(mp4File, `${liveId}.mp4`, 'video/mp4');
+    } catch (e) {
+      console.error(`[Pipeline] ❌ Cloudflare R2 upload failed:`, e.message);
+    }
+  } finally {
+    if (fs.existsSync(hlsLiveDir)) {
+      try { fs.rmSync(hlsLiveDir, { recursive: true, force: true }); } catch (e) {}
+    }
   }
   
   // Notify website
@@ -640,20 +816,32 @@ app.post('/api/generic-download', (req, res) => {
         let bunnyVideoId = null;
         let r2VideoUrl = null;
 
-        // 1. Upload to Cloudflare R2
+        // 1. Upload to Cloudflare R2 as multi-quality HLS (with fallback to direct MP4)
         const safeTitle = (title || 'video')
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '_')
           .substring(0, 40);
-        const r2FileName = `${safeTitle}_${Date.now()}.mp4`;
+        const r2FolderId = `${safeTitle}_${Date.now()}`;
+        const hlsOutputDir = path.join(MEDIA_ROOT, 'hls_tmp', r2FolderId);
 
         try {
-          r2VideoUrl = await uploadToR2(outputPath, r2FileName, 'video/mp4');
+          console.log(`[Generic] Converting "${title}" to multi-quality HLS for Cloudflare R2...`);
+          await convertToMultiQualityHls(outputPath, hlsOutputDir);
+          r2VideoUrl = await uploadDirectoryToR2(hlsOutputDir, `videos/${r2FolderId}`);
           if (r2VideoUrl) {
-            console.log(`[Generic] ✅ Uploaded to Cloudflare R2: ${r2VideoUrl}`);
+            console.log(`[Generic] ✅ Uploaded HLS to Cloudflare R2: ${r2VideoUrl}`);
           }
-        } catch (r2Err) {
-          console.error(`[Generic] ⚠️ Cloudflare R2 upload error:`, r2Err.message);
+        } catch (hlsErr) {
+          console.warn(`[Generic] ⚠️ HLS conversion failed (${hlsErr.message}), falling back to direct MP4 upload...`);
+          try {
+            r2VideoUrl = await uploadToR2(outputPath, `${r2FolderId}.mp4`, 'video/mp4');
+          } catch (mp4Err) {
+            console.error(`[Generic] ❌ Cloudflare R2 direct MP4 upload also failed:`, mp4Err.message);
+          }
+        } finally {
+          if (fs.existsSync(hlsOutputDir)) {
+            try { fs.rmSync(hlsOutputDir, { recursive: true, force: true }); } catch (e) {}
+          }
         }
 
         // 2. Upload to BunnyCDN (if configured)
