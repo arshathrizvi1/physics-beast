@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, Settings } from "lucide-react";
+import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, Settings, ShieldAlert } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
@@ -16,6 +16,7 @@ const ReactPlayer = dynamic(() => import('react-player/lazy'), { ssr: false });
 const ZoomPlayer = dynamic(() => import('@/components/zoom/ZoomPlayer'), { ssr: false });
 const LiveKitPlayer = dynamic(() => import('@/components/LiveKitPlayer'), { ssr: false });
 import { detectDeviceType, isPlayerPermitted, defaultPlayerSettings, VideoPlayerSettings, DeviceType } from "@/lib/playerDeviceControl";
+import { startExtensionShield, scanForDownloadTools } from "@/lib/extensionShield";
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
@@ -52,10 +53,31 @@ export default function StudentLivePortal() {
   const [isBuffering, setIsBuffering] = useState(false);
     const [quality, setQuality] = useState('auto');
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [extensionDetected, setExtensionDetected] = useState<string | null>(null);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const stopShield = startExtensionShield((detectedTool) => {
+      setExtensionDetected(detectedTool);
+      setPlaying(false);
+    });
+    return () => stopShield();
+  }, []);
+
+  useEffect(() => {
+    if (!playing) return;
+    const interval = setInterval(() => {
+      const tool = scanForDownloadTools();
+      if (tool) {
+        setExtensionDetected(tool);
+        setPlaying(false);
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [playing]);
 
     useEffect(() => {
       if (!playerRef.current) return;
@@ -587,10 +609,31 @@ export default function StudentLivePortal() {
 
 
               {/* Custom Player Section for YouTube, Native RTMP & Bunny DRM */}
-              {['youtube', 'rtmp', 'bunny', 'custom', 'direct'].includes(getActiveStream(cls).id) && cls.status === 'live' && (
+              {extensionDetected ? (
+                <div className="aspect-video w-full relative bg-zinc-950 flex flex-col items-center justify-center p-6 text-center select-none rounded-xl border border-zinc-800 animate-in fade-in">
+                  <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                    <ShieldAlert className="w-9 h-9 animate-pulse" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Live Stream Protected</h3>
+                  <p className="text-sm text-red-400 font-semibold mb-3">
+                    {extensionDetected} was detected attaching to this player.
+                  </p>
+                  <p className="text-xs text-zinc-400 max-w-md leading-relaxed mb-6">
+                    To prevent unauthorized recording or duplication of live classes, streaming is automatically disabled while media grabber extensions or download managers are active. Please disable the extension in your browser, or open this page in Incognito mode, then refresh the page.
+                  </p>
+                  <Button
+                    onClick={() => window.location.reload()}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-red-900/40"
+                  >
+                    Refresh Page
+                  </Button>
+                </div>
+              ) : ['youtube', 'rtmp', 'bunny', 'custom', 'direct'].includes(getActiveStream(cls).id) && cls.status === 'live' && (
                 <div 
                   ref={playerContainerRef} 
-                  className="aspect-video w-full relative bg-black group/player overflow-hidden"
+                  className="aspect-video w-full relative bg-black group/player overflow-hidden select-none"
+                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                   onMouseEnter={() => setShowControls(true)}
                   onMouseLeave={() => setShowControls(false)}
                 >
@@ -638,6 +681,8 @@ export default function StudentLivePortal() {
                               attributes: {
                                 disablePictureInPicture: true,
                                 controlsList: "nodownload noplaybackrate",
+                                onContextMenu: (e: any) => { e.preventDefault(); e.stopPropagation(); },
+                                onDragStart: (e: any) => { e.preventDefault(); e.stopPropagation(); },
                                 style: { objectFit: 'contain', width: '100%', height: '100%' }
                               },
                               hlsOptions: {
