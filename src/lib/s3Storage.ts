@@ -2,7 +2,12 @@
  * Uploads a file to Amazon S3 bucket via server presigned URL.
  * Strictly used for Videos, PDFs, and auto-fallback storage.
  */
-export async function uploadToS3(file: File, folder: string = "uploads", forceBunny: boolean = false): Promise<string> {
+export async function uploadToS3(
+  file: File, 
+  folder: string = "uploads", 
+  forceBunny: boolean = false,
+  onProgress?: (percent: number) => void
+): Promise<string> {
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
   
   // Route PDFs to Bunny S3 automatically
@@ -25,17 +30,39 @@ export async function uploadToS3(file: File, folder: string = "uploads", forceBu
 
   const { presignedUrl, publicUrl } = await res.json();
 
-  // Upload file directly from browser to S3 via presigned URL
-  const uploadRes = await fetch(presignedUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": file.type || "application/octet-stream",
-    },
-    body: file,
-  });
+  if (onProgress) {
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", presignedUrl, true);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      if (xhr.upload) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            onProgress(percent);
+          }
+        };
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`Direct S3 upload failed with status ${xhr.status}`));
+      };
+      xhr.onerror = () => reject(new Error("Network error during S3 upload"));
+      xhr.send(file);
+    });
+  } else {
+    // Upload file directly from browser to S3 via presigned URL
+    const uploadRes = await fetch(presignedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
+    });
 
-  if (!uploadRes.ok) {
-    throw new Error("Direct S3 upload failed with status " + uploadRes.status);
+    if (!uploadRes.ok) {
+      throw new Error("Direct S3 upload failed with status " + uploadRes.status);
+    }
   }
 
   return publicUrl;

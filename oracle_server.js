@@ -779,6 +779,49 @@ app.get('/api/logs', (req, res) => {
   });
 });
 
+// Direct MP4 file upload from admin panel (streams file directly to disk)
+app.post('/api/upload-direct', (req, res) => {
+  if (req.setTimeout) req.setTimeout(0);
+  if (res.setTimeout) res.setTimeout(0);
+
+  const secret = req.headers['x-secret'] || req.query.secret;
+  if (!isValidSecret(secret)) return res.status(403).json({ error: 'Invalid secret' });
+
+  const title = decodeURIComponent(req.headers['x-title'] || req.query.title || 'Direct Upload');
+  const metadataRaw = req.headers['x-metadata'] || req.query.metadata || '{}';
+  let metadata = {};
+  try { metadata = JSON.parse(decodeURIComponent(metadataRaw)); } catch (e) {}
+  const webhookUrl = req.headers['x-webhook-url'] || req.query.webhookUrl || `${WEBSITE_URL}/api/bunny/aws-webhook`;
+
+  const jobId = crypto.randomBytes(8).toString('hex');
+  const outputPath = path.join(recordingsDir, `direct_${jobId}.mp4`);
+  const fileStream = fs.createWriteStream(outputPath);
+
+  console.log(`[Upload] 📥 Receiving direct MP4 upload: "${title}" (jobId: ${jobId})`);
+
+  req.pipe(fileStream);
+
+  fileStream.on('error', (err) => {
+    console.error('[Upload] ❌ Write error:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to write upload' });
+  });
+
+  fileStream.on('finish', () => {
+    const stats = fs.statSync(outputPath);
+    const sizeMB = (stats.size / 1024 / 1024).toFixed(1);
+    console.log(`[Upload] ✅ Direct upload saved: "${title}" (${sizeMB} MB). Starting multi-quality HLS pipeline...`);
+
+    if (!res.headersSent) {
+      res.json({ success: true, message: 'Upload received, converting in background', jobId });
+    }
+
+    // Execute the full pipeline in background
+    processVideoPipeline(outputPath, title, metadata, webhookUrl).catch(err => {
+      console.error('[Upload] Pipeline error:', err.message);
+    });
+  });
+});
+
 // Check if a specific stream is live
 app.get('/stream/:streamKey/status', (req, res) => {
   const { streamKey } = req.params;
@@ -872,7 +915,139 @@ app.post('/api/convert-youtube', (req, res) => {
       notifyWebsite('stream_ended', { streamKey, hasRecording: false }).catch(() => {});
     }
   });
-});
+// Shared Pipeline: Multi-Quality HLS + Cloudflare R2 + BunnyCDN + Webhook
+async function processVideoPipeline(outputPath, title, metadata = {}, webhookUrl = `${WEBSITE_URL}/api/bunny/aws-webhook`) {
+  try {
+    const fileSizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
+    console.log(`[Pipeline] 🎬 Starting multi-quality HLS pipeline for "${title}" (${fileSizeMB} MB)...`);
+
+    let bunnyVideoId = null;
+    let r2VideoUrl = null;
+
+    // 1. Upload to Cloudflare R2 as multi-quality HLS (with fallback to direct MP4)
+    const safeTitle = (title || 'video')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .substring(0, 40);
+    const r2FolderId = `${safeTitle}_${Date.now()}`;
+    const hlsOutputDir = path.join(MEDIA_ROOT, 'hls_tmp', r2FolderId);
+
+    try {
+      console.log(`[Pipeline] Converting "${title}" to multi-quality HLS for Cloudflare R2...`);
+      await convertToMultiQualityHls(outputPath, hlsOutputDir);
+      r2VideoUrl = await uploadDirectoryToR2(hlsOutputDir, `videos/${r2FolderId}`);
+      if (r2VideoUrl) {
+        console.log(`[Pipeline] ✅ Uploaded HLS to Cloudflare R2: ${r2VideoUrl}`);
+      }
+    } catch (hlsErr) {
+      console.warn(`[Pipeline] ⚠️ HLS conversion failed (${hlsErr.message}), falling back to direct MP4 upload...`);
+      try {
+        r2VideoUrl = await uploadToR2(outputPath, `${r2FolderId}.mp4`, 'video/mp4');
+      } catch (mp4Err) {
+        console.error(`[Pipeline] ❌ Cloudflare R2 direct MP4 upload also failed:`, mp4Err.message);
+      }
+    } finally {
+      if (fs.existsSync(hlsOutputDir)) {
+        try { fs.rmSync(hlsOutputDir, { recursive: true, force: true }); } catch (e) {}
+      }
+    }
+
+    // 2. Upload to BunnyCDN (if configured)
+    if (BUNNY_LIBRARY_ID && BUNNY_API_KEY) {
+      try {
+        console.log(`[Pipeline] Uploading to BunnyCDN...`);
+        const createRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos`, {
+          method: 'POST',
+          headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ title: title || 'Uploaded Video' })
+        });
+
+        if (createRes.ok) {
+          const videoData = await createRes.json();
+          bunnyVideoId = videoData.guid;
+
+          const fileStats = fs.statSync(outputPath);
+          let uploadOk = false;
+          try {
+            const fileStream = fs.createReadStream(outputPath);
+            const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, {
+              method: 'PUT',
+              headers: {
+                'AccessKey': BUNNY_API_KEY,
+                'Content-Type': 'application/octet-stream',
+                'Content-Length': fileStats.size.toString()
+              },
+              body: fileStream,
+              duplex: 'half'
+            });
+            uploadOk = uploadRes.ok;
+          } catch (streamErr) {
+            console.warn(`[Pipeline] Stream upload failed, falling back to buffer: ${streamErr.message}`);
+          }
+
+          if (!uploadOk) {
+            const fileBuffer = fs.readFileSync(outputPath);
+            const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, {
+              method: 'PUT',
+              headers: {
+                'AccessKey': BUNNY_API_KEY,
+                'Content-Type': 'application/octet-stream',
+                'Content-Length': fileBuffer.length.toString()
+              },
+              body: fileBuffer
+            });
+            uploadOk = uploadRes.ok;
+          }
+
+          if (uploadOk) {
+            console.log(`[Pipeline] ✅ Uploaded to Bunny: ${bunnyVideoId} for "${title}"`);
+          } else {
+            console.warn(`[Pipeline] ⚠️ Bunny upload failed, proceeding with R2.`);
+          }
+        }
+      } catch (bunnyErr) {
+        console.error(`[Pipeline] ⚠️ Bunny error:`, bunnyErr.message);
+      }
+    }
+
+    if (!bunnyVideoId && !r2VideoUrl) {
+      throw new Error('Both BunnyCDN and Cloudflare R2 uploads failed or are not configured.');
+    }
+
+    // 3. Notify Vercel webhook
+    const targetWebhook = webhookUrl || `${WEBSITE_URL}/api/bunny/aws-webhook`;
+    console.log(`[Pipeline] 📡 Calling webhook: ${targetWebhook}...`);
+    const notifyRes = await fetch(targetWebhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: CALLBACK_SECRET,
+        videoId: bunnyVideoId || null,
+        libraryId: bunnyVideoId ? BUNNY_LIBRARY_ID : null,
+        r2Url: r2VideoUrl || null,
+        metadata
+      })
+    });
+    console.log(`[Pipeline] ✅ Notified webhook (status: ${notifyRes.status}) for "${title}" (Bunny: ${bunnyVideoId ? 'Yes' : 'No'}, R2: ${r2VideoUrl ? 'Yes' : 'No'})`);
+
+    // Clean up temp file
+    try { fs.unlinkSync(outputPath); } catch (e) {}
+  } catch (err) {
+    console.error(`[Pipeline] ❌ Upload/notify failed for "${title}":`, err.message);
+    const targetWebhook = webhookUrl || `${WEBSITE_URL}/api/bunny/aws-webhook`;
+    try {
+      await fetch(targetWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: CALLBACK_SECRET,
+          error: err.message,
+          metadata
+        })
+      });
+    } catch (e) {}
+  }
+}
 
 // Generic Downloader for Admin Dashboard
 // Handles YouTube (with bot-bypass) and Zoom separately
@@ -968,6 +1143,26 @@ app.post('/api/generic-download', (req, res) => {
       }
     });
   } else {
+    // Check if it's a direct video file (e.g. from S3, R2, or direct file link)
+    const isDirectVideo = url.match(/\.(mp4|mov|mkv|webm|m4v)(\?.*)?$/i) || url.includes('.s3.') || url.includes('amazonaws.com') || url.includes('r2.cloudflarestorage.com');
+    if (isDirectVideo) {
+      console.log(`[Generic] 🎬 Direct video URL detected: ${url}. Downloading directly with curl...`);
+      const { exec } = require('child_process');
+      exec(`curl -L -f -s -o "${outputPath}" "${url}"`, (curlErr) => {
+        if (!curlErr && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
+          const sizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
+          console.log(`[Generic] ✅ Direct video download complete: "${title}" (${sizeMB} MB). Starting multi-quality HLS pipeline...`);
+          processVideoPipeline(outputPath, title, req.body.metadata, req.body.webhookUrl).catch(err => {
+            console.error('[Generic] Pipeline error:', err.message);
+          });
+        } else {
+          console.warn(`[Generic] ⚠️ Direct curl failed (${curlErr?.message || 'Empty file'}), falling back to standard yt-dlp...`);
+          runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
+        }
+      });
+      return;
+    }
+
     // 🎥 Zoom / Other URLs: Standard Download 
     console.log(`[Generic] 🔵 Non-YouTube URL detected - using standard mode`);
     runStandardMode(url, password, outputPath, cookiesExist, cookiesPath, title, req.body);
@@ -1005,130 +1200,11 @@ app.post('/api/generic-download', (req, res) => {
 
       ytdlp.on('close', async (code) => {
         if (code === 0 && fs.existsSync(outputPath)) {
-      try {
-        const fileSizeMB = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(1);
-        console.log(`[Generic] ✅ Download complete for "${title}" (${fileSizeMB} MB)`);
-
-        let bunnyVideoId = null;
-        let r2VideoUrl = null;
-
-        // 1. Upload to Cloudflare R2 as multi-quality HLS (with fallback to direct MP4)
-        const safeTitle = (title || 'video')
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, '_')
-          .substring(0, 40);
-        const r2FolderId = `${safeTitle}_${Date.now()}`;
-        const hlsOutputDir = path.join(MEDIA_ROOT, 'hls_tmp', r2FolderId);
-
-        try {
-          console.log(`[Generic] Converting "${title}" to multi-quality HLS for Cloudflare R2...`);
-          await convertToMultiQualityHls(outputPath, hlsOutputDir);
-          r2VideoUrl = await uploadDirectoryToR2(hlsOutputDir, `videos/${r2FolderId}`);
-          if (r2VideoUrl) {
-            console.log(`[Generic] ✅ Uploaded HLS to Cloudflare R2: ${r2VideoUrl}`);
-          }
-        } catch (hlsErr) {
-          console.warn(`[Generic] ⚠️ HLS conversion failed (${hlsErr.message}), falling back to direct MP4 upload...`);
-          try {
-            r2VideoUrl = await uploadToR2(outputPath, `${r2FolderId}.mp4`, 'video/mp4');
-          } catch (mp4Err) {
-            console.error(`[Generic] ❌ Cloudflare R2 direct MP4 upload also failed:`, mp4Err.message);
-          }
-        } finally {
-          if (fs.existsSync(hlsOutputDir)) {
-            try { fs.rmSync(hlsOutputDir, { recursive: true, force: true }); } catch (e) {}
-          }
-        }
-
-        // 2. Upload to BunnyCDN (if configured)
-        if (BUNNY_LIBRARY_ID && BUNNY_API_KEY) {
-          try {
-            console.log(`[Generic] Uploading to BunnyCDN...`);
-            const createRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos`, {
-              method: 'POST',
-              headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              body: JSON.stringify({ title: title || 'Downloaded Video' })
-            });
-
-            if (createRes.ok) {
-              const videoData = await createRes.json();
-              bunnyVideoId = videoData.guid;
-
-              const fileStats = fs.statSync(outputPath);
-              let uploadOk = false;
-              try {
-                const fileStream = fs.createReadStream(outputPath);
-                const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, {
-                  method: 'PUT',
-                  headers: {
-                    'AccessKey': BUNNY_API_KEY,
-                    'Content-Type': 'application/octet-stream',
-                    'Content-Length': fileStats.size.toString()
-                  },
-                  body: fileStream,
-                  duplex: 'half'
-                });
-                uploadOk = uploadRes.ok;
-              } catch (streamErr) {
-                console.warn(`[Generic] Stream upload failed, falling back to buffer: ${streamErr.message}`);
-              }
-
-              // Buffer fallback for small files
-              if (!uploadOk) {
-                const fileBuffer = fs.readFileSync(outputPath);
-                const uploadRes = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, {
-                  method: 'PUT',
-                  headers: {
-                    'AccessKey': BUNNY_API_KEY,
-                    'Content-Type': 'application/octet-stream',
-                    'Content-Length': fileBuffer.length.toString()
-                  },
-                  body: fileBuffer
-                });
-                uploadOk = uploadRes.ok;
-              }
-
-              if (uploadOk) {
-                console.log(`[Generic] ✅ Uploaded to Bunny: ${bunnyVideoId} for "${title}"`);
-              } else {
-                console.warn(`[Generic] ⚠️ Bunny upload failed, proceeding with R2 if available.`);
-              }
-            } else {
-              console.warn(`[Generic] ⚠️ Bunny create failed: ${await createRes.text()}`);
-            }
-          } catch (bunnyErr) {
-            console.error(`[Generic] ⚠️ Bunny error:`, bunnyErr.message);
-          }
-        } else {
-          console.log(`[Generic] ℹ️ BunnyCDN credentials not configured. Skipping Bunny upload.`);
-        }
-
-        if (!bunnyVideoId && !r2VideoUrl) {
-          throw new Error('Both BunnyCDN and Cloudflare R2 uploads failed or are not configured.');
-        }
-
-        // 3. Notify Vercel webhook
-        if (webhookUrl) {
-          await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              secret: CALLBACK_SECRET,
-              videoId: bunnyVideoId || null,
-              libraryId: bunnyVideoId ? BUNNY_LIBRARY_ID : null,
-              r2Url: r2VideoUrl || null,
-              metadata
-            })
+          console.log(`[Generic] ✅ Download complete for "${title}". Starting multi-quality HLS pipeline...`);
+          processVideoPipeline(outputPath, title, reqBody.metadata, reqBody.webhookUrl).catch(err => {
+            console.error('[Generic] Pipeline error:', err.message);
           });
-          console.log(`[Generic] ✅ Notified webhook for "${title}" (Bunny: ${bunnyVideoId ? 'Yes' : 'No'}, R2: ${r2VideoUrl ? 'Yes' : 'No'})`);
-        }
-
-        // Clean up temp file
-        try { fs.unlinkSync(outputPath); } catch (e) {}
-      } catch (err) {
-        console.error(`[Generic] ❌ Upload/notify failed for "${title}":`, err.message);
-      }
-    } else {
+        } else {
       const isProxyErr = stderrLog.includes("Connection refused") || stderrLog.includes("Socks5Error") || stderrLog.includes("timed out") || stderrLog.includes("Network is unreachable") || stderrLog.includes("Connection reset");
 
       if (isProxyErr && attempt < 6) {

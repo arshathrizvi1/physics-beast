@@ -73,8 +73,8 @@ export async function POST(request: Request) {
       ? `https://iframe.mediadelivery.net/embed/${libraryId}/${videoId}?autoplay=true` 
       : null;
 
-    const primaryUrl = finalBunnyUrl || r2Url;
-    const primaryPlatform = finalBunnyUrl ? 'bunny' : 'r2';
+    const primaryUrl = r2Url || finalBunnyUrl;
+    const primaryPlatform = r2Url ? 'r2' : (finalBunnyUrl ? 'bunny' : 'direct');
 
     const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
     

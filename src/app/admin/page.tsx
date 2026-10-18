@@ -1143,6 +1143,8 @@ export default function AdminDashboard() {
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
 
   const [bunnyUploadMode, setBunnyUploadMode] = useState<"file" | "url">("file");
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [videoUploadStatusText, setVideoUploadStatusText] = useState("");
   
   const [isSavingExam, setIsSavingExam] = useState(false);
   const [examSuccess, setExamSuccess] = useState(false);
@@ -1590,39 +1592,149 @@ export default function AdminDashboard() {
              finalUrl = `https://iframe.mediadelivery.net/embed/${fetchData.libraryId}/${fetchData.videoId}?autoplay=true`;
            }
         } else if (bunnyUploadMode === "file" && resourceFile) {
-           const createRes = await fetch("/api/bunny/create", {
-             method: "POST",
-             headers: { "Content-Type": "application/json" },
-             body: JSON.stringify({ title: videoTitle })
-           });
-           const createData = await createRes.json();
-           if (!createRes.ok) throw new Error(createData.error);
-           
-           await new Promise<void>((resolve, reject) => {
-             const { Upload } = require("tus-js-client");
-             const upload = new Upload(resourceFile, {
-               endpoint: "https://video.bunnycdn.com/tusupload",
-               retryDelays: [0, 3000, 5000, 10000, 20000],
-               headers: {
-                 AuthorizationSignature: createData.signature,
-                 AuthorizationExpire: createData.expirationTime.toString(),
-                 VideoId: createData.videoId,
-                 LibraryId: createData.libraryId,
-               },
-               metadata: {
-                 filetype: resourceFile.type,
-                 title: videoTitle,
-               },
-               onError: (error: Error) => reject(error),
-               onProgress: (bytesUploaded: number, bytesTotal: number) => {
-                 // Could log progress if needed
-               },
-               onSuccess: () => resolve()
-             });
-             upload.start();
-           });
-           
-           finalUrl = `https://iframe.mediadelivery.net/embed/${createData.libraryId}/${createData.videoId}?autoplay=true`;
+          const videoDocId = doc(collection(db, 'videos')).id;
+          const metadata = {
+            videoDocId,
+            videoTitle,
+            videoFolderId: targetFolderId,
+            videoCourseId,
+            videoBatchId,
+            originalFilename: resourceFile.name,
+          };
+          const videoRef = doc(db, 'videos', videoDocId);
+
+          // 1. Create Placeholder Document in Firestore immediately
+          await setDoc(videoRef, {
+            id: videoDocId,
+            title: videoTitle,
+            description: '',
+            url: '', // Empty until ready
+            videoId: '',
+            libraryId: '',
+            platform: 'r2',
+            courseId: videoCourseId === 'none' ? null : videoCourseId,
+            folderId: targetFolderId,
+            type: 'video',
+            isReady: false,
+            processingStatus: 'uploading',
+            createdAt: Date.now(),
+            views: 0
+          });
+
+          // 2. Add to folder immediately so it is visible in the UI
+          if (targetFolderId && targetFolderId !== 'none') {
+            const folderRef = doc(db, 'folders', targetFolderId);
+            const folderSnap = await getDoc(folderRef);
+            if (folderSnap.exists()) {
+              const items = folderSnap.data().items || [];
+              await updateDoc(folderRef, {
+                items: [...items, { id: videoDocId, type: 'video' }]
+              });
+            }
+          }
+
+          // 3. Send Notification that upload started
+          const notifRef = doc(collection(db, 'notifications'));
+          await setDoc(notifRef, {
+            id: notifRef.id,
+            title: "Video Upload Started",
+            message: `Started uploading "${videoTitle}" for 720p/480p/360p HLS processing.`,
+            type: "info",
+            link: "/admin",
+            createdAt: Date.now(),
+            isGlobal: true,
+            readBy: [],
+            clearedBy: []
+          });
+
+          let uploadedVideoUrl: string | null = null;
+
+          // 4. Try S3 presigned upload with live progress tracking
+          try {
+            setVideoUploadStatusText("Uploading video (0%)...");
+            uploadedVideoUrl = await uploadToS3(resourceFile, "course-videos", false, (percent: number) => {
+              setVideoUploadProgress(percent);
+              setVideoUploadStatusText(`Uploading video: ${percent}%...`);
+            });
+          } catch (s3Err: any) {
+            console.warn("S3 presigned upload failed, falling back to direct server upload:", s3Err);
+            // Fallback: direct streaming to EC2 server endpoint
+            try {
+              setVideoUploadStatusText("Uploading directly to video server (0%)...");
+              const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+              const serverPort = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
+              const query = new URLSearchParams({
+                title: encodeURIComponent(videoTitle),
+                metadata: encodeURIComponent(JSON.stringify(metadata)),
+                secret: 'change-me-to-a-random-string'
+              });
+              await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("POST", `http://${serverHost}:${serverPort}/api/upload-direct?${query.toString()}`, true);
+                xhr.setRequestHeader("Content-Type", resourceFile.type || "video/mp4");
+                if (xhr.upload) {
+                  xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                      const p = Math.round((e.loaded / e.total) * 100);
+                      setVideoUploadProgress(p);
+                      setVideoUploadStatusText(`Uploading to server: ${p}%...`);
+                    }
+                  };
+                }
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) resolve();
+                  else reject(new Error(`Server returned status ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error("Direct upload failed"));
+                xhr.send(resourceFile);
+              });
+
+              await updateDoc(videoRef, { processingStatus: 'processing' });
+              alert("✅ Video uploaded! Multi-quality HLS transcoding (720p, 480p, 360p) is now running on the server. It will be ready to watch shortly on Cloudflare R2.");
+              setIsUploading(false);
+              setUploadSuccess(true);
+              setVideoTitle("");
+              setVideoUrl("");
+              setUploadFileBase64(null);
+              setResourceFile(null);
+              setVideoUploadProgress(0);
+              setVideoUploadStatusText("");
+              setTimeout(() => setUploadSuccess(false), 6000);
+              return;
+            } catch (directErr: any) {
+              await deleteDoc(videoRef);
+              throw new Error(`Upload failed: ${s3Err.message || 'S3 failed'} and ${directErr.message || 'Direct server failed'}`);
+            }
+          }
+
+          // 5. If S3 upload succeeded, trigger EC2 to download and convert to 720p/480p/360p
+          if (uploadedVideoUrl) {
+            setVideoUploadStatusText("Upload complete! Starting 720p/480p/360p HLS conversion...");
+            await updateDoc(videoRef, { processingStatus: 'processing' });
+
+            const fetchRes = await fetch("/api/bunny/aws-download", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: uploadedVideoUrl, title: videoTitle, metadata })
+            });
+
+            if (!fetchRes.ok) {
+              const err = await fetchRes.json().catch(() => ({}));
+              console.warn("AWS download trigger returned error:", err);
+            }
+
+            alert("✅ Video uploaded! Multi-quality HLS transcoding (720p, 480p, 360p) has started in the background on AWS. It will appear as 'Processing...' in the folder and notify you when ready on Cloudflare R2.");
+            setIsUploading(false);
+            setUploadSuccess(true);
+            setVideoTitle("");
+            setVideoUrl("");
+            setUploadFileBase64(null);
+            setResourceFile(null);
+            setVideoUploadProgress(0);
+            setVideoUploadStatusText("");
+            setTimeout(() => setUploadSuccess(false), 6000);
+            return;
+          }
         } else {
            throw new Error("Please provide a valid YouTube or Zoom URL for automatic conversion.");
         }
@@ -3111,7 +3223,7 @@ export default function AdminDashboard() {
                 {uploadItemType === 'video' ? (
                   <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                      <Label className="text-primary font-semibold text-base">Bunny Stream Video</Label>
+                      <Label className="text-primary font-semibold text-base">Course Video (Cloudflare R2 / Free CDN)</Label>
                       <div className="flex gap-4">
                         <Label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                           <input type="radio" name="bunnyMode" checked={bunnyUploadMode === 'file'} onChange={() => setBunnyUploadMode('file')} />
@@ -3125,21 +3237,40 @@ export default function AdminDashboard() {
                     </div>
                     
                     {bunnyUploadMode === 'file' ? (
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <Input 
-                          type="file" 
-                          accept="video/*" 
-                          className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setResourceFile(e.target.files[0]);
-                            }
-                          }} 
-                          required={uploadItemType === 'video' && bunnyUploadMode === 'file'}
-                        />
-                        <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || !resourceFile}>
-                          {isUploading ? "Uploading to Bunny..." : "Upload File to Bunny"}
-                        </Button>
+                      <div className="space-y-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Input 
+                            type="file" 
+                            accept="video/*" 
+                            className="cursor-pointer file:cursor-pointer file:bg-primary file:text-primary-foreground file:border-0 file:rounded-md file:px-4 file:py-1 hover:file:bg-primary/90"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setResourceFile(e.target.files[0]);
+                              }
+                            }} 
+                            required={uploadItemType === 'video' && bunnyUploadMode === 'file'}
+                          />
+                          <Button type="button" onClick={handleUploadItem} className="w-full sm:w-auto shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || !resourceFile}>
+                            {isUploading ? (videoUploadProgress > 0 ? `Uploading (${videoUploadProgress}%)...` : "Processing...") : "Upload Video File"}
+                          </Button>
+                        </div>
+                        {isUploading && videoUploadProgress > 0 && (
+                          <div className="space-y-1.5 p-3 rounded-lg bg-background border border-border">
+                            <div className="flex justify-between text-xs font-medium">
+                              <span className="text-muted-foreground">{videoUploadStatusText || "Uploading video..."}</span>
+                              <span className="text-primary font-bold">{videoUploadProgress}%</span>
+                            </div>
+                            <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-primary h-full transition-all duration-150 rounded-full" 
+                                style={{ width: `${videoUploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground bg-primary/5 p-2 rounded">
+                          <strong>⚡ Direct Video Upload:</strong> Upload any MP4, MKV, MOV, or WebM video. The server automatically transcodes it into multi-quality HLS (720p, 480p, 360p) and hosts it on Cloudflare R2 with zero bandwidth costs.
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -3147,11 +3278,11 @@ export default function AdminDashboard() {
                           <Input placeholder="Enter Zoom URL, YouTube link, or direct MP4..." value={videoUrl || ""} onChange={e => setVideoUrl(e.target.value)} required={uploadItemType === 'video' && bunnyUploadMode === 'url'} className="flex-1" />
                           <Input placeholder="Zoom Password (Optional)" value={zoomPassword || ""} onChange={e => setZoomPassword(e.target.value)} type="text" className="w-full sm:w-48" />
                           <Button type="button" onClick={handleUploadItem} className="shrink-0" disabled={isUploading || !videoFolderId && !courses.find(c => c.id === videoCourseId)?.isMonthly || !videoUrl}>
-                            {isUploading ? "Fetching..." : "Fetch & Upload to Bunny"}
+                            {isUploading ? "Processing..." : "Import Video"}
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 bg-primary/5 p-2 rounded">
-                          <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background (using your optional password for Zoom) and upload them securely to BunnyCDN.
+                          <strong>✨ Zoom & YouTube Supported:</strong> You can paste standard Zoom cloud recording or YouTube links. The server will automatically download them in the background, convert them into multi-quality HLS (720p, 480p, 360p), and upload them to Cloudflare R2.
                         </p>
                       </div>
                     )}
