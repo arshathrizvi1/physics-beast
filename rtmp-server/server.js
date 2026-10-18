@@ -964,7 +964,27 @@ app.post('/api/generic-download', (req, res) => {
         console.error(`[Generic] ❌ Upload/notify failed for "${title}":`, err.message);
       }
     } else {
-      if ((stderrLog.includes("This live event has ended") || stderrLog.includes("Premieres in") || stderrLog.includes("No video formats found") || stderrLog.includes("Requested format is not available")) && attempt < maxAttempts) {
+      const isProxyErr = stderrLog.includes("Connection refused") || stderrLog.includes("Socks5Error") || stderrLog.includes("timed out") || stderrLog.includes("Network is unreachable") || stderrLog.includes("Connection reset");
+
+      if (isProxyErr && attempt < 6) {
+        attempt++;
+        const hasProxyArg = dlArgs.includes('--proxy');
+
+        if (attempt <= 3 && hasProxyArg) {
+          console.log(`[Generic] ⚠️ WARP proxy dropped at attempt ${attempt - 1}. Reconnecting WARP and resuming download in 3s...`);
+          const { exec } = require('child_process');
+          exec('warp-cli connect 2>/dev/null || sudo systemctl restart warp-svc 2>/dev/null || true', () => {
+            setTimeout(attemptDownload, 3000);
+          });
+        } else {
+          console.log(`[Generic] ⚠️ WARP proxy failed repeatedly. Retrying directly without proxy (attempt ${attempt}/6)...`);
+          const proxyIdx = dlArgs.indexOf('--proxy');
+          if (proxyIdx !== -1) {
+            dlArgs.splice(proxyIdx, 2);
+          }
+          setTimeout(attemptDownload, 2000);
+        }
+      } else if ((stderrLog.includes("This live event has ended") || stderrLog.includes("Premieres in") || stderrLog.includes("No video formats found") || stderrLog.includes("Requested format is not available")) && attempt < maxAttempts) {
         console.log(`[Generic] ⏳ YouTube is still processing the live stream. Waiting 15 minutes to retry...`);
         attempt++;
         setTimeout(attemptDownload, 15 * 60 * 1000);
