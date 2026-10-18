@@ -176,7 +176,7 @@ async function convertToMultiQualityHls(inputMp4Path, outputDir) {
 
     args.push(
       '-f', 'hls',
-      '-hls_time', '10',
+      '-hls_time', '15',
       '-hls_playlist_type', 'vod',
       '-hls_flags', 'independent_segments',
       '-master_pl_name', 'master.m3u8',
