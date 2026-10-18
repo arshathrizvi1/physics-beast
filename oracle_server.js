@@ -136,23 +136,40 @@ function checkHasAudio(filePath) {
   });
 }
 
+function getVideoCodec(filePath) {
+  return new Promise((resolve) => {
+    const { exec } = require('child_process');
+    exec(`ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "${filePath}"`, (err, stdout) => {
+      if (err || !stdout) {
+        resolve('unknown');
+      } else {
+        resolve(stdout.trim().toLowerCase());
+      }
+    });
+  });
+}
+
 async function convertToMultiQualityHls(inputMp4Path, outputDir) {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
   const hasAudio = await checkHasAudio(inputMp4Path);
+  const videoCodec = await getVideoCodec(inputMp4Path);
   const ffmpegCmd = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
 
   return new Promise((resolve, reject) => {
-    console.log(`[HLS] 🎬 Starting HLS generation for: ${inputMp4Path} (hasAudio: ${hasAudio})...`);
+    console.log(`[HLS] 🎬 Starting HLS generation for: ${inputMp4Path} (videoCodec: "${videoCodec}", hasAudio: ${hasAudio})...`);
 
     const stream720p = path.join(outputDir, 'stream_720p.m3u8');
     const masterPath = path.join(outputDir, 'master.m3u8');
     const { spawn } = require('child_process');
 
-    // Strategy 1: Fast direct stream copy into 15s HLS segments (takes ~3s, zero CPU, never OOMs)
-    const copyArgs = [
+    const isH264 = videoCodec.includes('h264') || videoCodec.includes('avc');
+
+    // If source is already H.264, direct stream copy works in 3 seconds!
+    // If source is AV1/VP9 (common from YouTube), transcode video to standard H.264 so browsers can display picture (copy audio)
+    const hlsArgs = isH264 ? [
       '-y',
       '-i', inputMp4Path,
       '-c', 'copy',
@@ -161,9 +178,22 @@ async function convertToMultiQualityHls(inputMp4Path, outputDir) {
       '-hls_flags', 'independent_segments',
       '-hls_segment_filename', path.join(outputDir, 'segment_%04d.ts'),
       stream720p
+    ] : [
+      '-y',
+      '-i', inputMp4Path,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      ...(hasAudio ? ['-c:a', 'copy'] : []),
+      '-f', 'hls',
+      '-hls_time', '15',
+      '-hls_playlist_type', 'vod',
+      '-hls_flags', 'independent_segments',
+      '-hls_segment_filename', path.join(outputDir, 'segment_%04d.ts'),
+      stream720p
     ];
 
-    const child = spawn(ffmpegCmd, copyArgs);
+    console.log(`[HLS] 🚀 Running FFmpeg with ${isH264 ? 'STREAM COPY (H.264)' : 'FAST H.264 ENCODING (AV1/VP9 → H.264)'}...`);
+    const child = spawn(ffmpegCmd, hlsArgs);
     let stderrText = '';
 
     child.stderr.on('data', (d) => {
@@ -180,17 +210,18 @@ async function convertToMultiQualityHls(inputMp4Path, outputDir) {
 stream_720p.m3u8
 `;
         fs.writeFileSync(masterPath, masterContent);
-        console.log(`[HLS] ✅ Fast copy HLS complete! master.m3u8 created successfully.`);
+        console.log(`[HLS] ✅ HLS generation complete! master.m3u8 created successfully.`);
         return resolve(masterPath);
       }
 
-      console.warn(`[HLS] ⚠️ Fast copy exited with code ${code}, attempting transcode fallback...`);
+      console.warn(`[HLS] ⚠️ Primary HLS generation exited with code ${code}, attempting fallback transcode...`);
 
-      // Strategy 2: Single-pass ultrafast 720p transcode fallback
+      // Emergency Fallback: Single-pass ultrafast 720p transcode
       const transcodeArgs = [
         '-y',
         '-i', inputMp4Path,
         '-c:v', 'libx264', '-preset', 'ultrafast', '-b:v', '1500k', '-maxrate', '1800k', '-bufsize', '2400k',
+        '-pix_fmt', 'yuv420p',
         ...(hasAudio ? ['-c:a', 'aac', '-b:a', '128k', '-ac', '2'] : []),
         '-f', 'hls',
         '-hls_time', '15',
@@ -760,7 +791,7 @@ app.post('/api/generic-download', (req, res) => {
       '--proxy', warpProxy,
       ...(cookiesExist ? ['--cookies', cookiesPath] : []),
       '--limit-rate', '5M',
-      '-S', 'res:720,ext:mp4:m4a',
+      '-S', 'res:720,vcodec:h264,ext:mp4:m4a',
       '--ffmpeg-location', '/usr/bin/ffmpeg',
       '--merge-output-format', 'mp4',
       '--retries', '5',
@@ -824,7 +855,7 @@ app.post('/api/generic-download', (req, res) => {
   function runStandardMode(targetUrl, targetPassword, outPath, hasCookies, cPath, vidTitle, reqBody) {
     let stdArgs = [
       '--no-playlist',
-      '-S', 'res:720,ext:mp4:m4a',
+      '-S', 'res:720,vcodec:h264,ext:mp4:m4a',
       '--ffmpeg-location', '/usr/bin/ffmpeg',
       '--merge-output-format', 'mp4',
       '--retries', '3',
