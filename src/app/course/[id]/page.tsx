@@ -87,6 +87,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [activeServer, setActiveServer] = useState<'bunny' | 'r2' | 'youtube'>('bunny');
   const playedSecondsRef = useRef(0);
   const durationRef = useRef(0);
+  const prevServerRef = useRef<'bunny' | 'r2' | 'youtube'>(activeServer);
+  const activeVideoIdRef = useRef<string | null>(null);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
@@ -760,6 +762,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const activeVideoRef = useRef(activeVideo);
   useEffect(() => { 
+    if (activeVideo?.id && activeVideoIdRef.current !== activeVideo.id) {
+      activeVideoIdRef.current = activeVideo.id;
+      playedSecondsRef.current = 0;
+      setPlayed(0);
+    }
     activeVideoRef.current = activeVideo; 
     const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
 
@@ -1346,15 +1353,22 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                       onReady={() => {
-                        if (playerRef.current && playedSecondsRef.current > 0) {
-                          playerRef.current.seekTo(playedSecondsRef.current, 'seconds');
+                        if (prevServerRef.current !== activeServer) {
+                          prevServerRef.current = activeServer;
+                          if (playerRef.current && playedSecondsRef.current > 0) {
+                            playerRef.current.seekTo(playedSecondsRef.current, 'seconds');
+                          }
                         }
                         if (activeVideo && user?.uid && playerRef.current) {
                           if (!readyFiredRef.current.has(activeVideo.id)) {
                             readyFiredRef.current.add(activeVideo.id);
                             const saved = localStorage.getItem(`video_progress_${activeVideo.id}_${user.uid}`);
                             if (saved) {
-                              playerRef.current.seekTo(parseFloat(saved), 'seconds');
+                              const savedSec = parseFloat(saved);
+                              if (savedSec > 0) {
+                                playedSecondsRef.current = savedSec;
+                                playerRef.current.seekTo(savedSec, 'seconds');
+                              }
                             }
                           }
                         }
@@ -1624,7 +1638,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         const x = e.clientX - rect.left;
                         const percentage = Math.max(0, Math.min(1, x / rect.width));
                         setPlayed(percentage);
-                        playerRef.current?.seekTo(percentage, 'fraction');
+                        const dur = durationRef.current || duration || 0;
+                        if (dur > 0) {
+                          const targetSec = percentage * dur;
+                          playedSecondsRef.current = targetSec;
+                          playerRef.current?.seekTo(targetSec, 'seconds');
+                        } else {
+                          playerRef.current?.seekTo(percentage, 'fraction');
+                        }
                       }}
                       onTouchStart={(e) => {
                         if (e.touches && e.touches[0]) {
@@ -1632,7 +1653,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           const x = e.touches[0].clientX - rect.left;
                           const percentage = Math.max(0, Math.min(1, x / rect.width));
                           setPlayed(percentage);
-                          playerRef.current?.seekTo(percentage, 'fraction');
+                          const dur = durationRef.current || duration || 0;
+                          if (dur > 0) {
+                            const targetSec = percentage * dur;
+                            playedSecondsRef.current = targetSec;
+                            playerRef.current?.seekTo(targetSec, 'seconds');
+                          } else {
+                            playerRef.current?.seekTo(percentage, 'fraction');
+                          }
                         }
                       }}
                     >
