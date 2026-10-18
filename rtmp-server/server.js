@@ -615,6 +615,19 @@ app.get('/status', (req, res) => {
   });
 });
 
+// Real-time server log viewer (protected by secret)
+app.get('/api/logs', (req, res) => {
+  const secret = req.query.secret || req.headers['x-secret'];
+  if (!isValidSecret(secret)) return res.status(403).json({ error: 'Invalid secret' });
+  const lines = Math.min(200, Math.max(10, parseInt(req.query.lines) || 60));
+  const { exec } = require('child_process');
+  exec(`journalctl -u ba-rtmp -n ${lines} --no-pager`, (err, stdout, stderr) => {
+    if (err) return res.status(500).send(stderr || err.message);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(stdout);
+  });
+});
+
 // Check if a specific stream is live
 app.get('/stream/:streamKey/status', (req, res) => {
   const { streamKey } = req.params;
