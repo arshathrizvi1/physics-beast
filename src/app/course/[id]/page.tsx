@@ -264,10 +264,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (activeVideo && playerRef.current) {
         const hls = playerRef.current.getInternalPlayer('hls');
         if (hls && hls.levels && hls.levels.length > 0) {
-          // Discover available stream qualities
+          // Discover available stream qualities (strictly restricted to 720p, 480p, 360p)
+          const ALLOWED = ['720p', '480p', '360p'];
           const heights = hls.levels
             .filter((l: any) => l.height)
-            .map((l: any) => `${l.height}p`);
+            .map((l: any) => `${l.height}p`)
+            .filter((q: string) => ALLOWED.includes(q));
           if (heights.length > 0) {
             const sorted = (Array.from(new Set(heights)) as string[]).sort((a, b) => parseInt(b) - parseInt(a));
             setAvailableQualities(['Auto', ...sorted]);
@@ -1397,9 +1399,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         // Apply quality on ready & dynamically discover available stream qualities from HLS manifest
                         const hls = playerRef.current?.getInternalPlayer('hls');
                         if (hls && hls.levels && hls.levels.length > 0) {
+                          const ALLOWED = ['720p', '480p', '360p'];
                           const heights = hls.levels
                             .filter((l: any) => l.height)
-                            .map((l: any) => `${l.height}p`);
+                            .map((l: any) => `${l.height}p`)
+                            .filter((q: string) => ALLOWED.includes(q));
                           if (heights.length > 0) {
                             const sorted = (Array.from(new Set(heights)) as string[]).sort((a, b) => parseInt(b) - parseInt(a));
                             setAvailableQualities(['Auto', ...sorted]);
@@ -1768,7 +1772,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                     <span className="text-xs text-zinc-400 font-semibold">Quality</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {availableQualities.map(q => (
+                                  {availableQualities.filter(q => q === 'Auto' || ['720p', '480p', '360p'].includes(q)).map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { 
