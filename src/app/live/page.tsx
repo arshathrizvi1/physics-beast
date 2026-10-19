@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume2, VolumeX, Maximize, Settings, ShieldAlert } from "lucide-react";
+import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume1, Volume2, VolumeX, Maximize, Settings, ShieldAlert } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
@@ -56,6 +56,87 @@ export default function StudentLivePortal() {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wmRef = useRef<HTMLDivElement>(null);
+  const [volumeFeedback, setVolumeFeedback] = useState<{ level: number; muted: boolean } | null>(null);
+  const volumeFeedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const volumeRef = useRef(volume);
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+
+  const showVolumeFeedback = (level: number, isMuted: boolean = false) => {
+    if (volumeFeedbackTimerRef.current) clearTimeout(volumeFeedbackTimerRef.current);
+    setVolumeFeedback({ level, muted: isMuted });
+    volumeFeedbackTimerRef.current = setTimeout(() => {
+      setVolumeFeedback(null);
+      volumeFeedbackTimerRef.current = null;
+    }, 850);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+         target.tagName === 'TEXTAREA' ||
+         target.isContentEditable ||
+         target.closest('input') ||
+         target.closest('textarea'))
+      ) {
+        return;
+      }
+
+      switch (e.code) {
+        case 'ArrowUp': {
+          e.preventDefault();
+          setVolume(prev => {
+            const next = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
+            showVolumeFeedback(Math.round(next * 100), false);
+            return next;
+          });
+          setMuted(false);
+          break;
+        }
+        case 'ArrowDown': {
+          e.preventDefault();
+          setVolume(prev => {
+            const next = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
+            showVolumeFeedback(Math.round(next * 100), next === 0);
+            return next;
+          });
+          break;
+        }
+        case 'Space': {
+          e.preventDefault();
+          setPlaying(prev => !prev);
+          break;
+        }
+        case 'KeyM': {
+          e.preventDefault();
+          setMuted(prev => {
+            const next = !prev;
+            showVolumeFeedback(Math.round(volumeRef.current * 100), next);
+            return next;
+          });
+          break;
+        }
+        case 'KeyF': {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            if (playerContainerRef.current) {
+              playerContainerRef.current.requestFullscreen().catch(() => {});
+            }
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
     useEffect(() => {
       if (!playerRef.current) return;
@@ -698,6 +779,24 @@ export default function StudentLivePortal() {
                         >
                           <VolumeX className="w-4 h-4 animate-bounce" /> Click to Unmute Sound
                         </button>
+                      )}
+
+                      {/* Volume Level Visual Feedback Overlay */}
+                      {volumeFeedback && (
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center transition-all animate-in zoom-in-75 fade-in duration-150">
+                          <div className="flex flex-col items-center justify-center px-5 py-3.5 rounded-2xl bg-black/85 backdrop-blur-md border border-white/20 text-white shadow-2xl min-w-[95px]">
+                            {volumeFeedback.muted || volumeFeedback.level === 0 ? (
+                              <VolumeX className="w-7 h-7 mb-1 text-red-400" />
+                            ) : volumeFeedback.level < 50 ? (
+                              <Volume1 className="w-7 h-7 mb-1 text-primary" />
+                            ) : (
+                              <Volume2 className="w-7 h-7 mb-1 text-primary" />
+                            )}
+                            <span className="text-xs font-bold tracking-wider">
+                              {volumeFeedback.muted ? 'Muted' : `${volumeFeedback.level}%`}
+                            </span>
+                          </div>
+                        </div>
                       )}
 
                       {/* Floating Email Watermark */}

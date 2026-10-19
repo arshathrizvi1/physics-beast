@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard, RotateCcw, RotateCw } from "lucide-react";
+import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, ChevronRight, FileText, Play, Pause, Volume1, Volume2, VolumeX, Maximize, Settings, X, Download, Video, CheckCircle2, HelpCircle, Send, MessageSquare, CreditCard, RotateCcw, RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback, useMemo } from "react";
@@ -137,6 +137,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [seekFeedback, setSeekFeedback] = useState<{ side: 'left' | 'right'; text: string } | null>(null);
   const seekFeedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [volumeFeedback, setVolumeFeedback] = useState<{ level: number; muted: boolean } | null>(null);
+  const volumeFeedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const volumeRef = useRef(volume);
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
   const wmRef = useRef<HTMLDivElement>(null);
   const readyFiredRef = useRef<Set<string>>(new Set());
   const syllabusScrollRef = useRef<HTMLDivElement>(null);
@@ -510,6 +516,112 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       }
     } catch (err) {}
   }, []);
+
+  const showVolumeFeedback = useCallback((level: number, isMuted: boolean = false) => {
+    if (volumeFeedbackTimerRef.current) {
+      clearTimeout(volumeFeedbackTimerRef.current);
+    }
+    setVolumeFeedback({ level, muted: isMuted });
+    volumeFeedbackTimerRef.current = setTimeout(() => {
+      setVolumeFeedback(null);
+      volumeFeedbackTimerRef.current = null;
+    }, 850);
+  }, []);
+
+  // PC Web Player Keyboard Shortcuts:
+  // - Arrow Left / Right: Seek backward / forward 10s
+  // - Arrow Up / Down: Volume up / down 10%
+  // - Spacebar: Play / Pause
+  // - M: Mute / Unmute
+  // - F: Toggle Fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Don't intercept when user is typing in an input, textarea, or editable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+         target.tagName === 'TEXTAREA' ||
+         target.isContentEditable ||
+         target.closest('input') ||
+         target.closest('textarea'))
+      ) {
+        return;
+      }
+
+      // 2. Only handle shortcuts when an active video is present
+      if (!activeVideo) return;
+
+      switch (e.code) {
+        case 'ArrowLeft': {
+          e.preventDefault();
+          handleSeekDelta(-10);
+          showSeekFeedback('left', '-10s');
+          resetControlsTimeout();
+          break;
+        }
+        case 'ArrowRight': {
+          e.preventDefault();
+          handleSeekDelta(10);
+          showSeekFeedback('right', '+10s');
+          resetControlsTimeout();
+          break;
+        }
+        case 'ArrowUp': {
+          e.preventDefault();
+          setVolume(prev => {
+            const next = Math.min(1, Math.round((prev + 0.1) * 10) / 10);
+            showVolumeFeedback(Math.round(next * 100), false);
+            return next;
+          });
+          setMuted(false);
+          resetControlsTimeout();
+          break;
+        }
+        case 'ArrowDown': {
+          e.preventDefault();
+          setVolume(prev => {
+            const next = Math.max(0, Math.round((prev - 0.1) * 10) / 10);
+            showVolumeFeedback(Math.round(next * 100), next === 0);
+            return next;
+          });
+          resetControlsTimeout();
+          break;
+        }
+        case 'Space': {
+          e.preventDefault();
+          setPlaying(prev => !prev);
+          resetControlsTimeout();
+          break;
+        }
+        case 'KeyM': {
+          e.preventDefault();
+          setMuted(prev => {
+            const next = !prev;
+            showVolumeFeedback(Math.round(volumeRef.current * 100), next);
+            return next;
+          });
+          resetControlsTimeout();
+          break;
+        }
+        case 'KeyF': {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            if (playerContainerRef.current) {
+              playerContainerRef.current.requestFullscreen().catch(() => {});
+            }
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+          resetControlsTimeout();
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeVideo, handleSeekDelta, showSeekFeedback, showVolumeFeedback, resetControlsTimeout]);
 
   // DVD-style bouncing watermark ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â covers full player
   useEffect(() => {
@@ -1653,6 +1765,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           <span className="text-xs font-bold tracking-wider">{seekFeedback.text}</span>
                         </>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Volume Level Visual Feedback Overlay */}
+                {volumeFeedback && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 flex items-center justify-center transition-all animate-in zoom-in-75 fade-in duration-150">
+                    <div className="flex flex-col items-center justify-center px-5 py-3.5 rounded-2xl bg-black/85 backdrop-blur-md border border-white/20 text-white shadow-2xl min-w-[95px]">
+                      {volumeFeedback.muted || volumeFeedback.level === 0 ? (
+                        <VolumeX className="w-7 h-7 mb-1 text-red-400" />
+                      ) : volumeFeedback.level < 50 ? (
+                        <Volume1 className="w-7 h-7 mb-1 text-primary" />
+                      ) : (
+                        <Volume2 className="w-7 h-7 mb-1 text-primary" />
+                      )}
+                      <span className="text-xs font-bold tracking-wider">
+                        {volumeFeedback.muted ? 'Muted' : `${volumeFeedback.level}%`}
+                      </span>
                     </div>
                   </div>
                 )}
