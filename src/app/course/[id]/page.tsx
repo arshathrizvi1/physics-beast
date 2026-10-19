@@ -21,8 +21,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import dynamic from 'next/dynamic';
 import { detectDeviceType, isPlayerPermitted, getDeviceLabel, defaultPlayerSettings, VideoPlayerSettings, DeviceType, extractYoutubeId } from "@/lib/playerDeviceControl";
-import { startExtensionShield, scanForDownloadTools } from "@/lib/extensionShield";
-import { ShadowPlayerWrapper } from "@/components/ShadowPlayerWrapper";
 const PdfViewer = dynamic(() => import("@/components/ui/pdf-viewer").then(mod => mod.PdfViewer), { ssr: false });
 const ReactPlayer = dynamic(() => import('react-player'), { ssr: false });
 
@@ -124,21 +122,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       resetControlsTimeout();
     }
   }, [playing, resetControlsTimeout]);
-
-  const [extensionDetected, setExtensionDetected] = useState<string | null>(null);
-
-  // Periodic scan for download tools & sniffer extensions during active playback
-  useEffect(() => {
-    if (!playing) return;
-    const interval = setInterval(() => {
-      const tool = scanForDownloadTools();
-      if (tool) {
-        setExtensionDetected(tool);
-        setPlaying(false);
-      }
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [playing]);
 
   useEffect(() => {
     return () => {
@@ -328,11 +311,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           }
 
           if (quality === 'Auto') {
-            if (!playing || (hls.media && hls.media.paused)) {
-              hls.currentLevel = -1;
-            }
-            hls.nextLevel = -1;
-            hls.loadLevel = -1;
+            hls.currentLevel = -1;
           } else {
             const height = parseInt(quality);
             // Try exact match first
@@ -353,12 +332,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             }
 
             if (levelIndex !== -1) {
-              // Seamless switch: keep playing old quality from buffer while new quality loads in background
               if (!playing || (hls.media && hls.media.paused)) {
                 hls.currentLevel = levelIndex;
+              } else {
+                hls.nextLevel = levelIndex;
               }
-              hls.nextLevel = levelIndex;
-              hls.loadLevel = levelIndex;
             }
           }
           return true; // Applied successfully
@@ -736,12 +714,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
 
 
-    // Anti-IDM / Downloader Extension DOM Shield
-    const stopShield = startExtensionShield((detectedTool) => {
-      setExtensionDetected(detectedTool);
-      setPlaying(false);
-    });
-
     // Unlock orientation when exiting fullscreen and immediately reveal player controls
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && screen.orientation && screen.orientation.unlock) {
@@ -758,7 +730,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       if (unsubLive) unsubLive();
       if (unsubConfig) unsubConfig();
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      stopShield();
     };
   }, [id]);
 
@@ -1320,25 +1291,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     Playback for this lesson has been disabled on <strong>{getDeviceLabel(deviceType)}</strong> according to academy settings. Please access this lesson from an approved device.
                   </p>
                 </div>
-              ) : extensionDetected ? (
-                <div className="w-full h-full absolute inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center p-6 text-center select-none animate-in fade-in">
-                  <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 mb-4 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-                    <ShieldAlert className="w-9 h-9 animate-pulse" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">Video Downloader / Ripper Detected</h3>
-                  <p className="text-sm text-red-400 font-semibold mb-3">
-                    {extensionDetected} was detected attaching to this player.
-                  </p>
-                  <p className="text-xs text-zinc-400 max-w-md leading-relaxed mb-6">
-                    To protect proprietary academy course materials, streaming is automatically disabled while media grabber extensions or download managers are active. Please disable or remove the extension in your browser, or open this page in Incognito / Private browsing mode, then refresh the page.
-                  </p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-red-900/40 cursor-pointer"
-                  >
-                    Refresh Page
-                  </button>
-                </div>
               ) : (
                 <div 
                   ref={playerContainerRef} 
@@ -1374,7 +1326,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        <ShadowPlayerWrapper 
+                        <div 
                           className={`absolute inset-0 w-full h-full ${
                             (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                               ? 'hidden'
@@ -1482,11 +1434,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           }
 
                           if (quality === 'Auto') {
-                            if (!playing || (hls.media && hls.media.paused)) {
-                              hls.currentLevel = -1;
-                            }
-                            hls.nextLevel = -1;
-                            hls.loadLevel = -1;
+                            hls.currentLevel = -1;
                           } else {
                             const height = parseInt(quality);
                             let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
@@ -1505,9 +1453,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             if (levelIndex !== -1) {
                               if (!playing || (hls.media && hls.media.paused)) {
                                 hls.currentLevel = levelIndex;
+                              } else {
+                                hls.nextLevel = levelIndex;
                               }
-                              hls.nextLevel = levelIndex;
-                              hls.loadLevel = levelIndex;
                             }
                           }
                         }
@@ -1642,8 +1590,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       </>
                     )}
 
-                        </ShadowPlayerWrapper>
-                      </>
+                    </div>
+                    </>
 
                 {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
                 {!isAdjustingQuality && (activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
@@ -1666,6 +1614,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   className={`absolute inset-0 z-20 select-none touch-manipulation cursor-pointer flex ${
                     (activeServer === 'bunny' && activeVideo.platform === 'bunny') || isAdjustingQuality ? 'hidden' : ''
                   }`}
+                  style={{ backgroundColor: 'rgba(0, 0, 0, 0.004)' }}
                   onMouseMove={resetControlsTimeout}
                   onMouseEnter={resetControlsTimeout}
                 >

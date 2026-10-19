@@ -292,7 +292,8 @@ video, iframe, canvas {
 /* Anti-Downloader & IDM Injected Panel Suppression */
 #idm_panel,
 .idm_panel,
-[id*="idm"],
+[id^="idm-"],
+[id*="idm_"],
 [class*="idm_"],
 [id^="__idm"],
 div[id^="idm"],
