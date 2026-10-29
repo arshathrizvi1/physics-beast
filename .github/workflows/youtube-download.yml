@@ -3,6 +3,20 @@ name: Video Processing Pipeline (Cloudflare R2 HLS + Bunny)
 on:
   repository_dispatch:
     types: [youtube-download]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'YouTube Video URL to download'
+        required: true
+        default: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      title:
+        description: 'Video Title'
+        required: false
+        default: 'Manual Test Video'
+      password:
+        description: 'Optional Password (e.g. for Zoom)'
+        required: false
+        default: ''
 
 jobs:
   process-video:
@@ -10,15 +24,15 @@ jobs:
     timeout-minutes: 90
 
     env:
-      VIDEO_URL:       "${{ github.event.client_payload.url }}"
-      VIDEO_PASSWORD:  "${{ github.event.client_payload.password }}"
-      VIDEO_TITLE:     "${{ github.event.client_payload.title }}"
-      VIDEO_DOC_ID:    "${{ github.event.client_payload.metadata.videoDocId }}"
-      FOLDER_ID:       "${{ github.event.client_payload.metadata.selectedFolderId }}"
-      COURSE_FOLDER:   "${{ github.event.client_payload.metadata.selectedCourseFolderId }}"
-      ITEM_TYPE:       "${{ github.event.client_payload.metadata.selectedItemType }}"
-      COURSE_ID:       "${{ github.event.client_payload.metadata.selectedCourseId }}"
-      ORIGINAL_YT_URL: "${{ github.event.client_payload.metadata.originalYoutubeUrl }}"
+      VIDEO_URL:       "${{ github.event.inputs.url || github.event.client_payload.url }}"
+      VIDEO_PASSWORD:  "${{ github.event.inputs.password || github.event.client_payload.password }}"
+      VIDEO_TITLE:     "${{ github.event.inputs.title || github.event.client_payload.title }}"
+      VIDEO_DOC_ID:    "${{ github.event.client_payload.metadata.videoDocId || 'manual_test_doc' }}"
+      FOLDER_ID:       "${{ github.event.client_payload.metadata.selectedFolderId || 'none' }}"
+      COURSE_FOLDER:   "${{ github.event.client_payload.metadata.selectedCourseFolderId || 'none' }}"
+      ITEM_TYPE:       "${{ github.event.client_payload.metadata.selectedItemType || 'folder' }}"
+      COURSE_ID:       "${{ github.event.client_payload.metadata.selectedCourseId || 'none' }}"
+      ORIGINAL_YT_URL: "${{ github.event.client_payload.metadata.originalYoutubeUrl || github.event.inputs.url }}"
 
     steps:
       - name: Checkout Repository
