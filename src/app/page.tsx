@@ -49,9 +49,36 @@ const wordVariants = {
  }),
 };
 
+const FALLBACK_COURSES = [
+  {
+    id: "physics-2026",
+    name: "Advanced Level Physics 2026",
+    description: "Master Mechanics, Waves, Electricity & Modern Physics with comprehensive problem solving.",
+    image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    id: "maths-2026",
+    name: "Combined Mathematics Masterclass",
+    description: "Pure Mathematics, Calculus, Trigonometry & Applied Statistics with structured model papers.",
+    image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    id: "chemistry-2026",
+    name: "Organic & Physical Chemistry Revision",
+    description: "Complete reaction mechanisms, chemical calculations, and exam-focused short notes.",
+    image: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&q=80&w=800",
+  },
+  {
+    id: "ict-science-2026",
+    name: "Information & Communication Technology",
+    description: "Python programming, Database Systems, Networking, and IoT practical projects.",
+    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800",
+  }
+];
+
 export default function Home() {
  const { user } = useAuth();
- const [courses, setCourses] = useState<any[]>([]);
+ const [courses, setCourses] = useState<any[]>(FALLBACK_COURSES);
  const [allVideos, setAllVideos] = useState<any[]>([]);
  const [searchQuery, setSearchQuery] = useState("");
  const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -293,11 +320,15 @@ export default function Home() {
  setCourses(coursesData.slice(0, 8));
 
  // Fetch videos for search
+ try {
  const videosSnap = await getDocs(query(collection(db, "videos")));
  const videosData = videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
  setAllVideos(videosData);
+ } catch {
+ // Guest user preview: videos query requires authentication
+ }
  } catch (e) {
- console.error("Failed to fetch data", e);
+ setCourses(FALLBACK_COURSES);
  }
  };
  fetchData();
