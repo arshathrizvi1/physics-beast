@@ -111,8 +111,7 @@ export async function POST(request: Request) {
       
       if (mp4File && mp4File.download_url) {
         const fetchUrl = downloadToken ? `${mp4File.download_url}?access_token=${downloadToken}` : mp4File.download_url;
-        const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
-        const apiKey = process.env.BUNNY_STREAM_API_KEY;
+        const passcode = body.payload?.object?.recording_play_passcode || body.payload?.object?.password || "";
         
         try {
           const title = body.payload.object.topic || 'Zoom Cloud Recording';
@@ -124,12 +123,12 @@ export async function POST(request: Request) {
               id: videoDocId,
               title: title,
               description: 'Auto-recorded Zoom class',
-              platform: 'bunny',
+              platform: 'r2',
               courseId: courseId === 'none' ? null : courseId,
               folderId: targetFolderId,
               type: 'video',
               isReady: false,
-              processingStatus: 'downloading_on_aws',
+              processingStatus: 'processing',
               createdAt: Date.now(),
               updatedAt: Date.now()
           });
@@ -137,41 +136,86 @@ export async function POST(request: Request) {
           if (matchingClassDoc) {
              await adminDb.collection('live_classes').doc(matchingClassDoc.id).update({
                bunnyVideoId: videoDocId,
-               recordingStatus: 'downloading_on_aws'
+               recordingStatus: 'processing'
              });
           }
 
-          const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
-          const serverPort = process.env.RTMP_HTTP_PORT || '8000';
-          const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
-          const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
-          const webhookUrl = `${websiteUrl}/api/bunny/aws-webhook`;
+          // Determine pipeline: 'github' (default serverless) or 'aws' (EC2 VPS)
+          const pipeline = (process.env.DOWNLOAD_PIPELINE || 'github').toLowerCase();
 
-          const res = await fetch(`http://${serverHost}:${serverPort}/api/generic-download`, {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ 
-                 url: fetchUrl, 
-                 password: "", 
-                 title: title, 
-                 metadata: { 
-                     videoDocId: videoDocId,
-                     videoTitle: title,
-                     selectedFolderId: targetFolderId,
-                     videoCourseId: courseId
-                 }, 
-                 webhookUrl, 
-                 secret: callbackSecret 
-             })
-          });
-          
-          if (!res.ok) {
-              console.error('AWS EC2 Failed to accept download request:', await res.text());
+          if (pipeline === 'aws') {
+            const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+            const serverPort = process.env.RTMP_HTTP_PORT || '8000';
+            const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
+            const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
+            const webhookUrl = `${websiteUrl}/api/bunny/aws-webhook`;
+
+            const res = await fetch(`http://${serverHost}:${serverPort}/api/generic-download`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ 
+                   url: fetchUrl, 
+                   password: passcode, 
+                   title: title, 
+                   metadata: { 
+                       videoDocId: videoDocId,
+                       videoTitle: title,
+                       selectedFolderId: targetFolderId,
+                       videoCourseId: courseId
+                   }, 
+                   webhookUrl, 
+                   secret: callbackSecret 
+               })
+            });
+            
+            if (!res.ok) {
+                console.error('AWS EC2 Failed to accept Zoom download:', await res.text());
+            } else {
+                console.log('Successfully triggered AWS EC2 download for Zoom Recording: ', videoDocId);
+            }
           } else {
-              console.log('Successfully triggered AWS EC2 download for Zoom Recording: ', videoDocId);
+            // Default: Free Serverless GitHub Actions Pipeline
+            const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
+            const githubOwner = process.env.GITHUB_REPO_OWNER || 'arshathrizvi1';
+            const githubRepo  = process.env.GITHUB_REPO_NAME  || 'physics-beast';
+
+            if (!githubToken) {
+              console.error('GITHUB_ACTIONS_TOKEN missing. Cannot trigger Zoom recording download.');
+            } else {
+              const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+              const dispatchRes = await fetch(dispatchUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${githubToken}`,
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  event_type: 'youtube-download',
+                  client_payload: {
+                    url: fetchUrl,
+                    password: passcode,
+                    title: title,
+                    metadata: {
+                      videoDocId: videoDocId,
+                      videoTitle: title,
+                      selectedFolderId: targetFolderId,
+                      videoCourseId: courseId
+                    }
+                  }
+                })
+              });
+
+              if (!dispatchRes.ok) {
+                console.error('GitHub Actions dispatch failed for Zoom Recording:', await dispatchRes.text());
+              } else {
+                console.log('Successfully dispatched Zoom Recording to GitHub Actions pipeline:', videoDocId);
+              }
+            }
           }
         } catch (e) {
-          console.error('Error triggering AWS EC2 for Zoom Recording:', e);
+          console.error('Error triggering pipeline for Zoom Recording:', e);
         }
       }
     } else if (body.event === 'meeting.ended') {

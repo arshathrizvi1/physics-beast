@@ -2,11 +2,11 @@ name: Video Processing Pipeline (Cloudflare R2 HLS + Bunny)
 
 on:
   repository_dispatch:
-    types: [youtube-download]
+    types: [youtube-download, zoom-download, video-download]
   workflow_dispatch:
     inputs:
       url:
-        description: 'YouTube Video URL to download'
+        description: 'Video URL (YouTube or Zoom)'
         required: true
         default: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
       title:
@@ -49,13 +49,14 @@ jobs:
           echo "Folder  : $FOLDER_ID"
           echo "=================================================="
 
-      - name: Install yt-dlp & FFmpeg
+      - name: Install yt-dlp, FFmpeg & Playwright
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg
           sudo curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
             -o /usr/local/bin/yt-dlp
           sudo chmod +x /usr/local/bin/yt-dlp
+          npm install playwright || true
           yt-dlp --version
           ffmpeg -version | head -n 1
 
