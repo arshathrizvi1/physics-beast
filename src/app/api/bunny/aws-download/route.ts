@@ -23,14 +23,17 @@ export async function POST(request: Request) {
       } catch (e) {}
     }
 
-    // Pipeline selection: 'github' (default, free serverless) or 'aws' (EC2 VPS)
-    // To switch back to AWS EC2 anytime, set DOWNLOAD_PIPELINE=aws in .env.local
-    const pipeline = (process.env.DOWNLOAD_PIPELINE || 'github').toLowerCase();
+    // Pipeline selection: 'auto' (smart hybrid), 'aws' (EC2 VPS), or 'github' (Serverless)
+    // - YouTube URLs route through AWS EC2 by default to bypass datacenter IP restrictions
+    // - Zoom URLs route through GitHub Actions serverless pipeline
+    const pipeline = (process.env.DOWNLOAD_PIPELINE || 'auto').toLowerCase();
+    const isYoutube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+    const useAws = pipeline === 'aws' || (pipeline === 'auto' && isYoutube);
 
     // ─────────────────────────────────────────────────────────────
-    // 1. AWS EC2 Pipeline (Fallback / Manual toggle)
+    // 1. AWS EC2 Pipeline (Primary for YouTube / High reliability)
     // ─────────────────────────────────────────────────────────────
-    if (pipeline === 'aws') {
+    if (useAws) {
       const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
       const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
       const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
