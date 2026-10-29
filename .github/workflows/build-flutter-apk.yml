@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'brilliant_academy_flutter/**'
+      - '.github/workflows/build-flutter-apk.yml'
   workflow_dispatch:
 
 permissions:
@@ -47,17 +48,17 @@ jobs:
           mkdir -p public
           cp brilliant_academy_flutter/build/app/outputs/flutter-apk/app-release.apk public/Brilliant-Academy-Native.apk
 
-      - name: Commit and Push Native APK
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/Brilliant-Academy-Native.apk
-          git commit -m "chore: upload latest native Flutter release APK" || echo "No changes to commit"
-          git push
-
-      - name: Upload APK Artifact
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Brilliant-Academy-Native-APK
           path: public/Brilliant-Academy-Native.apk
           retention-days: 30
+
+      - name: Commit and Push Native APK
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/Brilliant-Academy-Native.apk
+          git commit -m "chore: deploy latest native Flutter release APK [skip ci]" || echo "No changes to commit"
+          git push || echo "Push skipped"

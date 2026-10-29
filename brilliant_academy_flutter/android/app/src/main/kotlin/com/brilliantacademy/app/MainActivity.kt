@@ -9,24 +9,25 @@ import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.brilliantacademy.app/security"
 
-    companion object {
-        init {
-            try {
-                System.loadLibrary("secureplayer")
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
+    // "BrilliantAcademy_SuperSecretKey_2026!$" XOR'd with 42
+    private val encSecret = intArrayOf(
+        104, 88, 67, 70, 70, 67, 75, 68, 94, 107, 73, 75, 78, 79, 71, 83, 117, 121, 95, 90, 79, 88, 121, 79, 73, 88, 79, 94, 97, 79, 83, 117, 24, 26, 24, 28, 11, 14
+    )
 
-    private external fun nativeCheckEnvironment(): Boolean
-    private external fun nativeGetCloudSignature(videoId: String, timestamp: String): String
+    private fun getCloudSecret(): String {
+        val sb = StringBuilder()
+        for (b in encSecret) {
+            sb.append((b xor 42).toChar())
+        }
+        return sb.toString()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +46,7 @@ class MainActivity : FlutterActivity() {
                 "checkSecurity" -> {
                     val isDebug = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
                     val signatureValid = if (!isDebug) verifySignature() else true
-                    val envSafe = try { nativeCheckEnvironment() } catch (e: Exception) { true }
+                    val envSafe = checkRootEnvironment()
                     val isEmu = isEmulator()
 
                     val passed = signatureValid && envSafe && (!isEmu || isDebug)
@@ -63,8 +64,11 @@ class MainActivity : FlutterActivity() {
                     val videoId = call.argument<String>("videoId") ?: ""
                     val timestamp = call.argument<String>("timestamp") ?: ""
                     try {
-                        val sig = nativeGetCloudSignature(videoId, timestamp)
-                        result.success(sig)
+                        val rawData = getCloudSecret() + videoId + timestamp
+                        val md = MessageDigest.getInstance("SHA-256")
+                        val digest = md.digest(rawData.toByteArray(Charsets.UTF_8))
+                        val hex = digest.joinToString("") { "%02x".format(it) }
+                        result.success(hex)
                     } catch (e: Exception) {
                         result.error("SIG_FAIL", e.message, null)
                     }
@@ -84,6 +88,21 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun checkRootEnvironment(): Boolean {
+        val rootPaths = arrayOf(
+            "/sbin/su", "/system/bin/su", "/system/xbin/su", "/data/local/xbin/su",
+            "/data/local/bin/su", "/system/sd/xbin/su", "/system/bin/failsafe/su",
+            "/data/local/su", "/su/bin/su", "/magisk/.core/bin/su", "/data/adb/magisk",
+            "/data/adb/modules/lsposed", "/system/app/Superuser.apk"
+        )
+        for (path in rootPaths) {
+            if (File(path).exists()) {
+                return false
+            }
+        }
+        return true
     }
 
     private fun verifySignature(): Boolean {

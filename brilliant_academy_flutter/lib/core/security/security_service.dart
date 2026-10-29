@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 class SecurityCheckResult {
@@ -18,7 +16,6 @@ class SecurityService {
   /// 1. Initialize FLAG_SECURE (Prevents Screenshots & Screen Recording)
   static Future<void> enableAntiScreenCapture() async {
     try {
-      await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
       await _channel.invokeMethod('setFlagSecure', {'enable': true});
     } catch (e) {
       debugPrint("FLAG_SECURE init error: $e");
@@ -27,26 +24,12 @@ class SecurityService {
 
   /// 2, 3, 4, 5. Comprehensive 7-Tier Security Verification
   static Future<SecurityCheckResult> verifyDeviceIntegrity() async {
-    // Admins or debug builds can pass during local development
     if (kDebugMode) {
       return SecurityCheckResult(isSecure: true);
     }
 
     try {
-      // 1. Check Root / Jailbreak
-      bool isRooted = false;
-      try {
-        isRooted = await FlutterJailbreakDetection.jailbroken;
-      } catch (_) {}
-
-      if (isRooted) {
-        return SecurityCheckResult(
-          isSecure: false,
-          failureReason: "Rooted device or Superuser binary detected. Premium video content cannot run on compromised devices.",
-        );
-      }
-
-      // 2. Check Android Emulator / Simulator
+      // 1. Check Android Emulator / Simulator via device info
       final deviceInfo = DeviceInfoPlugin();
       final androidInfo = await deviceInfo.androidInfo;
       if (!androidInfo.isPhysicalDevice) {
@@ -56,7 +39,7 @@ class SecurityService {
         );
       }
 
-      // 3. Native JNI & Keystore Signature Check (Anti-Crack / Anti-Tamper)
+      // 2. Native Root, Hooking & Keystore Signature Check
       final dynamic nativeResult = await _channel.invokeMethod('checkSecurity');
       if (nativeResult is Map) {
         final bool passed = nativeResult['passed'] ?? false;
@@ -73,7 +56,7 @@ class SecurityService {
         if (!envSafe) {
           return SecurityCheckResult(
             isSecure: false,
-            failureReason: "LSPosed / Hooking framework detected.",
+            failureReason: "Rooted device or Superuser binary detected. Premium video content cannot run on compromised devices.",
           );
         }
 
@@ -88,7 +71,7 @@ class SecurityService {
       return SecurityCheckResult(isSecure: true);
     } catch (e) {
       debugPrint("Security evaluation exception: $e");
-      return SecurityCheckResult(isSecure: true); // Fail open gracefully if channel unsupported
+      return SecurityCheckResult(isSecure: true);
     }
   }
 
@@ -103,7 +86,6 @@ class SecurityService {
 
       return "https://vz-7422f6bf-7e4.b-cdn.net/$videoId/playlist.m3u8?token=$token&expires=$timestamp";
     } catch (e) {
-      // Fallback if native token signing is in debug
       return "https://vz-7422f6bf-7e4.b-cdn.net/$videoId/playlist.m3u8";
     }
   }
