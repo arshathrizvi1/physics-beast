@@ -99,6 +99,9 @@ jobs:
         run: |
           if [ -n "${{ secrets.R2_ACCOUNT_ID }}" ] && [ -n "${{ secrets.R2_BUCKET_NAME }}" ] && [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ]; then
             SAFE_ID=$(echo "$VIDEO_DOC_ID" | tr -dc 'a-zA-Z0-9_-')
+            if [ -z "$SAFE_ID" ]; then
+              SAFE_ID="vid_$(date +%s)"
+            fi
             R2_FOLDER="vid_${SAFE_ID}_$(date +%s)"
             echo "Uploading HLS stream to Cloudflare R2: videos/$R2_FOLDER ..."
 
@@ -129,9 +132,9 @@ jobs:
             fi
 
             echo "r2_url=$FINAL_R2_URL" >> $GITHUB_OUTPUT
-            echo "Uploaded to Cloudflare R2: $FINAL_R2_URL"
+            echo "✅ Uploaded to Cloudflare R2: $FINAL_R2_URL"
           else
-            echo "Cloudflare R2 secrets not configured, skipping R2."
+            echo "⚠️ Cloudflare R2 secrets not configured, skipping R2."
             echo "r2_url=" >> $GITHUB_OUTPUT
           fi
 
@@ -139,7 +142,7 @@ jobs:
         id: bunny-upload
         run: |
           if [ -n "${{ secrets.BUNNY_API_KEY }}" ] && [ -n "${{ secrets.BUNNY_LIBRARY_ID }}" ]; then
-            echo "Creating video entry in BunnyCDN..."
+            echo "Attempting optional upload to BunnyCDN..."
             RESPONSE=$(curl -s -X POST \
               "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos" \
               -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
@@ -147,7 +150,7 @@ jobs:
               -H "Accept: application/json" \
               -d "{\"title\": \"$VIDEO_TITLE\"}")
 
-            VIDEO_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('guid',''))")
+            VIDEO_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('guid',''))" 2>/dev/null || true)
 
             if [ -n "$VIDEO_ID" ]; then
               FILE_SIZE=$(stat -c%s /tmp/video.mp4)
@@ -163,17 +166,17 @@ jobs:
 
               if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
                 echo "video_id=$VIDEO_ID" >> $GITHUB_OUTPUT
-                echo "Uploaded to BunnyCDN successfully: $VIDEO_ID"
+                echo "✅ Uploaded to BunnyCDN successfully: $VIDEO_ID"
               else
-                echo "BunnyCDN upload HTTP status: $HTTP_STATUS"
+                echo "ℹ️ BunnyCDN upload returned HTTP $HTTP_STATUS (inactive/expired). Proceeding with Cloudflare R2 only."
                 echo "video_id=" >> $GITHUB_OUTPUT
               fi
             else
-              echo "Failed to create Bunny video entry."
+              echo "ℹ️ BunnyCDN entry creation skipped/failed. Proceeding with Cloudflare R2 only."
               echo "video_id=" >> $GITHUB_OUTPUT
             fi
           else
-            echo "BunnyCDN credentials not provided, skipping Bunny."
+            echo "ℹ️ BunnyCDN credentials not provided. Proceeding with Cloudflare R2 only."
             echo "video_id=" >> $GITHUB_OUTPUT
           fi
 
