@@ -49,6 +49,11 @@ jobs:
           echo "Folder  : $FOLDER_ID"
           echo "=================================================="
 
+      - name: Setup Deno (YouTube JS Runtime)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
       - name: Install yt-dlp, FFmpeg, PO-Token Provider & Playwright
         run: |
           sudo apt-get update -qq
@@ -61,6 +66,20 @@ jobs:
           npm install playwright || true
           yt-dlp --version
           ffmpeg -version | head -n 1
+          deno --version
+
+      - name: Setup Cloudflare WARP Proxy (YouTube Bot Bypass)
+        run: |
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update -qq
+          sudo apt-get install -y cloudflare-warp || true
+          warp-cli --accept-tos registration new 2>/dev/null || warp-cli --accept-tos register 2>/dev/null || true
+          warp-cli --accept-tos mode proxy 2>/dev/null || warp-cli --accept-tos set-mode proxy 2>/dev/null || true
+          warp-cli --accept-tos proxy port 40000 2>/dev/null || warp-cli --accept-tos set-proxy-port 40000 2>/dev/null || true
+          warp-cli --accept-tos connect 2>/dev/null || true
+          sleep 3
+          curl -s --socks5 127.0.0.1:40000 https://cloudflare.com/cdn-cgi/trace | head -n 4 || echo "WARP starting in background"
 
       - name: Setup YouTube Cookies
         env:

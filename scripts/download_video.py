@@ -9,6 +9,30 @@ import os
 import subprocess
 import json
 import urllib.request
+import socket
+
+def get_engine_args():
+    extra = []
+    # 1. Check if Cloudflare WARP socks5 proxy is running on port 40000
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.4)
+    try:
+        s.connect(('127.0.0.1', 40000))
+        s.close()
+        print("[Downloader] 🛡️ Cloudflare WARP proxy active on port 40000. Routing traffic through clean IP...")
+        extra.extend(["--proxy", "socks5://127.0.0.1:40000"])
+    except:
+        pass
+
+    # 2. Check if Deno is available for JavaScript challenges
+    try:
+        res = subprocess.run(["deno", "--version"], capture_output=True)
+        if res.returncode == 0:
+            extra.extend(["--js-runtimes", "deno"])
+    except:
+        pass
+
+    return extra
 
 def try_download(cmd, desc):
     print(f"\n[Downloader] >> Attempting: {desc}...")
@@ -135,20 +159,21 @@ def handle_youtube(url, password):
     cookies_file = "/tmp/cookies.txt"
     has_cookies = os.path.exists(cookies_file) and os.path.getsize(cookies_file) > 10
     pw_args = ["--video-password", password] if password else []
+    engine_args = get_engine_args()
 
-    # ── Strategy 1: iOS Mobile Client (Bypasses Datacenter IP Bot Checks) ──
+    # ── Strategy 1: iOS Mobile Client with Deno JS engine ──
     strat1 = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=ios",
+        "--extractor-args", "youtube:player_client=ios,mweb",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "--retries", "5",
         "--fragment-retries", "5",
         "-o", "/tmp/video.mp4"
-    ] + pw_args + [url]
+    ] + engine_args + pw_args + [url]
 
-    if try_download(strat1, "iOS Client (No Botguard / Datacenter Lock)"):
+    if try_download(strat1, "iOS/MWeb Client (Clean & Deno JS)"):
         return True
 
     # ── Strategy 2: Mobile Web (mweb) Client ──
@@ -161,26 +186,26 @@ def handle_youtube(url, password):
         "--retries", "5",
         "--fragment-retries", "5",
         "-o", "/tmp/video.mp4"
-    ] + pw_args + [url]
+    ] + engine_args + pw_args + [url]
 
     if try_download(strat2, "Mobile Web (mweb) Client"):
         return True
 
-    # ── Strategy 3: TV Embedded Client ──
+    # ── Strategy 3: TV Client ──
     strat3 = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=tv_embedded,tv",
+        "--extractor-args", "youtube:player_client=tv",
         "-f", "best[height<=720]/best",
         "--merge-output-format", "mp4",
         "--retries", "5",
         "-o", "/tmp/video.mp4"
-    ] + pw_args + [url]
+    ] + engine_args + pw_args + [url]
 
-    if try_download(strat3, "TV Embedded Client"):
+    if try_download(strat3, "TV Client"):
         return True
 
-    # ── Strategy 4: Web/Android with PO Token Provider (if running) ──
+    # ── Strategy 4: Web/Android with PO Token Provider ──
     strat4 = [
         "yt-dlp",
         "--no-playlist",
@@ -189,7 +214,7 @@ def handle_youtube(url, password):
         "--merge-output-format", "mp4",
         "--retries", "5",
         "-o", "/tmp/video.mp4"
-    ] + pw_args + [url]
+    ] + engine_args + pw_args + [url]
 
     if try_download(strat4, "Web/Android Client via PO Token Provider"):
         return True
@@ -205,7 +230,7 @@ def handle_youtube(url, password):
             "--merge-output-format", "mp4",
             "--retries", "5",
             "-o", "/tmp/video.mp4"
-        ] + pw_args + [url]
+        ] + engine_args + pw_args + [url]
         if try_download(strat5, "Web Client with Cookies"):
             return True
 
@@ -216,7 +241,7 @@ def handle_youtube(url, password):
         "--format", "best[ext=mp4]/best",
         "--retries", "5",
         "-o", "/tmp/video.mp4"
-    ] + pw_args + [url]
+    ] + engine_args + pw_args + [url]
 
     if try_download(strat6, "Universal Generic Fallback"):
         return True
