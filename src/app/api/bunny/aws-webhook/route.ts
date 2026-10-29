@@ -5,13 +5,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { secret, videoId, metadata, libraryId, error, r2Url } = body;
-    const expectedSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
+    const expectedSecret = process.env.RTMP_CALLBACK_SECRET || process.env.WEBHOOK_SECRET || 'change-me-to-a-random-string';
     const isSecretValid = 
       expectedSecret === 'change-me-to-a-random-string' || 
       secret === expectedSecret || 
+      secret === process.env.WEBHOOK_SECRET ||
+      secret === process.env.RTMP_CALLBACK_SECRET ||
       secret === 'change-me-to-a-random-string';
 
     if (!isSecretValid) {
+      console.warn(`[Webhook] Secret mismatch: received '${secret}', expected '${expectedSecret}'`);
       return NextResponse.json({ error: 'Invalid secret' }, { status: 403 });
     }
 
@@ -19,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing metadata' }, { status: 400 });
     }
     
-    // If AWS EC2 sends a failure notification
+    // If download/transcode sends a failure notification
     if (error) {
       const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
       
@@ -46,7 +49,7 @@ export async function POST(request: Request) {
       // 3. Notify Admins
       await adminDb.collection('notifications').add({
         title: "❌ Video Download Failed",
-        message: `The automatic download for "${metadata.videoTitle || 'Unknown Video'}" failed on the AWS Server. Error: ${error}. The ghost video has been removed from the folder.`,
+        message: `The automatic download for "${metadata.videoTitle || 'Unknown Video'}" failed. Error: ${error}. The ghost video has been removed from the folder.`,
         type: "error",
         link: "/admin",
         createdAt: Date.now(),
@@ -126,10 +129,10 @@ export async function POST(request: Request) {
 
     // Send Notification to admins
     await adminDb.collection('notifications').add({
-      title: "Live Recording Processed",
-      message: `The YouTube/Zoom recording "${metadata.videoTitle}" has been automatically downloaded, uploaded to BunnyCDN, and saved to the folder.`,
+      title: "Video Ready to Watch",
+      message: `"${metadata.videoTitle}" has finished processing and is now ready in the folder.`,
       type: "info",
-      link: "/admin/library",
+      link: "/admin",
       createdAt: Date.now(),
       isGlobal: true, // Show to all admins
       readBy: [],
@@ -138,7 +141,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('AWS Webhook Error:', error);
+    console.error('Webhook Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
