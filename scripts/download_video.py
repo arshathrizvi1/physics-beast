@@ -136,25 +136,67 @@ def handle_youtube(url, password):
     has_cookies = os.path.exists(cookies_file) and os.path.getsize(cookies_file) > 10
     pw_args = ["--video-password", password] if password else []
 
-    # ── Strategy 1: Android Client (No SABR lock, works without cookies) ──
+    # ── Strategy 1: iOS Mobile Client (Bypasses Datacenter IP Bot Checks) ──
     strat1 = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=android,web",
-        "-S", "res:720,vcodec:h264,ext:mp4:m4a",
+        "--extractor-args", "youtube:player_client=ios",
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
         "--retries", "5",
         "--fragment-retries", "5",
-        "--add-header", "Accept-Language:en-US,en;q=0.9",
         "-o", "/tmp/video.mp4"
     ] + pw_args + [url]
 
-    if try_download(strat1, "Android/Web Player Client (Clean)"):
+    if try_download(strat1, "iOS Client (No Botguard / Datacenter Lock)"):
         return True
 
-    # ── Strategy 2: With Cookies (if available) ──
+    # ── Strategy 2: Mobile Web (mweb) Client ──
+    strat2 = [
+        "yt-dlp",
+        "--no-playlist",
+        "--extractor-args", "youtube:player_client=mweb",
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "--merge-output-format", "mp4",
+        "--retries", "5",
+        "--fragment-retries", "5",
+        "-o", "/tmp/video.mp4"
+    ] + pw_args + [url]
+
+    if try_download(strat2, "Mobile Web (mweb) Client"):
+        return True
+
+    # ── Strategy 3: TV Embedded Client ──
+    strat3 = [
+        "yt-dlp",
+        "--no-playlist",
+        "--extractor-args", "youtube:player_client=tv_embedded,tv",
+        "-f", "best[height<=720]/best",
+        "--merge-output-format", "mp4",
+        "--retries", "5",
+        "-o", "/tmp/video.mp4"
+    ] + pw_args + [url]
+
+    if try_download(strat3, "TV Embedded Client"):
+        return True
+
+    # ── Strategy 4: Web/Android with PO Token Provider (if running) ──
+    strat4 = [
+        "yt-dlp",
+        "--no-playlist",
+        "--extractor-args", "youtube:player_client=web,android",
+        "-S", "res:720,vcodec:h264,ext:mp4:m4a",
+        "--merge-output-format", "mp4",
+        "--retries", "5",
+        "-o", "/tmp/video.mp4"
+    ] + pw_args + [url]
+
+    if try_download(strat4, "Web/Android Client via PO Token Provider"):
+        return True
+
+    # ── Strategy 5: With Cookies (if available) ──
     if has_cookies:
-        strat2 = [
+        strat5 = [
             "yt-dlp",
             "--no-playlist",
             "--cookies", cookies_file,
@@ -164,21 +206,19 @@ def handle_youtube(url, password):
             "--retries", "5",
             "-o", "/tmp/video.mp4"
         ] + pw_args + [url]
-        if try_download(strat2, "Web Client with Cookies"):
+        if try_download(strat5, "Web Client with Cookies"):
             return True
 
-    # ── Strategy 3: Best Available Format (Universal Fallback) ──
-    strat3 = [
+    # ── Strategy 6: Universal Any Client Fallback ──
+    strat6 = [
         "yt-dlp",
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=tv,android",
-        "--format", "best[height<=720]/best",
-        "--merge-output-format", "mp4",
+        "--format", "best[ext=mp4]/best",
         "--retries", "5",
         "-o", "/tmp/video.mp4"
     ] + pw_args + [url]
 
-    if try_download(strat3, "Universal TV/Android Fallback"):
+    if try_download(strat6, "Universal Generic Fallback"):
         return True
 
     return False

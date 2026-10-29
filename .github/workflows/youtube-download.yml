@@ -49,13 +49,15 @@ jobs:
           echo "Folder  : $FOLDER_ID"
           echo "=================================================="
 
-      - name: Install yt-dlp, FFmpeg & Playwright
+      - name: Install yt-dlp, FFmpeg, PO-Token Provider & Playwright
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg python3-pip
           sudo curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
             -o /usr/local/bin/yt-dlp
           sudo chmod +x /usr/local/bin/yt-dlp
+          python3 -m pip install --upgrade pip yt-dlp bgutil-ytdlp-pot-provider || true
+          docker run -d --name bgutil-pot -p 4416:4416 ghcr.io/jim60105/bgutil-pot:latest server || true
           npm install playwright || true
           yt-dlp --version
           ffmpeg -version | head -n 1
