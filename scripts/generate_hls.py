@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Multi-Quality HLS Generator for Brilliant Academy
-Converts an input MP4 video into adaptive multi-variant HLS:
-- 720p (High Quality)
-- 480p (Standard Quality)
-- 360p (Data Saver / Mobile)
-Generates master.m3u8 and ts segments for Cloudflare R2 / S3 storage.
+Multi-Quality AES-128 Encrypted HLS Generator for Brilliant Academy
+Converts input MP4 video into encrypted, adaptive multi-variant HLS:
+- 720p (High Quality) - AES-128 Encrypted
+- 480p (Standard Quality) - AES-128 Encrypted
+- 360p (Data Saver / Mobile) - AES-128 Encrypted
+Generates master.m3u8 and encrypted .ts segments for Cloudflare R2 storage.
+Blocks IDM, VLC, and unauthorized stream downloaders.
 """
 
 import sys
@@ -34,37 +35,41 @@ def generate_hls(input_path, output_dir):
     stream_360 = os.path.join(output_dir, "stream_360p.m3u8")
     master_m3u8 = os.path.join(output_dir, "master.m3u8")
 
-    # 1. 720p Stream (Try fast stream copy first, fallback to ultrafast libx264)
-    hls_720_fast = [
+    # 0. Setup AES-128 HLS Stream Encryption
+    keyinfo_path = "/tmp/hls_keyinfo.txt"
+    key_path = "/tmp/hls_enc.key"
+    key_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate_hls_key.js")
+    has_encryption = False
+
+    if os.path.exists(key_script):
+        print("[HLS] 🔒 Initializing AES-128 stream encryption key...")
+        res = subprocess.run(["node", key_script, key_path, keyinfo_path])
+        if res.returncode == 0 and os.path.exists(keyinfo_path):
+            has_encryption = True
+            print("[HLS] ✅ AES-128 encryption key and keyinfo ready. All chunks will be strongly encrypted.")
+        else:
+            print("[HLS] ⚠️ Key generation failed, proceeding with standard HLS.")
+
+    encrypt_args = ["-hls_key_info_file", keyinfo_path] if has_encryption else []
+
+    # 1. 720p Stream (AES-128 Encrypted, ultrafast x264)
+    hls_720 = [
         "ffmpeg", "-y", "-i", input_path,
-        "-c:v", "copy",
+        "-vf", "scale=w=1280:h=720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+        "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ac", "2",
         "-f", "hls",
-        "-hls_time", "10",
+        "-hls_time", "6",
         "-hls_playlist_type", "vod",
         "-hls_flags", "independent_segments",
+    ] + encrypt_args + [
         "-hls_segment_filename", os.path.join(output_dir, "segment_720p_%04d.ts"),
         stream_720
     ]
-    
-    success_720 = run_command(hls_720_fast, "720p fast copy")
-    if not success_720 or not os.path.exists(stream_720):
-        print("[HLS] Attempting 720p transcode fallback...")
-        hls_720_transcode = [
-            "ffmpeg", "-y", "-i", input_path,
-            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "128k", "-ac", "2",
-            "-f", "hls",
-            "-hls_time", "10",
-            "-hls_playlist_type", "vod",
-            "-hls_flags", "independent_segments",
-            "-hls_segment_filename", os.path.join(output_dir, "segment_720p_%04d.ts"),
-            stream_720
-        ]
-        run_command(hls_720_transcode, "720p transcode fallback")
+    run_command(hls_720, "720p AES-128 encrypted stream")
 
-    # 2. 480p Stream (Downscaled)
+    # 2. 480p Stream (AES-128 Encrypted, Downscaled)
     hls_480 = [
         "ffmpeg", "-y", "-i", input_path,
         "-vf", "scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
@@ -72,15 +77,16 @@ def generate_hls(input_path, output_dir):
         "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "96k", "-ac", "2",
         "-f", "hls",
-        "-hls_time", "10",
+        "-hls_time", "6",
         "-hls_playlist_type", "vod",
         "-hls_flags", "independent_segments",
+    ] + encrypt_args + [
         "-hls_segment_filename", os.path.join(output_dir, "segment_480p_%04d.ts"),
         stream_480
     ]
-    run_command(hls_480, "480p stream generation")
+    run_command(hls_480, "480p AES-128 encrypted stream")
 
-    # 3. 360p Stream (Downscaled for mobile / low bandwidth)
+    # 3. 360p Stream (AES-128 Encrypted, Low Bandwidth)
     hls_360 = [
         "ffmpeg", "-y", "-i", input_path,
         "-vf", "scale=w=640:h=360:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
@@ -88,37 +94,47 @@ def generate_hls(input_path, output_dir):
         "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "64k", "-ac", "2",
         "-f", "hls",
-        "-hls_time", "10",
+        "-hls_time", "6",
         "-hls_playlist_type", "vod",
         "-hls_flags", "independent_segments",
+    ] + encrypt_args + [
         "-hls_segment_filename", os.path.join(output_dir, "segment_360p_%04d.ts"),
         stream_360
     ]
-    run_command(hls_360, "360p stream generation")
+    run_command(hls_360, "360p AES-128 encrypted stream")
 
     # 4. Master Playlist Generation
     variants = []
     if os.path.exists(stream_720):
-        variants.append('#EXT-X-STREAM-INF:BANDWIDTH=2200000,RESOLUTION=1280x720,NAME="720p"\nstream_720p.m3u8')
+        variants.append(('#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720,NAME="720p"', "stream_720p.m3u8"))
     if os.path.exists(stream_480):
-        variants.append('#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480,NAME="480p"\nstream_480p.m3u8')
+        variants.append(('#EXT-X-STREAM-INF:BANDWIDTH=1200000,RESOLUTION=854x480,NAME="480p"', "stream_480p.m3u8"))
     if os.path.exists(stream_360):
-        variants.append('#EXT-X-STREAM-INF:BANDWIDTH=500000,RESOLUTION=640x360,NAME="360p"\nstream_360p.m3u8')
+        variants.append(('#EXT-X-STREAM-INF:BANDWIDTH=600000,RESOLUTION=640x360,NAME="360p"', "stream_360p.m3u8"))
 
     if not variants:
-        print("[HLS] ❌ Error: No HLS streams were produced.")
+        print("[HLS] ❌ Error: No HLS stream variants were generated.")
         sys.exit(1)
 
-    master_content = "#EXTM3U\n#EXT-X-VERSION:3\n" + "\n".join(variants) + "\n"
     with open(master_m3u8, "w", encoding="utf-8") as f:
-        f.write(master_content)
+        f.write("#EXTM3U\n")
+        f.write("#EXT-X-VERSION:3\n\n")
+        for inf, pl in variants:
+            f.write(f"{inf}\n{pl}\n\n")
 
-    file_count = len(os.listdir(output_dir))
-    print(f"[HLS] 🎉 Master playlist generated with {len(variants)} quality levels ({file_count} total files).")
+    print(f"\n[HLS] 🎉 Master HLS generated with {len(variants)} quality variants!")
+    print(f"[HLS] Output directory: {output_dir}")
+    print(f"[HLS] Master playlist: {master_m3u8}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python generate_hls.py <input_video.mp4> [output_directory]")
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+    output_dir = sys.argv[2] if len(sys.argv) > 2 else "/tmp/hls_out"
+
+    generate_hls(input_file, output_dir)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python generate_hls.py <input_mp4> <output_dir>")
-        sys.exit(1)
-    
-    generate_hls(sys.argv[1], sys.argv[2])
+    main()

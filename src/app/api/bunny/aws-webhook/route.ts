@@ -26,39 +26,31 @@ export async function POST(request: Request) {
     if (error) {
       const videoRef = adminDb.collection('videos').doc(metadata.videoDocId);
       
-      // Get the target folder so we can remove the ghost item
-      const targetFolderId = metadata.selectedItemType === 'course' 
-        ? metadata.selectedCourseFolderId 
-        : (metadata.selectedFolderId || metadata.videoFolderId || 'none');
+      // Update video document with error status so Admin can see it failed
+      await videoRef.set({
+        id: metadata.videoDocId,
+        title: metadata.videoTitle || 'Untitled Video',
+        isReady: false,
+        processingStatus: 'error',
+        errorMessage: String(error),
+        updatedAt: Date.now()
+      }, { merge: true });
 
-      // 1. Remove from folder
-      if (targetFolderId && targetFolderId !== 'none') {
-        const folderRef = adminDb.collection('folders').doc(targetFolderId);
-        const folderSnap = await folderRef.get();
-        if (folderSnap.exists) {
-          const folderData = folderSnap.data();
-          const items = folderData?.items || [];
-          const newItems = items.filter((i: any) => i.id !== metadata.videoDocId);
-          await folderRef.update({ items: newItems });
-        }
-      }
-
-      // 2. Delete the broken video document
-      await videoRef.delete();
-
-      // 3. Notify Admins
+      // Notify Admins
       await adminDb.collection('notifications').add({
         title: "❌ Video Download Failed",
-        message: `The automatic download for "${metadata.videoTitle || 'Unknown Video'}" failed. Error: ${error}. The ghost video has been removed from the folder.`,
+        message: `The automatic download for "${metadata.videoTitle || 'Unknown Video'}" failed: ${error}`,
         type: "error",
+        target: "admin",
         link: "/admin",
         createdAt: Date.now(),
-        isGlobal: true, // Show to all admins
+        timestamp: Date.now(),
+        isGlobal: true,
         readBy: [],
         clearedBy: []
       });
 
-      return NextResponse.json({ success: true, noted: 'Error recorded, rolled back.' });
+      return NextResponse.json({ success: true, noted: 'Error recorded' });
     }
 
     if (!videoId && !r2Url) {
@@ -129,11 +121,13 @@ export async function POST(request: Request) {
 
     // Send Notification to admins
     await adminDb.collection('notifications').add({
-      title: "Video Ready to Watch",
-      message: `"${metadata.videoTitle}" has finished processing and is now ready in the folder.`,
-      type: "info",
+      title: "✅ Video Upload Completed",
+      message: `"${metadata.videoTitle || 'Untitled Video'}" has finished processing and is now published for students!`,
+      type: "success",
+      target: "admin",
       link: "/admin",
       createdAt: Date.now(),
+      timestamp: Date.now(),
       isGlobal: true, // Show to all admins
       readBy: [],
       clearedBy: []
