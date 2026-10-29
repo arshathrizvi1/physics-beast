@@ -30,6 +30,17 @@ const getDailymotionId = (url: string) => {
   return match ? match[1] : null;
 };
 
+const getSecureStreamUrl = (rawUrl: string) => {
+  if (!rawUrl) return '';
+  if (rawUrl.includes('r2.dev/') || rawUrl.includes('r2.cloudflarestorage.com/')) {
+    const parts = rawUrl.split(/r2\.dev\/|r2\.cloudflarestorage\.com\/[^\/]+\//);
+    if (parts.length > 1) {
+      return `/api/stream/hls/${parts[1]}`;
+    }
+  }
+  return rawUrl;
+};
+
 export default function CoursePage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
   const isPromise = params && typeof (params as any).then === 'function';
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -1539,7 +1550,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           activeServer === 'youtube'
                             ? (activeVideo.originalYoutubeUrl || activeVideo.url)
                             : activeServer === 'r2'
-                            ? (activeVideo.r2Url || activeVideo.url)
+                            ? getSecureStreamUrl(activeVideo.r2Url || activeVideo.url)
                             : activeVideo.url
                         }
                       width="100%"
