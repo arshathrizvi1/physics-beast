@@ -11,15 +11,8 @@ export async function POST(request: Request) {
     }
 
     const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
-    
-    // Route everything to the configured RTMP proxy server (AWS)
-    let serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
 
-    const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
-    const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
-    const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
-    const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
-
+    // Normalize YouTube URL if needed
     let targetUrl = url;
     if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
       try {
@@ -30,34 +23,112 @@ export async function POST(request: Request) {
       } catch (e) {}
     }
 
-    const res = await fetch(awsUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
-    });
+    // Pipeline selection: 'github' (default, free serverless) or 'aws' (EC2 VPS)
+    // To switch back to AWS EC2 anytime, set DOWNLOAD_PIPELINE=aws in .env.local
+    const pipeline = (process.env.DOWNLOAD_PIPELINE || 'github').toLowerCase();
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json({ error: 'EC2 server error: ' + errText }, { status: res.status });
+    // ─────────────────────────────────────────────────────────────
+    // 1. AWS EC2 Pipeline (Fallback / Manual toggle)
+    // ─────────────────────────────────────────────────────────────
+    if (pipeline === 'aws') {
+      const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+      const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
+      const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
+      const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
+      const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
+
+      console.log(`[Download] Routing to AWS EC2 server: ${awsUrl}`);
+
+      const res = await fetch(awsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return NextResponse.json({ error: 'EC2 server error: ' + errText }, { status: res.status });
+      }
+
+      const data = await res.json();
+
+      await adminDb.collection('notifications').add({
+        title: '🎥 Recording Download Started (AWS)',
+        message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading.`,
+        type: 'info',
+        link: '/admin',
+        createdAt: Date.now(),
+        isGlobal: true,
+        readBy: [],
+        clearedBy: [],
+      });
+
+      return NextResponse.json(data);
     }
 
-    const data = await res.json();
+    // ─────────────────────────────────────────────────────────────
+    // 2. GitHub Actions Pipeline (Option 1: Free Serverless R2 HLS)
+    // ─────────────────────────────────────────────────────────────
+    const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
+    const githubOwner = process.env.GITHUB_REPO_OWNER || 'arshathrizvi1';
+    const githubRepo  = process.env.GITHUB_REPO_NAME  || 'physics-beast';
+
+    if (!githubToken) {
+      console.warn('[Download] GITHUB_ACTIONS_TOKEN not set in environment.');
+      return NextResponse.json({
+        error: 'GITHUB_ACTIONS_TOKEN is not configured in your website environment variables. Please add GITHUB_ACTIONS_TOKEN to your .env.local / Vercel / Cloudflare variables, or set DOWNLOAD_PIPELINE=aws to continue using the AWS server.'
+      }, { status: 500 });
+    }
+
+    const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+    console.log(`[Download] Triggering GitHub Actions dispatch: ${dispatchUrl}`);
+
+    const dispatchRes = await fetch(dispatchUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_type: 'youtube-download',
+        client_payload: {
+          url: targetUrl,
+          password: password || '',
+          title: title || 'Untitled Video',
+          metadata: metadata || {},
+        },
+      }),
+    });
+
+    if (!dispatchRes.ok) {
+      const errText = await dispatchRes.text();
+      console.error('[GitHub Actions Trigger Failed]:', errText);
+      return NextResponse.json({
+        error: `Failed to trigger GitHub Actions (${dispatchRes.status}): ${errText}`
+      }, { status: dispatchRes.status });
+    }
 
     await adminDb.collection('notifications').add({
-      title: '🎥 Recording Download Started',
-      message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading to BunnyCDN.`,
+      title: '🎬 Video Download Started (GitHub Actions)',
+      message: `"${title}" is downloading and transcoding into multi-quality HLS for Cloudflare R2 / Bunny via GitHub Actions.`,
       type: 'info',
-      link: '/admin/library',
+      link: '/admin',
       createdAt: Date.now(),
       isGlobal: true,
       readBy: [],
       clearedBy: [],
     });
 
-    return NextResponse.json(data);
+    return NextResponse.json({
+      success: true,
+      message: 'GitHub Actions video pipeline triggered successfully',
+      pipeline: 'github'
+    });
 
   } catch (error: any) {
-    console.error('[Download] Error:', error);
+    console.error('[Download API Error]:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

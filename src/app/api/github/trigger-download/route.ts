@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { url, title, metadata } = body;
+    const { url, password, title, metadata } = body;
 
     if (!url || !metadata) {
       return NextResponse.json({ error: 'Missing url or metadata' }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     const githubRepo   = process.env.GITHUB_REPO_NAME  || 'physics-beast';
 
     if (!githubToken) {
-      return NextResponse.json({ error: 'GITHUB_ACTIONS_TOKEN not configured in Vercel env' }, { status: 500 });
+      return NextResponse.json({ error: 'GITHUB_ACTIONS_TOKEN not configured in environment variables' }, { status: 500 });
     }
 
     // Trigger the GitHub Actions workflow via repository_dispatch
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
         event_type: 'youtube-download',
         client_payload: {
           url,
-          title,
+          password: password || '',
+          title: title || 'Untitled Video',
           metadata,
         },
       }),
@@ -47,10 +48,10 @@ export async function POST(request: Request) {
 
     // Send admin notification that the job has started
     await adminDb.collection('notifications').add({
-      title: '🎬 YouTube Download Started (GitHub)',
-      message: `"${title}" is being downloaded via GitHub Actions (free, fast). You will be notified when it finishes uploading to BunnyCDN.`,
+      title: '🎬 Video Download Started (GitHub Actions)',
+      message: `"${title}" is downloading and transcoding into multi-quality HLS via GitHub Actions ($0 server cost).`,
       type: 'info',
-      link: '/admin/library',
+      link: '/admin',
       createdAt: Date.now(),
       isGlobal: true,
       readBy: [],

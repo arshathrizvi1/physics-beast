@@ -710,11 +710,11 @@ export default function Home() {
                   <CardFooter className="p-4 sm:p-5 pt-3 sm:pt-4 flex justify-between items-center text-xs sm:text-sm border-t border-border/50 mt-3 sm:mt-4">
                     <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
                       <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                      <span className="truncate">{Math.floor(Math.random() * 200 + 50)} students</span>
+                      <span className="truncate">{course.studentCount || (140 + ((i * 35) % 90))} students</span>
                     </div>
                     <div className="flex items-center gap-1 text-[#d4af37] shrink-0">
                       <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
-                      <span className="font-bold">{(Math.random() * 0.5 + 4.5).toFixed(1)}</span>
+                      <span className="font-bold">{course.rating ? Number(course.rating).toFixed(1) : (4.8 + ((i % 2) * 0.1)).toFixed(1)}</span>
                     </div>
                   </CardFooter>
                 </Card>

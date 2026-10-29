@@ -1,41 +1,47 @@
-name: YouTube Video Download & Upload to BunnyCDN
+name: Video Processing Pipeline (Cloudflare R2 HLS + Bunny)
 
 on:
   repository_dispatch:
     types: [youtube-download]
 
 jobs:
-  download-and-upload:
+  process-video:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     env:
-      VIDEO_URL:     "${{ github.event.client_payload.url }}"
-      VIDEO_TITLE:   "${{ github.event.client_payload.title }}"
-      VIDEO_DOC_ID:  "${{ github.event.client_payload.metadata.videoDocId }}"
-      FOLDER_ID:     "${{ github.event.client_payload.metadata.selectedFolderId }}"
-      COURSE_FOLDER: "${{ github.event.client_payload.metadata.selectedCourseFolderId }}"
-      ITEM_TYPE:     "${{ github.event.client_payload.metadata.selectedItemType }}"
-      COURSE_ID:     "${{ github.event.client_payload.metadata.selectedCourseId }}"
+      VIDEO_URL:       "${{ github.event.client_payload.url }}"
+      VIDEO_PASSWORD:  "${{ github.event.client_payload.password }}"
+      VIDEO_TITLE:     "${{ github.event.client_payload.title }}"
+      VIDEO_DOC_ID:    "${{ github.event.client_payload.metadata.videoDocId }}"
+      FOLDER_ID:       "${{ github.event.client_payload.metadata.selectedFolderId }}"
+      COURSE_FOLDER:   "${{ github.event.client_payload.metadata.selectedCourseFolderId }}"
+      ITEM_TYPE:       "${{ github.event.client_payload.metadata.selectedItemType }}"
+      COURSE_ID:       "${{ github.event.client_payload.metadata.selectedCourseId }}"
+      ORIGINAL_YT_URL: "${{ github.event.client_payload.metadata.originalYoutubeUrl }}"
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Print Job Info
         run: |
-          echo "======================================"
-          echo "  Brilliant Academy - YouTube Pipeline"
-          echo "======================================"
+          echo "=================================================="
+          echo "  Brilliant Academy - Video Pipeline (Serverless)"
+          echo "=================================================="
           echo "Title   : $VIDEO_TITLE"
           echo "URL     : $VIDEO_URL"
           echo "DocID   : $VIDEO_DOC_ID"
           echo "Folder  : $FOLDER_ID"
-          echo "======================================"
+          echo "=================================================="
 
-      - name: Install yt-dlp
+      - name: Install yt-dlp & FFmpeg
         run: |
           sudo curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
             -o /usr/local/bin/yt-dlp
           sudo chmod +x /usr/local/bin/yt-dlp
           yt-dlp --version
+          ffmpeg -version | head -n 1
 
       - name: Setup YouTube Cookies
         env:
@@ -43,22 +49,27 @@ jobs:
         run: |
           if [ -n "$YT_COOKIES" ]; then
             echo "$YT_COOKIES" | base64 --decode > /tmp/cookies.txt
-            echo "Cookies loaded."
+            echo "Cookies loaded successfully."
           else
-            echo "No cookies provided."
+            echo "No YT_COOKIES secret found. Proceeding without cookies."
           fi
 
-      - name: Download YouTube Video (720p)
+      - name: Download Video
         run: |
           COOKIES_ARG=""
           if [ -f /tmp/cookies.txt ]; then
             COOKIES_ARG="--cookies /tmp/cookies.txt"
-            echo "Using cookies for authentication."
+          fi
+
+          PASSWORD_ARG=""
+          if [ -n "$VIDEO_PASSWORD" ]; then
+            PASSWORD_ARG="--video-password $VIDEO_PASSWORD"
           fi
 
           yt-dlp \
             --extractor-args "youtube:player_client=ios" \
             $COOKIES_ARG \
+            $PASSWORD_ARG \
             --format "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best" \
             --merge-output-format mp4 \
             --retries 10 \
@@ -71,110 +82,165 @@ jobs:
             "$VIDEO_URL"
 
           if [ ! -f /tmp/video.mp4 ]; then
-            echo "ERROR: Download failed - file not found"
+            echo "ERROR: Video download failed - file not found"
             exit 1
           fi
 
           FILE_SIZE=$(du -sh /tmp/video.mp4 | cut -f1)
-          echo "Download complete. File size: $FILE_SIZE"
+          echo "Download complete! Size: $FILE_SIZE"
 
-      - name: Create Video Entry in BunnyCDN
-        id: bunny-create
+      - name: Transcode Multi-Quality HLS (720p, 480p, 360p)
+        id: transcode-hls
         run: |
-          RESPONSE=$(curl -s -X POST \
-            "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos" \
-            -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d "{\"title\": \"$VIDEO_TITLE\"}")
-
-          echo "Bunny response: $RESPONSE"
-
-          VIDEO_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('guid','ERROR'))")
-
-          if [ -z "$VIDEO_ID" ] || [ "$VIDEO_ID" = "ERROR" ]; then
-            echo "ERROR: Failed to create Bunny video. Response: $RESPONSE"
-            exit 1
+          mkdir -p /tmp/hls_out
+          python3 scripts/generate_hls.py /tmp/video.mp4 /tmp/hls_out
+          
+          if [ ! -f /tmp/hls_out/master.m3u8 ]; then
+            echo "WARNING: master.m3u8 not generated"
+          else
+            echo "Multi-quality HLS transcode completed successfully!"
           fi
 
-          echo "video_id=$VIDEO_ID" >> $GITHUB_OUTPUT
-          echo "Bunny video created: $VIDEO_ID"
-
-      - name: Upload MP4 to BunnyCDN
+      - name: Upload HLS to Cloudflare R2
+        id: r2-upload
         run: |
-          VIDEO_ID="${{ steps.bunny-create.outputs.video_id }}"
-          FILE_SIZE=$(stat -c%s /tmp/video.mp4)
-          echo "Uploading ${FILE_SIZE} bytes..."
+          if [ -n "${{ secrets.R2_ACCOUNT_ID }}" ] && [ -n "${{ secrets.R2_BUCKET_NAME }}" ] && [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ]; then
+            SAFE_ID=$(echo "$VIDEO_DOC_ID" | tr -dc 'a-zA-Z0-9_-')
+            R2_FOLDER="vid_${SAFE_ID}_$(date +%s)"
+            echo "Uploading HLS stream to Cloudflare R2: videos/$R2_FOLDER ..."
 
-          HTTP_STATUS=$(curl -s -o /tmp/upload_resp.txt -w "%{http_code}" \
-            -X PUT \
-            "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos/${VIDEO_ID}" \
-            -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
-            -H "Content-Type: application/octet-stream" \
-            -H "Content-Length: ${FILE_SIZE}" \
-            --data-binary @/tmp/video.mp4)
+            export AWS_ACCESS_KEY_ID="${{ secrets.R2_ACCESS_KEY_ID }}"
+            export AWS_SECRET_ACCESS_KEY="${{ secrets.R2_SECRET_ACCESS_KEY }}"
+            export AWS_DEFAULT_REGION="auto"
+            R2_ENDPOINT="https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
 
-          cat /tmp/upload_resp.txt
-          echo "Upload status: $HTTP_STATUS"
+            # 1. Upload .m3u8 playlist files with apple.mpegurl content type
+            aws s3 sync /tmp/hls_out "s3://${{ secrets.R2_BUCKET_NAME }}/videos/${R2_FOLDER}" \
+              --endpoint-url "$R2_ENDPOINT" \
+              --exclude "*" --include "*.m3u8" \
+              --content-type "application/vnd.apple.mpegurl" \
+              --cache-control "public, max-age=300"
 
-          if [ "$HTTP_STATUS" != "200" ] && [ "$HTTP_STATUS" != "201" ]; then
-            echo "ERROR: Upload failed with HTTP $HTTP_STATUS"
-            exit 1
+            # 2. Upload .ts segment slices with video/mp2t content type and immutable cache
+            aws s3 sync /tmp/hls_out "s3://${{ secrets.R2_BUCKET_NAME }}/videos/${R2_FOLDER}" \
+              --endpoint-url "$R2_ENDPOINT" \
+              --exclude "*" --include "*.ts" \
+              --content-type "video/mp2t" \
+              --cache-control "public, max-age=31536000, immutable"
+
+            if [ -n "${{ secrets.R2_PUBLIC_URL }}" ]; then
+              CLEAN_R2_PUBLIC=$(echo "${{ secrets.R2_PUBLIC_URL }}" | sed 's:/*$::')
+              FINAL_R2_URL="${CLEAN_R2_PUBLIC}/videos/${R2_FOLDER}/master.m3u8"
+            else
+              FINAL_R2_URL="https://${{ secrets.R2_BUCKET_NAME }}.${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com/videos/${R2_FOLDER}/master.m3u8"
+            fi
+
+            echo "r2_url=$FINAL_R2_URL" >> $GITHUB_OUTPUT
+            echo "Uploaded to Cloudflare R2: $FINAL_R2_URL"
+          else
+            echo "Cloudflare R2 secrets not configured, skipping R2."
+            echo "r2_url=" >> $GITHUB_OUTPUT
           fi
 
-          echo "Upload complete!"
-          rm -f /tmp/video.mp4
+      - name: Upload to BunnyCDN (Optional Fallback)
+        id: bunny-upload
+        run: |
+          if [ -n "${{ secrets.BUNNY_API_KEY }}" ] && [ -n "${{ secrets.BUNNY_LIBRARY_ID }}" ]; then
+            echo "Creating video entry in BunnyCDN..."
+            RESPONSE=$(curl -s -X POST \
+              "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos" \
+              -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json" \
+              -d "{\"title\": \"$VIDEO_TITLE\"}")
+
+            VIDEO_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('guid',''))")
+
+            if [ -n "$VIDEO_ID" ]; then
+              FILE_SIZE=$(stat -c%s /tmp/video.mp4)
+              echo "Uploading $FILE_SIZE bytes to BunnyCDN (Video ID: $VIDEO_ID)..."
+
+              HTTP_STATUS=$(curl -s -o /tmp/upload_resp.txt -w "%{http_code}" \
+                -X PUT \
+                "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos/${VIDEO_ID}" \
+                -H "AccessKey: ${{ secrets.BUNNY_API_KEY }}" \
+                -H "Content-Type: application/octet-stream" \
+                -H "Content-Length: ${FILE_SIZE}" \
+                --data-binary @/tmp/video.mp4)
+
+              if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+                echo "video_id=$VIDEO_ID" >> $GITHUB_OUTPUT
+                echo "Uploaded to BunnyCDN successfully: $VIDEO_ID"
+              else
+                echo "BunnyCDN upload HTTP status: $HTTP_STATUS"
+                echo "video_id=" >> $GITHUB_OUTPUT
+              fi
+            else
+              echo "Failed to create Bunny video entry."
+              echo "video_id=" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "BunnyCDN credentials not provided, skipping Bunny."
+            echo "video_id=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Notify Website Webhook
         run: |
-          VIDEO_ID="${{ steps.bunny-create.outputs.video_id }}"
+          R2_URL="${{ steps.r2-upload.outputs.r2_url }}"
+          VIDEO_ID="${{ steps.bunny-upload.outputs.video_id }}"
 
-          # Build metadata JSON safely using python
-          METADATA=$(python3 -c "
-          import json
-          m = {
+          if [ -z "$R2_URL" ] && [ -z "$VIDEO_ID" ]; then
+            echo "ERROR: Neither Cloudflare R2 nor BunnyCDN upload succeeded."
+            exit 1
+          fi
+
+          python3 -c "
+          import json, urllib.request
+
+          metadata = {
             'videoDocId':              '$VIDEO_DOC_ID',
             'videoTitle':              '$VIDEO_TITLE',
             'selectedFolderId':        '$FOLDER_ID',
             'selectedCourseFolderId':  '$COURSE_FOLDER',
             'selectedItemType':        '$ITEM_TYPE',
-            'selectedCourseId':        '$COURSE_ID'
+            'selectedCourseId':        '$COURSE_ID',
+            'originalYoutubeUrl':      '$ORIGINAL_YT_URL'
           }
-          print(json.dumps(m))
-          ")
 
-          PAYLOAD=$(python3 -c "
-          import json
           payload = {
             'secret':    '${{ secrets.WEBHOOK_SECRET }}',
+            'r2Url':     '$R2_URL',
             'videoId':   '$VIDEO_ID',
             'libraryId': '${{ secrets.BUNNY_LIBRARY_ID }}',
-            'metadata':  $METADATA
+            'metadata':  metadata
           }
-          print(json.dumps(payload))
-          ")
 
-          HTTP_STATUS=$(curl -s -o /tmp/webhook_resp.txt -w "%{http_code}" \
-            -X POST \
-            "${{ secrets.WEBSITE_URL }}/api/bunny/aws-webhook" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
+          webhook_url = '${{ secrets.WEBSITE_URL }}/api/bunny/aws-webhook'
+          print(f'Sending webhook notification to: {webhook_url}...')
 
-          cat /tmp/webhook_resp.txt
-          echo "Webhook status: $HTTP_STATUS"
+          req = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode('utf-8'),
+              headers={'Content-Type': 'application/json'}
+          )
 
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "WARNING: Webhook returned $HTTP_STATUS - video uploaded but DB may not be updated"
-          else
-            echo "Website notified successfully!"
-          fi
+          try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  print(f'Webhook responded with status: {resp.status}')
+                  if resp.status != 200:
+                      print('Warning: Webhook did not return 200')
+          except Exception as e:
+              print(f'Error notifying webhook: {e}')
+              raise e
+          "
 
       - name: Notify Website of Failure
         if: failure()
         run: |
-          METADATA=$(python3 -c "
-          import json
-          m = {
+          python3 -c "
+          import json, urllib.request
+
+          metadata = {
             'videoDocId':              '$VIDEO_DOC_ID',
             'videoTitle':              '$VIDEO_TITLE',
             'selectedFolderId':        '$FOLDER_ID',
@@ -182,11 +248,23 @@ jobs:
             'selectedItemType':        '$ITEM_TYPE',
             'selectedCourseId':        '$COURSE_ID'
           }
-          print(json.dumps(m))
-          ")
 
-          curl -s -X POST \
-            "${{ secrets.WEBSITE_URL }}/api/bunny/aws-webhook" \
-            -H "Content-Type: application/json" \
-            -d "{\"secret\":\"${{ secrets.WEBHOOK_SECRET }}\",\"error\":\"GitHub Actions download failed\",\"metadata\":$METADATA,\"libraryId\":\"\"}" \
-            || true
+          payload = {
+            'secret':    '${{ secrets.WEBHOOK_SECRET }}',
+            'error':     'GitHub Actions video processing pipeline failed.',
+            'metadata':  metadata,
+            'libraryId': ''
+          }
+
+          webhook_url = '${{ secrets.WEBSITE_URL }}/api/bunny/aws-webhook'
+          req = urllib.request.Request(
+              webhook_url,
+              data=json.dumps(payload).encode('utf-8'),
+              headers={'Content-Type': 'application/json'}
+          )
+          try:
+              urllib.request.urlopen(req, timeout=30)
+              print('Failure notification sent to website.')
+          except Exception as e:
+              print(f'Failed to send failure webhook: {e}')
+          " || true
