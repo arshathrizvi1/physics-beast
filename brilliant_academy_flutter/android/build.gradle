@@ -13,17 +13,6 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// Inject namespace for legacy Flutter plugins that don't declare one in AGP 8
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            if (project.android.namespace == null) {
-                project.android.namespace = project.group ?: "com.brilliantacademy.${project.name}"
-            }
-        }
-    }
-}
-
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

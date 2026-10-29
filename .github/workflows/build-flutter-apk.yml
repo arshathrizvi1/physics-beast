@@ -41,7 +41,7 @@ jobs:
       - name: Build Release APK
         run: |
           cd brilliant_academy_flutter
-          flutter build apk --release
+          flutter build apk --release --no-tree-shake-icons
 
       - name: Copy APK to Website Public Folder
         run: |
