@@ -6,6 +6,7 @@ import { IsRoot } from '@capgo/capacitor-is-root';
 import { App } from '@capacitor/app';
 import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import DisableDevtool from 'disable-devtool';
 
 export function SecurityEnforcer() {
   const { user } = useAuth();
@@ -83,14 +84,14 @@ export function SecurityEnforcer() {
     window.addEventListener("contextmenu", blockContextMenu, true);
     document.addEventListener("contextmenu", blockContextMenu, true);
 
-    // B. Block Shortcuts (F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S, Ctrl+P)
+    // B. Block Shortcuts (F12, Ctrl+Shift+I/J/C/M, Ctrl+U, Ctrl+S, Ctrl+P)
     const blockShortcuts = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;
       const key = e.key.toUpperCase();
 
       if (
         e.key === "F12" ||
-        (isCmdOrCtrl && e.shiftKey && ["I", "J", "C"].includes(key)) ||
+        (isCmdOrCtrl && e.shiftKey && ["I", "J", "C", "M"].includes(key)) ||
         (isCmdOrCtrl && ["U", "S", "P"].includes(key))
       ) {
         e.preventDefault();
@@ -102,8 +103,6 @@ export function SecurityEnforcer() {
     window.addEventListener("keydown", blockShortcuts, true);
 
     // C. Anti-Snipping Tool & Window Focus Blackout
-    // When a student opens Snipping Tool (Win+Shift+S) or clicks outside to an external recorder,
-    // the window immediately loses focus. We blackout all videos and media instantly!
     const handleBlur = () => {
       document.body.classList.add('window-unfocused-blur');
     };
@@ -123,7 +122,6 @@ export function SecurityEnforcer() {
     document.addEventListener("visibilitychange", handleVisibility);
 
     // D. Clipboard Poisoning on PrintScreen Key
-    // If student presses PrintScreen, overwrite the clipboard with a copyright warning
     const handlePrintScreen = (e: KeyboardEvent) => {
       if (e.key === "PrintScreen" || e.keyCode === 44) {
         try {
@@ -135,7 +133,7 @@ export function SecurityEnforcer() {
     window.addEventListener("keyup", handlePrintScreen);
     window.addEventListener("keydown", handlePrintScreen);
 
-    // E. Block Browser Screen Recording Extensions (navigator.mediaDevices.getDisplayMedia)
+    // E. Block Browser Screen Recording Extensions
     if (typeof navigator !== 'undefined' && navigator.mediaDevices) {
       try {
         navigator.mediaDevices.getDisplayMedia = () => {
@@ -152,7 +150,7 @@ export function SecurityEnforcer() {
     };
     window.addEventListener("dragstart", blockDrag);
 
-    // G. DevTools Dimension Detection (Triggers purge if docked drawer opens)
+    // G. DevTools Dimension Detection (Standard Docked Check)
     const checkDevTools = () => {
       const widthDiff = window.outerWidth - window.innerWidth;
       const heightDiff = window.outerHeight - window.innerHeight;
@@ -162,16 +160,85 @@ export function SecurityEnforcer() {
       }
     };
 
-    window.addEventListener("resize", checkDevTools, { passive: true });
-    const interval = setInterval(checkDevTools, 400);
+    // H. Mobile Preview & Device Mode Emulation Detection (Catches DevTools Responsive Mode on Reload)
+    const checkMobileEmulation = () => {
+      if (typeof window === 'undefined') return;
+      const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+      if (isNative) return;
 
-    // H. Anti-Tamper Observer: Catches modifications made in DevTools
+      const availWidth = window.screen?.availWidth || window.screen?.width || 0;
+      const isDesktopScreen = availWidth >= 800;
+      const isMobileSizedViewport = window.innerWidth <= 700;
+      const isDesktopPlatform = /Win32|Win64|Windows|Macintosh|MacIntel|Linux x86_64/i.test(navigator.userAgent || navigator.platform);
+
+      // Desktop machine with a simulated mobile viewport -> DevTools responsive mode
+      if (isDesktopScreen && isMobileSizedViewport && isDesktopPlatform) {
+        purgeAndLockdown();
+        return;
+      }
+
+      // Spoofed iOS UA check on desktop (Chrome device toolbar set to iPhone)
+      const isSpoofedIos = /iPhone|iPad|iPod/i.test(navigator.userAgent) && (!!(window as any).chrome || navigator.vendor !== 'Apple Computer, Inc.');
+      if (isSpoofedIos) {
+        purgeAndLockdown();
+        return;
+      }
+
+      // Spoofed Android UA check on desktop (Chrome device toolbar set to Pixel/Galaxy)
+      const isSpoofedAndroid = /Android/i.test(navigator.userAgent) && /Win32|Win64|MacIntel/i.test(navigator.platform);
+      if (isSpoofedAndroid) {
+        purgeAndLockdown();
+        return;
+      }
+    };
+
+    // I. Console Object Inspection Trap (Triggers when Console / Elements panel inspects elements)
+    const checkConsoleGetter = () => {
+      const div = document.createElement('div');
+      Object.defineProperty(div, 'id', {
+        get: () => {
+          purgeAndLockdown();
+          return '';
+        }
+      });
+      console.log('%c', div);
+      console.dir(div);
+    };
+
+    // J. Initial checks immediately upon page load / refresh
+    checkMobileEmulation();
+    checkDevTools();
+    checkConsoleGetter();
+
+    window.addEventListener("resize", checkDevTools, { passive: true });
+    window.addEventListener("resize", checkMobileEmulation, { passive: true });
+    const interval = setInterval(() => {
+      checkDevTools();
+      checkMobileEmulation();
+      checkConsoleGetter();
+    }, 400);
+
+    // K. disable-devtool engine integration (catches debugger, console, element inspect)
+    try {
+      DisableDevtool({
+        ondevtoolopen() {
+          purgeAndLockdown();
+        },
+        disableMenu: true,
+        interval: 300,
+      });
+    } catch (e) {}
+
+    // L. Anti-Tamper Observer: Catches modifications made in DevTools Elements tab
     const observer = new MutationObserver((mutations) => {
       if (isPurged) return;
-      const isDevToolsOpen = (window.outerWidth - window.innerWidth > 220) || (window.outerHeight - window.innerHeight > 320);
-      if (isDevToolsOpen) {
-        for (const m of mutations) {
-          if (m.type === 'characterData' || m.type === 'childList') {
+      for (const m of mutations) {
+        if (m.type === 'characterData' || m.type === 'childList') {
+          const availWidth = window.screen?.availWidth || window.screen?.width || 0;
+          const isDevToolsOpen = (window.outerWidth - window.innerWidth > 220) || 
+                                 (window.outerHeight - window.innerHeight > 320) || 
+                                 (availWidth >= 800 && window.innerWidth <= 700);
+          if (isDevToolsOpen) {
             purgeAndLockdown();
             return;
           }
@@ -196,6 +263,7 @@ export function SecurityEnforcer() {
       window.removeEventListener("keydown", handlePrintScreen);
       window.removeEventListener("dragstart", blockDrag);
       window.removeEventListener("resize", checkDevTools);
+      window.removeEventListener("resize", checkMobileEmulation);
       clearInterval(interval);
       observer.disconnect();
       document.body.classList.remove('window-unfocused-blur');
