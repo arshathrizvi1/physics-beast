@@ -69,8 +69,10 @@ jobs:
           curl -s http://127.0.0.1:4416/ping || curl -s http://127.0.0.1:4416 || echo "POT server starting up"
 
           # Copy plugin so both standalone yt-dlp and python3 -m yt_dlp load bgutil plugin
-          mkdir -p ~/.local/share/yt-dlp/plugins /etc/yt-dlp/plugins
-          python3 -c "import yt_dlp_plugins, shutil, os; p=yt_dlp_plugins.__path__[0]; shutil.copytree(p, '/etc/yt-dlp/plugins/yt_dlp_plugins', dirs_exist_ok=True); shutil.copytree(p, os.path.expanduser('~/.local/share/yt-dlp/plugins/yt_dlp_plugins'), dirs_exist_ok=True); print('Plugin copied successfully to yt-dlp search paths')" 2>/dev/null || true
+          mkdir -p ~/.local/share/yt-dlp/plugins
+          sudo mkdir -p /etc/yt-dlp/plugins || true
+          python3 -c "import yt_dlp_plugins, shutil, os; p=yt_dlp_plugins.__path__[0]; shutil.copytree(p, os.path.expanduser('~/.local/share/yt-dlp/plugins/yt_dlp_plugins'), dirs_exist_ok=True); print('Plugin copied successfully to yt-dlp search paths')" 2>/dev/null || true
+          sudo python3 -c "import yt_dlp_plugins, shutil, os; p=yt_dlp_plugins.__path__[0]; shutil.copytree(p, '/etc/yt-dlp/plugins/yt_dlp_plugins', dirs_exist_ok=True)" 2>/dev/null || true
 
           npm install playwright || true
           python3 -m yt_dlp --version
