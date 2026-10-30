@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Universal Resilient Video Downloader for Brilliant Academy
-Handles YouTube bot-detection, Zoom cloud recordings (with passcodes & Playwright fallback), and direct video streams.
+Handles YouTube bot-detection with Proof-of-Origin (PO) Token provider,
+Zoom cloud recordings (with passcodes & Playwright fallback), and direct video streams.
 """
 
 import sys
@@ -11,40 +12,45 @@ import json
 import urllib.request
 import socket
 
-def get_engine_args():
-    extra = []
-    # 1. Check if Cloudflare WARP socks5 proxy is running on port 40000
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(0.4)
+def get_ytdlp_base_cmd():
+    """
+    Prefer 'python3 -m yt_dlp' so that all pip-installed plugins (such as bgutil-ytdlp-pot-provider)
+    are loaded natively into the extractor lifecycle. Fallback to 'yt-dlp' binary if needed.
+    """
     try:
-        s.connect(('127.0.0.1', 40000))
-        s.close()
-        print("[Downloader] 🛡️ Cloudflare WARP proxy active on port 40000. Routing traffic through clean IP...")
-        extra.extend(["--proxy", "socks5://127.0.0.1:40000"])
-    except:
-        pass
-
-    # 2. Check if Deno is available for JavaScript challenges
-    try:
-        res = subprocess.run(["deno", "--version"], capture_output=True)
+        res = subprocess.run([sys.executable, "-m", "yt_dlp", "--version"], capture_output=True, text=True)
         if res.returncode == 0:
-            extra.extend(["--js-runtimes", "deno"])
-    except:
+            return [sys.executable, "-m", "yt_dlp"]
+    except Exception:
         pass
+    return ["yt-dlp"]
 
-    return extra
+def is_port_open(port, timeout=0.4):
+    """Check if a local port is listening."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    try:
+        s.connect(('127.0.0.1', port))
+        s.close()
+        return True
+    except Exception:
+        return False
 
 def try_download(cmd, desc):
     print(f"\n[Downloader] >> Attempting: {desc}...")
-    res = subprocess.run(cmd)
-    if res.returncode == 0 and os.path.exists("/tmp/video.mp4") and os.path.getsize("/tmp/video.mp4") > 1000:
-        size_mb = os.path.getsize("/tmp/video.mp4") / 1024 / 1024
-        print(f"[Downloader] ✅ Success with {desc}! File size: {size_mb:.1f} MB")
-        return True
+    try:
+        res = subprocess.run(cmd)
+        if res.returncode == 0 and os.path.exists("/tmp/video.mp4") and os.path.getsize("/tmp/video.mp4") > 1000:
+            size_mb = os.path.getsize("/tmp/video.mp4") / 1024 / 1024
+            print(f"[Downloader] ✅ Success with {desc}! File size: {size_mb:.1f} MB")
+            return True
+    except Exception as e:
+        print(f"[Downloader] Command error during {desc}: {e}")
+
     print(f"[Downloader] ⚠️ Failed attempt: {desc}")
     if os.path.exists("/tmp/video.mp4"):
         try: os.remove("/tmp/video.mp4")
-        except: pass
+        except Exception: pass
     return False
 
 def try_direct_curl(url, headers=None, desc="Direct Download"):
@@ -61,7 +67,7 @@ def try_direct_curl(url, headers=None, desc="Direct Download"):
         return True
     if os.path.exists("/tmp/video.mp4"):
         try: os.remove("/tmp/video.mp4")
-        except: pass
+        except Exception: pass
     return False
 
 def handle_zoom(url, password):
@@ -75,10 +81,11 @@ def handle_zoom(url, password):
         if try_direct_curl(url, desc="Zoom Cloud Recording Direct Stream"):
             return True
 
-    # 2. First attempt: yt-dlp Zoom extractor with --video-password
+    base_cmd = get_ytdlp_base_cmd()
     pw_args = ["--video-password", password] if password else []
-    zoom_strat1 = [
-        "yt-dlp",
+
+    # 2. First attempt: yt-dlp Zoom extractor with --video-password
+    zoom_strat1 = base_cmd + [
         "--no-playlist",
         "-S", "res:720,ext:mp4:m4a",
         "--merge-output-format", "mp4",
@@ -119,8 +126,7 @@ def handle_zoom(url, password):
                         headers["Referer"] = "https://zoom.us/"
 
                         # Try yt-dlp with extracted headers
-                        ext_cmd = [
-                            "yt-dlp",
+                        ext_cmd = base_cmd + [
                             "-S", "res:720,ext:mp4:m4a",
                             "--merge-output-format", "mp4",
                             "--retries", "5",
@@ -142,8 +148,7 @@ def handle_zoom(url, password):
             print(f"[Downloader] ⚠️ Playwright extractor error: {e}")
 
     # 4. Third attempt: Fallback generic yt-dlp
-    fallback_cmd = [
-        "yt-dlp",
+    fallback_cmd = base_cmd + [
         "--no-playlist",
         "--format", "best[ext=mp4]/best",
         "--retries", "5",
@@ -156,94 +161,136 @@ def handle_zoom(url, password):
     return False
 
 def handle_youtube(url, password):
+    base_cmd = get_ytdlp_base_cmd()
     cookies_file = "/tmp/cookies.txt"
     has_cookies = os.path.exists(cookies_file) and os.path.getsize(cookies_file) > 10
     pw_args = ["--video-password", password] if password else []
-    engine_args = get_engine_args()
 
-    # ── Strategy 1: iOS Mobile Client with Deno JS engine ──
-    strat1 = [
-        "yt-dlp",
+    # Check for Proof-of-Origin Token Server (bgutil-pot)
+    has_pot = is_port_open(4416)
+    if has_pot:
+        print("[Downloader] 🔑 BotGuard PO-Token Provider active on port 4416.")
+    pot_args = ["--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416"] if has_pot else []
+
+    # Check for Deno JS engine
+    has_deno = False
+    try:
+        if subprocess.run(["deno", "--version"], capture_output=True).returncode == 0:
+            has_deno = True
+            print("[Downloader] ⚡ Deno JS challenge runtime active.")
+    except Exception:
+        pass
+    deno_args = ["--js-runtimes", "deno"] if has_deno else []
+
+    # Check for Cloudflare WARP proxy
+    has_warp = is_port_open(40000)
+    warp_args = ["--proxy", "socks5://127.0.0.1:40000"] if has_warp else []
+
+    # ── Strategy 1: Direct Clean IP + PO-Token Provider + Android/Web Client ──
+    if has_pot:
+        strat1 = base_cmd + [
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=web,android",
+        ] + pot_args + deno_args + [
+            "-S", "res:720,vcodec:h264,ext:mp4:m4a",
+            "--merge-output-format", "mp4",
+            "--retries", "3",
+            "--fragment-retries", "3",
+            "-o", "/tmp/video.mp4"
+        ] + pw_args + [url]
+        if try_download(strat1, "Direct IP + PO-Token Provider (Web/Android Client)"):
+            return True
+
+    # ── Strategy 2: Direct Clean IP + PO-Token Provider + Web Creator Client ──
+    if has_pot:
+        strat2 = base_cmd + [
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=web_creator",
+        ] + pot_args + deno_args + [
+            "-S", "res:720,vcodec:h264,ext:mp4:m4a",
+            "--merge-output-format", "mp4",
+            "--retries", "3",
+            "-o", "/tmp/video.mp4"
+        ] + pw_args + [url]
+        if try_download(strat2, "Direct IP + PO-Token Provider (Web Creator Studio Client)"):
+            return True
+
+    # ── Strategy 3: Direct Clean IP + iOS/MWeb Client (Deno JS runtime) ──
+    strat3 = base_cmd + [
         "--no-playlist",
         "--extractor-args", "youtube:player_client=ios,mweb",
+    ] + deno_args + [
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "--merge-output-format", "mp4",
-        "--retries", "5",
-        "--fragment-retries", "5",
+        "--retries", "3",
+        "--fragment-retries", "3",
         "-o", "/tmp/video.mp4"
-    ] + engine_args + pw_args + [url]
-
-    if try_download(strat1, "iOS/MWeb Client (Clean & Deno JS)"):
+    ] + pw_args + [url]
+    if try_download(strat3, "Direct Clean IP (iOS/MWeb Client + Deno JS)"):
         return True
 
-    # ── Strategy 2: Mobile Web (mweb) Client ──
-    strat2 = [
-        "yt-dlp",
+    # ── Strategy 4: TV & Embedded Player Client (Bypasses BotGuard on Many Streams) ──
+    strat4 = base_cmd + [
         "--no-playlist",
-        "--extractor-args", "youtube:player_client=mweb",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "--merge-output-format", "mp4",
-        "--retries", "5",
-        "--fragment-retries", "5",
-        "-o", "/tmp/video.mp4"
-    ] + engine_args + pw_args + [url]
-
-    if try_download(strat2, "Mobile Web (mweb) Client"):
-        return True
-
-    # ── Strategy 3: TV Client ──
-    strat3 = [
-        "yt-dlp",
-        "--no-playlist",
-        "--extractor-args", "youtube:player_client=tv",
+        "--extractor-args", "youtube:player_client=tv_embedded,tv",
         "-f", "best[height<=720]/best",
         "--merge-output-format", "mp4",
-        "--retries", "5",
+        "--retries", "3",
         "-o", "/tmp/video.mp4"
-    ] + engine_args + pw_args + [url]
-
-    if try_download(strat3, "TV Client"):
+    ] + pw_args + [url]
+    if try_download(strat4, "TV / Embedded Client (Direct Clean IP)"):
         return True
 
-    # ── Strategy 4: Web/Android with PO Token Provider ──
-    strat4 = [
-        "yt-dlp",
-        "--no-playlist",
-        "--extractor-args", "youtube:player_client=web,android",
-        "-S", "res:720,vcodec:h264,ext:mp4:m4a",
-        "--merge-output-format", "mp4",
-        "--retries", "5",
-        "-o", "/tmp/video.mp4"
-    ] + engine_args + pw_args + [url]
+    # ── Strategy 5: WARP Proxy + PO-Token Provider (If runner IP is rate limited) ──
+    if has_warp and has_pot:
+        strat5 = base_cmd + [
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=web,android",
+        ] + pot_args + warp_args + deno_args + [
+            "-S", "res:720,vcodec:h264,ext:mp4:m4a",
+            "--merge-output-format", "mp4",
+            "--retries", "3",
+            "-o", "/tmp/video.mp4"
+        ] + pw_args + [url]
+        if try_download(strat5, "WARP Proxy + PO-Token Provider (Web/Android Client)"):
+            return True
 
-    if try_download(strat4, "Web/Android Client via PO Token Provider"):
-        return True
+    # ── Strategy 6: WARP Proxy + iOS/MWeb Client ──
+    if has_warp:
+        strat6 = base_cmd + [
+            "--no-playlist",
+            "--extractor-args", "youtube:player_client=ios,mweb",
+        ] + warp_args + deno_args + [
+            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "--merge-output-format", "mp4",
+            "--retries", "3",
+            "-o", "/tmp/video.mp4"
+        ] + pw_args + [url]
+        if try_download(strat6, "WARP Proxy (iOS/MWeb Client)"):
+            return True
 
-    # ── Strategy 5: With Cookies (if available) ──
+    # ── Strategy 7: Account Cookies (If configured and non-empty) ──
     if has_cookies:
-        strat5 = [
-            "yt-dlp",
+        strat7 = base_cmd + [
             "--no-playlist",
             "--cookies", cookies_file,
             "--extractor-args", "youtube:player_client=web,mweb",
             "-S", "res:720,vcodec:h264,ext:mp4:m4a",
             "--merge-output-format", "mp4",
-            "--retries", "5",
+            "--retries", "3",
             "-o", "/tmp/video.mp4"
-        ] + engine_args + pw_args + [url]
-        if try_download(strat5, "Web Client with Cookies"):
+        ] + pw_args + [url]
+        if try_download(strat7, "Web Client with Account Cookies"):
             return True
 
-    # ── Strategy 6: Universal Any Client Fallback ──
-    strat6 = [
-        "yt-dlp",
+    # ── Strategy 8: Universal Generic Fallback ──
+    strat8 = base_cmd + [
         "--no-playlist",
         "--format", "best[ext=mp4]/best",
-        "--retries", "5",
+        "--retries", "3",
         "-o", "/tmp/video.mp4"
-    ] + engine_args + pw_args + [url]
-
-    if try_download(strat6, "Universal Generic Fallback"):
+    ] + pw_args + [url]
+    if try_download(strat8, "Universal Generic Fallback"):
         return True
 
     return False
@@ -258,7 +305,6 @@ def main():
 
     print(f"[Downloader] 🚀 Starting download for: {url}")
 
-    # Determine platform
     is_zoom = "zoom.us" in url
     is_youtube = "youtube.com" in url or "youtu.be" in url
 
@@ -267,10 +313,9 @@ def main():
     elif is_youtube:
         success = handle_youtube(url, password)
     else:
-        # Generic direct link or MP4
         print("[Downloader] 🌐 Generic video link detected, attempting direct download...")
-        success = try_download([
-            "yt-dlp",
+        base_cmd = get_ytdlp_base_cmd()
+        success = try_download(base_cmd + [
             "--no-playlist",
             "-S", "res:720,ext:mp4:m4a",
             "--merge-output-format", "mp4",

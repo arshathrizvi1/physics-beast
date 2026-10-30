@@ -42,31 +42,34 @@ export async function POST(request: Request) {
 
       console.log(`[Download] Routing to AWS EC2 server: ${awsUrl}`);
 
-      const res = await fetch(awsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
-      });
+      try {
+        const res = await fetch(awsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
+          signal: AbortSignal.timeout(5000),
+        });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        return NextResponse.json({ error: 'EC2 server error: ' + errText }, { status: res.status });
+        if (res.ok) {
+          const data = await res.json();
+          await adminDb.collection('notifications').add({
+            title: '🎥 Recording Download Started (AWS)',
+            message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading.`,
+            type: 'info',
+            link: '/admin',
+            createdAt: Date.now(),
+            isGlobal: true,
+            readBy: [],
+            clearedBy: [],
+          });
+          return NextResponse.json(data);
+        } else {
+          const errText = await res.text();
+          console.warn(`[Download] AWS EC2 returned ${res.status}: ${errText}. Falling back to GitHub Actions...`);
+        }
+      } catch (awsErr: any) {
+        console.warn(`[Download] AWS EC2 server unreachable (${awsErr.message}). Automatically falling back to GitHub Actions Pipeline...`);
       }
-
-      const data = await res.json();
-
-      await adminDb.collection('notifications').add({
-        title: '🎥 Recording Download Started (AWS)',
-        message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading.`,
-        type: 'info',
-        link: '/admin',
-        createdAt: Date.now(),
-        isGlobal: true,
-        readBy: [],
-        clearedBy: [],
-      });
-
-      return NextResponse.json(data);
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-name: Upload to Bunny Stream
+name: 📤 Upload to Bunny Stream
 on:
   repository_dispatch:
     types: [bunny-upload]
@@ -12,7 +12,7 @@ jobs:
           echo "Downloading video from URL..."
           wget "${{ github.event.client_payload.videoUrl }}" -O video.mp4
 
-      - name: Upload to Bunny Stream
+      - name: 📤 Upload to Bunny Stream
         run: |
           echo "Uploading to Bunny Stream API..."
           curl -X PUT "https://video.bunnycdn.com/library/${{ secrets.BUNNY_LIBRARY_ID }}/videos/${{ github.event.client_payload.videoId }}" \

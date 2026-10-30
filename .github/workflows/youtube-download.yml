@@ -1,4 +1,4 @@
-name: Video Processing Pipeline (Cloudflare R2 HLS + Bunny)
+name: 📥 Video Download & Transcode Pipeline (YouTube/Zoom -> R2 + Bunny)
 
 on:
   repository_dispatch:
@@ -62,8 +62,18 @@ jobs:
             -o /usr/local/bin/yt-dlp
           sudo chmod +x /usr/local/bin/yt-dlp
           python3 -m pip install --upgrade pip yt-dlp bgutil-ytdlp-pot-provider || true
-          docker run -d --name bgutil-pot -p 4416:4416 ghcr.io/jim60105/bgutil-pot:latest server || true
+          
+          # Start PO-Token generation server (BotGuard emulator)
+          docker run -d --name bgutil-pot -p 4416:4416 --restart=always ghcr.io/jim60105/bgutil-pot:latest server || true
+          sleep 4
+          curl -s http://127.0.0.1:4416/ping || curl -s http://127.0.0.1:4416 || echo "POT server starting up"
+
+          # Copy plugin so both standalone yt-dlp and python3 -m yt_dlp load bgutil plugin
+          mkdir -p ~/.local/share/yt-dlp/plugins /etc/yt-dlp/plugins
+          python3 -c "import yt_dlp_plugins, shutil, os; p=yt_dlp_plugins.__path__[0]; shutil.copytree(p, '/etc/yt-dlp/plugins/yt_dlp_plugins', dirs_exist_ok=True); shutil.copytree(p, os.path.expanduser('~/.local/share/yt-dlp/plugins/yt_dlp_plugins'), dirs_exist_ok=True); print('Plugin copied successfully to yt-dlp search paths')" 2>/dev/null || true
+
           npm install playwright || true
+          python3 -m yt_dlp --version
           yt-dlp --version
           ffmpeg -version | head -n 1
           deno --version
