@@ -35,7 +35,12 @@ const getSecureStreamUrl = (rawUrl: string) => {
   if (rawUrl.includes('r2.dev/') || rawUrl.includes('r2.cloudflarestorage.com/')) {
     const parts = rawUrl.split(/r2\.dev\/|r2\.cloudflarestorage\.com\/[^\/]+\//);
     if (parts.length > 1) {
-      return `/api/stream/hls/${parts[1]}`;
+      try {
+        const u = new URL(rawUrl);
+        return `/api/stream/hls/${parts[1]}?host=${encodeURIComponent(u.hostname)}`;
+      } catch (e) {
+        return `/api/stream/hls/${parts[1]}`;
+      }
     }
   }
   return rawUrl;
@@ -637,77 +642,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   // Stealth Canvas Video Pipeline (Neutralizes IDM's floating button)
   // IDM's native overlay placement checks `window.getComputedStyle(video).opacity == 0`.
-  // When opacity is 0, IDM's position calculator aborts and refuses to place the floating toolbar.
-  // Hardware-accelerated canvas mirrors the decoded video frames with zero loss or latency.
+  // Native GPU-accelerated video presentation
   useEffect(() => {
-    if (activeServer === 'youtube' || (activeServer === 'bunny' && activeVideo?.platform === 'bunny')) {
-      return;
-    }
-
-    let animId: number | null = null;
-    let rvfcId: number | null = null;
-    let isCancelled = false;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d', { alpha: false });
-
-    const drawCurrentFrame = () => {
-      const internal = playerRef.current?.getInternalPlayer();
-      if (internal && internal instanceof HTMLVideoElement && canvas && ctx) {
-        if (internal.videoWidth > 0 && internal.videoHeight > 0) {
-          if (canvas.width !== internal.videoWidth || canvas.height !== internal.videoHeight) {
-            canvas.width = internal.videoWidth;
-            canvas.height = internal.videoHeight;
-          }
-          try {
-            ctx.drawImage(internal, 0, 0, canvas.width, canvas.height);
-          } catch (e) {}
-        }
-      }
-    };
-
-    const renderLoop = () => {
-      if (isCancelled) return;
-      drawCurrentFrame();
-
-      const internal = playerRef.current?.getInternalPlayer();
-      if (internal && internal instanceof HTMLVideoElement && 'requestVideoFrameCallback' in internal) {
-        rvfcId = (internal as any).requestVideoFrameCallback(renderLoop);
-      } else {
-        animId = requestAnimationFrame(renderLoop);
-      }
-    };
-
-    const handleVideoEvent = () => {
-      drawCurrentFrame();
-    };
-
-    const internal = playerRef.current?.getInternalPlayer();
-    if (internal && internal instanceof HTMLVideoElement) {
-      internal.addEventListener('seeked', handleVideoEvent);
-      internal.addEventListener('loadeddata', handleVideoEvent);
-      internal.addEventListener('canplay', handleVideoEvent);
-      internal.addEventListener('timeupdate', handleVideoEvent);
-    }
-
-    renderLoop();
-
-    return () => {
-      isCancelled = true;
-      if (animId) cancelAnimationFrame(animId);
-      const playerEl = playerRef.current?.getInternalPlayer();
-      if (playerEl && playerEl instanceof HTMLVideoElement) {
-        if (rvfcId && 'cancelVideoFrameCallback' in playerEl) {
-          (playerEl as any).cancelVideoFrameCallback(rvfcId);
-        }
-        playerEl.removeEventListener('seeked', handleVideoEvent);
-        playerEl.removeEventListener('loadeddata', handleVideoEvent);
-        playerEl.removeEventListener('canplay', handleVideoEvent);
-        playerEl.removeEventListener('timeupdate', handleVideoEvent);
-      }
-    };
+    return;
   }, [activeVideo?.id, activeServer]);
 
   // DVD-style bouncing watermark ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â covers full player
@@ -1533,12 +1470,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                         )}
 
-                        {/* Hardware-Accelerated Stealth Canvas Video Renderer */}
+                        {/* Hardware-Accelerated Video Renderer */}
                         <canvas 
                           ref={canvasRef}
-                          className={`absolute inset-0 w-full h-full object-contain pointer-events-none z-10 ${
-                            activeServer === 'youtube' || (activeServer === 'bunny' && activeVideo.platform === 'bunny') ? 'hidden' : ''
-                          }`}
+                          className="hidden"
                         />
 
                         <div 
@@ -1546,9 +1481,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             (activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny')
                               ? 'hidden'
                               : ''
-                          } ${activeServer !== 'youtube' ? 'opacity-0' : ''}`}
+                          }`}
                           style={{
-                            pointerEvents: isAdjustingQuality ? 'auto' : 'none'
+                            pointerEvents: 'auto'
                           }}
                         >
                           <ReactPlayer
@@ -1601,6 +1536,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         } else if (activeServer === 'r2' && isBunnyPermitted && (activeVideo?.videoId || activeVideo?.platform === 'bunny')) {
                           console.info("R2 playback failed, automatically falling over to Bunny source...");
                           setActiveServer('bunny');
+                        } else if (activeServer === 'r2' && isYoutubePermitted && (activeVideo?.originalYoutubeUrl || activeVideo?.platform === 'youtube')) {
+                          console.info("R2 playback failed, automatically falling over to YouTube source...");
+                          setActiveServer('youtube');
                         } else if (activeServer === 'youtube' && isBunnyPermitted && (activeVideo?.videoId || activeVideo?.platform === 'bunny')) {
                           console.info("YouTube playback failed, automatically falling over to Bunny source...");
                           setActiveServer('bunny');
@@ -1722,8 +1660,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             onContextMenu: (e: any) => { e.preventDefault(); e.stopPropagation(); },
                             onDragStart: (e: any) => { e.preventDefault(); e.stopPropagation(); },
                             disablePictureInPicture: true,
+                            crossOrigin: "anonymous",
                             style: {
-                              opacity: 0,
                               width: '100%',
                               height: '100%',
                               objectFit: 'contain'
