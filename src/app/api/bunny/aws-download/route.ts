@@ -23,38 +23,45 @@ export async function POST(request: Request) {
       } catch (e) {}
     }
 
-    // Pipeline selection: 'auto' (smart hybrid), 'aws' (EC2 VPS), or 'github' (Serverless)
-    // - YouTube URLs route through AWS EC2 by default to bypass datacenter IP restrictions
-    // - Zoom URLs route through GitHub Actions serverless pipeline
-    const pipeline = (process.env.DOWNLOAD_PIPELINE || 'auto').toLowerCase();
-    const isYoutube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
-    const useAws = pipeline === 'aws' || (pipeline === 'auto' && isYoutube);
+    // Pipeline selection: 'github' (Serverless with PO-Token provider), 'aws' (EC2 VPS), or 'auto'
+    const pipeline = (process.env.DOWNLOAD_PIPELINE || 'github').toLowerCase();
+    const useAwsFirst = pipeline === 'aws';
 
     // ─────────────────────────────────────────────────────────────
-    // 1. AWS EC2 Pipeline (Primary for YouTube / High reliability)
+    // 1. Primary: GitHub Actions Pipeline (Serverless + BotGuard PO-Token)
     // ─────────────────────────────────────────────────────────────
-    if (useAws) {
-      const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
-      const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
-      const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
-      const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
-      const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
+    const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
+    const githubOwner = process.env.GITHUB_REPO_OWNER || 'arshathrizvi1';
+    const githubRepo  = process.env.GITHUB_REPO_NAME  || 'physics-beast';
 
-      console.log(`[Download] Routing to AWS EC2 server: ${awsUrl}`);
+    if (!useAwsFirst && githubToken) {
+      const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+      console.log(`[Download] Triggering GitHub Actions dispatch: ${dispatchUrl}`);
 
       try {
-        const res = await fetch(awsUrl, {
+        const dispatchRes = await fetch(dispatchUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
-          signal: AbortSignal.timeout(5000),
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event_type: 'youtube-download',
+            client_payload: {
+              url: targetUrl,
+              password: password || '',
+              title: title || 'Untitled Video',
+              metadata: metadata || {},
+            },
+          }),
         });
 
-        if (res.ok) {
-          const data = await res.json();
+        if (dispatchRes.ok) {
           await adminDb.collection('notifications').add({
-            title: '🎥 Recording Download Started (AWS)',
-            message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading.`,
+            title: '🎬 Video Download Started (GitHub Actions)',
+            message: `"${title}" is downloading and transcoding into multi-quality HLS for Cloudflare R2 / Bunny via GitHub Actions.`,
             type: 'info',
             link: '/admin',
             createdAt: Date.now(),
@@ -62,76 +69,64 @@ export async function POST(request: Request) {
             readBy: [],
             clearedBy: [],
           });
-          return NextResponse.json(data);
+
+          return NextResponse.json({
+            success: true,
+            message: 'GitHub Actions video pipeline triggered successfully',
+            pipeline: 'github'
+          });
         } else {
-          const errText = await res.text();
-          console.warn(`[Download] AWS EC2 returned ${res.status}: ${errText}. Falling back to GitHub Actions...`);
+          const errText = await dispatchRes.text();
+          console.warn(`[Download] GitHub Actions dispatch returned ${dispatchRes.status}: ${errText}. Falling back to AWS EC2...`);
         }
-      } catch (awsErr: any) {
-        console.warn(`[Download] AWS EC2 server unreachable (${awsErr.message}). Automatically falling back to GitHub Actions Pipeline...`);
+      } catch (ghErr: any) {
+        console.warn(`[Download] GitHub Actions dispatch failed (${ghErr.message}). Falling back to AWS EC2...`);
       }
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 2. GitHub Actions Pipeline (Option 1: Free Serverless R2 HLS)
+    // 2. Secondary / Fallback: AWS EC2 Pipeline
     // ─────────────────────────────────────────────────────────────
-    const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
-    const githubOwner = process.env.GITHUB_REPO_OWNER || 'arshathrizvi1';
-    const githubRepo  = process.env.GITHUB_REPO_NAME  || 'physics-beast';
+    const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+    const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
+    const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
+    const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
+    const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
 
-    if (!githubToken) {
-      console.warn('[Download] GITHUB_ACTIONS_TOKEN not set in environment.');
-      return NextResponse.json({
-        error: 'GITHUB_ACTIONS_TOKEN is not configured in your website environment variables. Please add GITHUB_ACTIONS_TOKEN to your .env.local / Vercel / Cloudflare variables, or set DOWNLOAD_PIPELINE=aws to continue using the AWS server.'
-      }, { status: 500 });
+    console.log(`[Download] Routing to AWS EC2 server: ${awsUrl}`);
+
+    try {
+      const res = await fetch(awsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        await adminDb.collection('notifications').add({
+          title: '🎥 Recording Download Started (AWS)',
+          message: `The EC2 proxy is now downloading "${title}". You will be notified once it finishes uploading.`,
+          type: 'info',
+          link: '/admin',
+          createdAt: Date.now(),
+          isGlobal: true,
+          readBy: [],
+          clearedBy: [],
+        });
+        return NextResponse.json(data);
+      } else {
+        const errText = await res.text();
+        console.warn(`[Download] AWS EC2 returned ${res.status}: ${errText}`);
+      }
+    } catch (awsErr: any) {
+      console.warn(`[Download] AWS EC2 server unreachable (${awsErr.message})`);
     }
-
-    const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
-    console.log(`[Download] Triggering GitHub Actions dispatch: ${dispatchUrl}`);
-
-    const dispatchRes = await fetch(dispatchUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'youtube-download',
-        client_payload: {
-          url: targetUrl,
-          password: password || '',
-          title: title || 'Untitled Video',
-          metadata: metadata || {},
-        },
-      }),
-    });
-
-    if (!dispatchRes.ok) {
-      const errText = await dispatchRes.text();
-      console.error('[GitHub Actions Trigger Failed]:', errText);
-      return NextResponse.json({
-        error: `Failed to trigger GitHub Actions (${dispatchRes.status}): ${errText}`
-      }, { status: dispatchRes.status });
-    }
-
-    await adminDb.collection('notifications').add({
-      title: '🎬 Video Download Started (GitHub Actions)',
-      message: `"${title}" is downloading and transcoding into multi-quality HLS for Cloudflare R2 / Bunny via GitHub Actions.`,
-      type: 'info',
-      link: '/admin',
-      createdAt: Date.now(),
-      isGlobal: true,
-      readBy: [],
-      clearedBy: [],
-    });
 
     return NextResponse.json({
-      success: true,
-      message: 'GitHub Actions video pipeline triggered successfully',
-      pipeline: 'github'
-    });
+      error: 'Unable to start video download: neither GitHub Actions nor AWS EC2 pipeline could be reached.'
+    }, { status: 500 });
 
   } catch (error: any) {
     console.error('[Download API Error]:', error);
