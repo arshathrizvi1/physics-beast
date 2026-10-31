@@ -22,7 +22,7 @@ class SecurityService {
     }
   }
 
-  /// 2, 3, 4, 5. Comprehensive 7-Tier Security Verification
+  /// 2, 3, 4, 5. Comprehensive Zero-Trust Device Integrity Verification (Fail-Closed)
   static Future<SecurityCheckResult> verifyDeviceIntegrity() async {
     if (kDebugMode) {
       return SecurityCheckResult(isSecure: true);
@@ -41,37 +41,45 @@ class SecurityService {
 
       // 2. Native Root, Hooking & Keystore Signature Check
       final dynamic nativeResult = await _channel.invokeMethod('checkSecurity');
-      if (nativeResult is Map) {
-        final bool passed = nativeResult['passed'] ?? false;
-        final bool signatureValid = nativeResult['signatureValid'] ?? false;
-        final bool envSafe = nativeResult['envSafe'] ?? false;
+      if (nativeResult is! Map) {
+        return SecurityCheckResult(
+          isSecure: false,
+          failureReason: "Native security bridge did not return a valid attestation payload.",
+        );
+      }
 
-        if (!signatureValid) {
-          return SecurityCheckResult(
-            isSecure: false,
-            failureReason: "Application signature mismatch. Unofficial or modified APK detected.",
-          );
-        }
+      final bool passed = nativeResult['passed'] == true;
+      final bool signatureValid = nativeResult['signatureValid'] == true;
+      final bool envSafe = nativeResult['envSafe'] == true;
 
-        if (!envSafe) {
-          return SecurityCheckResult(
-            isSecure: false,
-            failureReason: "Rooted device or Superuser binary detected. Premium video content cannot run on compromised devices.",
-          );
-        }
+      if (!signatureValid) {
+        return SecurityCheckResult(
+          isSecure: false,
+          failureReason: "Application signature mismatch. Unofficial or modified APK detected.",
+        );
+      }
 
-        if (!passed) {
-          return SecurityCheckResult(
-            isSecure: false,
-            failureReason: "Device integrity check failed.",
-          );
-        }
+      if (!envSafe) {
+        return SecurityCheckResult(
+          isSecure: false,
+          failureReason: "Rooted device, Frida/Xposed hook, or Superuser binary detected. Premium video content cannot run on compromised devices.",
+        );
+      }
+
+      if (!passed) {
+        return SecurityCheckResult(
+          isSecure: false,
+          failureReason: "Zero-Trust device integrity check failed.",
+        );
       }
 
       return SecurityCheckResult(isSecure: true);
     } catch (e) {
-      debugPrint("Security evaluation exception: $e");
-      return SecurityCheckResult(isSecure: true);
+      debugPrint("Security evaluation exception (Fail-Closed): $e");
+      return SecurityCheckResult(
+        isSecure: false,
+        failureReason: "Unable to verify device security posture.",
+      );
     }
   }
 
@@ -79,14 +87,21 @@ class SecurityService {
   static Future<String> generateSecureVideoUrl(String videoId) async {
     final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
     try {
-      final String token = await _channel.invokeMethod('getCloudSignature', {
+      final String? token = await _channel.invokeMethod<String>('getCloudSignature', {
         'videoId': videoId,
         'timestamp': timestamp,
       });
 
+      if (token == null || token.isEmpty) {
+        throw PlatformException(code: 'EMPTY_SIG', message: 'Empty DRM signature returned');
+      }
+
       return "https://vz-7422f6bf-7e4.b-cdn.net/$videoId/playlist.m3u8?token=$token&expires=$timestamp";
     } catch (e) {
-      return "https://vz-7422f6bf-7e4.b-cdn.net/$videoId/playlist.m3u8";
+      if (kDebugMode) {
+        return "https://vz-7422f6bf-7e4.b-cdn.net/$videoId/playlist.m3u8";
+      }
+      throw StateError("DRM signature generation refused on untrusted device.");
     }
   }
 }

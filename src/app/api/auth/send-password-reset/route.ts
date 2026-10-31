@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
+import { getServerEnv } from '@/security/env';
+import { sanitizeEmail, sanitizeText } from '@/security/sanitize';
+import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+export const POST = withZeroTrustGate(
+  {
+    scope: 'auth_send_password_reset',
+    limit: 10,
+    windowMs: 60 * 1000,
+  },
+  async (req, ctx) => {
+    const parsed = await parseAndVerifyJsonBody<{ email?: string }>(req, ctx);
+    if (!parsed.ok) return parsed.response;
 
-export async function POST(req: Request) {
-  try {
-    const { email } = await req.json();
-    
+    const email = sanitizeEmail(parsed.body.email);
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
     }
 
     if (!adminAuth) {
@@ -21,22 +29,21 @@ export async function POST(req: Request) {
       handleCodeInApp: true,
     };
 
-    // 1. Generate the secure reset link via Firebase Admin SDK
     const rawLink = await adminAuth.generatePasswordResetLink(email, actionCodeSettings);
     const urlObj = new URL(rawLink);
     const oobCode = urlObj.searchParams.get('oobCode');
     const resetLink = `https://brillliantacademy.site/login?mode=resetPassword&oobCode=${oobCode}`;
 
-    // 2. Fetch user's name if possible
     let name = 'Student';
     try {
       const userRecord = await adminAuth.getUserByEmail(email);
       if (userRecord.displayName) {
-        name = userRecord.displayName;
+        name = sanitizeText(userRecord.displayName, 80);
       }
-    } catch (e) {}
+    } catch {
+      // Fallback
+    }
 
-    // 3. Create our custom branded HTML email
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px; background-color: #0a0a0a; color: #ffffff;">
         <div style="text-align: center; margin-bottom: 20px;">
@@ -52,12 +59,13 @@ export async function POST(req: Request) {
           <p style="color: #888888; font-size: 14px; line-height: 1.5; margin-bottom: 0;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
         </div>
         <div style="text-align: center; margin-top: 20px;">
-          <p style="color: #666666; font-size: 12px;">Ã‚Â© ${new Date().getFullYear()} Brilliant Academy. All rights reserved.</p>
+          <p style="color: #666666; font-size: 12px;">© ${new Date().getFullYear()} Brilliant Academy. All rights reserved.</p>
         </div>
       </div>
     `;
 
-    // 4. Send it using Resend
+    const env = getServerEnv();
+    const resend = new Resend(env.RESEND_API_KEY);
     const data = await resend.emails.send({
       from: 'Brilliant Academy <admin@brillliantacademy.site>',
       to: email,
@@ -66,10 +74,5 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, data });
-  } catch (error: any) {
-    console.error('Password reset API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
-
-
+);

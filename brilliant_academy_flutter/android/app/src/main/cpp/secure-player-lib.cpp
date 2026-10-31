@@ -1,6 +1,8 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <algorithm>
 #include <android/log.h>
 #include <cstdlib>
 #include <unistd.h>
@@ -10,15 +12,16 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 // Obfuscated string decoder
-std::string decryptString(std::vector<int> encrypted, int key) {
+std::string decryptString(const std::vector<int>& encrypted, int key) {
     std::string decrypted = "";
+    decrypted.reserve(encrypted.size());
     for (size_t i = 0; i < encrypted.size(); i++) {
-        decrypted += (char)(encrypted[i] ^ key);
+        decrypted += static_cast<char>(encrypted[i] ^ key);
     }
     return decrypted;
 }
 
-// "BrilliantAcademy_SuperSecretKey_2026!$" XOR'd with 42
+// Obfuscated DRM key material (XOR stream)
 const std::vector<int> ENC_CLOUD_SECRET = {
     104, 88, 67, 70, 70, 67, 75, 68, 94, 107, 73, 75, 78, 79, 71, 83, 117, 121, 95, 90, 79, 88, 121, 79, 73, 88, 79, 94, 97, 79, 83, 117, 24, 26, 24, 28, 11, 14
 };
@@ -31,25 +34,43 @@ const std::vector<int> ENC_OFFICIAL_SIG = {
 #define CLOUD_SECRET_KEY decryptString(ENC_CLOUD_SECRET, 42)
 #define OFFICIAL_SIGNATURE decryptString(ENC_OFFICIAL_SIG, 42)
 
-extern "C" JNIEXPORT jboolean JNICALL
-Java_com_brilliantacademy_app_MainActivity_nativeCheckEnvironment(
-        JNIEnv* env,
-        jobject thiz) {
-    // 1. Root & Hooking checks in C++
+static bool isRootedOrHooked() {
     const char* rootPaths[] = {
         "/sbin/su", "/system/bin/su", "/system/xbin/su", "/data/local/xbin/su",
         "/data/local/bin/su", "/system/sd/xbin/su", "/system/bin/failsafe/su",
         "/data/local/su", "/su/bin/su", "/magisk/.core/bin/su", "/data/adb/magisk",
-        "/data/adb/modules/lsposed", "/system/app/Superuser.apk"
+        "/data/adb/modules/lsposed", "/system/app/Superuser.apk", "/data/adb/ksud"
     };
 
-    for (int i = 0; i < 13; i++) {
+    for (size_t i = 0; i < sizeof(rootPaths) / sizeof(rootPaths[0]); i++) {
         if (access(rootPaths[i], F_OK) == 0) {
             LOGE("SECURITY ALERT: Root or LSPosed binary detected at %s", rootPaths[i]);
-            return JNI_FALSE;
+            return true;
         }
     }
-    return JNI_TRUE;
+
+    std::ifstream mapsFile("/proc/self/maps");
+    if (mapsFile.is_open()) {
+        std::string line;
+        while (std::getline(mapsFile, line)) {
+            std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+            if (line.find("frida") != std::string::npos ||
+                line.find("xposed") != std::string::npos ||
+                line.find("substrate") != std::string::npos ||
+                line.find("lsposed") != std::string::npos) {
+                LOGE("SECURITY ALERT: Instrumentation hook detected in /proc/self/maps");
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_brilliantacademy_app_MainActivity_nativeCheckEnvironment(
+        JNIEnv* env,
+        jobject thiz) {
+    return isRootedOrHooked() ? JNI_FALSE : JNI_TRUE;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -58,6 +79,11 @@ Java_com_brilliantacademy_app_MainActivity_nativeGetCloudSignature(
         jobject thiz,
         jstring videoId,
         jstring timestamp) {
+
+    if (isRootedOrHooked()) {
+        LOGE("SECURITY BLOCK: Refusing cloud signature on compromised environment.");
+        return env->NewStringUTF("");
+    }
 
     const char *vid = env->GetStringUTFChars(videoId, nullptr);
     const char *ts = env->GetStringUTFChars(timestamp, nullptr);

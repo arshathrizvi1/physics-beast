@@ -1,0 +1,32 @@
+rules:
+  - id: brilliant-no-hardcoded-secret-keys
+    patterns:
+      - pattern-regex: \b(sk_test_[0-9a-zA-Z]{16,}|sk_live_[0-9a-zA-Z]{16,}|re_[0-9a-zA-Z_]{16,}|AQ\.[0-9a-zA-Z_-]{20,})
+    message: "Hardcoded API secret key detected. Use getServerEnv() from src/security/env.ts."
+    languages: [typescript, javascript, json, yaml]
+    severity: ERROR
+
+  - id: brilliant-no-public-secret-env
+    patterns:
+      - pattern-regex: NEXT_PUBLIC_[A-Z0-9_]*(SECRET|PRIVATE_KEY|PASSWORD)\b
+    message: "Sensitive secret exposed via NEXT_PUBLIC_ environment variable."
+    languages: [typescript, javascript]
+    severity: ERROR
+
+  - id: brilliant-no-eval-execution
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+    message: "Dynamic code evaluation (eval / new Function) is prohibited under Brilliant Academy Zero-Trust policy."
+    languages: [typescript, javascript]
+    severity: ERROR
+
+  - id: brilliant-no-wildcard-cors-on-hls-stream
+    patterns:
+      - pattern: "'Access-Control-Allow-Origin': '*'"
+    paths:
+      include:
+        - src/app/api/stream/**
+    message: "Wildcard CORS is prohibited on encrypted HLS stream and AES-128 key endpoints. Use resolveCorsOrigin(request)."
+    languages: [typescript, javascript]
+    severity: ERROR

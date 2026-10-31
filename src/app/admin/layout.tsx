@@ -3,30 +3,47 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import { auth } from "@/lib/firebase";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isVerified, setIsVerified] = useState(false);
-  
+
   useEffect(() => {
     if (loading) return;
-    
+
     // Non-admins/teachers shouldn't be here
     if (!user || (user.role !== "admin" && user.role !== "teacher")) {
       router.replace("/");
       return;
     }
 
+    // Bind hardware-fingerprinted 30-minute HttpOnly admin session cookie
+    auth.currentUser
+      ?.getIdToken()
+      .then((idToken) => {
+        if (idToken) {
+          fetch("/api/auth/session", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${idToken}` },
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+
     // Check if running on Phone App (Capacitor native platform)
-    const isCapacitor = typeof window !== "undefined" && ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor);
+    const isCapacitor =
+      typeof window !== "undefined" &&
+      ((window as any).Capacitor?.isNativePlatform?.() || !!(window as any).Capacitor);
 
     // Check if 2FA passed for this session, persistent storage, or on phone app
-    const passed2FA = isCapacitor || 
-                      sessionStorage.getItem("admin_2fa_passed") === "true" || 
-                      localStorage.getItem("admin_2fa_passed") === "true";
-    
+    const passed2FA =
+      isCapacitor ||
+      sessionStorage.getItem("admin_2fa_passed") === "true" ||
+      localStorage.getItem("admin_2fa_passed") === "true";
+
     // Admins/Teachers do NOT require 2FA by default unless they have explicitly configured a totpSecret
     const has2FASetup = !!user.totpSecret;
 

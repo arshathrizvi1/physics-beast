@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "security:check": "node scripts/security-audit.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1128.0",

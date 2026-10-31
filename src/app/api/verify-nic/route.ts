@@ -1,16 +1,44 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getServerEnv } from '@/security/env';
+import { sanitizeText } from '@/security/sanitize';
+import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+export const POST = withZeroTrustGate(
+  {
+    scope: 'verify_nic_gemini',
+    limit: 10,
+    windowMs: 60 * 1000,
+  },
+  async (req, ctx) => {
+    const parsed = await parseAndVerifyJsonBody<{
+      imageBase64?: string;
+      name?: string;
+      nicNumber?: string;
+    }>(req, ctx);
+    if (!parsed.ok) return parsed.response;
 
-export async function POST(req: Request) {
-  try {
-    const { imageBase64, name, nicNumber } = await req.json();
-    
+    const imageBase64 = String(parsed.body.imageBase64 || '');
+    const name = sanitizeText(parsed.body.name, 100);
+    const nicNumber = sanitizeText(parsed.body.nicNumber, 32);
+
     if (!imageBase64 || !name || !nicNumber) {
-      return NextResponse.json({ success: false, message: 'Missing fields' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: 'Missing fields' },
+        { status: 400 }
+      );
     }
 
+    // Cap imageBase64 size (~7MB max base64 string) to prevent memory exhaustion
+    if (imageBase64.length > 7_500_000) {
+      return NextResponse.json(
+        { success: false, message: 'NIC image exceeds maximum size limit (5MB).' },
+        { status: 413 }
+      );
+    }
+
+    const env = getServerEnv();
+    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
@@ -30,19 +58,19 @@ If ALL three rules pass, respond with exactly: "APPROVED"
 If any rule fails, respond with exactly: "REJECTED: [Reason]"
 `;
 
+    const base64Payload = imageBase64.includes(',')
+      ? imageBase64.split(',')[1] || ''
+      : imageBase64;
+
     const result = await model.generateContent([
       prompt,
-      { inlineData: { data: imageBase64.split(',')[1], mimeType: 'image/jpeg' } }
+      { inlineData: { data: base64Payload, mimeType: 'image/jpeg' } },
     ]);
-    
+
     const responseText = result.response.text().trim();
     if (responseText.startsWith('APPROVED')) {
       return NextResponse.json({ success: true, message: 'Identity Verified' });
-    } else {
-      return NextResponse.json({ success: false, message: responseText });
     }
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, message: 'Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, message: responseText });
   }
-}
+);

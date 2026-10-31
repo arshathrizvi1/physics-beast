@@ -1,18 +1,36 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { getServerEnv } from '@/security/env';
+import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
+import { sanitizeText } from '@/security/sanitize';
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { url, password, title, metadata } = body;
+export const POST = withZeroTrustGate(
+  {
+    scope: 'bunny_aws_download',
+    limit: 20,
+    windowMs: 60 * 1000,
+  },
+  async (request, ctx) => {
+    const parsed = await parseAndVerifyJsonBody<{
+      url?: string;
+      password?: string;
+      title?: string;
+      metadata?: Record<string, unknown>;
+    }>(request, ctx);
+    if (!parsed.ok) return parsed.response;
+
+    const url = sanitizeText(parsed.body.url, 500);
+    const password = sanitizeText(parsed.body.password || '', 128);
+    const title = sanitizeText(parsed.body.title || 'Untitled Video', 200);
+    const metadata = parsed.body.metadata || {};
 
     if (!url) {
       return NextResponse.json({ error: 'Missing url' }, { status: 400 });
     }
 
+    const env = getServerEnv();
     const websiteUrl = process.env.WEBSITE_URL || 'https://brillliantacademy.site';
 
-    // Normalize YouTube URL if needed
     let targetUrl = url;
     if (targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be')) {
       try {
@@ -20,30 +38,26 @@ export async function POST(request: Request) {
         if (u.searchParams.has('v')) {
           targetUrl = `https://www.youtube.com/watch?v=${u.searchParams.get('v')}`;
         }
-      } catch (e) {}
+      } catch {
+        // Keep original URL
+      }
     }
 
-    // Pipeline selection: 'github' (Serverless with PO-Token provider), 'aws' (EC2 VPS), or 'auto'
     const pipeline = (process.env.DOWNLOAD_PIPELINE || 'github').toLowerCase();
     const useAwsFirst = pipeline === 'aws';
 
-    // ─────────────────────────────────────────────────────────────
-    // 1. Primary: GitHub Actions Pipeline (Serverless + BotGuard PO-Token)
-    // ─────────────────────────────────────────────────────────────
     const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
     const githubOwner = process.env.GITHUB_REPO_OWNER || 'arshathrizvi1';
-    const githubRepo  = process.env.GITHUB_REPO_NAME  || 'physics-beast';
+    const githubRepo = process.env.GITHUB_REPO_NAME || 'physics-beast';
 
     if (!useAwsFirst && githubToken) {
       const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
-      console.log(`[Download] Triggering GitHub Actions dispatch: ${dispatchUrl}`);
-
       try {
         const dispatchRes = await fetch(dispatchUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${githubToken}`,
-            'Accept': 'application/vnd.github+json',
+            Authorization: `Bearer ${githubToken}`,
+            Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
             'Content-Type': 'application/json',
           },
@@ -51,9 +65,9 @@ export async function POST(request: Request) {
             event_type: 'youtube-download',
             client_payload: {
               url: targetUrl,
-              password: password || '',
-              title: title || 'Untitled Video',
-              metadata: metadata || {},
+              password,
+              title,
+              metadata,
             },
           }),
         });
@@ -73,33 +87,32 @@ export async function POST(request: Request) {
           return NextResponse.json({
             success: true,
             message: 'GitHub Actions video pipeline triggered successfully',
-            pipeline: 'github'
+            pipeline: 'github',
           });
-        } else {
-          const errText = await dispatchRes.text();
-          console.warn(`[Download] GitHub Actions dispatch returned ${dispatchRes.status}: ${errText}. Falling back to AWS EC2...`);
         }
-      } catch (ghErr: any) {
-        console.warn(`[Download] GitHub Actions dispatch failed (${ghErr.message}). Falling back to AWS EC2...`);
+      } catch {
+        // Fall through to AWS EC2 fallback
       }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // 2. Secondary / Fallback: AWS EC2 Pipeline
-    // ─────────────────────────────────────────────────────────────
-    const serverHost     = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
-    const serverPort     = process.env.RTMP_HTTP_PORT || '8000';
-    const callbackSecret = process.env.RTMP_CALLBACK_SECRET || 'change-me-to-a-random-string';
-    const webhookUrl     = `${websiteUrl}/api/bunny/aws-webhook`;
-    const awsUrl         = `http://${serverHost}:${serverPort}/api/generic-download`;
-
-    console.log(`[Download] Routing to AWS EC2 server: ${awsUrl}`);
+    const serverHost = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
+    const serverPort = process.env.RTMP_HTTP_PORT || '8000';
+    const callbackSecret = env.RTMP_CALLBACK_SECRET;
+    const webhookUrl = `${websiteUrl}/api/bunny/aws-webhook`;
+    const awsUrl = `http://${serverHost}:${serverPort}/api/generic-download`;
 
     try {
       const res = await fetch(awsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, password, title, metadata, webhookUrl, secret: callbackSecret }),
+        body: JSON.stringify({
+          url: targetUrl,
+          password,
+          title,
+          metadata,
+          webhookUrl,
+          secret: callbackSecret,
+        }),
         signal: AbortSignal.timeout(8000),
       });
 
@@ -116,20 +129,17 @@ export async function POST(request: Request) {
           clearedBy: [],
         });
         return NextResponse.json(data);
-      } else {
-        const errText = await res.text();
-        console.warn(`[Download] AWS EC2 returned ${res.status}: ${errText}`);
       }
-    } catch (awsErr: any) {
-      console.warn(`[Download] AWS EC2 server unreachable (${awsErr.message})`);
+    } catch {
+      // Unreachable
     }
 
-    return NextResponse.json({
-      error: 'Unable to start video download: neither GitHub Actions nor AWS EC2 pipeline could be reached.'
-    }, { status: 500 });
-
-  } catch (error: any) {
-    console.error('[Download API Error]:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          'Unable to start video download: neither GitHub Actions nor AWS EC2 pipeline could be reached.',
+      },
+      { status: 500 }
+    );
   }
-}
+);

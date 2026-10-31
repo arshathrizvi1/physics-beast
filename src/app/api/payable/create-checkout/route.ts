@@ -1,50 +1,110 @@
 import { NextResponse } from 'next/server';
 import { PaymentsLk } from '@payments-lk/node';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getServerEnv } from '@/security/env';
+import { validatePayableCheckoutPayload } from '@/security/schemas';
+import {
+  resolveAuthoritativeCoursePrice,
+  packSignedPayableReference,
+} from '@/security/payment-authority';
+import {
+  withZeroTrustGate,
+  parseAndVerifyJsonBody,
+} from '@/security/zero-trust-gate';
+import { blacklistActor, engageCryptographicTarpit } from '@/security/rate-limit';
 
-const PAYABLE_KEY = process.env.PAYABLE_SECRET_KEY || 'sk_test_3B0zeLlZeUHIwJxvkesJic2vyGGq70i7';
-const client = new PaymentsLk(PAYABLE_KEY);
+export const POST = withZeroTrustGate(
+  {
+    scope: 'payable_create_checkout',
+    limit: 20,
+    windowMs: 60 * 1000,
+  },
+  async (req, ctx) => {
+    const parsed = await parseAndVerifyJsonBody(req, ctx);
+    if (!parsed.ok) return parsed.response;
 
-export async function POST(req: Request) {
-  try {
-    const { courseId, folderId, courseName, price, userId, userEmail, userPhone, studentId, userName } = await req.json();
-
-    if (!courseId || !folderId || !userId || !price) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const validation = validatePayableCheckoutPayload(parsed.body);
+    if (!validation.valid || !validation.data) {
+      if (validation.honeypot) {
+        blacklistActor({
+          ip: ctx.ip,
+          fingerprint: ctx.fingerprint,
+          reason: validation.reason || 'CHECKOUT_TAMPERING',
+        });
+        await engageCryptographicTarpit(1500, 2600);
+        return NextResponse.json(
+          { error: 'ERR_REQ_REJECTED', code: 'ERR_REQ_REJECTED', traceId: ctx.traceId },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json(
+        { error: validation.error || 'Missing required fields' },
+        { status: 400 }
+      );
     }
+
+    const {
+      courseId,
+      folderId,
+      courseName,
+      clientSubmittedPrice,
+      userId,
+      userEmail,
+      userPhone,
+      userName,
+    } = validation.data;
+
+    // 1. Server-Side Price Authority: Resolve true folder/course price from Firestore
+    const priceAuth = await resolveAuthoritativeCoursePrice({
+      courseId,
+      folderId,
+      clientSubmittedPrice,
+      ip: ctx.ip,
+      fingerprint: ctx.fingerprint,
+    });
+
+    const authoritativeAmountCents = Math.round(priceAuth.authoritativePrice * 100);
 
     const host = req.headers.get('host') || 'www.brillliantacademy.site';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // Pack the data tightly to fit within Payable's strict 64-char reference limit!
-    // folderId (20 chars), userId (28 chars). Total JSON: ~55 chars.
-    const reference = JSON.stringify([folderId, userId]);
+    // 2. Pack HMAC-SHA256 signed reference within Payable's 64-char limit
+    const reference = packSignedPayableReference(
+      folderId,
+      userId,
+      authoritativeAmountCents
+    );
 
-    // Build the customer object for auto-filling the Payable hosted checkout
-    const customerPayload: any = {
-      name: userName || "Student",
-      email: userEmail || "student@brillliantacademy.site"
+    const customerPayload: Record<string, string> = {
+      name: userName || 'Student',
+      email: userEmail || 'student@brillliantacademy.site',
     };
     if (userPhone) {
       customerPayload.phone = userPhone;
     }
 
+    const env = getServerEnv();
+    if (!env.PAYABLE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Payment gateway secret key is not configured on the server.' },
+        { status: 503 }
+      );
+    }
+
+    const client = new PaymentsLk(env.PAYABLE_SECRET_KEY);
     const checkout = await client.checkouts.create({
-      amountCents: Math.round(price * 100),
-      description: `Course: ${courseName}`,
-      reference: reference,
+      amountCents: authoritativeAmountCents,
+      description: `Course: ${courseName || priceAuth.courseName}`,
+      reference,
       customer: customerPayload,
       successUrl: `${baseUrl}/course/${courseId}?payment=success`,
-      cancelUrl: `${baseUrl}/course/${courseId}?payment=cancelled`
+      cancelUrl: `${baseUrl}/course/${courseId}?payment=cancelled`,
     });
 
-    // We don't save to Firestore here to avoid PERMISSION_DENIED errors for unauthenticated API routes.
-    // Instead, we will parse the reference string directly from Payable during the verification step!
-    return NextResponse.json({ url: checkout.url });
-  } catch (error: any) {
-    console.error("Payable Checkout Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to create checkout session" }, { status: 500 });
+    return NextResponse.json({
+      url: checkout.url,
+      authoritativePrice: priceAuth.authoritativePrice,
+      priceSource: priceAuth.source,
+    });
   }
-}
+);

@@ -5,18 +5,21 @@ import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.os.Build
 import android.os.Bundle
+import android.os.Debug
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.BufferedReader
 import java.io.File
+import java.io.FileReader
 import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.brilliantacademy.app/security"
 
-    // "BrilliantAcademy_SuperSecretKey_2026!$" XOR'd with 42
+    // Obfuscated DRM signing key material (XOR stream)
     private val encSecret = intArrayOf(
         104, 88, 67, 70, 70, 67, 75, 68, 94, 107, 73, 75, 78, 79, 71, 83, 117, 121, 95, 90, 79, 88, 121, 79, 73, 88, 79, 94, 97, 79, 83, 117, 24, 26, 24, 28, 11, 14
     )
@@ -31,7 +34,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 1. Enforce Screen Capture / Recording Protection Immediately
+        // 1. Enforce Hardware Screen Capture / Recording Protection Immediately
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
@@ -46,7 +49,7 @@ class MainActivity : FlutterActivity() {
                 "checkSecurity" -> {
                     val isDebug = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
                     val signatureValid = if (!isDebug) verifySignature() else true
-                    val envSafe = checkRootEnvironment()
+                    val envSafe = checkRootEnvironment() && !isDebuggerOrHookAttached(isDebug)
                     val isEmu = isEmulator()
 
                     val passed = signatureValid && envSafe && (!isEmu || isDebug)
@@ -61,8 +64,20 @@ class MainActivity : FlutterActivity() {
                     )
                 }
                 "getCloudSignature" -> {
+                    val isDebug = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                    val signatureValid = if (!isDebug) verifySignature() else true
+                    val envSafe = checkRootEnvironment() && !isDebuggerOrHookAttached(isDebug)
+                    if (!signatureValid || !envSafe) {
+                        result.error("COMPROMISED_DEVICE", "Zero-Trust Device Integrity check failed.", null)
+                        return@setMethodCallHandler
+                    }
+
                     val videoId = call.argument<String>("videoId") ?: ""
                     val timestamp = call.argument<String>("timestamp") ?: ""
+                    if (videoId.isBlank() || timestamp.isBlank()) {
+                        result.error("INVALID_ARGS", "Missing videoId or timestamp", null)
+                        return@setMethodCallHandler
+                    }
                     try {
                         val rawData = getCloudSecret() + videoId + timestamp
                         val md = MessageDigest.getInstance("SHA-256")
@@ -70,7 +85,7 @@ class MainActivity : FlutterActivity() {
                         val hex = digest.joinToString("") { "%02x".format(it) }
                         result.success(hex)
                     } catch (e: Exception) {
-                        result.error("SIG_FAIL", e.message, null)
+                        result.error("SIG_FAIL", "Signature generation failed", null)
                     }
                 }
                 "setFlagSecure" -> {
@@ -91,11 +106,14 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun checkRootEnvironment(): Boolean {
+        if (Build.TAGS != null && Build.TAGS.contains("test-keys")) {
+            return false
+        }
         val rootPaths = arrayOf(
             "/sbin/su", "/system/bin/su", "/system/xbin/su", "/data/local/xbin/su",
             "/data/local/bin/su", "/system/sd/xbin/su", "/system/bin/failsafe/su",
             "/data/local/su", "/su/bin/su", "/magisk/.core/bin/su", "/data/adb/magisk",
-            "/data/adb/modules/lsposed", "/system/app/Superuser.apk"
+            "/data/adb/modules/lsposed", "/system/app/Superuser.apk", "/data/adb/ksud"
         )
         for (path in rootPaths) {
             if (File(path).exists()) {
@@ -105,19 +123,48 @@ class MainActivity : FlutterActivity() {
         return true
     }
 
+    private fun isDebuggerOrHookAttached(isDebugBuild: Boolean): Boolean {
+        if (!isDebugBuild && (Debug.isDebuggerConnected() || Debug.waitingForDebugger())) {
+            return true
+        }
+        try {
+            BufferedReader(FileReader("/proc/self/maps")).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    val lower = line!!.lowercase()
+                    if (lower.contains("frida") ||
+                        lower.contains("xposed") ||
+                        lower.contains("substrate") ||
+                        lower.contains("lsposed")
+                    ) {
+                        return true
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Ignore unreadable /proc/self/maps on restricted SELinux profiles
+        }
+        return false
+    }
+
     private fun verifySignature(): Boolean {
         return try {
             val packageInfo: PackageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
             } else {
+                @Suppress("DEPRECATION")
                 packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
             }
 
             val signatures: Array<Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.signingInfo.apkContentsSigners
+                packageInfo.signingInfo?.apkContentsSigners ?: emptyArray()
             } else {
-                packageInfo.signatures
+                @Suppress("DEPRECATION")
+                packageInfo.signatures ?: emptyArray()
             }
+
+            // Official Academy Keystore Fingerprint
+            val officialSig = "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34"
 
             for (sig in signatures) {
                 val md = MessageDigest.getInstance("SHA-256")
@@ -131,15 +178,14 @@ class MainActivity : FlutterActivity() {
                     hexString.append(hex)
                 }
                 val currentSig = hexString.toString().uppercase()
-                // Official Academy Keystore Fingerprint
-                val officialSig = "05:40:26:4D:5C:48:BF:9F:E5:F1:BF:A4:B2:DA:47:58:33:C3:0B:1F:97:F1:54:FE:C2:61:AA:7E:F1:94:24:34"
                 if (currentSig == officialSig) {
                     return true
                 }
             }
             false
         } catch (e: Exception) {
-            true // Allow fallback in developer mode
+            // Fail-closed: never grant signature validity on exception
+            false
         }
     }
 

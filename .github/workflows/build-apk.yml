@@ -43,12 +43,15 @@ jobs:
           ./gradlew assembleRelease
 
       - name: Sign APK and Move to Public
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd android-app/android/app/build/outputs/apk/release
-          keytool -genkey -v -keystore release.keystore -alias brilliant -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Brilliant Academy, OU=IT, O=Brilliant Academy, L=City, ST=State, C=US" -storepass "brilliant123" -keypass "brilliant123"
+          EFFECTIVE_PASS="${KEYSTORE_PASS:-$(openssl rand -hex 16)}"
+          keytool -genkey -v -keystore release.keystore -alias brilliant -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Brilliant Academy, OU=IT, O=Brilliant Academy, L=City, ST=State, C=US" -storepass "$EFFECTIVE_PASS" -keypass "$EFFECTIVE_PASS"
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
           $BUILD_TOOLS/zipalign -v -p 4 app-release-unsigned.apk Brilliant-Academy-aligned.apk
-          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass pass:brilliant123 --ks-key-alias brilliant --key-pass pass:brilliant123 --out Brilliant-Academy.apk Brilliant-Academy-aligned.apk
+          $BUILD_TOOLS/apksigner sign --ks release.keystore --ks-pass "pass:$EFFECTIVE_PASS" --ks-key-alias brilliant --key-pass "pass:$EFFECTIVE_PASS" --out Brilliant-Academy.apk Brilliant-Academy-aligned.apk
           cp Brilliant-Academy.apk ../../../../../../../public/Brilliant-Academy.apk
 
       - name: Commit and Push APK to Website

@@ -48,3 +48,18 @@ test_oracle.js
 serviceAccountKey.json
 firebase-admin-key.json
 *firebase-adminsdk*.json
+
+# IDE and editor files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Flutter & Android build artifacts
+.gradle/
+**/.gradle/
+**/local.properties
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/

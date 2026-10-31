@@ -1,0 +1,17 @@
+version: "1.0"
+linter: qodana-js
+profile:
+  name: qodana.recommended
+exclude:
+  - name: All
+    paths:
+      - .next
+      - node_modules
+      - public
+      - android
+      - android-app
+      - brilliant_academy_flutter/build
+failureConditions:
+  severityThresholds:
+    critical: 0
+    high: 0

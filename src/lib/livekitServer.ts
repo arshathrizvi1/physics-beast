@@ -1,14 +1,17 @@
 import { adminDb } from '@/lib/firebase-admin';
+import { getServerEnv } from '@/security/env';
 
-export const LIVEKIT_API_KEY = 'APIbrilliant';
-export const LIVEKIT_API_SECRET = 'esDs-h5uEpAMt5oGWOJXx20TO5kcP7-mQPYVXwbBwro';
-export const LIVEKIT_HOST = (process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://live.brillliantacademy.site')
-  .replace(/^wss:/, 'https:')
-  .replace(/^ws:/, 'http:');
+const env = getServerEnv();
 
-const MASTER_ADMIN_EMAILS = ['arshathrizvi1010@gmail.com', 'admin@brilliantacademy.com'];
+export const LIVEKIT_API_KEY = env.LIVEKIT_API_KEY;
+export const LIVEKIT_API_SECRET = env.LIVEKIT_API_SECRET;
+export const LIVEKIT_HOST = env.LIVEKIT_HOST;
+
+const MASTER_ADMIN_EMAILS = env.MASTER_ADMIN_EMAILS;
 const FIREBASE_WEB_API_KEY =
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA';
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
+  process.env.FIREBASE_WEB_API_KEY ||
+  'AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA';
 
 export interface VerifiedCaller {
   uid: string;
@@ -52,8 +55,8 @@ export async function verifyCaller(req: Request): Promise<VerifiedCaller | null>
       if (snap?.exists && (data?.role === 'admin' || data?.role === 'teacher')) {
         role = data.role;
       }
-    } catch (e) {
-      console.warn('Role lookup failed, treating caller as student');
+    } catch {
+      // Fallback to student if Firestore role lookup fails
     }
   }
 

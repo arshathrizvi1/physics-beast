@@ -1,97 +1,268 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // =========================================================================
+    // ZERO-TRUST SECURITY HELPERS (UpGuard / Military-Grade Hardened)
+    // =========================================================================
     function isAuthenticated() {
       return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email == "admin@brilliantacademy.com" ||
-        request.auth.token.email == "arshathrizvi1010@gmail.com"
-      );
     }
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Public Collections (Visible on Homepage & Courses Page)
+    // Verified Admin check: requires cryptographic Firebase Auth token with
+    // verified email and explicit admin claim or verified admin email.
+    function isVerifiedAdmin() {
+      return isAuthenticated()
+        && request.auth.token.email_verified == true
+        && (
+          request.auth.token.admin == true
+          || request.auth.token.role == 'admin'
+          || request.auth.token.email in [
+            'admin@brilliantacademy.com',
+            'arshathrizvi1010@gmail.com'
+          ]
+        );
+    }
+
+    // Teacher or Admin role lookup from verified user profile document
+    function isTeacherOrAdmin() {
+      return isVerifiedAdmin() || (
+        isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher', 'instructor']
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        )
+      );
+    }
+
+    // Prevent privilege escalation & unauthorized course self-unlocking
+    function hasNoPrivilegeEscalation() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned']);
+    }
+
+    function isSafeInitialUserCreate(userId) {
+      return isOwner(userId)
+        && (!('role' in request.resource.data) || request.resource.data.role == 'student')
+        && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
+        && (!('accessibleCourses' in request.resource.data) || request.resource.data.accessibleCourses.size() == 0);
+    }
+
+    // =========================================================================
+    // 1. USERS COLLECTION & PASSKEYS SUBCOLLECTION (Anti-IDOR + Anti-Escalation)
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isTeacherOrAdmin();
+      allow create: if isSafeInitialUserCreate(userId) || isTeacherOrAdmin();
+      allow update: if (isOwner(userId) && hasNoPrivilegeEscalation()) || isTeacherOrAdmin();
+      allow delete: if isTeacherOrAdmin();
+
+      match /passkeys/{credId} {
+        allow read, write: if isOwner(userId) || isVerifiedAdmin();
+      }
+    }
+
+    // =========================================================================
+    // 2. CATALOG: COURSES, BATCHES, FOLDERS, SUBJECTS, STREAMS
+    // =========================================================================
     match /courses/{courseId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isTeacherOrAdmin();
     }
 
     match /batches/{batchId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /folders/{folderId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /subjects/{subjectId} {
+      allow read: if true;
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /streams/{streamId} {
+      allow read: if true;
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    // =========================================================================
+    // 3. LEARNING CONTENT: VIDEOS, MATERIALS, EXAMS, RESULTS, MESSAGES
+    // =========================================================================
+    match /videos/{videoId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isTeacherOrAdmin();
+      // Students may only increment view counters or reactions if needed; full edits require teacher/admin
+      allow update: if isTeacherOrAdmin();
+    }
+
+    match /materials/{materialId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /exams/{examId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /examResults/{resultId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        || resource.data.studentId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+        || request.resource.data.studentId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      allow update, delete: if isTeacherOrAdmin();
+    }
+
+    match /examMessages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isTeacherOrAdmin();
+    }
+
+    // =========================================================================
+    // 4. LIVE CLASSES, SESSIONS, CHATS & PRESENCE
+    // =========================================================================
+    match /live_classes/{classId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /liveSessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isTeacherOrAdmin();
+    }
+
+    match /live_chats/{chatId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isTeacherOrAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    match /presence/{presenceId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && (
+        presenceId == request.auth.uid
+        || request.resource.data.userId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      allow delete: if isOwner(presenceId) || isTeacherOrAdmin();
+    }
+
+    // =========================================================================
+    // 5. PAYMENTS & PAYMENT REQUESTS (Anti-Tampering + Anti-IDOR)
+    // =========================================================================
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      // Students can only submit pending payment records for themselves; status approval requires admin/server
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'initiated']);
+      allow update, delete: if isTeacherOrAdmin();
+    }
+
+    match /paymentRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
+      allow update, delete: if isTeacherOrAdmin();
+    }
+
+    // =========================================================================
+    // 6. NOTIFICATIONS, REVIEWS, DOUBTS & SITE CONFIG
+    // =========================================================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isTeacherOrAdmin();
+      // Users can mark their own notification as read (`readBy` array update)
+      allow update: if isTeacherOrAdmin() || (
+        isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'isRead'])
+      );
     }
 
     match /reviews/{reviewId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isTeacherOrAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
-    match /siteConfig/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // Videos and Folders
-    match /videos/{videoId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /folders/{folderId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // User Profiles
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Live Streaming Sessions
-    match /liveSessions/{sessionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Exams and Results
-    match /exams/{examId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    match /examResults/{resultId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
-    }
-
-    // Doubts and Questions
     match /doubts/{doubtId} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Payment Requests
-    match /paymentRequests/{paymentId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if isAdmin();
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid
+        || resource.data.studentId == request.auth.uid
+        || isTeacherOrAdmin()
+      );
+      allow delete: if isTeacherOrAdmin()
+        || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
-    // Catch-all fallback for any other authenticated documents
+    match /siteConfig/{configId} {
+      allow read: if true;
+      allow write: if isTeacherOrAdmin();
+    }
+
+    // =========================================================================
+    // 7. SENSITIVE SERVER/ADMIN COLLECTIONS (LOCKED DOWN)
+    // =========================================================================
+    // Zoom OAuth credentials & system secrets (/settings/zoom, etc.)
+    match /settings/{docId} {
+      allow read, write: if isTeacherOrAdmin();
+    }
+
+    // WhatsApp message queue — only teachers/admins can enqueue messages
+    match /academy_whatsapp_queue/{msgId} {
+      allow read, write: if isTeacherOrAdmin();
+    }
+
+    // OTP verifications & WebAuthn challenges — server-side Admin SDK only
+    match /otp_verifications/{emailId} {
+      allow read, write: if false;
+    }
+
+    match /authChallenges/{uid} {
+      allow read, write: if false;
+    }
+
+    // Security Audit Ledger — server-side Admin SDK only
+    match /security_audit_ledger/{entryId} {
+      allow read: if isVerifiedAdmin();
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // 8. DEFAULT DENY-ALL FALLBACK (Zero-Trust Guarantee)
+    // =========================================================================
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }
