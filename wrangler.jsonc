@@ -5,46 +5,18 @@
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
   "routes": [
-    {
-      "pattern": "brillliantacademy.site/api/d1-sync*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "brillliantacademy.site/api/sync-flush*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "brillliantacademy.site/api/r2-media/*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "brillliantacademy.site/__/auth*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "brillliantacademy.site/api/health*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "www.brillliantacademy.site/api/d1-sync*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "www.brillliantacademy.site/api/sync-flush*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "www.brillliantacademy.site/api/r2-media/*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "www.brillliantacademy.site/__/auth*",
-      "zone_name": "brillliantacademy.site"
-    },
-    {
-      "pattern": "www.brillliantacademy.site/api/health*",
-      "zone_name": "brillliantacademy.site"
-    }
+    { "pattern": "brillliantacademy.site/api/*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/api/*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "brillliantacademy.site/__/auth*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/__/auth*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "brillliantacademy.site/.env*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/.env*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "brillliantacademy.site/.git*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/.git*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "brillliantacademy.site/wp-admin*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/wp-admin*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "brillliantacademy.site/admin.php*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/admin.php*", "zone_name": "brillliantacademy.site" }
   ],
   "d1_databases": [
     {
@@ -62,6 +34,7 @@
   "vars": {
     "FIREBASE_PROJECT_ID": "physics-beastsl",
     "SITE_URL": "https://brillliantacademy.site",
-    "ENVIRONMENT": "production"
+    "ENVIRONMENT": "production",
+    "SECURITY_ALERT_EMAIL": "arshathrizvi1010@gmail.com"
   }
 }
