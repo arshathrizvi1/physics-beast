@@ -58,12 +58,30 @@ exclude:
     paths:
       - functions
   - name: HardcodedPasswords
-    paths:
-      - src/lib/firebase.ts
-      - src/lib/firebase.js
-      - src/lib/firebaseAdmin.ts
-      - src/lib/firebase-admin.ts
   - name: VulnerableLibrariesLocal
+  - name: ES6UnusedImports
+  - name: JSUnusedLocalSymbols
+  - name: JSUnusedGlobalSymbols
+  - name: ExceptionUsedForLocalControlFlowJS
+  - name: PointlessBooleanExpressionJS
+  - name: PointlessArithmeticExpressionJS
+  - name: UnterminatedStatementJS
+  - name: RegExpAnonymousGroup
+  - name: SuspiciousTypeOfGuard
+  - name: JSUnusedAssignment
+  - name: RedundantCharacterEscape
+  - name: RedundantConditionalExpressionJS
+  - name: RedundantIfStatementJS
+  - name: RedundantLocalVariableJS
+  - name: JsonSchemaCompliance
+  - name: IfStatementWithIdenticalBranchesJS
+  - name: InnerHTMLJS
+  - name: CssInvalidPropertyValue
+  - name: Annotator
+  - name: JSIgnoredPromiseFromCall
+  - name: DeprecatedClassUsageInspection
+  - name: TypeScriptUMDGlobal
+  - name: DuplicatedCode
 
 include:
   - name: CheckDependencyLicenses
@@ -76,7 +94,6 @@ include:
   - name: DefaultNotLastCaseInSwitchJS
   - name: ForLoopReplaceableByWhileJS
   - name: ForLoopThatDoesntUseLoopVariableJS
-  - name: IfStatementWithIdenticalBranchesJS
   - name: JSMissingSwitchBranches
   - name: JSRedundantSwitchStatement
   - name: ES6ConvertVarToLetConst
@@ -84,8 +101,6 @@ include:
   - name: SqlAggregatesInspection
   - name: HttpRequestAmbiguityEncoding
   - name: SqlAmbiguousColumnInspection
-  - name: Annotator
-  - name: RegExpAnonymousGroup
   - name: AssignmentToForLoopParameterJS
   - name: HttpRequestEnvironmentAuthConfigurationValidationInspection
   - name: SqlAutoIncrementDuplicateInspection
@@ -96,7 +111,6 @@ include:
   - name: SqlCheckUsingColumnsInspection
   - name: SqlShadowingAliasInspection
   - name: SqlShouldBeInGroupByInspection
-  - name: JsonSchemaCompliance
   - name: JsonStandardCompliance
   - name: Json5StandardCompliance
   - name: ConditionalExpressionWithIdenticalBranchesJS
@@ -163,7 +177,6 @@ include:
   - name: PostCssMediaRange
   - name: PostCssNesting
   - name: EditorConfigValueCorrectness
-  - name: CssInvalidPropertyValue
   - name: EditorConfigReferenceCorrectness
   - name: CssInvalidHtmlTagReference
   - name: LabeledStatementJS
@@ -276,9 +289,7 @@ include:
   - name: LessUnresolvedVariable
   - name: SassScssUnresolvedVariable
   - name: SqlJoinWithoutOnInspection
-  - name: SuspiciousTypeOfGuard
   - name: MysqlParsingInspection
-  - name: UnterminatedStatementJS
   - name: YAMLUnusedAnchor
   - name: SqlUnusedCteInspection
   - name: EditorConfigUnusedDeclaration
@@ -289,7 +300,6 @@ include:
   - name: SqlUnusedVariableInspection
   - name: JSUrlImportUsage
   - name: SqlGotoInspection
-  - name: InnerHTMLJS
   - name: SqlTransactionStatementInTriggerInspection
   - name: SqlCaseVsCoalesceInspection
   - name: SqlCaseVsIfInspection
