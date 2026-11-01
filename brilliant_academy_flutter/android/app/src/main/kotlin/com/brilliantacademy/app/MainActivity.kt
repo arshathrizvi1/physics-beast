@@ -41,6 +41,24 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    override fun onResume() {
+        super.onResume()
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -127,6 +145,19 @@ class MainActivity : FlutterActivity() {
         if (!isDebugBuild && (Debug.isDebuggerConnected() || Debug.waitingForDebugger())) {
             return true
         }
+        // Native ptrace attach detection (TracerPid != 0)
+        try {
+            BufferedReader(FileReader("/proc/self/status")).use { reader ->
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    if (line!!.startsWith("TracerPid:")) {
+                        val pid = line!!.substringAfter("TracerPid:").trim().toIntOrNull() ?: 0
+                        if (pid != 0 && !isDebugBuild) return true
+                        break
+                    }
+                }
+            }
+        } catch (_: Exception) {}
         try {
             BufferedReader(FileReader("/proc/self/maps")).use { reader ->
                 var line: String?

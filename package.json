@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "security:check": "node scripts/security-audit.mjs"
+    "security:check": "node scripts/security-audit.mjs",
+    "postinstall": "node scripts/patch-licenses.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1128.0",
@@ -49,7 +50,6 @@
     "framer-motion": "^13.2.0",
     "jsonwebtoken": "^9.0.3",
     "jsrsasign": "^11.1.5",
-    "jszip": "^3.10.2",
     "lenis": "^1.3.26",
     "livekit-client": "^2.22.3",
     "livekit-server-sdk": "^2.19.1",
