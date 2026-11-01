@@ -1,5 +1,4 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "brilliant-academy",
   "main": "worker.js",
   "compatibility_date": "2025-04-01",

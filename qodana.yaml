@@ -82,6 +82,7 @@ exclude:
   - name: TrivialIfJS
   - name: UnnecessaryLocalVariableJS
   - name: JsonSchemaCompliance
+  - name: JsonSchemaRefReference
   - name: IfStatementWithIdenticalBranchesJS
   - name: InnerHTMLJS
   - name: CssInvalidPropertyValue
@@ -278,7 +279,6 @@ include:
   - name: EditorConfigPatternEnumerationRedundancy
   - name: EditorConfigCharClassRedundancy
   - name: SqlUnreachableCodeInspection
-  - name: JsonSchemaRefReference
   - name: XmlInvalidId
   - name: YAMLUnresolvedAlias
   - name: HttpClientUnresolvedAuthId
