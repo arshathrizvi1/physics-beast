@@ -189,33 +189,39 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handleIdmEvent = () => {
-      setIdmBlocked(true);
-      setPlaying(false);
+    const triggerIdmLockdown = () => {
+      window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
-    window.addEventListener('anti-piracy-idm-detected', handleIdmEvent);
 
     const checkIdmInDom = () => {
       try {
-        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__]');
+        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__]');
         if (idmTarget) {
-          setIdmBlocked(true);
-          setPlaying(false);
-          idmTarget.removeAttribute('__idm_id__');
-          idmTarget.removeAttribute('__idm_frm__');
+          triggerIdmLockdown();
+          return;
+        }
+
+        const candidates = document.querySelectorAll('button, div, a, span');
+        for (let i = 0; i < candidates.length; i++) {
+          const el = candidates[i];
+          if (el.children.length <= 3) {
+            const txt = (el.textContent || '').trim();
+            if (txt.includes('Download this video') || txt.includes('Download video from this page') || txt.includes('Download with IDM')) {
+              triggerIdmLockdown();
+              return;
+            }
+          }
         }
       } catch {}
     };
 
     checkIdmInDom();
-    const idmPoll = setInterval(checkIdmInDom, 2000);
+    const idmPoll = setInterval(checkIdmInDom, 400);
 
     return () => {
-      window.removeEventListener('anti-piracy-idm-detected', handleIdmEvent);
       clearInterval(idmPoll);
     };
   }, []);
-
   const handleIdmRecheck = () => {
     setIdmRechecking(true);
     try {
@@ -730,49 +736,39 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  // Anti-Downloader / IDM Extension Defense (Neutralizes extension hooks and injected DOM elements)
+  // Anti-Downloader / IDM Extension Defense (Triggers instantaneous site lockdown upon detection)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const stripIdmAttributes = (node: Element) => {
-      const attrs = ['__idm_id__', '__idm_frm__', '__idm_displayed__'];
-      attrs.forEach(a => {
-        if (node.hasAttribute(a)) {
-          try { node.removeAttribute(a); } catch (e) {}
-        }
-      });
+    const triggerLockdown = () => {
+      window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
-
-    const cleanupNodes = () => {
-      try {
-        const idmEls = document.querySelectorAll('[id*="idm"], [class*="idm"], [__idm_id__], [__idm_frm__]');
-        idmEls.forEach(el => {
-          stripIdmAttributes(el);
-          if (el.id?.toLowerCase().includes('idm') || el.className?.toString().toLowerCase().includes('idm')) {
-            try { el.remove(); } catch (e) {}
-          }
-        });
-      } catch (e) {}
-    };
-
-    cleanupNodes();
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'attributes') {
-          const attr = mutation.attributeName;
-          if (attr && (attr.startsWith('__idm') || attr.toLowerCase().includes('idm'))) {
-            try { (mutation.target as Element).removeAttribute(attr); } catch (e) {}
+          const attr = mutation.attributeName?.toLowerCase() || '';
+          if (attr.includes('__idm') || attr.includes('idm_')) {
+            triggerLockdown();
+            return;
           }
         } else if (mutation.type === 'childList') {
           mutation.addedNodes.forEach((node) => {
-            if (node instanceof Element) {
+            if (node instanceof HTMLElement) {
               const id = node.id || '';
               const cls = typeof node.className === 'string' ? node.className : '';
-              if (id.toLowerCase().includes('idm') || cls.toLowerCase().includes('idm')) {
-                try { node.remove(); } catch (e) {}
+              const txt = (node.textContent || '').trim();
+              if (
+                node.hasAttribute('__idm_id__') ||
+                node.hasAttribute('__idm_frm__') ||
+                node.hasAttribute('__idm_handle__') ||
+                id.toLowerCase().includes('idm_') ||
+                cls.toLowerCase().includes('idm_') ||
+                txt.includes('Download video from this page') ||
+                txt.includes('Download this video')
+              ) {
+                triggerLockdown();
               }
-              stripIdmAttributes(node);
             }
           });
         }
@@ -783,17 +779,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       attributes: true,
       childList: true,
       subtree: true,
-      attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_displayed__']
+      attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_handle__', '__idm_displayed__']
     });
 
-    const interval = setInterval(cleanupNodes, 1500);
-
-    return () => {
-      observer.disconnect();
-      clearInterval(interval);
-    };
+    return () => observer.disconnect();
   }, []);
-
   // Check for successful Payable return
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -974,14 +964,37 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
   const activeYoutubeId = useMemo(() => {
     if (!activeVideo) return null;
-    return extractYoutubeId(activeVideo.originalYoutubeUrl) || extractYoutubeId(activeVideo.url);
+    return extractYoutubeId(activeVideo.originalYoutubeUrl) || extractYoutubeId(activeVideo.youtubeUrl) || extractYoutubeId(activeVideo.url);
+  }, [activeVideo]);
+
+  const hasYoutubeOption = useMemo(() => {
+    if (!activeVideo) return false;
+    return Boolean(
+      activeVideo.originalYoutubeUrl || 
+      activeVideo.youtubeUrl || 
+      activeVideo.platform === 'youtube' || 
+      (activeVideo.url && (activeVideo.url.includes('youtube.com') || activeVideo.url.includes('youtu.be'))) ||
+      activeYoutubeId
+    );
+  }, [activeVideo, activeYoutubeId]);
+
+  const isVideoProcessing = useMemo(() => {
+    if (!activeVideo || activeVideo.type === 'resource') return false;
+    return Boolean(
+      activeVideo.isReady === false || 
+      activeVideo.processingStatus === 'processing' || 
+      activeVideo.processingStatus === 'downloading' || 
+      activeVideo.processingStatus === 'downloading_on_aws' || 
+      activeVideo.transcodeStatus === 'processing'
+    );
   }, [activeVideo]);
 
   const isYoutubePermitted = useMemo(() => {
     if (!activeVideo) return false;
-    const hasYoutubeContent = !!activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube' || (!!activeVideo.url && (activeVideo.url.includes('youtube') || activeVideo.url.includes('youtu.be')));
-    return hasYoutubeContent && isPlayerPermitted(activeSettings.youtube, deviceType);
-  }, [activeVideo, activeSettings, deviceType]);
+    // When video is still processing on Bunny/R2, allow YouTube fallback so students can learn without interruption
+    if (isVideoProcessing && hasYoutubeOption) return true;
+    return hasYoutubeOption && isPlayerPermitted(activeSettings.youtube, deviceType);
+  }, [activeVideo, activeSettings, deviceType, isVideoProcessing, hasYoutubeOption]);
 
   const activeVideoRef = useRef(activeVideo);
   useEffect(() => { 
@@ -991,15 +1004,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setPlayed(0);
     }
     activeVideoRef.current = activeVideo; 
+
     const isYoutube = Boolean(
       activeVideo?.originalYoutubeUrl || 
+      activeVideo?.youtubeUrl || 
       activeVideo?.platform === 'youtube' || 
-      (activeVideo?.url && (activeVideo.url.includes('youtube.com') || activeVideo.url.includes('youtu.be')))
+      (activeVideo?.url && (activeVideo.url.includes('youtube.com') || activeVideo.url.includes('youtu.be'))) ||
+      activeYoutubeId
     );
 
     const isBunny = Boolean(
-      (activeVideo?.videoId && !isYoutube) || 
-      (activeVideo?.platform === 'bunny' && !isYoutube) || 
+      activeVideo?.videoId || 
+      activeVideo?.platform === 'bunny' || 
       (activeVideo?.url && activeVideo.url.includes('mediadelivery.net'))
     );
 
@@ -1008,6 +1024,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       activeVideo?.platform === 'r2' || 
       (activeVideo?.url && (activeVideo.url.includes('r2.cloudflarestorage.com') || activeVideo.url.includes('r2.dev') || activeVideo.url.includes('/api/r2-media/')))
     );
+
+    // If Bunny/R2 is processing, but YouTube is available, default to YouTube automatically!
+    if (isVideoProcessing && isYoutube) {
+      setActiveServer('youtube');
+      return;
+    }
 
     const permittedList: ('bunny' | 'r2' | 'youtube')[] = [];
     if (isYoutube && isYoutubePermitted) permittedList.push('youtube');
@@ -1028,8 +1050,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     } else {
       setActiveServer(permittedList[0] || (isYoutube ? 'youtube' : 'bunny'));
     }
-  }, [activeVideo, isBunnyPermitted, isR2Permitted, isYoutubePermitted, activeSettings]);
-
+  }, [activeVideo, isBunnyPermitted, isR2Permitted, isYoutubePermitted, activeSettings, isVideoProcessing, activeYoutubeId]);
   // Completely block Lenis smooth-scroll hijacking over the syllabus container
   useEffect(() => {
     const el = syllabusScrollRef.current;
@@ -1479,21 +1500,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     {activeVideo.errorMessage || "The background pipeline could not process this video. Please try re-uploading from the admin panel."}
                   </p>
                 </div>
-              ) : (activeServer !== 'youtube' && (!activeVideo.isReady || activeVideo.processingStatus === 'processing' || activeVideo.processingStatus === 'downloading' || activeVideo.processingStatus === 'downloading_on_aws')) ? (
+              ) : (activeServer !== 'youtube' && isVideoProcessing) ? (
                 <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
                   <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                  <h3 className="text-lg font-bold text-white mb-2">Video is Processing</h3>
-                  <p className="text-xs text-muted-foreground max-w-sm">
-                    This video is being encrypted and optimized into multi-quality HLS streams (720p, 480p, 360p). It will be available shortly!
+                  <h3 className="text-lg font-bold text-white mb-2">Video is Processing for Secure Cloud CDN</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm mb-4">
+                    This video is being encrypted and optimized into multi-quality HLS streams (1080p, 720p, 480p). It will be available on Cloud CDN shortly!
                   </p>
-                </div>
-              ) : (activeServer !== 'youtube' && activeVideo.transcodeStatus === 'processing') ? (
-                <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
-                  <h3 className="text-lg font-bold text-white mb-2">Optimizing Video for Smooth Playback</h3>
-                  <p className="text-xs text-muted-foreground max-w-sm">
-                    AWS MediaConvert is generating 1080p, 720p, 480p, and 144p quality formats. This takes 1ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ2 minutes after uploading. It will start playing automatically once ready!
-                  </p>
+                  {hasYoutubeOption && (
+                    <button
+                      onClick={() => setActiveServer('youtube')}
+                      type="button"
+                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/40 transition-all cursor-pointer animate-pulse"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      Watch on YouTube Player Instead
+                    </button>
+                  )}
                 </div>
               ) : (!isBunnyPermitted && !isR2Permitted && !isYoutubePermitted && activeVideo.platform !== 'zoom' && activeVideo.type !== 'resource') ? (
                 <div className="w-full h-full absolute inset-0 z-10 bg-zinc-950/95 flex flex-col items-center justify-center p-6 text-center">
@@ -1601,7 +1624,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             ref={playerRef}
                         url={
                           activeServer === 'youtube'
-                            ? (activeVideo.originalYoutubeUrl || activeVideo.url)
+                            ? (activeVideo.originalYoutubeUrl || activeVideo.youtubeUrl || (activeYoutubeId ? `https://www.youtube.com/watch?v=${activeYoutubeId}` : activeVideo.url))
                             : activeServer === 'r2'
                             ? getSecureStreamUrl(activeVideo.r2Url || activeVideo.url)
                             : activeVideo.url
@@ -2270,9 +2293,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
               {activeVideo && activeVideo.type !== 'resource' && (() => {
                 const hasBunnyOption = isBunnyPermitted && (activeVideo.videoId || activeVideo.platform === 'bunny');
                 const hasR2Option = isR2Permitted && (activeVideo.r2Url || activeVideo.platform === 'r2');
-                const hasYoutubeOption = isYoutubePermitted && (activeVideo.originalYoutubeUrl || activeVideo.platform === 'youtube');
                 const count = (hasBunnyOption ? 1 : 0) + (hasR2Option ? 1 : 0) + (hasYoutubeOption ? 1 : 0);
-                if (count <= 1) return null;
+                if (count <= 1 && !hasYoutubeOption) return null;
 
                 return (
                   <div className="flex flex-wrap items-center gap-1.5 bg-secondary/20 p-1 rounded-lg border border-secondary/30 text-xs">
@@ -2286,7 +2308,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        Cloud (Bunny)
+                        {isVideoProcessing ? 'Cloud (Bunny - Processing)' : 'Cloud (Bunny)'}
                       </button>
                     )}
                     {hasR2Option && (
@@ -2298,7 +2320,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        Cloudflare R2
+                        {isVideoProcessing ? 'Cloudflare R2 (Processing)' : 'Cloudflare R2'}
                       </button>
                     )}
                     {hasYoutubeOption && (
@@ -2531,7 +2553,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               <>
                                 {(() => {
                                   const isAdmin = user?.role === 'admin' || user?.role === 'teacher' || user?.email === 'arshathrizvi1010@gmail.com';
-                                  const onlyVideos = folderVideos.filter(v => v.type !== 'resource' && (isAdmin || (v.isReady !== false && v.processingStatus !== 'processing' && v.processingStatus !== 'downloading' && v.processingStatus !== 'downloading_on_aws' && v.processingStatus !== 'error')));
+                                  const onlyVideos = folderVideos.filter(v => {
+                                    if (v.type === 'resource') return false;
+                                    if (isAdmin) return true;
+                                    const hasYt = Boolean(v.originalYoutubeUrl || v.youtubeUrl || v.platform === 'youtube' || (v.url && (v.url.includes('youtube.com') || v.url.includes('youtu.be'))));
+                                    const isReady = v.isReady !== false && v.processingStatus !== 'processing' && v.processingStatus !== 'downloading' && v.processingStatus !== 'downloading_on_aws' && v.processingStatus !== 'error';
+                                    return isReady || hasYt;
+                                  });
                                   const onlyPdfs = folderVideos.filter(v => v.type === 'resource');
                                   
                                   const activeTab = folderTabs[folder.id] || 'videos';
