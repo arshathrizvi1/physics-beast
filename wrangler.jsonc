@@ -1,9 +1,11 @@
 {
-  "name": "brilliant-academy",
+  "name": "physics-beast",
   "main": "worker.js",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
   "routes": [
+    { "pattern": "brillliantacademy.site/*", "zone_name": "brillliantacademy.site" },
+    { "pattern": "www.brillliantacademy.site/*", "zone_name": "brillliantacademy.site" },
     { "pattern": "brillliantacademy.site/api/*", "zone_name": "brillliantacademy.site" },
     { "pattern": "www.brillliantacademy.site/api/*", "zone_name": "brillliantacademy.site" },
     { "pattern": "brillliantacademy.site/__/auth*", "zone_name": "brillliantacademy.site" },

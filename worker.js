@@ -545,6 +545,38 @@ export default {
       );
     }
 
-    return new Response('Brilliant Academy Edge Gateway Ready', { status: 200 });
+    // 10. Origin Reverse Proxy (Next.js Application Pages, Assets, SSR)
+    const originUrl = new URL(request.url);
+    originUrl.hostname = 'brilliantacademy.vercel.app';
+    originUrl.protocol = 'https:';
+
+    const originHeaders = new Headers(request.headers);
+    originHeaders.set('host', 'brilliantacademy.vercel.app');
+    originHeaders.delete('x-forwarded-host');
+    originHeaders.set('x-forwarded-proto', 'https');
+    originHeaders.set('x-forwarded-for', clientIp);
+
+    const originRequest = new Request(originUrl.toString(), {
+      method: request.method,
+      headers: originHeaders,
+      body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
+      redirect: 'manual',
+    });
+
+    const originResponse = await fetch(originRequest);
+    const responseHeaders = new Headers(originResponse.headers);
+
+    // Apply Zero-Trust Security Headers to HTML responses
+    if (responseHeaders.get('content-type')?.includes('text/html')) {
+      Object.entries(buildSecurityHeaders(request, nonce)).forEach(([k, v]) => {
+        responseHeaders.set(k, v);
+      });
+    }
+
+    return new Response(originResponse.body, {
+      status: originResponse.status,
+      statusText: originResponse.statusText,
+      headers: responseHeaders,
+    });
   },
 };
