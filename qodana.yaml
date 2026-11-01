@@ -4,6 +4,12 @@ bootstrap: test -d node_modules || (npm install --legacy-peer-deps --ignore-scri
 profile:
   name: qodana.recommended
 
+coverage:
+  reportProblems: false
+  codeCoverageLocations:
+    - ".qodana/code-coverage"
+    - "coverage"
+
 licenseRules:
   - keys:
       - "PROPRIETARY-LICENSE"

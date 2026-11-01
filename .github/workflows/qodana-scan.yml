@@ -41,9 +41,9 @@ jobs:
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2026.2.2
         with:
-          args: --linter qodana-js --print-problems
+          args: --linter qodana-js --print-problems --coverage-dir .qodana/code-coverage
           pr-mode: false
-          upload-result: false
+          upload-result: true
           use-caches: false
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0IjoiMjBxS2QiLCJvcmdhbml6YXRpb24iOiJuZVZnOSIsInRva2VuIjoiNlBWYU0iLCJ0b2tlbl90eXBlIjoicHJvamVjdCJ9.6uWj26_7I_ZKX-743KKM2DA8puheY6Uqer2zgTWqpAU' }}

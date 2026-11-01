@@ -100,6 +100,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [idmBlocked, setIdmBlocked] = useState(false);
+  const [idmRechecking, setIdmRechecking] = useState(false);
   const [activeServer, setActiveServer] = useState<'bunny' | 'r2' | 'youtube'>('bunny');
   const playedSecondsRef = useRef(0);
   const durationRef = useRef(0);
@@ -182,6 +184,58 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     });
     return () => unsubPlayerConfig();
   }, []);
+
+  // Anti-IDM (Internet Download Manager) and Video Downloader Interceptor
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleIdmEvent = () => {
+      setIdmBlocked(true);
+      setPlaying(false);
+    };
+    window.addEventListener('anti-piracy-idm-detected', handleIdmEvent);
+
+    const checkIdmInDom = () => {
+      try {
+        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__]');
+        if (idmTarget) {
+          setIdmBlocked(true);
+          setPlaying(false);
+          idmTarget.removeAttribute('__idm_id__');
+          idmTarget.removeAttribute('__idm_frm__');
+        }
+      } catch {}
+    };
+
+    checkIdmInDom();
+    const idmPoll = setInterval(checkIdmInDom, 2000);
+
+    return () => {
+      window.removeEventListener('anti-piracy-idm-detected', handleIdmEvent);
+      clearInterval(idmPoll);
+    };
+  }, []);
+
+  const handleIdmRecheck = () => {
+    setIdmRechecking(true);
+    try {
+      const idmTags = document.querySelectorAll('[__idm_id__], [__idm_frm__]');
+      idmTags.forEach((el) => {
+        el.removeAttribute('__idm_id__');
+        el.removeAttribute('__idm_frm__');
+      });
+    } catch {}
+
+    setTimeout(() => {
+      const stillHooked = document.querySelector('[__idm_id__], [__idm_frm__]');
+      if (stillHooked) {
+        setIdmBlocked(true);
+      } else {
+        setIdmBlocked(false);
+      }
+      setIdmRechecking(false);
+    }, 600);
+  };
 
   // Fetch signed embed URL for Bunny videos (supports Token Authentication if enabled)
   useEffect(() => {
@@ -1435,6 +1489,41 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     Playback for this lesson has been disabled on <strong>{getDeviceLabel(deviceType)}</strong> according to academy settings. Please access this lesson from an approved device.
                   </p>
                 </div>
+              ) : idmBlocked ? (
+                <div className="w-full h-full absolute inset-0 z-20 bg-zinc-950 flex flex-col items-center justify-center p-8 text-center border-2 border-red-600/70 select-none">
+                  <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4 ring-8 ring-red-500/5 animate-pulse">
+                    <ShieldAlert className="w-8 h-8 text-red-500" />
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/80 border border-red-800 text-red-400 text-xs font-semibold mb-3">
+                    Download Manager Detected
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    IDM / Video Downloader Active
+                  </h3>
+                  <p className="text-sm text-zinc-300 max-w-md mb-2">
+                    Internet Download Manager (IDM) or a video downloader extension is hooking into the player.
+                  </p>
+                  <p className="text-xs text-zinc-400 max-w-md mb-6">
+                    To protect copyrighted teacher lectures, please disable IDM in your browser and refresh to watch this class.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => window.location.reload()}
+                      type="button"
+                      className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-lg shadow-red-900/30 transition-all cursor-pointer"
+                    >
+                      I Disabled It, Reload Video
+                    </button>
+                    <button
+                      onClick={handleIdmRecheck}
+                      disabled={idmRechecking}
+                      type="button"
+                      className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium rounded-lg border border-zinc-700 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {idmRechecking ? 'Checking...' : 'Re-check Now'}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div 
                   ref={playerContainerRef} 
@@ -1486,6 +1575,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             pointerEvents: 'auto'
                           }}
                         >
+                          {/* Top Shield to block YouTube title clickout */}
+                          {activeServer === 'youtube' && (
+                            <div 
+                              className="absolute top-0 left-0 right-0 h-16 z-20 cursor-default bg-transparent"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
                           <ReactPlayer
                             key={`player_${activeVideo.id}_${activeServer}`}
                             ref={playerRef}

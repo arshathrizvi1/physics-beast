@@ -229,7 +229,24 @@ export function SecurityEnforcer() {
       });
     } catch (e) {}
 
-    // L. Anti-Tamper Observer: Catches modifications made in DevTools Elements tab
+    // L. Anti-IDM & Downloader Extension Trap
+    const checkIdmExtensions = () => {
+      try {
+        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__]');
+        if (idmTarget) {
+          idmTarget.removeAttribute('__idm_id__');
+          idmTarget.removeAttribute('__idm_frm__');
+          document.querySelectorAll('video, audio').forEach((media) => {
+            try {
+              (media as HTMLMediaElement).pause();
+            } catch {}
+          });
+          window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+        }
+      } catch {}
+    };
+
+    // L2. Anti-Tamper Observer: Catches modifications made in DevTools Elements tab & IDM injections
     const observer = new MutationObserver((mutations) => {
       if (isPurged) return;
       for (const m of mutations) {
@@ -249,8 +266,12 @@ export function SecurityEnforcer() {
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ['__idm_id__', '__idm_frm__'],
       characterData: true,
     });
+
+    const idmCheckInterval = setInterval(checkIdmExtensions, 2000);
 
     return () => {
       window.removeEventListener("contextmenu", blockContextMenu, true);
@@ -265,6 +286,7 @@ export function SecurityEnforcer() {
       window.removeEventListener("resize", checkDevTools);
       window.removeEventListener("resize", checkMobileEmulation);
       clearInterval(interval);
+      clearInterval(idmCheckInterval);
       observer.disconnect();
       document.body.classList.remove('window-unfocused-blur');
     };
