@@ -66,3 +66,6 @@ firebase-admin-key.json
 
 .kotlin/
 **/.kotlin/
+
+.qodana/
+

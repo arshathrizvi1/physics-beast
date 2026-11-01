@@ -12,16 +12,16 @@ import 'presentation/screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Immediately Activate FLAG_SECURE Window Protection
-  await SecurityService.enableAntiScreenCapture();
+  // Screenshots allowed for development
+  // await SecurityService.enableAntiScreenCapture();
 
-  // 2. Lock app to Portrait by default (Video player will unlock landscape)
+  // Lock app to Portrait by default (Video player will unlock landscape)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // 3. Status Bar Styling
+  // Status Bar Styling
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -31,7 +31,7 @@ void main() async {
     ),
   );
 
-  // 4. Initialize Firebase Native
+  // Initialize Firebase Native
   try {
     await Firebase.initializeApp();
   } catch (e) {

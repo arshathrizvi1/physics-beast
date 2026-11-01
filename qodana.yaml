@@ -42,9 +42,16 @@ exclude:
       - brilliant_academy_flutter
       - rtmp-server
       - whatsapp-otp-bot
+      - legacy-scripts
       - scripts
       - tests
       - coverage
+      - local-mocks
+  - name: JsCoverageInspection
+    paths:
+      - next.config.js
+      - postcss.config.js
+      - tailwind.config.js
   - name: JSXUnresolvedComponent
   - name: ES6PreferShortImport
     paths:

@@ -49,13 +49,16 @@ android {
         versionName flutterVersionName
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             signingConfig signingConfigs.debug
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-
         }
     }
 }
@@ -67,4 +70,13 @@ flutter {
 dependencies {
     implementation "androidx.core:core-ktx:1.13.1"
     implementation "androidx.appcompat:appcompat:1.6.1"
+}
+
+// Android Studio compatibility lifecycle tasks
+tasks.register("unitTestClasses") {
+    dependsOn "compileDebugUnitTestSources"
+}
+
+tasks.register("testClasses") {
+    dependsOn "unitTestClasses"
 }

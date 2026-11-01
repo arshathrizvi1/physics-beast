@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   qodana:
-    name: Qodana Scan & License Audit
+    name: JetBrains Qodana Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,12 +26,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
-      - name: Install dependencies (required for Dependency License Audit)
-        run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Install dependencies & patch licenses
+        run: |
+          npm install --legacy-peer-deps --ignore-scripts
+          node scripts/patch-licenses.mjs
+
+      - name: Generate Qodana LCOV coverage
+        run: |
+          npm run test:coverage
+          ls -lh .qodana/code-coverage/lcov.info
 
       - name: Qodana Scan
         if: env.QODANA_TOKEN != ''
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
-        uses: JetBrains/qodana-action@v2024.3
+        uses: JetBrains/qodana-action@v2026.2.2
+        with:
+          args: --linter qodana-js --print-problems
+          pr-mode: false
+          upload-result: false
+          use-caches: false

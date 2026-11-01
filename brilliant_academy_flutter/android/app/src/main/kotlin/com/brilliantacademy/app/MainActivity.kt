@@ -34,29 +34,20 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 1. Enforce Hardware Screen Capture / Recording Protection Immediately
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // Screenshots allowed for development as requested
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     override fun onResume() {
         super.onResume()
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // Screenshots allowed for development as requested
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
-        }
+        // Screenshots allowed for development as requested
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -107,7 +98,7 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "setFlagSecure" -> {
-                    val enable = call.argument<Boolean>("enable") ?: true
+                    val enable = call.argument<Boolean>("enable") ?: false
                     if (enable) {
                         window.setFlags(
                             WindowManager.LayoutParams.FLAG_SECURE,

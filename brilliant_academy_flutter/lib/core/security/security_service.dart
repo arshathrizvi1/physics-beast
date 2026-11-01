@@ -13,13 +13,10 @@ class SecurityCheckResult {
 class SecurityService {
   static const MethodChannel _channel = MethodChannel('com.brilliantacademy.app/security');
 
-  /// 1. Initialize FLAG_SECURE (Prevents Screenshots & Screen Recording)
+  /// 1. AntiScreenCapture (Screenshots allowed for development)
   static Future<void> enableAntiScreenCapture() async {
-    try {
-      await _channel.invokeMethod('setFlagSecure', {'enable': true});
-    } catch (e) {
-      debugPrint("FLAG_SECURE init error: $e");
-    }
+    // Disabled in development to allow screenshots and screencaps
+    return;
   }
 
   /// 2, 3, 4, 5. Comprehensive Zero-Trust Device Integrity Verification (Fail-Closed)

@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Zero-Trust Network Security: Disallow all cleartext HTTP traffic -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Allow system and user certificates and network traffic for development and Firebase -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
-            <!-- Trust only verified system certificates to prevent MITM interception -->
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </base-config>
-
-    <!-- Domain-specific configuration for Bunny CDN and Firebase -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">b-cdn.net</domain>
-        <domain includeSubdomains="true">googleapis.com</domain>
-        <domain includeSubdomains="true">firebaseio.com</domain>
+    <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
-    </domain-config>
+    </debug-overrides>
 </network-security-config>

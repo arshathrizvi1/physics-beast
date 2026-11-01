@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "security:check": "node scripts/security-audit.mjs",
-    "postinstall": "node scripts/patch-licenses.mjs"
+    "postinstall": "node scripts/patch-licenses.mjs",
+    "test:coverage": "node scripts/generate-coverage.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1128.0",
