@@ -290,7 +290,9 @@ for (const ciFile of [
   'qodana.yaml',
   '.github/workflows/security-audit.yml',
   '.github/workflows/semgrep.yml',
-  '.github/workflows/qodana.yml',
+  fs.existsSync(path.join(ROOT, '.github/workflows/qodana-scan.yml'))
+    ? '.github/workflows/qodana-scan.yml'
+    : '.github/workflows/qodana.yml',
 ]) {
   passCheck();
   if (!fs.existsSync(path.join(ROOT, ciFile))) {
