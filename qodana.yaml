@@ -62,26 +62,30 @@ exclude:
   - name: ES6UnusedImports
   - name: JSUnusedLocalSymbols
   - name: JSUnusedGlobalSymbols
-  - name: ExceptionUsedForLocalControlFlowJS
+  - name: ExceptionCaughtLocallyJS
   - name: PointlessBooleanExpressionJS
   - name: PointlessArithmeticExpressionJS
   - name: UnterminatedStatementJS
+  - name: JSUnnecessarySemicolon
   - name: RegExpAnonymousGroup
+  - name: RegExpRedundantEscape
   - name: SuspiciousTypeOfGuard
   - name: JSUnusedAssignment
   - name: RedundantCharacterEscape
-  - name: RedundantConditionalExpressionJS
-  - name: RedundantIfStatementJS
-  - name: RedundantLocalVariableJS
+  - name: TrivialConditionalJS
+  - name: TrivialIfJS
+  - name: UnnecessaryLocalVariableJS
   - name: JsonSchemaCompliance
   - name: IfStatementWithIdenticalBranchesJS
   - name: InnerHTMLJS
   - name: CssInvalidPropertyValue
   - name: Annotator
   - name: JSIgnoredPromiseFromCall
-  - name: DeprecatedClassUsageInspection
+  - name: JSDeprecatedSymbols
   - name: TypeScriptUMDGlobal
   - name: DuplicatedCode
+  - name: ES6ConvertVarToLetConst
+  - name: ES6MissingAwait
 
 include:
   - name: CheckDependencyLicenses
@@ -96,7 +100,6 @@ include:
   - name: ForLoopThatDoesntUseLoopVariableJS
   - name: JSMissingSwitchBranches
   - name: JSRedundantSwitchStatement
-  - name: ES6ConvertVarToLetConst
   - name: SqlAddNotNullColumnInspection
   - name: SqlAggregatesInspection
   - name: HttpRequestAmbiguityEncoding
