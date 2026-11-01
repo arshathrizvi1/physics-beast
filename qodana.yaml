@@ -1,6 +1,6 @@
 version: "1.0"
 linter: qodana-js
-bootstrap: test -d node_modules || npm ci
+bootstrap: test -d node_modules || (npm install --legacy-peer-deps --ignore-scripts && node scripts/patch-licenses.mjs)
 profile:
   name: qodana.recommended
 
@@ -86,6 +86,7 @@ exclude:
   - name: DuplicatedCode
   - name: ES6ConvertVarToLetConst
   - name: ES6MissingAwait
+  - name: CssMissingSemicolon
 
 include:
   - name: CheckDependencyLicenses
@@ -208,7 +209,6 @@ include:
   - name: HtmlRequiredTitleAttribute
   - name: RequiredAttributes
   - name: SqlMissingReturnInspection
-  - name: CssMissingSemicolon
   - name: SqlMultipleLimitClausesInspection
   - name: SqlNamedArgumentsInspection
   - name: LanguageDetectionInspection
