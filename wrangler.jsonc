@@ -18,7 +18,7 @@
       "zone_name": "brillliantacademy.site"
     },
     {
-      "pattern": "brillliantacademy.site/__/auth/*",
+      "pattern": "brillliantacademy.site/__/auth*",
       "zone_name": "brillliantacademy.site"
     },
     {
@@ -38,7 +38,7 @@
       "zone_name": "brillliantacademy.site"
     },
     {
-      "pattern": "www.brillliantacademy.site/__/auth/*",
+      "pattern": "www.brillliantacademy.site/__/auth*",
       "zone_name": "brillliantacademy.site"
     },
     {

@@ -74,8 +74,13 @@ export default {
     }
 
     // 3. Firebase Auth Custom Domain Reverse Proxy (/__/auth/*)
-    // Prevents Safari ITP & 3rd-party cookie blocking
-    if (url.pathname.startsWith('/__/auth/') || url.pathname === '/__/auth') {
+    // If a human visitor opens /__/auth directly in their browser, redirect safely to /login
+    if (url.pathname === '/__/auth' || url.pathname === '/__/auth/') {
+      return Response.redirect('https://www.brillliantacademy.site/login', 302);
+    }
+
+    // Proxy internal Firebase SDK authentication endpoints (/__/auth/handler, etc.)
+    if (url.pathname.startsWith('/__/auth/')) {
       try {
         const targetUrl = new URL(request.url);
         targetUrl.hostname = 'physics-beastsl.firebaseapp.com';
