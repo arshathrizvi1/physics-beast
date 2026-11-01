@@ -13,7 +13,8 @@
     "lint": "eslint",
     "security:check": "node scripts/security-audit.mjs",
     "postinstall": "node scripts/patch-licenses.mjs",
-    "test:coverage": "node scripts/generate-coverage.mjs"
+    "test:coverage": "node scripts/generate-coverage.mjs",
+    "deploy:cf": "wrangler deploy"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1128.0",

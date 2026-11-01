@@ -1,0 +1,67 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "brilliant-academy",
+  "main": "worker.js",
+  "compatibility_date": "2025-04-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "brillliantacademy.site/api/d1-sync*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "brillliantacademy.site/api/sync-flush*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "brillliantacademy.site/api/r2-media/*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "brillliantacademy.site/__/auth/*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "brillliantacademy.site/api/health*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "www.brillliantacademy.site/api/d1-sync*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "www.brillliantacademy.site/api/sync-flush*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "www.brillliantacademy.site/api/r2-media/*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "www.brillliantacademy.site/__/auth/*",
+      "zone_name": "brillliantacademy.site"
+    },
+    {
+      "pattern": "www.brillliantacademy.site/api/health*",
+      "zone_name": "brillliantacademy.site"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "brilliant-academy-db",
+      "database_id": "e84fcb4f-a912-4db1-a686-3021bdb470aa"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "brilliant-videos"
+    }
+  ],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "physics-beastsl",
+    "SITE_URL": "https://brillliantacademy.site",
+    "ENVIRONMENT": "production"
+  }
+}

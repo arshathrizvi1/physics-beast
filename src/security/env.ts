@@ -51,6 +51,14 @@ export interface ServerEnvConfig {
   MASTER_ADMIN_EMAILS: string[];
 }
 
+export function timingSafeCompare(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 export function getServerEnv(): ServerEnvConfig {
   const nodeEnv = process.env.NODE_ENV || 'development';
 

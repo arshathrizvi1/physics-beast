@@ -5,6 +5,22 @@
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+export const sanitizePlainText = sanitizeText;
+
+export function sanitizeUrl(input: unknown): string {
+  if (typeof input !== 'string') return '';
+  const trimmed = input.trim();
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString();
+    }
+  } catch {
+    // invalid URL
+  }
+  return '';
+}
+
 /**
  * Strips all HTML tags, script injections, javascript:/data: URIs, and control chars.
  */
