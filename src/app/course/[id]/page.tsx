@@ -991,28 +991,42 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setPlayed(0);
     }
     activeVideoRef.current = activeVideo; 
-    const preferredPlayer = activeSettings?.defaultPlayer || 'bunny';
+    const isYoutube = Boolean(
+      activeVideo?.originalYoutubeUrl || 
+      activeVideo?.platform === 'youtube' || 
+      (activeVideo?.url && (activeVideo.url.includes('youtube.com') || activeVideo.url.includes('youtu.be')))
+    );
 
-    const hasBunny = Boolean(activeVideo?.videoId || activeVideo?.platform === 'bunny');
-    const hasR2 = Boolean(activeVideo?.r2Url || activeVideo?.platform === 'r2');
-    const hasYoutube = Boolean(activeVideo?.originalYoutubeUrl || activeVideo?.platform === 'youtube');
+    const isBunny = Boolean(
+      (activeVideo?.videoId && !isYoutube) || 
+      (activeVideo?.platform === 'bunny' && !isYoutube) || 
+      (activeVideo?.url && activeVideo.url.includes('mediadelivery.net'))
+    );
+
+    const isR2 = Boolean(
+      activeVideo?.r2Url || 
+      activeVideo?.platform === 'r2' || 
+      (activeVideo?.url && (activeVideo.url.includes('r2.cloudflarestorage.com') || activeVideo.url.includes('r2.dev') || activeVideo.url.includes('/api/r2-media/')))
+    );
 
     const permittedList: ('bunny' | 'r2' | 'youtube')[] = [];
-    if (isBunnyPermitted && (hasBunny || (!hasR2 && !hasYoutube))) permittedList.push('bunny');
-    if (isR2Permitted && hasR2) permittedList.push('r2');
-    if (isYoutubePermitted && hasYoutube) permittedList.push('youtube');
+    if (isYoutube && isYoutubePermitted) permittedList.push('youtube');
+    if (isBunny && isBunnyPermitted) permittedList.push('bunny');
+    if (isR2 && isR2Permitted) permittedList.push('r2');
 
     if (permittedList.length === 0) {
-      if (isR2Permitted && hasR2) permittedList.push('r2');
-      else if (isBunnyPermitted) permittedList.push('bunny');
-      else if (isYoutubePermitted) permittedList.push('youtube');
-      else return;
+      if (isYoutube) permittedList.push('youtube');
+      else if (isBunny) permittedList.push('bunny');
+      else if (isR2) permittedList.push('r2');
+      else permittedList.push('youtube');
     }
+
+    const preferredPlayer = activeSettings?.defaultPlayer || (isYoutube ? 'youtube' : 'bunny');
 
     if (permittedList.includes(preferredPlayer as any)) {
       setActiveServer(preferredPlayer as any);
     } else {
-      setActiveServer(permittedList[0]);
+      setActiveServer(permittedList[0] || (isYoutube ? 'youtube' : 'bunny'));
     }
   }, [activeVideo, isBunnyPermitted, isR2Permitted, isYoutubePermitted, activeSettings]);
 

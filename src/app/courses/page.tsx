@@ -39,7 +39,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
 
   if (course.isMonthly) {
     return (
-      <Link key={course.id} href={`/course/${course.id}`}>
+      <Link key={course.id} href={`/course/${course.id}`} prefetch={true}>
         <Card className={`overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex group shadow-lg hover:shadow-[var(--gold)]/20 relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
           <div className="absolute top-0 right-0 p-2 z-20">
             <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
@@ -97,7 +97,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
   }
 
   return (
-    <Link key={course.id} href={`/course/${course.id}`}>
+    <Link key={course.id} href={`/course/${course.id}`} prefetch={true}>
       <Card className={`overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex group relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
         <div className={`relative overflow-hidden bg-secondary/20 flex items-center justify-center border-secondary/30 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
           {course.image || course.thumbnailUrl ? (
