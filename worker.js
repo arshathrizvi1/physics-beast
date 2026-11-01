@@ -72,13 +72,13 @@ function buildSecurityHeaders(request, nonce) {
   const origin = resolveCorsOrigin(request);
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.googleapis.com https://source.zoom.us https://*.zoom.us https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.googleapis.com https://source.zoom.us https://*.zoom.us https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://source.zoom.us https://cdn.jsdelivr.net",
     "img-src 'self' data: blob: https: http:",
     "font-src 'self' data: https://fonts.gstatic.com https://source.zoom.us",
-    "connect-src 'self' https: wss: blob:",
+    "connect-src 'self' https: wss: blob: data:",
     "media-src 'self' blob: data: https:",
-    "worker-src 'self' blob:",
+    "worker-src 'self' blob: https://unpkg.com https://cdnjs.cloudflare.com",
     "frame-src 'self' https://*.firebaseapp.com https://*.google.com https://*.zoom.us https://*.youtube.com https://*.youtube-nocookie.com https://iframe.mediadelivery.net https://*.payable.lk",
     "frame-ancestors 'self'",
     "base-uri 'self'",
@@ -726,14 +726,61 @@ export default {
       );
     }
 
-    // 10. Cloudflare R2 Media Object Storage (/api/r2-media/*)
+    // 10. Cloudflare R2 Media Object Storage & Uploads (/api/r2-media/*)
     if (url.pathname.startsWith('/api/r2-media/')) {
       if (!env.MEDIA) {
         return new Response('R2 binding MEDIA not configured', { status: 500 });
       }
 
+      const corsOrigin = resolveCorsOrigin(request);
+
+      // Handle CORS preflight
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, PUT, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization, x-amz-content-sha256',
+            'Access-Control-Max-Age': '86400',
+          }
+        });
+      }
+
       const key = decodeURIComponent(url.pathname.replace('/api/r2-media/', ''));
-      const object = await env.MEDIA.get(key);
+
+      // Direct R2 Streaming PUT Upload
+      if (request.method === 'PUT') {
+        const contentType = request.headers.get('content-type') || (key.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+        await env.MEDIA.put(key, request.body, {
+          httpMetadata: {
+            contentType: contentType,
+            cacheControl: 'public, max-age=31536000, immutable',
+          }
+        });
+
+        return new Response(JSON.stringify({
+          success: true,
+          key: key,
+          publicUrl: `https://brillliantacademy.site/api/r2-media/${encodeURIComponent(key)}`,
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, PUT, OPTIONS',
+          }
+        });
+      }
+
+      // GET / HEAD download from R2 with byte range support
+      const rangeHeader = request.headers.get('range');
+      let object;
+      if (rangeHeader) {
+        object = await env.MEDIA.get(key, { range: request.headers });
+      } else {
+        object = await env.MEDIA.get(key);
+      }
 
       if (!object) {
         return new Response('Media object not found in R2', { status: 404 });
@@ -743,9 +790,44 @@ export default {
       object.writeHttpMetadata(headers);
       headers.set('etag', object.httpEtag);
       headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-      headers.set('Access-Control-Allow-Origin', resolveCorsOrigin(request));
+      headers.set('Access-Control-Allow-Origin', corsOrigin);
+      headers.set('Access-Control-Allow-Methods', 'GET, HEAD, PUT, OPTIONS');
+      headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
+      headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
+      headers.set('Accept-Ranges', 'bytes');
+      if (key.toLowerCase().endsWith('.pdf')) {
+        headers.set('Content-Type', 'application/pdf');
+      }
 
-      return new Response(object.body, { headers });
+      return new Response(object.body, {
+        status: rangeHeader ? 206 : 200,
+        headers
+      });
+    }
+
+    // 10b. PDF Proxy for external/legacy CDN files (e.g. Bunny CDN) to eliminate CORS errors
+    if (url.pathname === '/api/pdf-proxy') {
+      const targetUrl = url.searchParams.get('url');
+      if (!targetUrl) return new Response('Missing url parameter', { status: 400 });
+
+      try {
+        const upstreamRes = await fetch(targetUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BrilliantAcademy/1.0',
+          }
+        });
+        if (!upstreamRes.ok) {
+          return new Response(`Upstream returned ${upstreamRes.status}`, { status: upstreamRes.status });
+        }
+        const headers = new Headers();
+        headers.set('Content-Type', upstreamRes.headers.get('content-type') || 'application/pdf');
+        headers.set('Access-Control-Allow-Origin', resolveCorsOrigin(request));
+        headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        headers.set('Cache-Control', 'public, max-age=86400');
+        return new Response(upstreamRes.body, { headers });
+      } catch (err) {
+        return new Response('Proxy error: ' + err.message, { status: 502 });
+      }
     }
 
     // 11. Edge Healthcheck (/api/health)

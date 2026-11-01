@@ -5,12 +5,12 @@ import { RefreshCw, AlertCircle, ShieldCheck, Maximize, Minimize, Download, Chev
 import { Button } from "@/components/ui/button";
 import { Document, Page, pdfjs } from "react-pdf";
 
-// We import the styles required by react-pdf
+// Import styles required by react-pdf
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Configure PDF.js worker with standard HTTPS CDN
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
   url: string;
@@ -92,7 +92,6 @@ export function PdfViewer({
 
     const handleZoomStep = (scaleMultiplier: number) => {
       currentCssScale *= scaleMultiplier;
-      // Clamp temporary visual scale to avoid crazy zooms before commit
       currentCssScale = Math.max(0.2, Math.min(currentCssScale, 8.0)); 
       setCssScale(currentCssScale);
       
@@ -103,7 +102,7 @@ export function PdfViewer({
     // Trackpad / Mouse Wheel Zoom
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
-        e.preventDefault(); // Prevent browser native whole-page zoom
+        e.preventDefault();
         const multiplier = e.deltaY > 0 ? 0.95 : 1.05;
         handleZoomStep(multiplier);
       }
@@ -126,7 +125,7 @@ export function PdfViewer({
         const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
         
         const scaleFactor = dist / pinchStartDist;
-        pinchStartDist = dist; // Reset for continuous delta
+        pinchStartDist = dist;
         
         handleZoomStep(scaleFactor);
       }
@@ -140,14 +139,10 @@ export function PdfViewer({
 
     // Mouse Drag-to-Pan
     const onMouseDown = (e: MouseEvent) => {
-      // Only trigger pan on left click (button 0)
       if (e.button !== 0) return;
-      
-      // Don't intercept clicks on scrollbars (rough heuristic: if clicking near the right edge)
       if (container.offsetWidth - e.offsetX < 20 || container.offsetHeight - e.offsetY < 20) {
         return;
       }
-
       isDragging = true;
       container.style.cursor = 'grabbing';
       dragStartX = e.pageX - container.offsetLeft;
@@ -174,9 +169,7 @@ export function PdfViewer({
 
     container.style.cursor = 'grab';
 
-    // Attach listeners
     container.addEventListener("wheel", onWheel, { passive: false });
-    
     container.addEventListener("touchstart", onTouchStart, { passive: false });
     container.addEventListener("touchmove", onTouchMove, { passive: false });
     container.addEventListener("touchend", onTouchEnd, { passive: false });
@@ -189,14 +182,11 @@ export function PdfViewer({
 
     return () => {
       if (renderTimeout) clearTimeout(renderTimeout);
-      
       container.removeEventListener("wheel", onWheel);
-      
       container.removeEventListener("touchstart", onTouchStart);
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", onTouchEnd);
       container.removeEventListener("touchcancel", onTouchEnd);
-
       container.removeEventListener("mousedown", onMouseDown);
       container.removeEventListener("mouseleave", onMouseLeaveOrUp);
       container.removeEventListener("mouseup", onMouseLeaveOrUp);
@@ -239,6 +229,17 @@ export function PdfViewer({
     trimmed += ".pdf";
   }
 
+  // If the PDF is from an external CDN (e.g. Bunny b-cdn.net or remote S3 without CORS),
+  // automatically route through our same-origin /api/pdf-proxy so it loads seamlessly!
+  const isExternalHttp = trimmed.startsWith("http://") || trimmed.startsWith("https://");
+  const isSameHost = typeof window !== 'undefined' && trimmed.includes(window.location.host);
+  const isOurDomain = trimmed.includes("brillliantacademy.site") || trimmed.includes("localhost");
+
+  let resolvedFileUrl = trimmed;
+  if (isExternalHttp && (!isSameHost && !isOurDomain || trimmed.includes("b-cdn.net"))) {
+    resolvedFileUrl = `/api/pdf-proxy?url=${encodeURIComponent(trimmed)}`;
+  }
+
   return (
     <div 
       ref={containerRef}
@@ -262,7 +263,7 @@ export function PdfViewer({
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </Button>
-            <span className="min-w-[40px] text-center font-medium">
+            <span className="min-w-[42px] text-center font-bold text-foreground">
               {Math.round(renderScale * cssScale * 100)}%
             </span>
             <Button
@@ -280,19 +281,47 @@ export function PdfViewer({
               type="button"
               variant="ghost"
               size="xs"
-              onClick={() => handleSetZoom(1.5)}
+              onClick={() => handleSetZoom(1.0)}
               className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground hidden sm:flex"
-              title="Reset Zoom"
+              title="Reset Zoom to 100%"
             >
               <RefreshCw className="w-3 h-3" />
               <span>Reset</span>
             </Button>
           </div>
 
-          {/* Page count indicator */}
+          {/* Page count indicator and Navigation */}
           {numPages && (
-            <div className="flex items-center gap-2 bg-background/80 rounded-md px-3 py-1 border border-border font-medium">
-              {numPages} {numPages === 1 ? 'Page' : 'Pages'}
+            <div className="flex items-center gap-1.5 bg-background/80 rounded-md px-2.5 py-1 border border-border font-medium text-xs">
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  const container = documentContainerRef.current;
+                  if (container) container.scrollBy({ top: -500, behavior: 'smooth' });
+                }}
+                className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                title="Previous Page"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <span className="min-w-[48px] text-center font-semibold text-foreground">
+                {numPages} {numPages === 1 ? 'Page' : 'Pages'}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  const container = documentContainerRef.current;
+                  if (container) container.scrollBy({ top: 500, behavior: 'smooth' });
+                }}
+                className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                title="Next Page"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </Button>
             </div>
           )}
 
@@ -330,24 +359,31 @@ export function PdfViewer({
             className="flex flex-col shrink-0 min-w-max mx-auto"
           >
             <Document
-              file={trimmed}
+              file={resolvedFileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-zinc-300 shrink-0">
                   <RefreshCw className="w-8 h-8 mb-4 animate-spin text-[#d4af37]" />
-                  <p>Loading document...</p>
+                  <p className="text-sm font-medium">Loading document...</p>
                 </div>
               }
               error={
                 <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-400 p-6 text-center shrink-0">
                   <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
-                  <p className="font-medium">Failed to load PDF file.</p>
-                  <p className="text-sm mt-2 opacity-80 text-zinc-400">
-                    The file might be corrupted, or your server is blocking cross-origin requests (CORS).
+                  <p className="font-bold text-base">Failed to load PDF file.</p>
+                  <p className="text-xs mt-2 opacity-80 text-zinc-400 max-w-sm">
+                    The file might be corrupted, or your server is blocking cross-origin requests.
                   </p>
-                  <p className="text-xs mt-4 max-w-sm text-center font-mono bg-red-950/50 p-2 rounded text-red-300">
-                    Please enable "Add CORS Headers" in your CDN dashboard (e.g. Bunny CDN Pull Zone settings).
-                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                    className="mt-4 border-red-500/30 text-red-300 hover:bg-red-950/40"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    Retry Loading
+                  </Button>
                 </div>
               }
               className="flex flex-col gap-6 w-full shrink-0"
@@ -371,12 +407,12 @@ export function PdfViewer({
       
       {allowDownload && (
         <div className="bg-background border-t border-border p-4 flex justify-between items-center z-10 shrink-0">
-          <div className="text-sm font-medium text-foreground hidden sm:block">
+          <div className="text-sm font-medium text-foreground hidden sm:block truncate max-w-md">
             {title}
           </div>
           <a
-            href={trimmed}
-            download
+            href={resolvedFileUrl}
+            download={title ? `${title.replace(/[^a-zA-Z0-9.-]/g, '_')}.pdf` : 'document.pdf'}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 bg-[#d4af37] hover:bg-[#b5952f] text-black font-bold px-6 py-2.5 rounded-md transition-colors shadow-md w-full sm:w-auto justify-center"
