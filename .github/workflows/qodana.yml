@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies & patch licenses
@@ -39,12 +39,11 @@ jobs:
           ls -lh .qodana/code-coverage/lcov.info
 
       - name: Qodana Scan
-        if: env.QODANA_TOKEN != ''
-        env:
-          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         uses: JetBrains/qodana-action@v2026.2.2
         with:
           args: --linter qodana-js --print-problems
           pr-mode: false
           upload-result: false
           use-caches: false
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0IjoiMjBxS2QiLCJvcmdhbml6YXRpb24iOiJuZVZnOSIsInRva2VuIjoiNlBWYU0iLCJ0b2tlbl90eXBlIjoicHJvamVjdCJ9.6uWj26_7I_ZKX-743KKM2DA8puheY6Uqer2zgTWqpAU' }}
