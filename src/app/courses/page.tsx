@@ -3,10 +3,23 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { PlayCircle, BookOpen, GraduationCap, Play, LayoutGrid, List, Search } from "lucide-react";
+import { 
+  PlayCircle, 
+  BookOpen, 
+  GraduationCap, 
+  Play, 
+  LayoutGrid, 
+  List, 
+  Search, 
+  Lock, 
+  LogIn, 
+  UserPlus, 
+  Sparkles, 
+  ShieldCheck 
+} from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -23,7 +36,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
       isPaid = true;
       paidStatus = <span className="text-green-500 font-bold text-[11px] bg-green-500/10 px-1.5 py-0.5 rounded border border-green-500/20">Paid: Full Course</span>;
     } else {
-      const courseFolders = folders.filter(f => f.courseId === course.id);
+      const courseFolders = (folders || []).filter(f => f.courseId === course.id);
       const paidFolders = courseFolders.filter(f => user.folderAccess && user.folderAccess[f.id] && user.folderAccess[f.id] > Date.now());
       if (paidFolders.length > 0) {
         isPaid = true;
@@ -35,11 +48,19 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
         paidStatus = <span className="text-red-500 font-bold text-[11px] bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">Not Paid</span>;
       }
     }
+  } else {
+    paidStatus = (
+      <span className="text-[var(--gold)] font-bold text-[11px] bg-[var(--gold)]/10 px-2 py-0.5 rounded border border-[var(--gold)]/30 flex items-center gap-1 w-fit">
+        <Lock className="w-3 h-3" /> Login Required
+      </span>
+    );
   }
+
+  const destinationHref = user ? `/course/${course.id}` : `/login`;
 
   if (course.isMonthly) {
     return (
-      <Link key={course.id} href={`/course/${course.id}`} prefetch={true}>
+      <Link key={course.id} href={destinationHref} prefetch={true}>
         <Card className={`overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#252525] border-[var(--gold)]/40 hover:border-[var(--gold)] transition-all duration-300 flex group shadow-lg hover:shadow-[var(--gold)]/20 relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
           <div className="absolute top-0 right-0 p-2 z-20">
             <span className="bg-gradient-to-r from-[var(--gold)] to-[var(--light-gold)] text-black text-[10px] sm:text-xs font-bold px-2 py-1 sm:px-3 sm:py-1 rounded-bl-lg rounded-tr-lg uppercase tracking-wider shadow-md">Premium Live</span>
@@ -50,6 +71,8 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
                 src={course.image || course.thumbnailUrl} 
                 alt={course.name || course.title}
                 className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-[var(--silver)]/20 flex items-center justify-center text-[var(--gold)]/60 border border-[var(--gold)]/30 group-hover:scale-110 transition-transform duration-500">
@@ -58,7 +81,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#111111] to-transparent opacity-80" />
             <div className="absolute bottom-3 right-3 bg-[var(--gold)] text-black rounded-full p-2 shadow-lg group-hover:scale-110 transition-transform duration-300">
-              <Play className="w-4 h-4 fill-current ml-0.5" />
+              {user ? <Play className="w-4 h-4 fill-current ml-0.5" /> : <Lock className="w-4 h-4 fill-current ml-0.5" />}
             </div>
           </div>
           <div className="flex flex-col flex-1 min-w-0">
@@ -86,9 +109,13 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
                   </span>
                 )}
               </div>
-                <div className={`bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md flex items-center justify-center ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
-                  Enter Live Class
-                </div>
+              <div className={`bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md flex items-center justify-center gap-1.5 ${viewStyle === 'grid' ? 'w-full h-9 text-xs mt-3 sm:mt-0 sm:w-auto sm:px-4' : 'h-10 text-sm px-6 mb-2 shrink-0'}`}>
+                {user ? "Enter Live Class" : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" /> Login to Access
+                  </>
+                )}
+              </div>
             </CardContent>
           </div>
         </Card>
@@ -97,7 +124,7 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
   }
 
   return (
-    <Link key={course.id} href={`/course/${course.id}`} prefetch={true}>
+    <Link key={course.id} href={destinationHref} prefetch={true}>
       <Card className={`overflow-hidden border-secondary/50 bg-card hover:border-primary/50 transition-colors flex group relative ${viewStyle === 'grid' ? 'flex-col h-full' : 'flex-col sm:flex-row h-auto'}`}>
         <div className={`relative overflow-hidden bg-secondary/20 flex items-center justify-center border-secondary/30 ${viewStyle === 'grid' ? 'aspect-video border-b' : 'w-full sm:w-64 aspect-video sm:border-r border-b sm:border-b-0 shrink-0'}`}>
           {course.image || course.thumbnailUrl ? (
@@ -105,6 +132,8 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
               src={course.image || course.thumbnailUrl} 
               alt={course.name || course.title}
               className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <BookOpen className="w-10 h-10 sm:w-16 sm:h-16 text-primary/30" />
@@ -138,7 +167,15 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
           </CardHeader>
           <CardContent className={`bg-secondary/5 border-t border-secondary/20 p-3 sm:p-4 mt-auto ${viewStyle === 'list' ? 'border-t-0 bg-transparent pt-0 flex justify-end pb-4 pr-6' : ''}`}>
             <div className={`flex items-center justify-center bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] hover:brightness-110 active:scale-95 transition-all duration-300 font-bold rounded-md ${viewStyle === 'grid' ? 'w-full h-8 sm:h-10 text-xs sm:text-sm' : 'h-10 text-sm px-6'}`}>
-              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
+              {user ? (
+                <>
+                  <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" /> Start
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5 mr-1.5" /> Login to Access
+                </>
+              )}
             </div>
           </CardContent>
         </div>
@@ -166,6 +203,8 @@ function CoursesContent() {
   const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
   const [localSearch, setLocalSearch] = useState("");
 
+  const { user, loading: authLoading } = useAuth();
+
   // Sync state with URL params on client-side navigation
   useEffect(() => {
     setSelectedTeacherId(viewTeacher || "all");
@@ -175,8 +214,6 @@ function CoursesContent() {
     setSelectedSubjectId(viewSubject || "");
   }, [viewSubject]);
 
-  const { user } = useAuth();
-
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -184,60 +221,84 @@ function CoursesContent() {
           setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
         );
 
-        const [querySnapshot, teachersSnap, subjectsSnap, foldersSnap, videosSnap] = await Promise.race([
+        // 1. Fetch public catalog (courses and subjects have public read access in firestore.rules)
+        const [querySnapshot, subjectsSnap] = await Promise.race([
           Promise.all([
-            getDocs(collection(db, "courses")),
-            getDocs(query(collection(db, "users"), where("role", "==", "teacher"))),
-            getDocs(collection(db, "subjects")),
-            getDocs(collection(db, "folders")),
-            getDocs(collection(db, "videos"))
+            getDocs(collection(db, "courses")).catch((e) => {
+              console.warn("Public courses fetch fallback:", e);
+              return { docs: [] } as any;
+            }),
+            getDocs(collection(db, "subjects")).catch((e) => {
+              console.warn("Public subjects fetch fallback:", e);
+              return { docs: [] } as any;
+            })
           ]),
           timeoutPromise
         ]);
         
-        let fetchedCourses = querySnapshot.docs.map(doc => ({
+        let fetchedCourses = (querySnapshot?.docs || []).map((doc: any) => ({
           id: doc.id,
           ...doc.data() as any
         }));
 
-        const fetchedTeachers = teachersSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data() as any
-        }));
-        setTeachers(fetchedTeachers);
-
-        const fetchedSubjects = subjectsSnap.docs.map(doc => ({
+        const fetchedSubjects = (subjectsSnap?.docs || []).map((doc: any) => ({
           id: doc.id,
           ...doc.data() as any
         }));
         setSubjects(fetchedSubjects);
 
-        const fetchedFolders = foldersSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data() as any
-        }));
-        setFolders(fetchedFolders);
+        // 2. Fetch authenticated-only collections if session exists
+        if (user) {
+          try {
+            const [teachersSnap, foldersSnap, videosSnap] = await Promise.race([
+              Promise.all([
+                getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] }) as any),
+                getDocs(collection(db, "folders")).catch(() => ({ docs: [] }) as any),
+                getDocs(collection(db, "videos")).catch(() => ({ docs: [] }) as any)
+              ]),
+              timeoutPromise
+            ]);
 
-        const fetchedVideos = videosSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data() as any
-        }));
-        setVideos(fetchedVideos);
-        
-        if (user && user.role === 'student') {
-          const batchesSnap = await Promise.race([
-            getDocs(collection(db, "batches")),
-            timeoutPromise
-          ]);
-          const batchesMap: Record<string, string> = {};
-          batchesSnap.forEach(doc => {
-            batchesMap[doc.id] = doc.data().year;
-          });
+            const fetchedTeachers = (teachersSnap?.docs || []).map((doc: any) => ({
+              id: doc.id,
+              ...doc.data() as any
+            }));
+            setTeachers(fetchedTeachers);
 
-          fetchedCourses = fetchedCourses.filter(c => {
-            if (!c.batchId || c.batchId === 'all') return true;
-            return batchesMap[c.batchId] === user.graduationYear;
-          });
+            const fetchedFolders = (foldersSnap?.docs || []).map((doc: any) => ({
+              id: doc.id,
+              ...doc.data() as any
+            }));
+            setFolders(fetchedFolders);
+
+            const fetchedVideos = (videosSnap?.docs || []).map((doc: any) => ({
+              id: doc.id,
+              ...doc.data() as any
+            }));
+            setVideos(fetchedVideos);
+            
+            if (user.role === 'student') {
+              try {
+                const batchesSnap = await Promise.race([
+                  getDocs(collection(db, "batches")),
+                  timeoutPromise
+                ]);
+                const batchesMap: Record<string, string> = {};
+                batchesSnap.forEach((doc: any) => {
+                  batchesMap[doc.id] = doc.data().year;
+                });
+
+                fetchedCourses = fetchedCourses.filter((c: any) => {
+                  if (!c.batchId || c.batchId === 'all') return true;
+                  return batchesMap[c.batchId] === user.graduationYear;
+                });
+              } catch (bErr) {
+                console.warn("Batches filter error:", bErr);
+              }
+            }
+          } catch (pErr) {
+            console.warn("Protected collections fetch error:", pErr);
+          }
         }
 
         setCourses(fetchedCourses);
@@ -254,7 +315,7 @@ function CoursesContent() {
     };
 
     fetchCourses();
-  }, []);
+  }, [user]);
 
   const displayedCourses = courses.filter(c => {
     // deep text search
@@ -272,7 +333,7 @@ function CoursesContent() {
     if (selectedTeacherId !== 'all' && c.teacherId !== selectedTeacherId) return false;
 
     // subject filter
-    if (selectedSubjectId !== 'all' && c.subjectId !== selectedSubjectId) return false;
+    if (selectedSubjectId && selectedSubjectId !== 'all' && c.subjectId !== selectedSubjectId) return false;
 
     return true;
   });
@@ -326,6 +387,21 @@ function CoursesContent() {
     }
   }, [displayedTeachers.length, displayedTeachers[0]?.id, selectedTeacherId, isViewMode]);
 
+  if (authLoading) {
+    return (
+      <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div>
+          <h1 className="text-3xl font-bold">Course Explorer</h1>
+          <p className="text-muted-foreground mt-2">Browse all available courses and start learning today.</p>
+        </div>
+        <div className="flex flex-col items-center justify-center p-16 space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+          <p className="text-muted-foreground text-sm">Verifying student session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {!isViewMode ? (
@@ -346,8 +422,91 @@ function CoursesContent() {
         </div>
       )}
 
-      {/* SUBJECT SELECTION / FILTER */}
-      {!isViewMode && subjects.length > 0 && !loading && !dbError && (
+      {/* 🔒 UNAUTHENTICATED GUEST HERO PROMPT */}
+      {!user && (
+        <div className="bg-gradient-to-br from-[#18181b] via-[#121214] to-[#09090b] border-2 border-[var(--gold)]/40 hover:border-[var(--gold)]/60 transition-all duration-300 rounded-2xl p-6 sm:p-10 text-center shadow-2xl relative overflow-hidden my-4">
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-[var(--gold)]/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col items-center max-w-xl mx-auto space-y-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[var(--gold)]/25 via-[var(--gold)]/10 to-transparent flex items-center justify-center text-[var(--gold)] border border-[var(--gold)]/40 shadow-[0_0_25px_rgba(245,158,11,0.25)]">
+              <Lock className="w-8 h-8 sm:w-10 sm:h-10 text-[var(--gold)]" />
+            </div>
+
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Please Login to View Courses
+              </h2>
+              <p className="text-zinc-300 text-xs sm:text-sm mt-2 max-w-md mx-auto leading-relaxed">
+                Sign in with your student or teacher account to unlock enrolled courses, live interactive classes, video library, and exam notes.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto pt-2">
+              <Link 
+                href="/login" 
+                className="w-full sm:w-auto bg-gradient-to-r from-[#F59E0B] to-[#FBBF24] text-[#111827] font-bold px-8 py-3 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                Login to Access Courses
+              </Link>
+              <Link 
+                href="/signup" 
+                className="w-full sm:w-auto bg-white/5 hover:bg-white/10 text-white border border-white/15 hover:border-white/30 font-semibold px-6 py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                Create Free Account
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-6 mt-2 border-t border-white/10 text-left">
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                <Sparkles className="w-5 h-5 text-[var(--gold)] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Live Classes</h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">High-definition interactive video streaming.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                <BookOpen className="w-5 h-5 text-[var(--gold)] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Course Units</h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Structured lessons, folders & downloadable notes.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                <ShieldCheck className="w-5 h-5 text-[var(--gold)] shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-white">Zero-Trust Portal</h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">Instant activation & secure student access.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔒 GUEST PREVIEW OF AVAILABLE COURSES */}
+      {!user && courses.length > 0 && (
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-white">
+              <BookOpen className="w-5 h-5 text-[var(--gold)]" />
+              Course Catalog Preview ({courses.length})
+            </h3>
+            <Link href="/login" className="text-xs text-[var(--gold)] hover:underline font-semibold flex items-center gap-1">
+              <LogIn className="w-3.5 h-3.5" /> Login for Full Access &rarr;
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} viewStyle="grid" setSelectedTeacherId={setSelectedTeacherId} user={null} folders={[]} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AUTHENTICATED SUBJECT SELECTION / FILTER */}
+      {user && !isViewMode && subjects.length > 0 && !loading && !dbError && (
         <div className="space-y-4 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -404,7 +563,7 @@ function CoursesContent() {
                   className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     selectedSubjectId === subject.id
                       ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                      : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
+                    : "border-secondary/30 hover:border-primary/40 hover:shadow-md hover:-translate-y-1"
                   }`}
                 >
                   <div className={`w-full aspect-video flex items-center justify-center relative overflow-hidden ${selectedSubjectId === subject.id ? "bg-primary/20" : "bg-secondary/20"}`}>
@@ -429,8 +588,8 @@ function CoursesContent() {
         </div>
       )}
 
-      {/* ACTIVATED COURSES */}
-      {activatedCourses.length > 0 && !loading && !dbError && (
+      {/* AUTHENTICATED ACTIVATED COURSES */}
+      {user && activatedCourses.length > 0 && !loading && !dbError && (
         <div className="space-y-4 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="text-xl font-bold flex items-center gap-2 text-[var(--gold)]">
@@ -465,8 +624,8 @@ function CoursesContent() {
         </div>
       )}
 
-      {/* TEACHER SELECTION / FILTER BEFORE COURSES */}
-      {!isViewMode && selectedSubjectId && teachers.length > 0 && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1 && !loading && !dbError && (
+      {/* AUTHENTICATED TEACHER SELECTION / FILTER */}
+      {user && !isViewMode && selectedSubjectId && teachers.length > 0 && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1 && !loading && !dbError && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
@@ -480,7 +639,6 @@ function CoursesContent() {
             {selectedTeacherId !== "all" && displayedTeachers.length > 1 && (
               <Link 
                 href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
-                
                 className={buttonVariants({ variant: "ghost", size: "sm", className: "text-xs text-primary h-7 px-2" })}
               >
                 Show All Courses ({courses.length})
@@ -488,12 +646,9 @@ function CoursesContent() {
             )}
           </div>
 
-          {/* Big teacher cards grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {/* All Teachers card */}
             {displayedTeachers.length > 1 && (
               <Link
-                
                 href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`}
                 className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                   selectedTeacherId === "all"
@@ -518,7 +673,6 @@ function CoursesContent() {
               return (
                 <Link
                   key={teacher.id}
-                  
                   href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=${teacher.id}`}
                   className={`group flex flex-col rounded-2xl overflow-hidden border transition-all duration-300 text-left ${
                     isSelected
@@ -559,64 +713,67 @@ function CoursesContent() {
         </div>
       )}
 
-      {dbError ? (
-        <div className="bg-red-500/10 border-2 border-red-500/50 p-6 rounded-xl text-center">
-          <h2 className="text-xl font-bold text-red-500 mb-2">Connection Error</h2>
-          <p className="text-red-400">Could not fetch courses. Please check your internet connection and try again.</p>
-        </div>
-      ) : loading ? (
-        <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
-      ) : (!isViewMode && !localSearch && (!selectedSubjectId || selectedSubjectId === "all" || (selectedTeacherId === "all" && Array.from(new Set(courses.filter(c => c.subjectId === selectedSubjectId).map(c => c.teacherId).filter(Boolean))).length > 1))) ? null : displayedCourses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
-          <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
-          <h3 className="text-xl font-bold">No Courses Available</h3>
-          <p className="text-muted-foreground mt-2 max-w-md">
-            {searchQuery 
-              ? "Try adjusting your search terms." 
-              : selectedTeacherId !== "all" 
-              ? `No courses found taught by ${selectedTeacher?.name || 'this teacher'}.` 
-              : "The admin hasn't published any courses yet."}
-          </p>
-          {selectedTeacherId !== "all" && (
-            <Link href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`} className={buttonVariants({ variant: "outline", size: "sm", className: "mt-4" })}>
-              View All Courses
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <h3 className="text-xl font-bold flex items-center gap-2">
-              Available Courses
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input 
-                  type="text" 
-                  placeholder="Search courses, units, videos..." 
-                  value={localSearch}
-                  onChange={(e) => setLocalSearch(e.target.value)}
-                  className="pl-9 pr-4 py-1.5 text-sm bg-secondary/20 border border-secondary/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-64"
-                />
-              </div>
-              <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
-                <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
-                  <List className="w-4 h-4" />
-                </button>
+      {/* AUTHENTICATED COURSES VIEW */}
+      {user && (
+        dbError ? (
+          <div className="bg-red-500/10 border-2 border-red-500/50 p-6 rounded-xl text-center">
+            <h2 className="text-xl font-bold text-red-500 mb-2">Connection Error</h2>
+            <p className="text-red-400">Could not fetch courses. Please check your internet connection and try again.</p>
+          </div>
+        ) : loading ? (
+          <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
+        ) : displayedCourses.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
+            <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />
+            <h3 className="text-xl font-bold">No Courses Available</h3>
+            <p className="text-muted-foreground mt-2 max-w-md">
+              {searchQuery 
+                ? "Try adjusting your search terms." 
+                : selectedTeacherId !== "all" 
+                ? `No courses found taught by ${selectedTeacher?.name || 'this teacher'}.` 
+                : "The admin hasn't published any courses yet."}
+            </p>
+            {selectedTeacherId !== "all" && (
+              <Link href={`/courses?viewSubject=${selectedSubjectId}&viewTeacher=all`} className={buttonVariants({ variant: "outline", size: "sm", className: "mt-4" })}>
+                View All Courses
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                Available Courses ({availableCourses.length})
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input 
+                    type="text" 
+                    placeholder="Search courses, units, videos..." 
+                    value={localSearch}
+                    onChange={(e) => setLocalSearch(e.target.value)}
+                    className="pl-9 pr-4 py-1.5 text-sm bg-secondary/20 border border-secondary/30 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary w-full sm:w-64"
+                  />
+                </div>
+                <div className="flex bg-secondary/20 p-1 rounded-lg border border-secondary/30 w-max">
+                  <button onClick={() => setViewStyle('grid')} className={`p-1.5 rounded-md ${viewStyle === 'grid' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="Grid View">
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setViewStyle('list')} className={`p-1.5 rounded-md ${viewStyle === 'list' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`} title="List View">
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
+            
+            <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
+              {availableCourses.map((course) => (
+                <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} user={user} folders={folders} />
+              ))}
+            </div>
           </div>
-          
-          <div className={viewStyle === 'grid' ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
-            {availableCourses.map((course) => (
-              <CourseCard key={course.id} course={course} viewStyle={viewStyle} setSelectedTeacherId={setSelectedTeacherId} user={user} folders={folders} />
-            ))}
-          </div>
-        </div>
+        )
       )}
     </div>
   );
@@ -629,7 +786,3 @@ export default function CoursesPage() {
     </Suspense>
   );
 }
-
-
-
-
