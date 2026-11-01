@@ -3,9 +3,21 @@ import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+// Ultra-Low Latency & Cross-Origin Auth Domain Resolver
+// Ensures the popup opener and authDomain match the exact active hostname
+const resolveAuthDomain = () => {
+  if (typeof window !== "undefined") {
+    const host = window.location.host;
+    if (host.includes("brillliantacademy.site")) {
+      return host;
+    }
+  }
+  return "physics-beastsl.firebaseapp.com";
+};
+
 const firebaseConfig = {
   apiKey: "AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA",
-  authDomain: "www.brillliantacademy.site",
+  authDomain: resolveAuthDomain(),
   projectId: "physics-beastsl",
   storageBucket: "physics-beastsl.firebasestorage.app",
   messagingSenderId: "326758596614",

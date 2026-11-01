@@ -310,6 +310,9 @@ function LoginPageContent() {
     setIsSubmitting(true);
     try {
       const res = await googleSignIn();
+      if ((res as any)?.isRedirect) {
+        return; // Redirecting to Google authentication
+      }
       if (res.success) {
         if (res.isNewUser) {
           if (isLogin) {

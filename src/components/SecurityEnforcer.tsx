@@ -192,44 +192,29 @@ export function SecurityEnforcer() {
       }
     };
 
-    // I. Console Object Inspection Trap (Triggers when Console / Elements panel inspects elements)
-    const checkConsoleGetter = () => {
-      const div = document.createElement('div');
-      Object.defineProperty(div, 'id', {
-        get: () => {
-          purgeAndLockdown();
-          return '';
-        }
-      });
-      console.log('%c', div);
-      console.dir(div);
-    };
-
-    // J. Initial checks immediately upon page load / refresh
+    // I. Initial checks immediately upon page load / refresh
     checkMobileEmulation();
     checkDevTools();
-    checkConsoleGetter();
 
     window.addEventListener("resize", checkDevTools, { passive: true });
     window.addEventListener("resize", checkMobileEmulation, { passive: true });
     const interval = setInterval(() => {
       checkDevTools();
       checkMobileEmulation();
-      checkConsoleGetter();
-    }, 400);
+    }, 1500);
 
-    // K. disable-devtool engine integration (catches debugger, console, element inspect)
+    // J. disable-devtool engine integration (catches debugger, console, element inspect)
     try {
       DisableDevtool({
         ondevtoolopen() {
           purgeAndLockdown();
         },
         disableMenu: true,
-        interval: 300,
+        interval: 800,
       });
     } catch (e) {}
 
-    // L. Anti-IDM & Downloader Extension Trap
+    // K. Anti-IDM & Downloader Extension Trap
     const checkIdmExtensions = () => {
       try {
         const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__]');
@@ -246,7 +231,7 @@ export function SecurityEnforcer() {
       } catch {}
     };
 
-    // L2. Anti-Tamper Observer: Catches modifications made in DevTools Elements tab & IDM injections
+    // K2. Anti-Tamper Observer: Catches modifications made in DevTools Elements tab & IDM injections
     const observer = new MutationObserver((mutations) => {
       if (isPurged) return;
       for (const m of mutations) {

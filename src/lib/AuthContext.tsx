@@ -11,6 +11,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   updatePassword,
   sendEmailVerification
@@ -201,6 +202,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("Failed to parse cached profile");
         }
       }
+    }
+
+    // Process any returning Google redirect results
+    if (typeof window !== 'undefined') {
+      getRedirectResult(auth).catch((err) => {
+        console.warn("Redirect auth check:", err?.message);
+      });
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
@@ -966,7 +974,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: e.message || "Native Google Sign-In failed. Check configuration." };
         }
       } else {
-        result = await signInWithPopup(auth, provider);
+        try {
+          result = await signInWithPopup(auth, provider);
+        } catch (popupErr: any) {
+          const errCode = popupErr?.code || '';
+          if (
+            errCode === 'auth/popup-closed-by-user' ||
+            errCode === 'auth/popup-blocked' ||
+            errCode === 'auth/cancelled-popup-request'
+          ) {
+            console.log("Popup sign-in was blocked or closed. Triggering redirect fallback...");
+            await signInWithRedirect(auth, provider);
+            return { success: true, isRedirect: true };
+          }
+          throw popupErr;
+        }
       }
       
       const userDocRef = doc(db, 'users', result.user.uid);
