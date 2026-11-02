@@ -179,44 +179,154 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return () => unsubPlayerConfig();
   }, []);
 
+  // Comprehensive IDM Node Discriminator for Course Page
+  const checkIsIdmNode = (node: Element): boolean => {
+    if (!node) return false;
+    if (node.id === 'anti-piracy-screen' || node.closest?.('#anti-piracy-screen')) return false;
+
+    const tag = (node.tagName || '').toUpperCase();
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT' || tag === 'TEMPLATE') {
+      return false;
+    }
+
+    const id = (node.id || '').toLowerCase();
+    if (
+      id === 'idm_panel' ||
+      id === 'idm_select' ||
+      id === 'idm_menu' ||
+      id.startsWith('idm_') ||
+      id.startsWith('idm-') ||
+      id.startsWith('__idm') ||
+      id.includes('idm_') ||
+      id.includes('idm-')
+    ) {
+      return true;
+    }
+
+    const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
+    if (
+      cls.includes('idm_panel') ||
+      cls.includes('idm_downloader') ||
+      cls.includes('idm_select') ||
+      cls.includes('idm_menu') ||
+      cls.startsWith('idm_') ||
+      cls.startsWith('idm-') ||
+      cls.includes(' idm_') ||
+      cls.includes(' idm-') ||
+      cls.startsWith('__idm')
+    ) {
+      return true;
+    }
+
+    if (
+      node.hasAttribute('__idm_id__') ||
+      node.hasAttribute('__idm_displayed__') ||
+      node.hasAttribute('__idm_frm__') ||
+      node.hasAttribute('__idm_handle__') ||
+      node.hasAttribute('idm_disp') ||
+      node.hasAttribute('data-idm-id') ||
+      node.hasAttribute('data-idm-video')
+    ) {
+      return true;
+    }
+
+    const anyNode = node as any;
+    if (
+      '__idm_id__' in anyNode ||
+      anyNode.__idm_id__ !== undefined ||
+      '__idm_displayed__' in anyNode ||
+      anyNode.__idm_displayed__ !== undefined ||
+      '__idm_frm__' in anyNode ||
+      anyNode.__idm_frm__ !== undefined ||
+      '__idm_handle__' in anyNode ||
+      anyNode.__idm_handle__ !== undefined ||
+      '__idm_video__' in anyNode ||
+      anyNode.__idm_video__ !== undefined ||
+      'idm_disp' in anyNode ||
+      anyNode.idm_disp !== undefined
+    ) {
+      return true;
+    }
+
+    const title = (node.getAttribute('title') || node.getAttribute('aria-label') || '').toLowerCase();
+    if (
+      title.includes('download this video') ||
+      title.includes('download with idm') ||
+      title.includes('idm integration')
+    ) {
+      return true;
+    }
+
+    if (node.children.length <= 6) {
+      const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
+      if (rawTxt && rawTxt.length < 160) {
+        if (
+          rawTxt.includes('Download PDF') ||
+          rawTxt.includes('PDF Document') ||
+          rawTxt.includes('Statement (PDF)') ||
+          rawTxt.includes('BrilliantAcademy.apk')
+        ) {
+          return false;
+        }
+
+        if (
+          rawTxt === 'Download this video' ||
+          rawTxt === 'Download video from this page' ||
+          rawTxt === 'Download with IDM' ||
+          rawTxt === 'Download all' ||
+          rawTxt.startsWith('Download this video with IDM') ||
+          rawTxt.includes('Download this video with IDM') ||
+          (rawTxt.includes('Download this video') && !rawTxt.includes('DRM Piracy Defense')) ||
+          (rawTxt.includes('TS file, quality') && rawTxt.includes('kbps')) ||
+          (rawTxt.includes('MP4 file, quality') && rawTxt.includes('kbps'))
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
+
   // Anti-IDM (Internet Download Manager) and Video Downloader Interceptor
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const triggerIdmLockdown = () => {
+      setIdmBlocked(true);
       window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
 
     const checkIdmInDom = () => {
       try {
-        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]');
-        if (idmTarget) {
+        const media = document.querySelectorAll('video, audio');
+        for (let i = 0; i < media.length; i++) {
+          if (checkIsIdmNode(media[i])) {
+            triggerIdmLockdown();
+            return;
+          }
+        }
+
+        const fastTarget = document.querySelector(
+          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]'
+        );
+        if (fastTarget && !fastTarget.closest('#anti-piracy-screen')) {
           triggerIdmLockdown();
           return;
         }
 
-        const candidates = document.querySelectorAll('button, a, div[role="button"], span');
+        const candidates = document.querySelectorAll('div, span, button, a, table, td, tr, p');
         for (let i = 0; i < candidates.length; i++) {
-          const el = candidates[i];
-          if (el.closest('#anti-piracy-screen')) continue;
-          if (el.children.length <= 1) {
-            const txt = (el.textContent || '').trim();
-            if (
-              txt === 'Download this video' ||
-              txt === 'Download video from this page' ||
-              txt === 'Download with IDM' ||
-              txt.startsWith('Download this video with IDM')
-            ) {
-              triggerIdmLockdown();
-              return;
-            }
+          if (checkIsIdmNode(candidates[i])) {
+            triggerIdmLockdown();
+            return;
           }
         }
       } catch {}
     };
 
     checkIdmInDom();
-    const idmPoll = setInterval(checkIdmInDom, 400);
+    const idmPoll = setInterval(checkIdmInDom, 150);
 
     return () => {
       clearInterval(idmPoll);
@@ -357,41 +467,30 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         if (m.type === 'attributes') {
-          const attr = m.attributeName?.toLowerCase() || '';
-          if (
-            attr === '__idm_id__' ||
-            attr === '__idm_frm__' ||
-            attr === '__idm_handle__' ||
-            attr === '__idm_displayed__' ||
-            attr === 'idm_disp' ||
-            attr === 'data-idm-id' ||
-            attr === 'data-idm-video'
-          ) {
+          const target = m.target as Element;
+          if (checkIsIdmNode(target)) {
+            setIdmBlocked(true);
             window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
             return;
           }
         }
         for (let i = 0; i < m.addedNodes.length; i++) {
           const node = m.addedNodes[i];
-          if (node instanceof HTMLElement) {
-            if (node.closest('#anti-piracy-screen')) continue;
-            const id = (node.id || '').toLowerCase();
-            const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
-            const txt = (node.textContent || (node as HTMLElement).innerText || '').trim();
-            if (
-              id === 'idm_panel' ||
-              id === 'idm_select' ||
-              id === 'idm_menu' ||
-              cls.includes('idm_downloader') ||
-              node.hasAttribute('__idm_id__') ||
-              node.hasAttribute('__idm_displayed__') ||
-              txt === 'Download this video' ||
-              txt === 'Download video from this page' ||
-              txt === 'Download with IDM' ||
-              txt.startsWith('Download this video with IDM')
-            ) {
+          if (node instanceof Element) {
+            if (checkIsIdmNode(node)) {
+              setIdmBlocked(true);
               window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
               return;
+            }
+            const descendants = node.querySelectorAll?.('div, span, button, a, td, video, audio');
+            if (descendants) {
+              for (let d = 0; d < descendants.length; d++) {
+                if (checkIsIdmNode(descendants[d])) {
+                  setIdmBlocked(true);
+                  window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+                  return;
+                }
+              }
             }
           }
         }

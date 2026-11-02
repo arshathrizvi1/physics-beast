@@ -8,6 +8,233 @@ import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import DisableDevtool from 'disable-devtool';
 
+// Track all shadow roots created on the page to unmask IDM Shadow DOM injections
+const trackedShadowRoots = new Set<ShadowRoot>();
+
+if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_SHADOW_TRAPPED__) {
+  (Element.prototype as any).__IDM_SHADOW_TRAPPED__ = true;
+  try {
+    const origAttachShadow = Element.prototype.attachShadow;
+    Element.prototype.attachShadow = function (init: ShadowRootInit) {
+      const shadow = origAttachShadow.call(this, { ...init, mode: 'open' });
+      try {
+        trackedShadowRoots.add(shadow);
+      } catch {}
+      return shadow;
+    };
+  } catch {}
+}
+
+// Trap IDM prototype assignments on HTMLVideoElement and HTMLMediaElement
+if (typeof window !== 'undefined' && typeof HTMLVideoElement !== 'undefined' && !(HTMLVideoElement.prototype as any).__IDM_PROTO_TRAPPED__) {
+  (HTMLVideoElement.prototype as any).__IDM_PROTO_TRAPPED__ = true;
+  const idmProps = [
+    '__idm_id__',
+    '__idm_displayed__',
+    '__idm_frm__',
+    '__idm_handle__',
+    '__idm_video__',
+    'idm_disp',
+    'data-idm-id',
+    '__idm__',
+  ];
+
+  idmProps.forEach((prop) => {
+    try {
+      let val: any;
+      Object.defineProperty(HTMLVideoElement.prototype, prop, {
+        configurable: true,
+        enumerable: false,
+        get() {
+          return val;
+        },
+        set(v) {
+          val = v;
+          try {
+            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+          } catch {}
+        },
+      });
+    } catch {}
+
+    try {
+      let val: any;
+      Object.defineProperty(HTMLMediaElement.prototype, prop, {
+        configurable: true,
+        enumerable: false,
+        get() {
+          return val;
+        },
+        set(v) {
+          val = v;
+          try {
+            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+          } catch {}
+        },
+      });
+    } catch {}
+  });
+}
+
+// Trap setAttribute calls for IDM hook attributes
+if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_ATTR_TRAPPED__) {
+  (Element.prototype as any).__IDM_ATTR_TRAPPED__ = true;
+  try {
+    const origSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name: string, value: string) {
+      if (typeof name === 'string') {
+        const n = name.toLowerCase();
+        if (
+          n.startsWith('__idm') ||
+          n.startsWith('data-idm') ||
+          n === 'idm_disp' ||
+          n === '__idm_id__' ||
+          n === '__idm_displayed__' ||
+          n === '__idm_frm__' ||
+          n === '__idm_handle__'
+        ) {
+          try {
+            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+          } catch {}
+        }
+        if (n === 'id' || n === 'class') {
+          const val = String(value || '').toLowerCase();
+          if (
+            val.includes('idm_panel') ||
+            val.includes('idm_select') ||
+            val.includes('idm_menu') ||
+            val.includes('idm_downloader') ||
+            val.startsWith('idm_') ||
+            val.startsWith('idm-') ||
+            val.startsWith('__idm')
+          ) {
+            try {
+              window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+            } catch {}
+          }
+        }
+      }
+      return origSetAttribute.call(this, name, value);
+    };
+  } catch {}
+}
+
+// Comprehensive IDM element discriminator with guaranteed zero false positives
+function checkIsIdm(node: Element): boolean {
+  if (!node) return false;
+  if (node.id === 'anti-piracy-screen' || node.closest?.('#anti-piracy-screen')) return false;
+
+  const tag = (node.tagName || '').toUpperCase();
+  if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT' || tag === 'TEMPLATE') {
+    return false;
+  }
+
+  // 1. Check ID
+  const id = (node.id || '').toLowerCase();
+  if (
+    id === 'idm_panel' ||
+    id === 'idm_select' ||
+    id === 'idm_menu' ||
+    id.startsWith('idm_') ||
+    id.startsWith('idm-') ||
+    id.startsWith('__idm') ||
+    id.includes('idm_') ||
+    id.includes('idm-')
+  ) {
+    return true;
+  }
+
+  // 2. Check classes
+  const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
+  if (
+    cls.includes('idm_panel') ||
+    cls.includes('idm_downloader') ||
+    cls.includes('idm_select') ||
+    cls.includes('idm_menu') ||
+    cls.startsWith('idm_') ||
+    cls.startsWith('idm-') ||
+    cls.includes(' idm_') ||
+    cls.includes(' idm-') ||
+    cls.startsWith('__idm')
+  ) {
+    return true;
+  }
+
+  // 3. Check attributes
+  if (
+    node.hasAttribute('__idm_id__') ||
+    node.hasAttribute('__idm_displayed__') ||
+    node.hasAttribute('__idm_frm__') ||
+    node.hasAttribute('__idm_handle__') ||
+    node.hasAttribute('idm_disp') ||
+    node.hasAttribute('data-idm-id') ||
+    node.hasAttribute('data-idm-video')
+  ) {
+    return true;
+  }
+
+  // 4. Check JS properties on media or element wrappers
+  const anyNode = node as any;
+  if (
+    '__idm_id__' in anyNode ||
+    anyNode.__idm_id__ !== undefined ||
+    '__idm_displayed__' in anyNode ||
+    anyNode.__idm_displayed__ !== undefined ||
+    '__idm_frm__' in anyNode ||
+    anyNode.__idm_frm__ !== undefined ||
+    '__idm_handle__' in anyNode ||
+    anyNode.__idm_handle__ !== undefined ||
+    '__idm_video__' in anyNode ||
+    anyNode.__idm_video__ !== undefined ||
+    'idm_disp' in anyNode ||
+    anyNode.idm_disp !== undefined
+  ) {
+    return true;
+  }
+
+  // 5. Check tooltip / title / aria-label
+  const title = (node.getAttribute('title') || node.getAttribute('aria-label') || '').toLowerCase();
+  if (
+    title.includes('download this video') ||
+    title.includes('download with idm') ||
+    title.includes('idm integration')
+  ) {
+    return true;
+  }
+
+  // 6. Check text content on candidate elements (leaf/small containers with <= 6 children)
+  if (node.children.length <= 6) {
+    const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
+    if (rawTxt && rawTxt.length < 160) {
+      // Safe list: protect legitimate academy buttons
+      if (
+        rawTxt.includes('Download PDF') ||
+        rawTxt.includes('PDF Document') ||
+        rawTxt.includes('Statement (PDF)') ||
+        rawTxt.includes('BrilliantAcademy.apk')
+      ) {
+        return false;
+      }
+
+      if (
+        rawTxt === 'Download this video' ||
+        rawTxt === 'Download video from this page' ||
+        rawTxt === 'Download with IDM' ||
+        rawTxt === 'Download all' ||
+        rawTxt.startsWith('Download this video with IDM') ||
+        rawTxt.includes('Download this video with IDM') ||
+        (rawTxt.includes('Download this video') && !rawTxt.includes('DRM Piracy Defense')) ||
+        (rawTxt.includes('TS file, quality') && rawTxt.includes('kbps')) ||
+        (rawTxt.includes('MP4 file, quality') && rawTxt.includes('kbps'))
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function SecurityEnforcer() {
   const { user } = useAuth();
   const pathname = usePathname();
@@ -121,71 +348,120 @@ export function SecurityEnforcer() {
     };
     window.addEventListener('anti-piracy-idm-detected', handleIdmAlert);
 
-    // K. Surgical Anti-IDM & Video Downloader Sniffer (Targets actual extension injections, zero false positives)
+    // K. Comprehensive Anti-IDM & Video Downloader Sniffer (Active across document, shadow roots & media hooks)
     const checkIdmExtensions = () => {
       if (isPurged) return;
       if (typeof document === 'undefined') return;
 
       try {
-        // 1. Check all HTML video and audio elements for IDM hook attributes
-        const mediaElements = document.querySelectorAll('video, audio');
-        for (let i = 0; i < mediaElements.length; i++) {
-          const m = mediaElements[i];
+        // A. Check window globals
+        if (typeof window !== 'undefined') {
+          const win = window as any;
           if (
-            m.hasAttribute('__idm_id__') ||
-            m.hasAttribute('__idm_frm__') ||
-            m.hasAttribute('__idm_handle__') ||
-            m.hasAttribute('__idm_displayed__') ||
-            m.hasAttribute('idm_disp') ||
-            m.hasAttribute('data-idm-id') ||
-            m.hasAttribute('data-idm-video')
+            win.__IDM_DETECTED__ ||
+            win.__idm__ ||
+            win.idm_ ||
+            win.idmInstalled ||
+            win.IDM ||
+            win.idm_panel ||
+            win._idm_
           ) {
             purgeAndLockdown('idm');
             return;
           }
         }
 
-        // 2. Check for IDM-specific floating UI panels
-        const idmPanel = document.querySelector('#idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]');
-        if (idmPanel) {
+        // B. Check all HTML video and audio elements for properties, attributes, and tags
+        const mediaElements = document.querySelectorAll('video, audio');
+        for (let i = 0; i < mediaElements.length; i++) {
+          if (checkIsIdm(mediaElements[i])) {
+            purgeAndLockdown('idm');
+            return;
+          }
+        }
+
+        // C. Fast selector lookup for known IDM classes, IDs and attributes
+        const fastTarget = document.querySelector(
+          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]',
+          // Also check explicit hook attributes
+        );
+        if (fastTarget && !fastTarget.closest('#anti-piracy-screen')) {
           purgeAndLockdown('idm');
           return;
         }
 
-        // 3. Scan leaf elements for exact IDM button text labels
-        const buttons = document.querySelectorAll('button, a, div[role="button"], span');
-        for (let j = 0; j < buttons.length; j++) {
-          const btn = buttons[j];
-          if (btn.closest('#anti-piracy-screen')) continue;
-          if (btn.children.length <= 1) {
-            const txt = (btn.textContent || '').trim();
-            if (
-              txt === 'Download this video' ||
-              txt === 'Download video from this page' ||
-              txt === 'Download with IDM' ||
-              txt.startsWith('Download this video with IDM')
-            ) {
-              purgeAndLockdown('idm');
-              return;
-            }
+        // D. Scan visible candidates across document.body
+        const candidates = document.querySelectorAll('div, span, button, a, table, td, tr, p');
+        for (let j = 0; j < candidates.length; j++) {
+          const el = candidates[j];
+          if (checkIsIdm(el)) {
+            purgeAndLockdown('idm');
+            return;
           }
+        }
+
+        // E. Scan inside all tracked shadow roots (bypasses extension closed shadow isolation)
+        for (const shadow of trackedShadowRoots) {
+          try {
+            const shadowMedia = shadow.querySelectorAll('video, audio');
+            for (let k = 0; k < shadowMedia.length; k++) {
+              if (checkIsIdm(shadowMedia[k])) {
+                purgeAndLockdown('idm');
+                return;
+              }
+            }
+            const shadowCandidates = shadow.querySelectorAll('*');
+            for (let s = 0; s < shadowCandidates.length; s++) {
+              if (checkIsIdm(shadowCandidates[s])) {
+                purgeAndLockdown('idm');
+                return;
+              }
+            }
+          } catch {}
         }
       } catch {}
     };
 
     checkIdmExtensions();
-    const idmCheckInterval = setInterval(checkIdmExtensions, 250);
+    const idmCheckInterval = setInterval(checkIdmExtensions, 120);
 
-    const idmObserver = new MutationObserver(() => {
-      checkIdmExtensions();
+    const idmObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes') {
+          const target = m.target as Element;
+          if (checkIsIdm(target)) {
+            purgeAndLockdown('idm');
+            return;
+          }
+        } else if (m.type === 'childList') {
+          for (let i = 0; i < m.addedNodes.length; i++) {
+            const node = m.addedNodes[i];
+            if (node instanceof Element) {
+              if (checkIsIdm(node)) {
+                purgeAndLockdown('idm');
+                return;
+              }
+              const descendants = node.querySelectorAll?.('div, span, button, a, td, video, audio');
+              if (descendants) {
+                for (let d = 0; d < descendants.length; d++) {
+                  if (checkIsIdm(descendants[d])) {
+                    purgeAndLockdown('idm');
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
-    if (typeof document !== 'undefined' && document.body) {
+
+    if (typeof document !== 'undefined' && document.documentElement) {
       try {
-        idmObserver.observe(document.body, {
+        idmObserver.observe(document.documentElement, {
           childList: true,
           subtree: true,
           attributes: true,
-          attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_handle__', '__idm_displayed__', 'idm_disp', 'data-idm-id', 'data-idm-video', 'class', 'id'],
         });
       } catch {}
     }

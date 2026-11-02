@@ -38,6 +38,9 @@ export function ProtectedYouTubePlayer({
   // Strip injected IDM attributes and lock down player
   const triggerIdmLockdown = useCallback((element?: Element | null) => {
     setIdmBlocked(true);
+    try {
+      window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+    } catch {}
     if (element) {
       try {
         element.removeAttribute('__idm_id__');
@@ -54,7 +57,9 @@ export function ProtectedYouTubePlayer({
     // 1. Initial & periodic scan for IDM DOM tags or injection wrappers
     const checkIDM = () => {
       try {
-        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__]');
+        const idmTarget = document.querySelector(
+          '[__idm_id__], [__idm_frm__], [__idm_displayed__], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]'
+        );
         if (idmTarget) {
           triggerIdmLockdown(idmTarget);
           return;
@@ -62,10 +67,13 @@ export function ProtectedYouTubePlayer({
 
         // Secondary check: IDM injects floating downloader panels into the body
         const idmElements = document.querySelectorAll(
-          'div[id*="__idm"], div[class*="idm-panel"], div[id*="idm_editor"]'
+          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"]'
         );
-        if (idmElements.length > 0) {
-          setIdmBlocked(true);
+        for (let i = 0; i < idmElements.length; i++) {
+          if (!idmElements[i].closest('#anti-piracy-screen')) {
+            triggerIdmLockdown(idmElements[i]);
+            return;
+          }
         }
       } catch {
         // Safe querySelector fallback
