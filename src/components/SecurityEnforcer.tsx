@@ -74,8 +74,17 @@ if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element
   } catch {}
 }
 
+const isMobileOrTablet = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) return true;
+  if (navigator.maxTouchPoints > 1 && window.innerWidth < 1024) return true;
+  return false;
+};
+
 function checkIsIdm(node: Element): boolean {
-  if (!node) return false;
+  if (!node || !(node instanceof Element)) return false;
+  if (isMobileOrTablet()) return false;
   if (node.id === 'anti-piracy-screen' || node.closest?.('#anti-piracy-screen')) return false;
 
   const tag = (node.tagName || '').toUpperCase();
@@ -86,131 +95,45 @@ function checkIsIdm(node: Element): boolean {
     return false;
   }
 
-  // 1. Check ID
-  const id = (node.id || '').toLowerCase();
-  if (
-    id === 'idm_panel' ||
-    id === 'idm_select' ||
-    id === 'idm_menu' ||
-    id.startsWith('idm_') ||
-    id.startsWith('idm-') ||
-    id.startsWith('__idm') ||
-    id.includes('idm_') ||
-    id.includes('idm-') ||
-    id.includes('idm-panel') ||
-    id.includes('idm-dl')
-  ) {
-    return true;
-  }
-
-  // 2. Check classes
-  const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
-  if (
-    cls.includes('idm_panel') ||
-    cls.includes('idm_downloader') ||
-    cls.includes('idm_select') ||
-    cls.includes('idm_menu') ||
-    cls.includes('idm-panel') ||
-    cls.includes('idm-dl') ||
-    cls.startsWith('idm_') ||
-    cls.startsWith('idm-') ||
-    cls.includes(' idm_') ||
-    cls.includes(' idm-') ||
-    cls.startsWith('__idm')
-  ) {
-    return true;
-  }
-
-  // 3. Check attributes
+  // 1. Exact IDM attribute markers (set by IDM content.js)
   if (
     node.hasAttribute('__idm_id__') ||
-    node.hasAttribute('__idm_displayed__') ||
+    node.hasAttribute('__idm_uri__') ||
+    node.hasAttribute('__idm_obs__') ||
+    node.hasAttribute('__idm_watch__') ||
     node.hasAttribute('__idm_frm__') ||
-    node.hasAttribute('__idm_handle__') ||
-    node.hasAttribute('idm_disp') ||
-    node.hasAttribute('data-idm-id') ||
-    node.hasAttribute('data-idm-video') ||
-    node.hasAttribute('data-idm-vreg')
+    node.hasAttribute('__idm_displayed__') ||
+    node.hasAttribute('data-idm-video')
   ) {
     return true;
   }
 
-  // 4. Check JS properties on media elements (strictly !== undefined, NEVER check 'in' operator)
-  const anyNode = node as any;
-  if (
-    anyNode.__idm_id__ !== undefined ||
-    anyNode.__idm_displayed__ === true ||
-    anyNode.__idm_frm__ !== undefined ||
-    anyNode.__idm_handle__ !== undefined ||
-    anyNode.__idm_video__ !== undefined ||
-    anyNode.idm_disp !== undefined
-  ) {
+  // 2. Exact IDM IDs
+  const id = (node.id || '').toLowerCase();
+  if (id === 'idm_panel' || id === 'idm_select' || id === 'idm_menu' || id.startsWith('__idm_')) {
     return true;
   }
 
-  // 5. Check tooltip / title / aria-label
-  const title = (node.getAttribute('title') || node.getAttribute('aria-label') || '').toLowerCase();
-  if (
-    title.includes('download this video') ||
-    title.includes('download with idm') ||
-    title.includes('idm integration') ||
-    title.includes('download video from this page')
-  ) {
+  // 3. Exact IDM classes
+  const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
+  if (cls.includes('idm_panel') || cls.includes('idm_downloader') || cls.startsWith('__idm_')) {
     return true;
   }
 
-  // 6. Check extension image/iframe sources
-  if (tag === 'IMG' || tag === 'IFRAME') {
-    const src = (node.getAttribute('src') || '').toLowerCase();
-    if (src.includes('chrome-extension://') || src.includes('idm') || src.includes('extension://')) {
+  // 4. Exact IDM media properties on video/audio elements (set by IDM content.js)
+  if (tag === 'VIDEO' || tag === 'AUDIO') {
+    const anyMedia = node as any;
+    if (anyMedia.j !== undefined && anyMedia.h !== undefined && typeof anyMedia.h === 'string' && anyMedia.h.startsWith('idmrs://')) {
       return true;
     }
   }
 
-  // 7. Check text content on candidate elements (no arbitrary children or length limits)
-  const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
-  if (rawTxt) {
-    // Safe list: protect legitimate academy buttons & notifications
-    if (
-      rawTxt.includes('Download PDF') ||
-      rawTxt.includes('PDF Document') ||
-      rawTxt.includes('Statement (PDF)') ||
-      rawTxt.includes('BrilliantAcademy.apk') ||
-      rawTxt.includes('Download Android App') ||
-      rawTxt.includes('DRM Piracy Defense') ||
-      rawTxt.includes('Security Violation: IDM') ||
-      rawTxt.includes('How to restore access:') ||
-      rawTxt.includes('I Turned Off IDM')
-    ) {
-      return false;
-    }
-
-    if (
-      rawTxt.includes('Download this video') ||
-      rawTxt.includes('Download video from this page') ||
-      rawTxt.includes('Download with IDM') ||
-      rawTxt.includes('Download all') ||
-      (rawTxt.includes('TS file') && rawTxt.includes('kbps')) ||
-      (rawTxt.includes('MP4 file') && rawTxt.includes('kbps')) ||
-      (rawTxt.includes('file, quality') && rawTxt.includes('kbps')) ||
-      rawTxt.includes('IDM Integration') ||
-      rawTxt.includes('Internet Download Manager') ||
-      rawTxt.includes('Download with Plexo')
-    ) {
+  // 5. Exact IDM Floating Bar button text (only on leaf nodes with no children)
+  if (node.children.length === 0) {
+    const txt = (node.textContent || '').trim();
+    if (txt === 'Download this video' || txt === 'Download with IDM' || txt === 'Download video from this page') {
       return true;
     }
-  }
-
-  // 8. Check shadow root if attached
-  if (node.shadowRoot) {
-    try {
-      const shadowChildren = node.shadowRoot.querySelectorAll('*');
-      for (let s = 0; s < shadowChildren.length; s++) {
-        if (checkIsIdm(shadowChildren[s])) {
-          return true;
-        }
-      }
-    } catch {}
   }
 
   return false;
@@ -331,6 +254,7 @@ export function SecurityEnforcer() {
 
     // Intercept IDM Native Messaging Bridge Messages (0x49444D31 - 0x49444D37)
     const handleIdmMessage = (e: MessageEvent) => {
+      if (isMobileOrTablet()) return;
       if (e && e.data && Array.isArray(e.data)) {
         const code = e.data[0];
         if (typeof code === 'number' && code >= 1229212977 && code <= 1229212985) {
@@ -340,84 +264,76 @@ export function SecurityEnforcer() {
     };
     window.addEventListener('message', handleIdmMessage, true);
 
-    // Active Probe: Detects IDM Integration Module even when playing inside cross-origin YouTube iframe
+    // Active Probe: Detects IDM Integration Module by verifying official file signatures
     const probeIdmExtensions = () => {
       if (isPurged) return;
+      if (isMobileOrTablet()) return; // Mobile devices never run IDM desktop software
+
       const IDM_EXTENSION_IDS = [
         'ngpampappnmepgilojfohadhhmbhlaek', // Chrome Web Store official
         'llbjbkhnmlidjebalopleeepgdfgcpec', // Microsoft Edge Add-ons official
         'clhiejnehegdfknplplojohghjaklbae', // Opera Add-ons official
         'egdfhflhcmffeeaagnollpapcijamiih', // CRX unpacked
         'lcdlanlaneooailnebnhamiiieebikid', // Legacy IDM
-        'epcnnfbjfcgphgdmggkamkmgojdagdnn', // Edge store alternate IDM
       ];
 
       for (const extId of IDM_EXTENSION_IDS) {
-        // Probe 1: Fetch captured.html (web_accessible_resource with static URL)
+        // Probe 1: Fetch captured.html & verify Tonec IDM payload
         try {
           fetch(`chrome-extension://${extId}/captured.html`, { cache: 'no-store' })
             .then((res) => {
-              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+              if (res && res.ok && res.status === 200) {
+                return res.text();
+              }
+              return null;
+            })
+            .then((text) => {
+              if (typeof text === 'string' && text.includes('Internet Download Manager') && text.includes('Tonec')) {
                 purgeAndLockdown('idm');
               }
             })
             .catch(() => {});
         } catch (e) {}
 
-        // Probe 2: Fetch document.js (web_accessible_resource with static URL)
+        // Probe 2: Fetch document.js & verify IDM magic protocol constant 1229212977
         try {
           fetch(`chrome-extension://${extId}/document.js`, { cache: 'no-store' })
             .then((res) => {
-              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+              if (res && res.ok && res.status === 200) {
+                return res.text();
+              }
+              return null;
+            })
+            .then((text) => {
+              if (typeof text === 'string' && text.includes('1229212977')) {
                 purgeAndLockdown('idm');
               }
             })
             .catch(() => {});
-        } catch (e) {}
-
-        // Probe 3: Dynamic script injection probe (only loads if extension is enabled)
-        try {
-          const script = document.createElement('script');
-          script.src = `chrome-extension://${extId}/document.js`;
-          script.onload = () => {
-            script.remove();
-            purgeAndLockdown('idm');
-          };
-          script.onerror = () => {
-            script.remove();
-          };
-          (document.head || document.documentElement).appendChild(script);
         } catch (e) {}
       }
     };
 
     probeIdmExtensions();
-    const probeInterval = setInterval(probeIdmExtensions, 1500);
+    const probeInterval = setInterval(probeIdmExtensions, 2000);
 
-    // K. Comprehensive Anti-IDM & Video Downloader Sniffer (Active across document, shadow roots & media hooks)
+    // K. Anti-IDM Sniffer (High-precision checks with ZERO false positives)
     const checkIdmExtensions = () => {
       if (isPurged) return;
+      if (isMobileOrTablet()) return;
       if (typeof document === 'undefined') return;
 
       try {
-        // A. Check window globals
+        // A. Check window globals explicitly set by IDM
         if (typeof window !== 'undefined') {
           const win = window as any;
-          if (
-            win.__IDM_DETECTED__ ||
-            win.__idm__ ||
-            win.idm_ ||
-            win.idmInstalled ||
-            win.IDM ||
-            win.idm_panel ||
-            win._idm_
-          ) {
+          if (win.__IDM_DETECTED__ || win.IDM_DOWNLOADER_ACTIVE) {
             purgeAndLockdown('idm');
             return;
           }
         }
 
-        // B. Check all HTML video and audio elements for properties, attributes, and tags
+        // B. Check HTML video and audio elements for IDM hooks
         const mediaElements = document.querySelectorAll('video, audio');
         for (let i = 0; i < mediaElements.length; i++) {
           if (checkIsIdm(mediaElements[i])) {
@@ -426,37 +342,16 @@ export function SecurityEnforcer() {
           }
         }
 
-        // C. Fast selector lookup for known IDM classes, IDs, and attributes
+        // C. Fast selector lookup for known IDM markers
         const fastTarget = document.querySelector(
-          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video], [data-idm-vreg]'
+          '#idm_panel, #idm_select, #idm_menu, .idm_downloader, [__idm_id__], [__idm_uri__], [__idm_obs__], [data-idm-video]'
         );
         if (fastTarget && !fastTarget.closest('#anti-piracy-screen')) {
           purgeAndLockdown('idm');
           return;
         }
 
-        // D. Check extension resources
-        const extElements = document.querySelectorAll(
-          'iframe[src*="chrome-extension://"], iframe[src*="idm"], img[src*="chrome-extension://"], img[src*="idm"], embed[type*="idm"], embed[id*="__IDM__"], object[type*="idm"]'
-        );
-        if (extElements.length > 0) {
-          purgeAndLockdown('idm');
-          return;
-        }
-
-        // E. Scan candidates across entire document body
-        const candidates = document.querySelectorAll(
-          'div, span, button, a, table, td, tr, p, ul, ol, li, menu, header, section, [title*="download" i], [aria-label*="download" i]'
-        );
-        for (let j = 0; j < candidates.length; j++) {
-          const el = candidates[j];
-          if (checkIsIdm(el)) {
-            purgeAndLockdown('idm');
-            return;
-          }
-        }
-
-        // F. Scan ALL tracked Shadow Roots (bypasses extension closed shadow isolation)
+        // D. Scan tracked Shadow Roots
         const allShadows = new Set<ShadowRoot>([
           ...trackedShadowRoots,
           ...((window as any).__TRACKED_SHADOW_ROOTS__ || []),
@@ -476,9 +371,10 @@ export function SecurityEnforcer() {
     };
 
     checkIdmExtensions();
-    const idmCheckInterval = setInterval(checkIdmExtensions, 120);
+    const idmCheckInterval = setInterval(checkIdmExtensions, 200);
 
     const idmObserver = new MutationObserver((mutations) => {
+      if (isMobileOrTablet()) return;
       for (const m of mutations) {
         if (m.type === 'attributes') {
           const target = m.target as Element;
@@ -493,26 +389,6 @@ export function SecurityEnforcer() {
               if (checkIsIdm(node)) {
                 purgeAndLockdown('idm');
                 return;
-              }
-              const descendants = node.querySelectorAll?.('*');
-              if (descendants) {
-                for (let d = 0; d < descendants.length; d++) {
-                  if (checkIsIdm(descendants[d])) {
-                    purgeAndLockdown('idm');
-                    return;
-                  }
-                }
-              }
-              if (node.shadowRoot) {
-                try {
-                  const shadowAll = node.shadowRoot.querySelectorAll('*');
-                  for (let s = 0; s < shadowAll.length; s++) {
-                    if (checkIsIdm(shadowAll[s])) {
-                      purgeAndLockdown('idm');
-                      return;
-                    }
-                  }
-                } catch {}
               }
             }
           }
