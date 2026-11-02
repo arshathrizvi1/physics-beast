@@ -222,25 +222,6 @@ export function SecurityEnforcer() {
     };
     window.addEventListener("keydown", blockShortcuts, true);
 
-    // C. Anti-Snipping Tool & Window Focus Blackout
-    const handleBlur = () => {
-      document.body.classList.add('window-unfocused-blur');
-    };
-    const handleFocus = () => {
-      document.body.classList.remove('window-unfocused-blur');
-    };
-    const handleVisibility = () => {
-      if (document.hidden) {
-        document.body.classList.add('window-unfocused-blur');
-      } else {
-        document.body.classList.remove('window-unfocused-blur');
-      }
-    };
-
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibility);
-
     // D. Clipboard Poisoning on PrintScreen Key
     const handlePrintScreen = (e: KeyboardEvent) => {
       if (e.key === "PrintScreen" || e.keyCode === 44) {
@@ -343,9 +324,6 @@ export function SecurityEnforcer() {
       window.removeEventListener("contextmenu", blockContextMenu, true);
       document.removeEventListener("contextmenu", blockContextMenu, true);
       window.removeEventListener("keydown", blockShortcuts, true);
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("keyup", handlePrintScreen);
       window.removeEventListener("keydown", handlePrintScreen);
       window.removeEventListener("dragstart", blockDrag);
@@ -354,7 +332,6 @@ export function SecurityEnforcer() {
       clearInterval(interval);
       clearInterval(idmCheckInterval);
       idmObserver.disconnect();
-      document.body.classList.remove('window-unfocused-blur');
     };
   }, [user, pathname]);
 

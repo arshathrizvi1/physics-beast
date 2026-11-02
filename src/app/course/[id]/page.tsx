@@ -107,8 +107,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
   const [availableQualities, setAvailableQualities] = useState<string[]>(['Auto', '720p', '480p', '360p']);
-  const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
-  const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const resetControlsTimeout = useCallback(() => {
@@ -118,12 +116,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       controlsTimeoutRef.current = null;
     }
     // Auto-hide controls after 3 seconds of mouse inactivity while playing and menus closed
-    if (playing && !isAdjustingQuality && !showSpeedMenu && !showQualityMenu) {
+    if (playing && !showSpeedMenu && !showQualityMenu) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
       }, 3000);
     }
-  }, [playing, isAdjustingQuality, showSpeedMenu, showQualityMenu]);
+  }, [playing, showSpeedMenu, showQualityMenu]);
 
   useEffect(() => {
     if (!playing) {
@@ -645,23 +643,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       }, 300);
     }
   }, [handleSeekDelta, showSeekFeedback, togglePlayPause]);
-
-  const handleDoneQuality = useCallback(() => {
-    setIsAdjustingQuality(false);
-    setPlaying(true);
-    if (typeof document !== 'undefined' && document.activeElement) {
-      (document.activeElement as HTMLElement)?.blur?.();
-    }
-    if (typeof window !== 'undefined') {
-      window.focus();
-    }
-    try {
-      const internal = playerRef.current?.getInternalPlayer();
-      if (internal && typeof internal.playVideo === 'function') {
-        internal.playVideo();
-      }
-    } catch (err) {}
-  }, []);
 
   const showVolumeFeedback = useCallback((level: number, isMuted: boolean = false) => {
     if (volumeFeedbackTimerRef.current) {
@@ -1596,7 +1577,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   onMouseMove={resetControlsTimeout}
                   onMouseEnter={resetControlsTimeout}
                   onMouseLeave={() => {
-                    if (playing && !isAdjustingQuality && !showSpeedMenu && !showQualityMenu) {
+                    if (playing && !showSpeedMenu && !showQualityMenu) {
                       setShowControls(false);
                     }
                   }}
@@ -1639,19 +1620,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           {/* Permanent Anti-Clickout Top Shield (Blocks Title, Avatar & Channel on Mobile & Desktop while leaving Top-Right Gear accessible) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className="absolute top-0 left-0 right-14 sm:right-16 h-20 sm:h-16 z-30 select-none bg-transparent"
-                              style={{ touchAction: 'none' }}
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              className="absolute top-0 left-0 right-28 sm:right-32 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" style={{ touchAction: "none" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
 
                           {/* Permanent Anti-Clickout Bottom-Right Shield (Blocks YouTube Logo & More Videos clickout on Mobile & Desktop) */}
-                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
-                            <div 
-                              className="absolute bottom-0 right-0 w-36 sm:w-44 h-12 sm:h-14 z-30 select-none bg-transparent pointer-events-auto"
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && !showControls && (
+                            <div
+                              className="absolute bottom-0 right-0 w-36 sm:w-44 h-12 sm:h-14 z-20 select-none bg-transparent pointer-events-auto"
                               style={{ touchAction: 'none' }}
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1851,96 +1827,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         }
                       }}
                     />
+                  </div>
+                </>
 
-                    {/* SURGICAL TRANSPARENT SHIELDS (Active ONLY during quality adjustment) */}
-                    {isAdjustingQuality && (
-                      <>
-                        {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, & Channel link; leaves top-right Gear accessible) */}
-                        <div 
-                          className="absolute top-0 left-0 right-14 sm:right-16 h-20 sm:h-16 bg-transparent z-30 pointer-events-auto select-none"
-                          style={{ touchAction: 'none' }}
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-
-                        {/* 2. Danger Zone 2: Bottom-Left Share & Watch Later buttons */}
-                        <div 
-                          className="absolute bottom-0 left-0 w-44 sm:w-48 h-16 sm:h-20 bg-transparent z-30 pointer-events-auto select-none"
-                          style={{ touchAction: 'none' }}
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-
-                        {/* 3. Danger Zone 3: Bottom-Right - Blocks YouTube logo button, More Videos shelf */}
-                        <div 
-                          className="absolute bottom-0 right-0 w-44 sm:w-80 h-16 sm:h-24 bg-transparent z-30 pointer-events-auto select-none"
-                          style={{ touchAction: 'none' }}
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-
-                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode (Blocks '... More options' on desktop) */}
-                        <div 
-                          className="hidden sm:block absolute bottom-0 left-1/2 -translate-x-1/2 w-[460px] max-w-[95%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-
-                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode (Blocks '... More options' on desktop, leaving gear free) */}
-                        <div 
-                          className="hidden sm:block absolute top-28 right-2 w-72 h-36 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        />
-
-                        {/* 6. Pulsing visual indicator over Top-Right ⚙ Gear icon (pointer-events-none so gear is clickable) */}
-                        <div className="absolute top-2 right-1.5 sm:top-2.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 border-2 border-primary bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
-                          <span className="text-xs font-black text-primary animate-bounce">⚙</span>
-                        </div>
-
-                        {/* 7. Top Settings Guidance Notification Popup (positioned safely below top bar) */}
-                        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 sm:gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-4 py-2 sm:px-5 sm:py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[90%] sm:max-w-md">
-                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
-                            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin-slow" />
-                          </div>
-                          <div className="flex flex-col text-left">
-                            <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              Tap ⚙️ Gear (Top-Right)
-                              <span className="inline-block animate-bounce text-primary text-sm font-black">
-                                ↗
-                              </span>
-                            </span>
-                            <span className="text-[10px] sm:text-[11px] text-zinc-400">
-                              Tap the highlighted ⚙ icon at top-right → select Quality, then click Done.
-                            </span>
-                          </div>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDoneQuality();
-                            }}
-                            className="bg-primary hover:bg-primary/80 text-white font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
-                          >
-                            Done ✓
-                          </button>
-                        </div>
-                      </>
-                    )}
-
-                    </div>
-                    </>
-
-                {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
-                {!isAdjustingQuality && (activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
+                    {/* 3px hairline bottom mask: cleanly hides YouTube's 3px red timeline bar without any zoom or cropping */}
+                {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                   <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black z-20 pointer-events-none" />
                 )}
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && !isAdjustingQuality && (
+                {!playing && (
                   <div 
                     className="absolute inset-0 z-20 flex items-center justify-center pointer-events-auto cursor-pointer"
                     onClick={(e) => {
@@ -1956,9 +1852,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
-                  className={`absolute inset-0 z-20 select-none touch-manipulation cursor-pointer flex ${
-                    (activeServer === 'bunny' && activeVideo.platform === 'bunny') || isAdjustingQuality ? 'hidden' : ''
-                  }`}
+                  className={`absolute top-14 bottom-16 left-0 right-0 z-20 select-none touch-manipulation cursor-pointer flex ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""}`}
                   style={{ backgroundColor: 'rgba(0, 0, 0, 0.004)' }}
                   onMouseMove={resetControlsTimeout}
                   onMouseEnter={resetControlsTimeout}
@@ -2044,13 +1938,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Clean Course Title Header (fades in on hover/pause, covering YouTube title; fades out during playback) */}
-                <div className={`absolute top-0 left-0 right-0 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100' : 'opacity-0'} ${isAdjustingQuality ? '!opacity-0' : ''}`}>
+                <div className={`absolute top-0 left-0 right-28 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100" : "opacity-0"}`}>
                   <span className="text-sm font-semibold text-white/90 drop-shadow truncate">{activeVideo.title}</span>
                 </div>
 
                 {/* Custom Controls Overlay */}
                 <div 
-                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-30 ${activeServer === 'bunny' && activeVideo.platform === 'bunny' ? 'hidden' : ''} ${showControls || !playing ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} ${isAdjustingQuality ? '!opacity-0 !pointer-events-none' : ''}`}
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-40 ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
                   onMouseEnter={() => {
                     if (controlsTimeoutRef.current) {
                       clearTimeout(controlsTimeoutRef.current);
