@@ -830,6 +830,220 @@ export default {
       }
     }
 
+    // 10c. Anti-IDM Obfuscated Edge Streaming Engine (/api/stream/*)
+    if (url.pathname.startsWith('/api/stream/')) {
+      const corsOrigin = resolveCorsOrigin(request);
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+            'Access-Control-Max-Age': '86400',
+          }
+        });
+      }
+
+      const referer = request.headers.get('referer') || '';
+      const origin = request.headers.get('origin') || '';
+      const userAgent = request.headers.get('user-agent') || '';
+      const secFetchSite = request.headers.get('sec-fetch-site') || '';
+
+      // Reject external downloader tools (IDM.exe, FDM, wget, curl, scrapers)
+      const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader/i.test(userAgent);
+      const isAuthorizedOrigin = 
+        referer.includes('brillliantacademy.site') || 
+        referer.includes('brilliantacademy.site') || 
+        referer.includes('localhost') || 
+        origin.includes('brillliantacademy.site') || 
+        origin.includes('brilliantacademy.site') || 
+        origin.includes('localhost') ||
+        secFetchSite === 'same-origin' ||
+        secFetchSite === 'same-site';
+
+      if (isDownloaderUA || (!isAuthorizedOrigin && !url.pathname.endsWith('/hls-key'))) {
+        return new Response('Access Denied: Playback is restricted to the Brilliant Academy protected player.', {
+          status: 403,
+          headers: {
+            'Content-Type': 'text/plain',
+            'Access-Control-Allow-Origin': corsOrigin,
+          }
+        });
+      }
+
+      // Handler 1: Master Playlist Session (/api/stream/session or /api/stream/live)
+      // Obfuscates sub-playlists so IDM never sees any .m3u8 files
+      if (url.pathname === '/api/stream/session' || url.pathname === '/api/stream/live') {
+        let vPath = url.searchParams.get('v') || '';
+        if (!vPath) return new Response('Missing video parameter', { status: 400 });
+        if (!vPath.endsWith('.m3u8')) vPath += '.m3u8';
+        if (vPath.startsWith('/')) vPath = vPath.slice(1);
+
+        let manifestText = '';
+        if (env.MEDIA) {
+          const obj = await env.MEDIA.get(vPath);
+          if (obj) manifestText = await obj.text();
+        }
+        if (!manifestText) {
+          const defaultBase = 'https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev';
+          const upRes = await fetch(`${defaultBase}/${vPath}`);
+          if (upRes.ok) manifestText = await upRes.text();
+        }
+
+        if (!manifestText) {
+          return new Response('Master stream not found', { status: 404 });
+        }
+
+        const vDir = vPath.substring(0, vPath.lastIndexOf('/'));
+        const rewritten = manifestText.split('\n').map(line => {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#')) {
+            const subName = trimmed.replace(/\.m3u8$/, '');
+            return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(vDir)}`;
+          }
+          return line;
+        }).join('\n');
+
+        return new Response(rewritten, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.apple.mpegurl',
+            'Cache-Control': 'private, no-cache, no-store',
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          }
+        });
+      }
+
+      // Handler 2: Sub-playlist Manifest (/api/stream/sub)
+      // Obfuscates video chunks so IDM never sees any .ts files
+      if (url.pathname === '/api/stream/sub') {
+        const q = url.searchParams.get('q') || '';
+        const d = url.searchParams.get('d') || '';
+        if (!q || !d) return new Response('Missing parameters', { status: 400 });
+
+        const subKey = `${d}/${q.endsWith('.m3u8') ? q : q + '.m3u8'}`;
+        let subText = '';
+        if (env.MEDIA) {
+          const obj = await env.MEDIA.get(subKey);
+          if (obj) subText = await obj.text();
+        }
+        if (!subText) {
+          const defaultBase = 'https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev';
+          const upRes = await fetch(`${defaultBase}/${subKey}`);
+          if (upRes.ok) subText = await upRes.text();
+        }
+
+        if (!subText) {
+          return new Response('Variant stream not found', { status: 404 });
+        }
+
+        const rewritten = subText.split('\n').map(line => {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#')) {
+            const segName = trimmed.replace(/\.ts$/, '');
+            return `/api/stream/chunk?s=${encodeURIComponent(d + '/' + segName)}`;
+          }
+          return line;
+        }).join('\n');
+
+        return new Response(rewritten, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.apple.mpegurl',
+            'Cache-Control': 'private, no-cache, no-store',
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          }
+        });
+      }
+
+      // Handler 3: Segment Chunks (/api/stream/chunk)
+      // Delivered as application/octet-stream so IDM does not recognize it as video files
+      if (url.pathname === '/api/stream/chunk') {
+        const s = url.searchParams.get('s') || '';
+        if (!s) return new Response('Missing segment parameter', { status: 400 });
+
+        const segKey = s.endsWith('.ts') ? s : s + '.ts';
+        let chunkBody = null;
+        let etag = '';
+
+        if (env.MEDIA) {
+          const obj = await env.MEDIA.get(segKey);
+          if (obj) {
+            chunkBody = obj.body;
+            etag = obj.httpEtag;
+          }
+        }
+        if (!chunkBody) {
+          const defaultBase = 'https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev';
+          const upRes = await fetch(`${defaultBase}/${segKey}`);
+          if (upRes.ok) chunkBody = upRes.body;
+        }
+
+        if (!chunkBody) {
+          return new Response('Segment not found', { status: 404 });
+        }
+
+        return new Response(chunkBody, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': 'inline; filename="stream.bin"',
+            'Cache-Control': 'private, max-age=86400, immutable',
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            ...(etag ? { 'ETag': etag } : {}),
+          }
+        });
+      }
+
+      // Handler 4: Legacy /api/stream/hls/* route with automatic obfuscation rewrite
+      if (url.pathname.startsWith('/api/stream/hls/')) {
+        const hlsPath = url.pathname.replace('/api/stream/hls/', '');
+        if (hlsPath.endsWith('.m3u8')) {
+          let mText = '';
+          if (env.MEDIA) {
+            const obj = await env.MEDIA.get(hlsPath);
+            if (obj) mText = await obj.text();
+          }
+          if (!mText) {
+            const defaultBase = 'https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev';
+            const upRes = await fetch(`${defaultBase}/${hlsPath}`);
+            if (upRes.ok) mText = await upRes.text();
+          }
+
+          if (mText) {
+            const hlsDir = hlsPath.substring(0, hlsPath.lastIndexOf('/'));
+            const rewritten = mText.split('\n').map(line => {
+              const trimmed = line.trim();
+              if (trimmed && !trimmed.startsWith('#')) {
+                if (trimmed.endsWith('.m3u8')) {
+                  const subName = trimmed.replace(/\.m3u8$/, '');
+                  return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(hlsDir)}`;
+                } else if (trimmed.endsWith('.ts')) {
+                  const segName = trimmed.replace(/\.ts$/, '');
+                  return `/api/stream/chunk?s=${encodeURIComponent(hlsDir + '/' + segName)}`;
+                }
+              }
+              return line;
+            }).join('\n');
+
+            return new Response(rewritten, {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/vnd.apple.mpegurl',
+                'Cache-Control': 'private, no-cache, no-store',
+                'Access-Control-Allow-Origin': corsOrigin,
+                'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+              }
+            });
+          }
+        }
+      }
+    }
+
     // 11. Edge Healthcheck (/api/health)
     if (url.pathname === '/api/health') {
       return new Response(

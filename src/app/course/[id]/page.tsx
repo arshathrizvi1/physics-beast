@@ -35,12 +35,8 @@ const getSecureStreamUrl = (rawUrl: string) => {
   if (rawUrl.includes('r2.dev/') || rawUrl.includes('r2.cloudflarestorage.com/')) {
     const parts = rawUrl.split(/r2\.dev\/|r2\.cloudflarestorage\.com\/[^\/]+\//);
     if (parts.length > 1) {
-      try {
-        const u = new URL(rawUrl);
-        return `/api/stream/hls/${parts[1]}?host=${encodeURIComponent(u.hostname)}`;
-      } catch (e) {
-        return `/api/stream/hls/${parts[1]}`;
-      }
+      const cleanKey = parts[1].replace(/^\//, '');
+      return `/api/stream/session?v=${encodeURIComponent(cleanKey)}`;
     }
   }
   return rawUrl;
@@ -348,6 +344,48 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       updateVideoProgress?.(videoId, finalPct);
     }
   }, [updateVideoProgress]);
+
+  // Player Container IDM Observer (Traps floating IDM panels instantly)
+  useEffect(() => {
+    const container = playerContainerRef.current;
+    if (!container) return;
+
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes') {
+          const attr = m.attributeName?.toLowerCase() || '';
+          if (attr.includes('idm')) {
+            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+            return;
+          }
+        }
+        for (let i = 0; i < m.addedNodes.length; i++) {
+          const node = m.addedNodes[i];
+          if (node instanceof HTMLElement) {
+            const id = (node.id || '').toLowerCase();
+            const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
+            const txt = (node.textContent || (node as HTMLElement).innerText || '').trim();
+            if (
+              id.includes('idm') ||
+              cls.includes('idm') ||
+              node.hasAttribute('__idm_id__') ||
+              node.hasAttribute('__idm_displayed__') ||
+              txt.includes('Download this video') ||
+              txt.includes('Download video from this page') ||
+              txt.includes('Download with IDM') ||
+              txt.includes('Download all')
+            ) {
+              window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+              return;
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(container, { childList: true, subtree: true, attributes: true });
+    return () => observer.disconnect();
+  }, [activeVideo]);
 
   // Listen to postMessage from Bunny Stream Player iframe (Player.js standard)
   useEffect(() => {
@@ -1836,6 +1874,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           }
                         },
                         file: {
+                          forceHLS: true,
                           attributes: {
                             controlsList: "nodownload",
                             onContextMenu: (e: any) => { e.preventDefault(); e.stopPropagation(); },

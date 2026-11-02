@@ -12,7 +12,17 @@ export async function GET(
     const referer = request.headers.get('referer') || '';
     const origin = request.headers.get('origin') || '';
     const host = request.headers.get('host') || '';
+    const userAgent = request.headers.get('user-agent') || '';
     const allowedOrigin = resolveCorsOrigin(request);
+
+    // Block IDM and standalone downloader grabbers
+    const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader/i.test(userAgent);
+    if (isDownloaderUA) {
+      return new NextResponse(
+        'Access Denied: External download managers are prohibited on Brilliant Academy.',
+        { status: 403 }
+      );
+    }
 
     const isAllowedDomain =
       referer.includes('brillliantacademy.site') ||
@@ -93,7 +103,7 @@ export async function GET(
 
       const responseHeaders = new Headers();
       responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
-      responseHeaders.set('Cache-Control', 'public, max-age=60');
+      responseHeaders.set('Cache-Control', 'private, no-cache, no-store');
       responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
       responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
 
@@ -103,12 +113,10 @@ export async function GET(
       });
     }
 
-    const contentType = filePath.endsWith('.ts')
-      ? 'video/MP2T'
-      : 'application/octet-stream';
-
+    // Serve binary chunks as application/octet-stream so IDM sniffer ignores them
     const responseHeaders = new Headers();
-    responseHeaders.set('Content-Type', contentType);
+    responseHeaders.set('Content-Type', 'application/octet-stream');
+    responseHeaders.set('Content-Disposition', 'inline; filename="stream.bin"');
     responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
     responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
