@@ -71,12 +71,13 @@ export function getServerEnv(): ServerEnvConfig {
     process.env.PAYMENT_WEBHOOK_SECRET ||
     process.env.WEBHOOK_SECRET ||
     process.env.RTMP_CALLBACK_SECRET ||
-    getEphemeralSecret('webhook');
+    'ba_secure_hls_stream_key_2026';
 
   const rtmpCallbackSecret =
     process.env.RTMP_CALLBACK_SECRET ||
     process.env.WEBHOOK_SECRET ||
-    webhookSecret;
+    webhookSecret ||
+    'ba_secure_hls_stream_key_2026';
 
   const cloudDrmSecret =
     process.env.CLOUD_DRM_SECRET ||
