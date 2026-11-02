@@ -329,6 +329,71 @@ export function SecurityEnforcer() {
     };
     window.addEventListener('anti-piracy-idm-detected', handleIdmAlert);
 
+    // Intercept IDM Native Messaging Bridge Messages (0x49444D31 - 0x49444D37)
+    const handleIdmMessage = (e: MessageEvent) => {
+      if (e && e.data && Array.isArray(e.data)) {
+        const code = e.data[0];
+        if (typeof code === 'number' && code >= 1229212977 && code <= 1229212985) {
+          purgeAndLockdown('idm');
+        }
+      }
+    };
+    window.addEventListener('message', handleIdmMessage, true);
+
+    // Active Probe: Detects IDM Integration Module even when playing inside cross-origin YouTube iframe
+    const probeIdmExtensions = () => {
+      if (isPurged) return;
+      const IDM_EXTENSION_IDS = [
+        'ngpampappnmepgilojfohadhhmbhlaek', // Chrome Web Store official
+        'llbjbkhnmlidjebalopleeepgdfgcpec', // Microsoft Edge Add-ons official
+        'clhiejnehegdfknplplojohghjaklbae', // Opera Add-ons official
+        'egdfhflhcmffeeaagnollpapcijamiih', // CRX unpacked
+        'lcdlanlaneooailnebnhamiiieebikid', // Legacy IDM
+        'epcnnfbjfcgphgdmggkamkmgojdagdnn', // Edge store alternate IDM
+      ];
+
+      for (const extId of IDM_EXTENSION_IDS) {
+        // Probe 1: Fetch captured.html (web_accessible_resource with static URL)
+        try {
+          fetch(`chrome-extension://${extId}/captured.html`, { cache: 'no-store' })
+            .then((res) => {
+              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+                purgeAndLockdown('idm');
+              }
+            })
+            .catch(() => {});
+        } catch (e) {}
+
+        // Probe 2: Fetch document.js (web_accessible_resource with static URL)
+        try {
+          fetch(`chrome-extension://${extId}/document.js`, { cache: 'no-store' })
+            .then((res) => {
+              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+                purgeAndLockdown('idm');
+              }
+            })
+            .catch(() => {});
+        } catch (e) {}
+
+        // Probe 3: Dynamic script injection probe (only loads if extension is enabled)
+        try {
+          const script = document.createElement('script');
+          script.src = `chrome-extension://${extId}/document.js`;
+          script.onload = () => {
+            script.remove();
+            purgeAndLockdown('idm');
+          };
+          script.onerror = () => {
+            script.remove();
+          };
+          (document.head || document.documentElement).appendChild(script);
+        } catch (e) {}
+      }
+    };
+
+    probeIdmExtensions();
+    const probeInterval = setInterval(probeIdmExtensions, 1500);
+
     // K. Comprehensive Anti-IDM & Video Downloader Sniffer (Active across document, shadow roots & media hooks)
     const checkIdmExtensions = () => {
       if (isPurged) return;
@@ -606,6 +671,8 @@ export function SecurityEnforcer() {
       window.removeEventListener("resize", checkMobileEmulation);
       clearInterval(interval);
       clearInterval(idmCheckInterval);
+      clearInterval(probeInterval);
+      window.removeEventListener('message', handleIdmMessage, true);
       idmObserver.disconnect();
     };
   }, [user, pathname]);

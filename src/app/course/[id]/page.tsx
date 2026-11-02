@@ -325,6 +325,67 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
 
+    // Intercept IDM Native Messaging Bridge Messages (0x49444D31 - 0x49444D37)
+    const handleIdmMsg = (e: MessageEvent) => {
+      if (e && e.data && Array.isArray(e.data)) {
+        const code = e.data[0];
+        if (typeof code === 'number' && code >= 1229212977 && code <= 1229212985) {
+          triggerIdmLockdown();
+        }
+      }
+    };
+    window.addEventListener('message', handleIdmMsg, true);
+
+    const probeExtensions = () => {
+      const IDS = [
+        'ngpampappnmepgilojfohadhhmbhlaek', // Chrome Web Store official
+        'llbjbkhnmlidjebalopleeepgdfgcpec', // Microsoft Edge Add-ons official
+        'clhiejnehegdfknplplojohghjaklbae', // Opera Add-ons official
+        'egdfhflhcmffeeaagnollpapcijamiih', // CRX unpacked
+        'lcdlanlaneooailnebnhamiiieebikid', // Legacy IDM
+        'epcnnfbjfcgphgdmggkamkmgojdagdnn', // Edge store alternate IDM
+      ];
+      for (const id of IDS) {
+        // Probe 1: Fetch captured.html (web_accessible_resource with static URL)
+        try {
+          fetch(`chrome-extension://${id}/captured.html`, { cache: 'no-store' })
+            .then((res) => {
+              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+                triggerIdmLockdown();
+              }
+            })
+            .catch(() => {});
+        } catch (e) {}
+
+        // Probe 2: Fetch document.js (web_accessible_resource with static URL)
+        try {
+          fetch(`chrome-extension://${id}/document.js`, { cache: 'no-store' })
+            .then((res) => {
+              if (res && (res.ok || res.status === 200 || res.type === 'opaque')) {
+                triggerIdmLockdown();
+              }
+            })
+            .catch(() => {});
+        } catch (e) {}
+
+        // Probe 3: Dynamic script injection probe (only loads if extension is enabled)
+        try {
+          const script = document.createElement('script');
+          script.src = `chrome-extension://${id}/document.js`;
+          script.onload = () => {
+            script.remove();
+            triggerIdmLockdown();
+          };
+          script.onerror = () => {
+            script.remove();
+          };
+          (document.head || document.documentElement).appendChild(script);
+        } catch (e) {}
+      }
+    };
+    probeExtensions();
+    const probeTimer = setInterval(probeExtensions, 1500);
+
     const checkIdmInDom = () => {
       try {
         const media = document.querySelectorAll('video, audio');
@@ -383,6 +444,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     return () => {
       clearInterval(idmPoll);
+      clearInterval(probeTimer);
+      window.removeEventListener('message', handleIdmMsg, true);
     };
   }, []);
   const handleIdmRecheck = () => {
