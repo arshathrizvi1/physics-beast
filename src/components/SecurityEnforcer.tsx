@@ -8,117 +8,6 @@ import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import DisableDevtool from 'disable-devtool';
 
-// Track all shadow roots created on the page to unmask IDM Shadow DOM injections
-const trackedShadowRoots = new Set<ShadowRoot>();
-
-if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_SHADOW_TRAPPED__) {
-  (Element.prototype as any).__IDM_SHADOW_TRAPPED__ = true;
-  try {
-    const origAttachShadow = Element.prototype.attachShadow;
-    Element.prototype.attachShadow = function (init: ShadowRootInit) {
-      const shadow = origAttachShadow.call(this, { ...init, mode: 'open' });
-      try {
-        trackedShadowRoots.add(shadow);
-      } catch {}
-      return shadow;
-    };
-  } catch {}
-}
-
-// Trap IDM prototype assignments on HTMLVideoElement and HTMLMediaElement
-if (typeof window !== 'undefined' && typeof HTMLVideoElement !== 'undefined' && !(HTMLVideoElement.prototype as any).__IDM_PROTO_TRAPPED__) {
-  (HTMLVideoElement.prototype as any).__IDM_PROTO_TRAPPED__ = true;
-  const idmProps = [
-    '__idm_id__',
-    '__idm_displayed__',
-    '__idm_frm__',
-    '__idm_handle__',
-    '__idm_video__',
-    'idm_disp',
-    'data-idm-id',
-    '__idm__',
-  ];
-
-  idmProps.forEach((prop) => {
-    try {
-      let val: any;
-      Object.defineProperty(HTMLVideoElement.prototype, prop, {
-        configurable: true,
-        enumerable: false,
-        get() {
-          return val;
-        },
-        set(v) {
-          val = v;
-          try {
-            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
-          } catch {}
-        },
-      });
-    } catch {}
-
-    try {
-      let val: any;
-      Object.defineProperty(HTMLMediaElement.prototype, prop, {
-        configurable: true,
-        enumerable: false,
-        get() {
-          return val;
-        },
-        set(v) {
-          val = v;
-          try {
-            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
-          } catch {}
-        },
-      });
-    } catch {}
-  });
-}
-
-// Trap setAttribute calls for IDM hook attributes
-if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_ATTR_TRAPPED__) {
-  (Element.prototype as any).__IDM_ATTR_TRAPPED__ = true;
-  try {
-    const origSetAttribute = Element.prototype.setAttribute;
-    Element.prototype.setAttribute = function (name: string, value: string) {
-      if (typeof name === 'string') {
-        const n = name.toLowerCase();
-        if (
-          n.startsWith('__idm') ||
-          n.startsWith('data-idm') ||
-          n === 'idm_disp' ||
-          n === '__idm_id__' ||
-          n === '__idm_displayed__' ||
-          n === '__idm_frm__' ||
-          n === '__idm_handle__'
-        ) {
-          try {
-            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
-          } catch {}
-        }
-        if (n === 'id' || n === 'class') {
-          const val = String(value || '').toLowerCase();
-          if (
-            val.includes('idm_panel') ||
-            val.includes('idm_select') ||
-            val.includes('idm_menu') ||
-            val.includes('idm_downloader') ||
-            val.startsWith('idm_') ||
-            val.startsWith('idm-') ||
-            val.startsWith('__idm')
-          ) {
-            try {
-              window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
-            } catch {}
-          }
-        }
-      }
-      return origSetAttribute.call(this, name, value);
-    };
-  } catch {}
-}
-
 // Comprehensive IDM element discriminator with guaranteed zero false positives
 function checkIsIdm(node: Element): boolean {
   if (!node) return false;
@@ -173,20 +62,14 @@ function checkIsIdm(node: Element): boolean {
     return true;
   }
 
-  // 4. Check JS properties on media or element wrappers
+  // 4. Check JS properties on media elements (strictly !== undefined, NEVER check 'in' operator)
   const anyNode = node as any;
   if (
-    '__idm_id__' in anyNode ||
     anyNode.__idm_id__ !== undefined ||
-    '__idm_displayed__' in anyNode ||
-    anyNode.__idm_displayed__ !== undefined ||
-    '__idm_frm__' in anyNode ||
+    anyNode.__idm_displayed__ === true ||
     anyNode.__idm_frm__ !== undefined ||
-    '__idm_handle__' in anyNode ||
     anyNode.__idm_handle__ !== undefined ||
-    '__idm_video__' in anyNode ||
     anyNode.__idm_video__ !== undefined ||
-    'idm_disp' in anyNode ||
     anyNode.idm_disp !== undefined
   ) {
     return true;
@@ -230,6 +113,18 @@ function checkIsIdm(node: Element): boolean {
         return true;
       }
     }
+  }
+
+    // 7. Check open shadow root if attached
+  if (node.shadowRoot) {
+    try {
+      const shadowChildren = node.shadowRoot.querySelectorAll('div, span, button, a, td, video, audio');
+      for (let s = 0; s < shadowChildren.length; s++) {
+        if (checkIsIdm(shadowChildren[s])) {
+          return true;
+        }
+      }
+    } catch {}
   }
 
   return false;
@@ -400,25 +295,7 @@ export function SecurityEnforcer() {
           }
         }
 
-        // E. Scan inside all tracked shadow roots (bypasses extension closed shadow isolation)
-        for (const shadow of trackedShadowRoots) {
-          try {
-            const shadowMedia = shadow.querySelectorAll('video, audio');
-            for (let k = 0; k < shadowMedia.length; k++) {
-              if (checkIsIdm(shadowMedia[k])) {
-                purgeAndLockdown('idm');
-                return;
-              }
-            }
-            const shadowCandidates = shadow.querySelectorAll('*');
-            for (let s = 0; s < shadowCandidates.length; s++) {
-              if (checkIsIdm(shadowCandidates[s])) {
-                purgeAndLockdown('idm');
-                return;
-              }
-            }
-          } catch {}
-        }
+        
       } catch {}
     };
 

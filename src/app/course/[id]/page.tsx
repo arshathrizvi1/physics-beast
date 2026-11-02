@@ -230,19 +230,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       return true;
     }
 
+    // 4. Check JS properties on media elements (strictly !== undefined, NEVER check 'in' operator)
     const anyNode = node as any;
     if (
-      '__idm_id__' in anyNode ||
       anyNode.__idm_id__ !== undefined ||
-      '__idm_displayed__' in anyNode ||
-      anyNode.__idm_displayed__ !== undefined ||
-      '__idm_frm__' in anyNode ||
+      anyNode.__idm_displayed__ === true ||
       anyNode.__idm_frm__ !== undefined ||
-      '__idm_handle__' in anyNode ||
       anyNode.__idm_handle__ !== undefined ||
-      '__idm_video__' in anyNode ||
       anyNode.__idm_video__ !== undefined ||
-      'idm_disp' in anyNode ||
       anyNode.idm_disp !== undefined
     ) {
       return true;
@@ -283,6 +278,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           return true;
         }
       }
+    }
+
+        // 7. Check open shadow root if attached
+    if (node.shadowRoot) {
+      try {
+        const shadowChildren = node.shadowRoot.querySelectorAll('div, span, button, a, td, video, audio');
+        for (let s = 0; s < shadowChildren.length; s++) {
+          if (checkIsIdmNode(shadowChildren[s])) {
+            return true;
+          }
+        }
+      } catch {}
     }
 
     return false;
