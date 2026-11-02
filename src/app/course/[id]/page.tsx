@@ -796,6 +796,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   }, [handleSeekDelta, showSeekFeedback, togglePlayPause]);
 
+  const handleDoneQuality = useCallback(() => {
+    setIsAdjustingQuality(false);
+    if (qualityAdjustTimerRef.current) {
+      clearTimeout(qualityAdjustTimerRef.current);
+      qualityAdjustTimerRef.current = null;
+    }
+    if (typeof document !== 'undefined' && document.activeElement) {
+      (document.activeElement as HTMLElement)?.blur?.();
+    }
+    if (typeof window !== 'undefined') {
+      window.focus();
+    }
+    try {
+      const internal = playerRef.current?.getInternalPlayer();
+      if (internal && typeof internal.playVideo === 'function') {
+        internal.playVideo();
+      }
+    } catch (err) {}
+    setPlaying(true);
+  }, []);
+
   const showVolumeFeedback = useCallback((level: number, isMuted: boolean = false) => {
     if (volumeFeedbackTimerRef.current) {
       clearTimeout(volumeFeedbackTimerRef.current);
@@ -1797,8 +1818,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setIsAdjustingQuality(false);
-                                    if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                    handleDoneQuality();
                                   }}
                                   className="bg-primary hover:bg-primary/80 text-white font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
                                 >
@@ -1808,17 +1828,48 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             </>
                           )}
 
+                          {/* Top-Right Settings & CC Trigger: auto-activates quality adjustment mode when user taps near Gear / CC */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && !isAdjustingQuality && (
+                            <div 
+                              className="absolute top-0 right-0 w-36 sm:w-40 h-14 sm:h-16 z-20 pointer-events-auto cursor-pointer"
+                              style={{ backgroundColor: 'transparent' }}
+                              onPointerDown={() => {
+                                setIsAdjustingQuality(true);
+                                if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                qualityAdjustTimerRef.current = setTimeout(() => {
+                                  setIsAdjustingQuality(false);
+                                }, 60000);
+                              }}
+                            />
+                          )}
+
                           {/* Permanent Anti-Clickout Top Shield (Blocks Title, Avatar & Channel on Mobile & Desktop while leaving Top-Right Gear accessible) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className="absolute top-0 left-0 right-28 sm:right-32 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" style={{ touchAction: "none" }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              className="absolute top-0 left-0 right-36 sm:right-40 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" 
+                              style={{ touchAction: "none" }} 
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
 
                           {/* Permanent Anti-Clickout Bottom-Right Shield (Blocks YouTube Logo & More Videos clickout on Mobile & Desktop) */}
-                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && !showControls && (
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div
-                              className="absolute bottom-0 right-0 w-36 sm:w-44 h-12 sm:h-14 z-20 select-none bg-transparent pointer-events-auto"
+                              className="absolute bottom-0 right-0 w-36 sm:w-44 h-12 sm:h-14 z-30 select-none bg-transparent pointer-events-auto"
+                              style={{ touchAction: 'none' }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
+
+                          {/* Permanent Anti-Clickout Bottom-Left Shield (Blocks YouTube Share & Watch Later on Mobile & Desktop) */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
+                            <div
+                              className="absolute bottom-0 left-0 w-32 sm:w-36 h-12 sm:h-14 z-30 select-none bg-transparent pointer-events-auto"
                               style={{ touchAction: 'none' }}
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -2027,7 +2078,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 )}
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && (
+                {!playing && !isAdjustingQuality && (
                   <div 
                     className="absolute inset-0 z-20 flex items-center justify-center pointer-events-auto cursor-pointer"
                     onClick={(e) => {
@@ -2043,7 +2094,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 
                 {/* Anti-Piracy Click-to-Play Catcher with Double Tap to Seek */}
                 <div 
-                  className={`absolute top-14 bottom-16 left-0 right-0 z-20 select-none touch-manipulation cursor-pointer flex ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""}`}
+                  className={`absolute top-14 bottom-16 left-0 right-0 z-20 select-none touch-manipulation cursor-pointer flex ${(activeServer === "bunny" && activeVideo.platform === "bunny") || isAdjustingQuality ? "hidden" : ""}`}
                   style={{ backgroundColor: 'rgba(0, 0, 0, 0.004)' }}
                   onMouseMove={resetControlsTimeout}
                   onMouseEnter={resetControlsTimeout}
@@ -2129,13 +2180,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 </div>
 
                 {/* Clean Course Title Header (fades in on hover/pause, covering YouTube title; fades out during playback) */}
-                <div className={`absolute top-0 left-0 right-28 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100" : "opacity-0"}`}>
+                <div className={`absolute top-0 left-0 right-28 bg-gradient-to-b from-black/90 via-black/40 to-transparent px-5 py-3.5 z-30 transition-opacity duration-300 pointer-events-none flex items-center ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100" : "opacity-0"} ${isAdjustingQuality ? "!opacity-0" : ""}`}>
                   <span className="text-sm font-semibold text-white/90 drop-shadow truncate">{activeVideo.title}</span>
                 </div>
 
                 {/* Custom Controls Overlay */}
                 <div 
-                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-40 ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black from-45% via-black/80 to-transparent p-4 transition-opacity duration-300 flex flex-col gap-3 z-40 ${activeServer === "bunny" && activeVideo.platform === "bunny" ? "hidden" : ""} ${showControls || !playing ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"} ${isAdjustingQuality ? "!opacity-0 !pointer-events-none" : ""}`}
                   onMouseEnter={() => {
                     if (controlsTimeoutRef.current) {
                       clearTimeout(controlsTimeoutRef.current);
@@ -2226,6 +2277,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (activeServer === 'youtube' || activeVideo?.platform === 'youtube') {
+                                  setShowQualityMenu(false);
+                                  setShowSpeedMenu(false);
+                                  setIsAdjustingQuality(true);
+                                  if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                  qualityAdjustTimerRef.current = setTimeout(() => {
+                                    setIsAdjustingQuality(false);
+                                  }, 60000);
+                                  return;
+                                }
                                 setShowQualityMenu(!showQualityMenu);
                                 setShowSpeedMenu(false);
                               }}
