@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Bunny Webhook received payload:", body);
 
-    const { VideoLibraryId, VideoGuid, Status } = body;
+    const { VideoGuid, Status } = body;
 
     if (!VideoGuid) {
       return NextResponse.json({ error: "Missing VideoGuid" }, { status: 400 });

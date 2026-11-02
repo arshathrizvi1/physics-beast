@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { resolveCorsOrigin, withZeroTrustGate } from '@/security/zero-trust-gate';
 
 export const dynamic = 'force-dynamic';
@@ -39,7 +39,6 @@ export const GET = withZeroTrustGate(
     windowMs: 60 * 1000,
   },
   async (req: Request) => {
-    const nextReq = req as NextRequest;
     const urlObj = new URL(req.url);
     const targetUrl = urlObj.searchParams.get('url');
 

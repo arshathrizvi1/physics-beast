@@ -1,224 +1,275 @@
 import { NextResponse } from 'next/server';
 import { MediaConvertClient, CreateJobCommand, GetJobCommand } from '@aws-sdk/client-mediaconvert';
+import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
+import { sanitizeUrl } from '@/security/sanitize';
 
-export async function POST(req: Request) {
-  try {
-    const { s3Url, filename } = await req.json();
+export const POST = withZeroTrustGate(
+  {
+    scope: 's3_convert_mediaconvert',
+    limit: 15,
+    windowMs: 60 * 1000,
+    requireAuth: 'teacher_or_admin',
+  },
+  async (req, ctx) => {
+    try {
+      const parsed = await parseAndVerifyJsonBody<{ s3Url?: string }>(req, ctx);
+      if (!parsed.ok) return parsed.response;
 
-    if (!s3Url) {
-      return NextResponse.json({ error: 's3Url is required' }, { status: 400 });
-    }
+      const s3Url = sanitizeUrl(parsed.body.s3Url);
 
-    const bucketName = process.env.AWS_BUCKET_NAME || 'brillinat-academy-1';
-    const region = process.env.AWS_REGION || 'eu-north-1';
-    
-    // Parse the S3 key from the public URL
-    // e.g., https://brillinat-academy-1.s3.eu-north-1.amazonaws.com/course-videos/1234_vid.mp4
-    const keyMatch = s3Url.split('.amazonaws.com/');
-    if (keyMatch.length < 2) {
-      return NextResponse.json({ error: 'Invalid S3 URL format' }, { status: 400 });
-    }
-    const inputKey = keyMatch[1];
-    const s3InputPath = `s3://${bucketName}/${inputKey}`;
-    
-    // Output path: s3://brillinat-academy-1/hls-videos/1234_vid/
-    const baseName = inputKey.split('/').pop()?.split('.')[0] || Date.now().toString();
-    const s3OutputPath = `s3://${bucketName}/hls-videos/${baseName}/`;
-    
-    // The final HLS URL to return to the frontend
-    const finalHlsUrl = `https://${bucketName}.s3.${region}.amazonaws.com/hls-videos/${baseName}/${baseName}.m3u8`;
-
-    // MediaConvert endpoint and Role ARN with automatic fallbacks
-    const endpoint = (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() || 'https://mediaconvert.eu-north-1.amazonaws.com';
-    const roleArn = (process.env.AWS_MEDIACONVERT_ROLE_ARN || '').trim() || 'arn:aws:iam::556071986448:role/MediaConvertRole';
-
-    if (!endpoint || !roleArn) {
-      return NextResponse.json({ 
-        error: 'MediaConvert is not fully configured on the server yet. Missing endpoint or role ARN.',
-        finalHlsUrl // We still return it in case they want to bypass during testing
-      }, { status: 500 });
-    }
-
-    const mediaconvert = new MediaConvertClient({
-      region,
-      endpoint,
-      credentials: {
-        accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
-        secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
+      if (!s3Url) {
+        return NextResponse.json({ error: 's3Url is required' }, { status: 400 });
       }
-    });
 
-    const jobParams = {
-      Role: roleArn,
-      Settings: {
-        Inputs: [
+      const bucketName = process.env.AWS_BUCKET_NAME || 'brillinat-academy-1';
+      const region = process.env.AWS_REGION || 'eu-north-1';
+
+      // Parse the S3 key from the public URL
+      const keyMatch = s3Url.split('.amazonaws.com/');
+      if (keyMatch.length < 2) {
+        return NextResponse.json({ error: 'Invalid S3 URL format' }, { status: 400 });
+      }
+      const inputKey = keyMatch[1];
+      const s3InputPath = `s3://${bucketName}/${inputKey}`;
+
+      // Output path: s3://brillinat-academy-1/hls-videos/1234_vid/
+      const baseName = inputKey.split('/').pop()?.split('.')[0] || Date.now().toString();
+      const s3OutputPath = `s3://${bucketName}/hls-videos/${baseName}/`;
+
+      // The final HLS URL to return to the frontend
+      const finalHlsUrl = `https://${bucketName}.s3.${region}.amazonaws.com/hls-videos/${baseName}/${baseName}.m3u8`;
+
+      // MediaConvert endpoint and Role ARN with automatic fallbacks
+      const endpoint =
+        (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() ||
+        'https://mediaconvert.eu-north-1.amazonaws.com';
+      const roleArn =
+        (process.env.AWS_MEDIACONVERT_ROLE_ARN || '').trim() ||
+        'arn:aws:iam::556071986448:role/MediaConvertRole';
+
+      if (!endpoint || !roleArn) {
+        return NextResponse.json(
           {
-            FileInput: s3InputPath,
-            AudioSelectors: {
-              "Audio Selector 1": {
-                DefaultSelection: "DEFAULT"
-              }
-            },
-            VideoSelector: {}
-          }
-        ],
-        OutputGroups: [
-          {
-            Name: "Apple HLS",
-            OutputGroupSettings: {
-              Type: "HLS_GROUP_SETTINGS",
-              HlsGroupSettings: {
-                SegmentLength: 6,
-                MinSegmentLength: 0,
-                Destination: s3OutputPath
-              }
-            },
-            Outputs: [
-              {
-                NameModifier: "_1080p",
-                VideoDescription: {
-                  CodecSettings: {
-                    Codec: "H_264",
-                    H264Settings: {
-                      MaxBitrate: 5000000,
-                      RateControlMode: "QVBR",
-                      QvbrSettings: { QvbrQualityLevel: 8 }
-                    }
-                  },
-                  Height: 1080,
-                  Width: 1920
-                },
-                AudioDescriptions: [
-                  {
-                    CodecSettings: {
-                      Codec: "AAC",
-                      AacSettings: { Bitrate: 128000, CodingMode: "CODING_MODE_2_0", SampleRate: 48000 }
-                    }
-                  }
-                ],
-                ContainerSettings: { Container: "M3U8" }
-              },
-              {
-                NameModifier: "_720p",
-                VideoDescription: {
-                  CodecSettings: {
-                    Codec: "H_264",
-                    H264Settings: {
-                      MaxBitrate: 3000000,
-                      RateControlMode: "QVBR",
-                      QvbrSettings: { QvbrQualityLevel: 7 }
-                    }
-                  },
-                  Height: 720,
-                  Width: 1280
-                },
-                AudioDescriptions: [
-                  {
-                    CodecSettings: {
-                      Codec: "AAC",
-                      AacSettings: { Bitrate: 96000, CodingMode: "CODING_MODE_2_0", SampleRate: 48000 }
-                    }
-                  }
-                ],
-                ContainerSettings: { Container: "M3U8" }
-              },
-              {
-                NameModifier: "_480p",
-                VideoDescription: {
-                  CodecSettings: {
-                    Codec: "H_264",
-                    H264Settings: {
-                      MaxBitrate: 1500000,
-                      RateControlMode: "QVBR",
-                      QvbrSettings: { QvbrQualityLevel: 7 }
-                    }
-                  },
-                  Height: 480,
-                  Width: 854
-                },
-                AudioDescriptions: [
-                  {
-                    CodecSettings: {
-                      Codec: "AAC",
-                      AacSettings: { Bitrate: 96000, CodingMode: "CODING_MODE_2_0", SampleRate: 48000 }
-                    }
-                  }
-                ],
-                ContainerSettings: { Container: "M3U8" }
-              },
-              {
-                NameModifier: "_144p",
-                VideoDescription: {
-                  CodecSettings: {
-                    Codec: "H_264",
-                    H264Settings: {
-                      MaxBitrate: 400000,
-                      RateControlMode: "QVBR",
-                      QvbrSettings: { QvbrQualityLevel: 6 }
-                    }
-                  },
-                  Height: 144,
-                  Width: 256
-                },
-                AudioDescriptions: [
-                  {
-                    CodecSettings: {
-                      Codec: "AAC",
-                      AacSettings: { Bitrate: 64000, CodingMode: "CODING_MODE_2_0", SampleRate: 48000 }
-                    }
-                  }
-                ],
-                ContainerSettings: { Container: "M3U8" }
-              }
-            ]
-          }
-        ]
+            error:
+              'MediaConvert is not fully configured on the server yet. Missing endpoint or role ARN.',
+            finalHlsUrl,
+          },
+          { status: 500 }
+        );
       }
-    };
 
-    // @ts-ignore
-    const data = await mediaconvert.send(new CreateJobCommand(jobParams));
+      const mediaconvert = new MediaConvertClient({
+        region,
+        endpoint,
+        credentials: {
+          accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
+          secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
+        },
+      });
 
-    return NextResponse.json({
-      message: 'MediaConvert job created successfully',
-      jobId: data.Job?.Id,
-      finalHlsUrl
-    });
+      const jobParams = {
+        Role: roleArn,
+        Settings: {
+          Inputs: [
+            {
+              FileInput: s3InputPath,
+              AudioSelectors: {
+                'Audio Selector 1': {
+                  DefaultSelection: 'DEFAULT',
+                },
+              },
+              VideoSelector: {},
+            },
+          ],
+          OutputGroups: [
+            {
+              Name: 'Apple HLS',
+              OutputGroupSettings: {
+                Type: 'HLS_GROUP_SETTINGS',
+                HlsGroupSettings: {
+                  SegmentLength: 6,
+                  MinSegmentLength: 0,
+                  Destination: s3OutputPath,
+                },
+              },
+              Outputs: [
+                {
+                  NameModifier: '_1080p',
+                  VideoDescription: {
+                    CodecSettings: {
+                      Codec: 'H_264',
+                      H264Settings: {
+                        MaxBitrate: 5000000,
+                        RateControlMode: 'QVBR',
+                        QvbrSettings: { QvbrQualityLevel: 8 },
+                      },
+                    },
+                    Height: 1080,
+                    Width: 1920,
+                  },
+                  AudioDescriptions: [
+                    {
+                      CodecSettings: {
+                        Codec: 'AAC',
+                        AacSettings: {
+                          Bitrate: 128000,
+                          CodingMode: 'CODING_MODE_2_0',
+                          SampleRate: 48000,
+                        },
+                      },
+                    },
+                  ],
+                  ContainerSettings: { Container: 'M3U8' },
+                },
+                {
+                  NameModifier: '_720p',
+                  VideoDescription: {
+                    CodecSettings: {
+                      Codec: 'H_264',
+                      H264Settings: {
+                        MaxBitrate: 3000000,
+                        RateControlMode: 'QVBR',
+                        QvbrSettings: { QvbrQualityLevel: 7 },
+                      },
+                    },
+                    Height: 720,
+                    Width: 1280,
+                  },
+                  AudioDescriptions: [
+                    {
+                      CodecSettings: {
+                        Codec: 'AAC',
+                        AacSettings: {
+                          Bitrate: 96000,
+                          CodingMode: 'CODING_MODE_2_0',
+                          SampleRate: 48000,
+                        },
+                      },
+                    },
+                  ],
+                  ContainerSettings: { Container: 'M3U8' },
+                },
+                {
+                  NameModifier: '_480p',
+                  VideoDescription: {
+                    CodecSettings: {
+                      Codec: 'H_264',
+                      H264Settings: {
+                        MaxBitrate: 1500000,
+                        RateControlMode: 'QVBR',
+                        QvbrSettings: { QvbrQualityLevel: 7 },
+                      },
+                    },
+                    Height: 480,
+                    Width: 854,
+                  },
+                  AudioDescriptions: [
+                    {
+                      CodecSettings: {
+                        Codec: 'AAC',
+                        AacSettings: {
+                          Bitrate: 96000,
+                          CodingMode: 'CODING_MODE_2_0',
+                          SampleRate: 48000,
+                        },
+                      },
+                    },
+                  ],
+                  ContainerSettings: { Container: 'M3U8' },
+                },
+                {
+                  NameModifier: '_144p',
+                  VideoDescription: {
+                    CodecSettings: {
+                      Codec: 'H_264',
+                      H264Settings: {
+                        MaxBitrate: 400000,
+                        RateControlMode: 'QVBR',
+                        QvbrSettings: { QvbrQualityLevel: 6 },
+                      },
+                    },
+                    Height: 144,
+                    Width: 256,
+                  },
+                  AudioDescriptions: [
+                    {
+                      CodecSettings: {
+                        Codec: 'AAC',
+                        AacSettings: {
+                          Bitrate: 64000,
+                          CodingMode: 'CODING_MODE_2_0',
+                          SampleRate: 48000,
+                        },
+                      },
+                    },
+                  ],
+                  ContainerSettings: { Container: 'M3U8' },
+                },
+              ],
+            },
+          ],
+        },
+      };
 
-  } catch (error: any) {
-    console.error('MediaConvert error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to start MediaConvert job' }, { status: 500 });
-  }
-}
+      // @ts-ignore
+      const data = await mediaconvert.send(new CreateJobCommand(jobParams));
 
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const jobId = searchParams.get('jobId');
-
-    if (!jobId) {
-      return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      return NextResponse.json({
+        message: 'MediaConvert job created successfully',
+        jobId: data.Job?.Id,
+        finalHlsUrl,
+      });
+    } catch (error: any) {
+      console.error('MediaConvert error:', error);
+      return NextResponse.json(
+        { error: error.message || 'Failed to start MediaConvert job' },
+        { status: 500 }
+      );
     }
-
-    const region = process.env.AWS_REGION || 'eu-north-1';
-    const endpoint = (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() || 'https://mediaconvert.eu-north-1.amazonaws.com';
-
-    const mediaconvert = new MediaConvertClient({
-      region,
-      endpoint,
-      credentials: {
-        accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
-        secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
-      }
-    });
-
-    const data = await mediaconvert.send(new GetJobCommand({ Id: jobId }));
-    return NextResponse.json({
-      status: data.Job?.Status, // 'SUBMITTED' | 'PROGRESSING' | 'COMPLETE' | 'CANCELED' | 'ERROR'
-      errorMessage: data.Job?.ErrorMessage || null
-    });
-  } catch (error: any) {
-    console.error('MediaConvert status error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to get job status' }, { status: 500 });
   }
-}
+);
+
+export const GET = withZeroTrustGate(
+  {
+    scope: 's3_convert_status',
+    limit: 60,
+    windowMs: 60 * 1000,
+    requireAuth: 'teacher_or_admin',
+  },
+  async (req: Request) => {
+    try {
+      const { searchParams } = new URL(req.url);
+      const jobId = searchParams.get('jobId');
+
+      if (!jobId) {
+        return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      }
+
+      const region = process.env.AWS_REGION || 'eu-north-1';
+      const endpoint =
+        (process.env.AWS_MEDIACONVERT_ENDPOINT || '').trim() ||
+        'https://mediaconvert.eu-north-1.amazonaws.com';
+
+      const mediaconvert = new MediaConvertClient({
+        region,
+        endpoint,
+        credentials: {
+          accessKeyId: (process.env.AWS_ACCESS_KEY_ID || '').trim(),
+          secretAccessKey: (process.env.AWS_SECRET_ACCESS_KEY || '').trim(),
+        },
+      });
+
+      const data = await mediaconvert.send(new GetJobCommand({ Id: jobId }));
+      return NextResponse.json({
+        status: data.Job?.Status,
+        errorMessage: data.Job?.ErrorMessage || null,
+      });
+    } catch (error: any) {
+      console.error('MediaConvert status error:', error);
+      return NextResponse.json(
+        { error: error.message || 'Failed to get job status' },
+        { status: 500 }
+      );
+    }
+  }
+);
