@@ -540,6 +540,20 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }, 700);
   }, []);
 
+  const togglePlayPause = useCallback(() => {
+    setPlaying(prev => {
+      const next = !prev;
+      try {
+        const internal = playerRef.current?.getInternalPlayer();
+        if (internal) {
+          if (next && typeof internal.playVideo === 'function') internal.playVideo();
+          if (!next && typeof internal.pauseVideo === 'function') internal.pauseVideo();
+        }
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
   const handleTap = useCallback((side: 'left' | 'right') => {
     const now = Date.now();
     const isDoubleTap = lastTapRef.current.side === side && (now - lastTapRef.current.time) < 320;
@@ -569,13 +583,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       singleTapTimerRef.current = setTimeout(() => {
         lastTapRef.current = { side: null, time: 0 };
         singleTapTimerRef.current = null;
-        setPlaying(prev => !prev);
+        togglePlayPause();
         setShowControls(prev => !prev);
         setShowSpeedMenu(false);
         setShowQualityMenu(false);
       }, 300);
     }
-  }, [handleSeekDelta, showSeekFeedback]);
+  }, [handleSeekDelta, showSeekFeedback, togglePlayPause]);
 
   const handleDoneQuality = useCallback(() => {
     setIsAdjustingQuality(false);
@@ -744,11 +758,37 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
 
+    const checkIdmQuick = () => {
+      try {
+        if (document.body) {
+          const bodyText = (document.body.innerText || document.body.textContent || '');
+          if (
+            bodyText.includes('Download video from this page') ||
+            bodyText.includes('Download this video') ||
+            bodyText.includes('Download with IDM')
+          ) {
+            triggerLockdown();
+            return;
+          }
+        }
+        const idmTarget = document.querySelector(
+          '[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__], [data-idm-id], [data-idm-video], [idm_disp], #idm_panel, .idm-panel'
+        );
+        if (idmTarget) {
+          triggerLockdown();
+          return;
+        }
+      } catch {}
+    };
+
+    checkIdmQuick();
+    const idmPoll = setInterval(checkIdmQuick, 300);
+
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'attributes') {
           const attr = mutation.attributeName?.toLowerCase() || '';
-          if (attr.includes('__idm') || attr.includes('idm_')) {
+          if (attr.includes('__idm') || attr.includes('idm_') || attr.includes('idm')) {
             triggerLockdown();
             return;
           }
@@ -757,15 +797,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             if (node instanceof HTMLElement) {
               const id = node.id || '';
               const cls = typeof node.className === 'string' ? node.className : '';
-              const txt = (node.textContent || '').trim();
+              const txt = (node.textContent || node.innerText || '').trim();
               if (
                 node.hasAttribute('__idm_id__') ||
                 node.hasAttribute('__idm_frm__') ||
                 node.hasAttribute('__idm_handle__') ||
+                node.hasAttribute('__idm_displayed__') ||
                 id.toLowerCase().includes('idm_') ||
                 cls.toLowerCase().includes('idm_') ||
                 txt.includes('Download video from this page') ||
-                txt.includes('Download this video')
+                txt.includes('Download this video') ||
+                txt.includes('Download with IDM')
               ) {
                 triggerLockdown();
               }
@@ -779,10 +821,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       attributes: true,
       childList: true,
       subtree: true,
-      attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_handle__', '__idm_displayed__']
     });
 
-    return () => observer.disconnect();
+    return () => {
+      clearInterval(idmPoll);
+      observer.disconnect();
+    };
   }, []);
   // Check for successful Payable return
   useEffect(() => {
@@ -1509,7 +1553,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   </p>
                   {hasYoutubeOption && (
                     <button
-                      onClick={() => setActiveServer('youtube')}
+                      onClick={() => {
+                        setActiveServer('youtube');
+                        setPlaying(true);
+                      }}
                       type="button"
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-lg shadow-red-900/40 transition-all cursor-pointer animate-pulse"
                     >
@@ -1774,16 +1821,17 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                         },
                         youtube: {
                           playerVars: { 
+                            enablejsapi: 1,
+                            origin: typeof window !== 'undefined' ? window.location.origin : undefined,
                             showinfo: 0, 
                             controls: 1, 
-                            autoplay: playing ? 1 : 0,
+                            autoplay: 1,
                             rel: 0, 
                             modestbranding: 1,
-                            disablekb: 1,
+                            disablekb: 0,
                             iv_load_policy: 3,
                             cc_load_policy: 0,
-                            cc_lang_pref: 'none',
-                            fs: 0,
+                            fs: 1,
                             start: Math.floor(playedSecondsRef.current || 0)
                           }
                         },
@@ -1893,9 +1941,13 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 {/* Big Center Play Button Overlay when !playing */}
                 {!playing && !isAdjustingQuality && (
                   <div 
-                    className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
+                    className="absolute inset-0 z-20 flex items-center justify-center pointer-events-auto cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlayPause();
+                    }}
                   >
-                    <div className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center pl-2 shadow-2xl drop-shadow-2xl">
+                    <div className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center pl-2 shadow-2xl drop-shadow-2xl hover:scale-105 active:scale-95 transition-all">
                       <Play className="w-10 h-10 fill-current" />
                     </div>
                   </div>
@@ -2056,7 +2108,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                     <div className="flex items-center justify-between text-white mt-1">
                       <div className="flex items-center gap-5">
-                        <button onClick={() => setPlaying(!playing)} className="hover:text-primary transition-colors focus:outline-none">
+                        <button onClick={togglePlayPause} className="hover:text-primary transition-colors focus:outline-none">
                           {playing ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
                         </button>
                         
@@ -2325,7 +2377,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     )}
                     {hasYoutubeOption && (
                       <button
-                        onClick={() => setActiveServer('youtube')}
+                        onClick={() => {
+                          setActiveServer('youtube');
+                          setPlaying(true);
+                        }}
                         className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                           activeServer === 'youtube'
                             ? 'bg-red-600 text-white shadow-sm'

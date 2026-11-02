@@ -121,44 +121,71 @@ export function SecurityEnforcer() {
     };
     window.addEventListener('anti-piracy-idm-detected', handleIdmAlert);
 
-    // K. Comprehensive Anti-IDM & Video Downloader Sniffer (Active for ALL roles)
+    // K. Comprehensive Anti-IDM & Video Downloader Sniffer (Active for ALL users and roles)
     const checkIdmExtensions = () => {
       if (isPurged) return;
 
       try {
-        // 1. Direct attribute check on videos/iframes/elements
-        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__]');
-        if (idmTarget) {
-          purgeAndLockdown('idm');
-          return;
-        }
-
-        // 2. Class and ID checks for IDM extension panels
-        const idmSelector = 'div[id*="idm" i], div[class*="idm" i], a[id*="idm" i], button[id*="idm" i], span[id*="idm" i], #idm_select, #idm_menu, #idm_panel, .idm_downloader, .idm-panel';
-        const idmEls = document.querySelectorAll(idmSelector);
-        for (let i = 0; i < idmEls.length; i++) {
-          const el = idmEls[i];
-          const idCls = `${el.id} ${typeof el.className === 'string' ? el.className : ''}`.toLowerCase();
-          if (idCls.includes('idm_') || idCls.includes('idm-') || idCls.includes('idm_select') || idCls.includes('idm_menu') || idCls.includes('idm_downloader')) {
+        // 1. Full-page text scan for IDM floating button phrases
+        if (typeof document !== 'undefined' && document.body) {
+          const bodyText = (document.body.innerText || document.body.textContent || '');
+          if (
+            bodyText.includes('Download video from this page') ||
+            bodyText.includes('Download this video') ||
+            bodyText.includes('Download with IDM')
+          ) {
             purgeAndLockdown('idm');
             return;
           }
         }
 
-        // 3. Text content matching IDM's injected floating buttons
-        const candidates = document.querySelectorAll('button, div, a, span');
-        for (let i = 0; i < candidates.length; i++) {
-          const el = candidates[i];
-          if (el.children.length <= 3) {
-            const txt = (el.textContent || '').trim();
-            if (
-              txt.includes('Download this video') ||
-              txt.includes('Download video from this page') ||
-              txt.includes('Download with IDM')
-            ) {
+        // 2. Direct attribute check on videos/iframes/elements
+        const idmTarget = document.querySelector(
+          '[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__], [data-idm-id], [data-idm-video], [idm_disp]'
+        );
+        if (idmTarget) {
+          purgeAndLockdown('idm');
+          return;
+        }
+
+        // 3. Check all video & audio elements for IDM hooks
+        const mediaElements = document.querySelectorAll('video, audio');
+        for (let i = 0; i < mediaElements.length; i++) {
+          const media = mediaElements[i];
+          const attrs = media.getAttributeNames ? media.getAttributeNames() : [];
+          for (const attr of attrs) {
+            if (attr.toLowerCase().includes('idm')) {
               purgeAndLockdown('idm');
               return;
             }
+          }
+        }
+
+        // 4. Class and ID checks for IDM extension panels
+        const idmSelector = 'div[id*="idm" i], div[class*="idm" i], a[id*="idm" i], button[id*="idm" i], span[id*="idm" i], #idm_select, #idm_menu, #idm_panel, .idm_downloader, .idm-panel';
+        const idmEls = document.querySelectorAll(idmSelector);
+        for (let i = 0; i < idmEls.length; i++) {
+          const el = idmEls[i];
+          const idCls = `${el.id} ${typeof el.className === 'string' ? el.className : ''}`.toLowerCase();
+          if (
+            idCls.includes('idm_') || 
+            idCls.includes('idm-') || 
+            idCls.includes('idm_select') || 
+            idCls.includes('idm_menu') || 
+            idCls.includes('idm_downloader') ||
+            idCls.includes('idm_panel')
+          ) {
+            purgeAndLockdown('idm');
+            return;
+          }
+        }
+
+        // 5. Window object probes for IDM extension globals
+        if (typeof window !== 'undefined') {
+          const win = window as any;
+          if (win.__idm__ || win.idm_ || win.idmInstalled || win.IDM || win.idm_panel) {
+            purgeAndLockdown('idm');
+            return;
           }
         }
       } catch {}
@@ -170,7 +197,7 @@ export function SecurityEnforcer() {
       for (const m of mutations) {
         if (m.type === 'attributes') {
           const attr = m.attributeName?.toLowerCase() || '';
-          if (attr.includes('__idm') || attr.includes('idm_')) {
+          if (attr.includes('__idm') || attr.includes('idm_') || attr.includes('idm')) {
             purgeAndLockdown('idm');
             return;
           }
@@ -180,15 +207,17 @@ export function SecurityEnforcer() {
             if (node instanceof HTMLElement) {
               const id = node.id || '';
               const cls = typeof node.className === 'string' ? node.className : '';
-              const txt = (node.textContent || '').trim();
+              const txt = (node.textContent || node.innerText || '').trim();
               if (
                 node.hasAttribute('__idm_id__') ||
                 node.hasAttribute('__idm_frm__') ||
                 node.hasAttribute('__idm_handle__') ||
+                node.hasAttribute('__idm_displayed__') ||
                 id.toLowerCase().includes('idm_') ||
                 cls.toLowerCase().includes('idm_') ||
                 txt.includes('Download video from this page') ||
-                txt.includes('Download this video')
+                txt.includes('Download this video') ||
+                txt.includes('Download with IDM')
               ) {
                 purgeAndLockdown('idm');
                 return;
@@ -203,18 +232,16 @@ export function SecurityEnforcer() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['__idm_id__', '__idm_frm__', '__idm_handle__', '__idm_displayed__'],
     });
 
-    // Check IDM immediately and continuously every 400ms
+    // Check IDM immediately and continuously every 250ms
     checkIdmExtensions();
-    const idmCheckInterval = setInterval(checkIdmExtensions, 400);
+    const idmCheckInterval = setInterval(checkIdmExtensions, 250);
 
-    // If Admin/Teacher, exempt them from DevTools & shortcut locks, but keep IDM checks active
+    // If Admin/Teacher, exempt them from DevTools & shortcut locks, but keep IDM checks 100% ACTIVE
     const isAdmin = user?.role === 'admin' || user?.role === 'teacher';
     if (isAdmin) {
       return () => {
-        window.removeEventListener('anti-piracy-idm-detected', handleIdmAlert);
         clearInterval(idmCheckInterval);
         idmObserver.disconnect();
       };
