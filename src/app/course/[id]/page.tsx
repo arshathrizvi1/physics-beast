@@ -106,6 +106,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
+  const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
+  const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [availableQualities, setAvailableQualities] = useState<string[]>(['Auto', '720p', '480p', '360p']);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1723,6 +1725,45 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             pointerEvents: 'auto'
                           }}
                         >
+                          {/* When adjusting quality on YouTube: show top pulsing indicator on Gear icon & guidance banner */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
+                            <>
+                              {/* Pulsing visual indicator over Top-Right ⚙ Gear icon (pointer-events-none so gear is clickable) */}
+                              <div className="absolute top-2 right-1.5 sm:top-2.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 border-2 border-primary bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                                <span className="text-xs font-black text-primary animate-bounce">⚙</span>
+                              </div>
+
+                              {/* Top Settings Guidance Notification Popup */}
+                              <div className="absolute top-14 sm:top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 sm:gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-4 py-2 sm:px-5 sm:py-2.5 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[90%] sm:max-w-md">
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+                                  <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin-slow" />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                    Click ⚙️ Gear (Top-Right)
+                                    <span className="inline-block animate-bounce text-primary text-sm font-black">
+                                      ↗
+                                    </span>
+                                  </span>
+                                  <span className="text-[10px] sm:text-[11px] text-zinc-300">
+                                    Click the highlighted ⚙ icon at top-right → select Quality, then click Done.
+                                  </span>
+                                </div>
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsAdjustingQuality(false);
+                                    if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                  }}
+                                  className="bg-primary hover:bg-primary/80 text-white font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
+                                >
+                                  Done ✓
+                                </button>
+                              </div>
+                            </>
+                          )}
+
                           {/* Permanent Anti-Clickout Top Shield (Blocks Title, Avatar & Channel on Mobile & Desktop while leaving Top-Right Gear accessible) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
@@ -2156,35 +2197,37 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                     <span className="text-xs text-zinc-400 font-semibold">Quality</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube' 
-                                    ? ['Auto', '720p', '480p', '360p'] 
-                                    : availableQualities.filter(q => q === 'Auto' || ['720p', '480p', '360p'].includes(q))
-                                  ).map(q => (
-                                    <button 
-                                      key={q} 
-                                      onClick={(e) => { 
-                                        e.stopPropagation(); 
-                                        setQuality(q); 
-                                        setShowQualityMenu(false); 
-                                        try {
-                                          if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
-                                            const internal = playerRef.current?.getInternalPlayer();
-                                            if (internal && typeof internal.setPlaybackQuality === 'function') {
-                                              const ytQualityMap: Record<string, string> = {
-                                                'Auto': 'auto',
-                                                '1080p': 'hd1080',
-                                                '720p': 'hd720',
-                                                '480p': 'large',
-                                                '360p': 'medium',
-                                                '240p': 'small',
-                                              };
-                                              const targetQ = ytQualityMap[q] || 'auto';
-                                              internal.setPlaybackQuality(targetQ);
-                                              if (typeof internal.setPlaybackQualityRange === 'function') {
-                                                internal.setPlaybackQualityRange(targetQ, targetQ);
-                                              }
-                                            }
-                                          } else {
+                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube') ? (
+                                    <div className="p-2.5 text-center">
+                                      <div className="text-[11px] text-zinc-300 mb-2 leading-relaxed">
+                                        YouTube quality must be changed directly from the player settings gear.
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowQualityMenu(false);
+                                          setIsAdjustingQuality(true);
+                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                          qualityAdjustTimerRef.current = setTimeout(() => {
+                                            setIsAdjustingQuality(false);
+                                          }, 45000);
+                                        }}
+                                        className="w-full py-2 px-3 bg-primary hover:bg-primary/90 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+                                      >
+                                        <Settings className="w-3.5 h-3.5" />
+                                        Open YouTube Gear ⚙
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    availableQualities.filter(q => q === 'Auto' || ['720p', '480p', '360p'].includes(q)).map(q => (
+                                      <button 
+                                        key={q} 
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          setQuality(q); 
+                                          setShowQualityMenu(false); 
+                                          try {
                                             const hls = playerRef.current?.getInternalPlayer('hls');
                                             if (hls && hls.levels && hls.levels.length > 0) {
                                               if (q === 'Auto') {
@@ -2217,34 +2260,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                                 }
                                               }
                                             }
-                                          }
-                                        } catch (err) {}
-                                        resetControlsTimeout();
-                                      }}
-                                      className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
-                                    >
-                                      {q}
-                                    </button>
-                                  ))}
-
-                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube') && (
-                                    <div className="border-t border-white/10 mt-1 pt-1">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setShowQualityMenu(false);
-                                          setPlaying(false);
-                                          setIsAdjustingQuality(true);
-                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
-                                          qualityAdjustTimerRef.current = setTimeout(() => {
-                                            setIsAdjustingQuality(false);
-                                          }, 60000);
+                                          } catch (err) {}
+                                          resetControlsTimeout();
                                         }}
-                                        className="w-full px-3 py-1.5 text-[11px] text-primary hover:bg-white/15 transition-colors text-left flex items-center gap-1 font-semibold"
+                                        className={`w-full px-3 py-1.5 text-xs text-left hover:bg-white/15 transition-colors ${quality === q ? 'text-primary font-bold bg-primary/20' : 'text-zinc-200'}`}
                                       >
-                                        <Settings className="w-3 h-3" /> YouTube Gear ⚙
+                                        {q}
                                       </button>
-                                    </div>
+                                    ))
                                   )}
                                 </div>
                               </div>
