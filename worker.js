@@ -21,11 +21,11 @@ const ALERT_EMAIL = 'arshathrizvi1010@gmail.com';
 // Rate Limiting Policy Thresholds (Devnivo Parity)
 const RATE_LIMITS = {
   BURST_WINDOW_MS: 5000,      // 5 seconds
-  BURST_MAX_REQUESTS: 45,     // > 45 req in 5s = DDoS attack attempt
+  BURST_MAX_REQUESTS: 120,    // Allow parallel browser asset loads on refresh
   MINUTE_WINDOW_MS: 60000,    // 1 minute
-  NORMAL_MAX_PER_MIN: 150,    // 150 requests / min for normal browsing
-  API_MAX_PER_MIN: 60,        // 60 requests / min for API endpoints
-  AUTH_MAX_PER_MIN: 25,       // 25 requests / min for login/signup/auth
+  NORMAL_MAX_PER_MIN: 300,    // 300 requests / min for normal browsing
+  API_MAX_PER_MIN: 120,       // 120 requests / min for API endpoints
+  AUTH_MAX_PER_MIN: 30,       // 30 POST auth attempts / min
 };
 
 // Known Scanner & Exploit User-Agents to Block Instantly
@@ -106,7 +106,7 @@ function buildSecurityHeaders(request, nonce) {
 /**
  * Layer 7 DDoS Mitigation & Sliding-Window Rate Limiter
  */
-function evaluateRateLimit(clientIp, pathname) {
+function evaluateRateLimit(clientIp, pathname, method = 'GET') {
   const now = Date.now();
   let record = rateLimitWindow.get(clientIp);
 
@@ -145,7 +145,7 @@ function evaluateRateLimit(clientIp, pathname) {
 
   // Check 1-minute window thresholds based on endpoint sensitivity
   let maxAllowed = RATE_LIMITS.NORMAL_MAX_PER_MIN;
-  if (pathname.startsWith('/api/auth/') || pathname.startsWith('/login') || pathname.startsWith('/signup')) {
+  if (method === 'POST' && (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/login'))) {
     maxAllowed = RATE_LIMITS.AUTH_MAX_PER_MIN;
   } else if (pathname.startsWith('/api/')) {
     maxAllowed = RATE_LIMITS.API_MAX_PER_MIN;
@@ -403,9 +403,15 @@ export default {
       );
     }
 
+    // Static assets & Auth iframe/handlers bypass rate limiting
+    const isStaticOrAuthAsset =
+      url.pathname.startsWith('/_next/') ||
+      url.pathname.startsWith('/__/auth/') ||
+      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json|mp4|webm|ts|m3u8)$/i);
+
     // 2. Layer-7 DDoS Rate Limiting & Burst Protection
-    if (!isAdmin) {
-      const rateCheck = evaluateRateLimit(clientIp, url.pathname);
+    if (!isAdmin && !isStaticOrAuthAsset) {
+      const rateCheck = evaluateRateLimit(clientIp, url.pathname, request.method);
       if (!rateCheck.allowed) {
         if (rateCheck.isDdosBurst) {
           // Immediately quarantine attacker IP for 30 minutes
