@@ -191,18 +191,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     const checkIdmInDom = () => {
       try {
-        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__]');
+        const idmTarget = document.querySelector('[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]');
         if (idmTarget) {
           triggerIdmLockdown();
           return;
         }
 
-        const candidates = document.querySelectorAll('button, div, a, span');
+        const candidates = document.querySelectorAll('button, a, div[role="button"], span');
         for (let i = 0; i < candidates.length; i++) {
           const el = candidates[i];
-          if (el.children.length <= 3) {
+          if (el.closest('#anti-piracy-screen')) continue;
+          if (el.children.length <= 1) {
             const txt = (el.textContent || '').trim();
-            if (txt.includes('Download this video') || txt.includes('Download video from this page') || txt.includes('Download with IDM')) {
+            if (
+              txt === 'Download this video' ||
+              txt === 'Download video from this page' ||
+              txt === 'Download with IDM' ||
+              txt.startsWith('Download this video with IDM')
+            ) {
               triggerIdmLockdown();
               return;
             }
@@ -354,7 +360,15 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       for (const m of mutations) {
         if (m.type === 'attributes') {
           const attr = m.attributeName?.toLowerCase() || '';
-          if (attr.includes('idm')) {
+          if (
+            attr === '__idm_id__' ||
+            attr === '__idm_frm__' ||
+            attr === '__idm_handle__' ||
+            attr === '__idm_displayed__' ||
+            attr === 'idm_disp' ||
+            attr === 'data-idm-id' ||
+            attr === 'data-idm-video'
+          ) {
             window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
             return;
           }
@@ -362,18 +376,21 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         for (let i = 0; i < m.addedNodes.length; i++) {
           const node = m.addedNodes[i];
           if (node instanceof HTMLElement) {
+            if (node.closest('#anti-piracy-screen')) continue;
             const id = (node.id || '').toLowerCase();
             const cls = (typeof node.className === 'string' ? node.className : '').toLowerCase();
             const txt = (node.textContent || (node as HTMLElement).innerText || '').trim();
             if (
-              id.includes('idm') ||
-              cls.includes('idm') ||
+              id === 'idm_panel' ||
+              id === 'idm_select' ||
+              id === 'idm_menu' ||
+              cls.includes('idm_downloader') ||
               node.hasAttribute('__idm_id__') ||
               node.hasAttribute('__idm_displayed__') ||
-              txt.includes('Download this video') ||
-              txt.includes('Download video from this page') ||
-              txt.includes('Download with IDM') ||
-              txt.includes('Download all')
+              txt === 'Download this video' ||
+              txt === 'Download video from this page' ||
+              txt === 'Download with IDM' ||
+              txt.startsWith('Download this video with IDM')
             ) {
               window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
               return;
@@ -788,84 +805,6 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  // Anti-Downloader / IDM Extension Defense (Triggers instantaneous site lockdown upon detection)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const triggerLockdown = () => {
-      window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
-    };
-
-    const checkIdmQuick = () => {
-      try {
-        if (document.body) {
-          const bodyText = (document.body.innerText || document.body.textContent || '');
-          if (
-            bodyText.includes('Download video from this page') ||
-            bodyText.includes('Download this video') ||
-            bodyText.includes('Download with IDM')
-          ) {
-            triggerLockdown();
-            return;
-          }
-        }
-        const idmTarget = document.querySelector(
-          '[__idm_id__], [__idm_frm__], [__idm_handle__], [__idm_displayed__], [data-idm-id], [data-idm-video], [idm_disp], #idm_panel, .idm-panel'
-        );
-        if (idmTarget) {
-          triggerLockdown();
-          return;
-        }
-      } catch {}
-    };
-
-    checkIdmQuick();
-    const idmPoll = setInterval(checkIdmQuick, 300);
-
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        if (mutation.type === 'attributes') {
-          const attr = mutation.attributeName?.toLowerCase() || '';
-          if (attr.includes('__idm') || attr.includes('idm_') || attr.includes('idm')) {
-            triggerLockdown();
-            return;
-          }
-        } else if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach((node) => {
-            if (node instanceof HTMLElement) {
-              const id = node.id || '';
-              const cls = typeof node.className === 'string' ? node.className : '';
-              const txt = (node.textContent || node.innerText || '').trim();
-              if (
-                node.hasAttribute('__idm_id__') ||
-                node.hasAttribute('__idm_frm__') ||
-                node.hasAttribute('__idm_handle__') ||
-                node.hasAttribute('__idm_displayed__') ||
-                id.toLowerCase().includes('idm_') ||
-                cls.toLowerCase().includes('idm_') ||
-                txt.includes('Download video from this page') ||
-                txt.includes('Download this video') ||
-                txt.includes('Download with IDM')
-              ) {
-                triggerLockdown();
-              }
-            }
-          });
-        }
-      }
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      childList: true,
-      subtree: true,
-    });
-
-    return () => {
-      clearInterval(idmPoll);
-      observer.disconnect();
-    };
-  }, []);
   // Check for successful Payable return
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
