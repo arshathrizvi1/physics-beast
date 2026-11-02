@@ -9,12 +9,80 @@ import { useAuth } from '@/lib/AuthContext';
 import DisableDevtool from 'disable-devtool';
 
 // Comprehensive IDM element discriminator with guaranteed zero false positives
+// Track all shadow roots created on the page to unmask IDM Shadow DOM injections
+const trackedShadowRoots = new Set<ShadowRoot>();
+
+if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_SHADOW_TRAPPED__) {
+  (Element.prototype as any).__IDM_SHADOW_TRAPPED__ = true;
+  try {
+    const origAttachShadow = Element.prototype.attachShadow;
+    Element.prototype.attachShadow = function (init: ShadowRootInit) {
+      const shadow = origAttachShadow.call(this, { ...init, mode: 'open' });
+      try {
+        trackedShadowRoots.add(shadow);
+        if (typeof window !== 'undefined') {
+          ((window as any).__TRACKED_SHADOW_ROOTS__ = (window as any).__TRACKED_SHADOW_ROOTS__ || new Set()).add(shadow);
+        }
+      } catch {}
+      return shadow;
+    };
+  } catch {}
+}
+
+// Trap setAttribute calls for IDM hook attributes
+if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_ATTR_TRAPPED__) {
+  (Element.prototype as any).__IDM_ATTR_TRAPPED__ = true;
+  try {
+    const origSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (name: string, value: string) {
+      if (typeof name === 'string') {
+        const n = name.toLowerCase();
+        if (
+          n.startsWith('__idm') ||
+          n.startsWith('data-idm') ||
+          n === 'idm_disp' ||
+          n === '__idm_id__' ||
+          n === '__idm_displayed__' ||
+          n === '__idm_frm__' ||
+          n === '__idm_handle__'
+        ) {
+          try {
+            window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+          } catch {}
+        }
+        if (n === 'id' || n === 'class') {
+          const val = String(value || '').toLowerCase();
+          if (
+            val.includes('idm_panel') ||
+            val.includes('idm_select') ||
+            val.includes('idm_menu') ||
+            val.includes('idm_downloader') ||
+            val.includes('idm-panel') ||
+            val.includes('idm-dl') ||
+            val.startsWith('idm_') ||
+            val.startsWith('idm-') ||
+            val.startsWith('__idm')
+          ) {
+            try {
+              window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
+            } catch {}
+          }
+        }
+      }
+      return origSetAttribute.call(this, name, value);
+    };
+  } catch {}
+}
+
 function checkIsIdm(node: Element): boolean {
   if (!node) return false;
   if (node.id === 'anti-piracy-screen' || node.closest?.('#anti-piracy-screen')) return false;
 
   const tag = (node.tagName || '').toUpperCase();
   if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT' || tag === 'TEMPLATE') {
+    return false;
+  }
+  if (node === document.body || node === document.documentElement) {
     return false;
   }
 
@@ -28,7 +96,9 @@ function checkIsIdm(node: Element): boolean {
     id.startsWith('idm-') ||
     id.startsWith('__idm') ||
     id.includes('idm_') ||
-    id.includes('idm-')
+    id.includes('idm-') ||
+    id.includes('idm-panel') ||
+    id.includes('idm-dl')
   ) {
     return true;
   }
@@ -40,6 +110,8 @@ function checkIsIdm(node: Element): boolean {
     cls.includes('idm_downloader') ||
     cls.includes('idm_select') ||
     cls.includes('idm_menu') ||
+    cls.includes('idm-panel') ||
+    cls.includes('idm-dl') ||
     cls.startsWith('idm_') ||
     cls.startsWith('idm-') ||
     cls.includes(' idm_') ||
@@ -57,7 +129,8 @@ function checkIsIdm(node: Element): boolean {
     node.hasAttribute('__idm_handle__') ||
     node.hasAttribute('idm_disp') ||
     node.hasAttribute('data-idm-id') ||
-    node.hasAttribute('data-idm-video')
+    node.hasAttribute('data-idm-video') ||
+    node.hasAttribute('data-idm-vreg')
   ) {
     return true;
   }
@@ -80,45 +153,58 @@ function checkIsIdm(node: Element): boolean {
   if (
     title.includes('download this video') ||
     title.includes('download with idm') ||
-    title.includes('idm integration')
+    title.includes('idm integration') ||
+    title.includes('download video from this page')
   ) {
     return true;
   }
 
-  // 6. Check text content on candidate elements (leaf/small containers with <= 6 children)
-  if (node.children.length <= 6) {
-    const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
-    if (rawTxt && rawTxt.length < 160) {
-      // Safe list: protect legitimate academy buttons
-      if (
-        rawTxt.includes('Download PDF') ||
-        rawTxt.includes('PDF Document') ||
-        rawTxt.includes('Statement (PDF)') ||
-        rawTxt.includes('BrilliantAcademy.apk')
-      ) {
-        return false;
-      }
-
-      if (
-        rawTxt === 'Download this video' ||
-        rawTxt === 'Download video from this page' ||
-        rawTxt === 'Download with IDM' ||
-        rawTxt === 'Download all' ||
-        rawTxt.startsWith('Download this video with IDM') ||
-        rawTxt.includes('Download this video with IDM') ||
-        (rawTxt.includes('Download this video') && !rawTxt.includes('DRM Piracy Defense')) ||
-        (rawTxt.includes('TS file, quality') && rawTxt.includes('kbps')) ||
-        (rawTxt.includes('MP4 file, quality') && rawTxt.includes('kbps'))
-      ) {
-        return true;
-      }
+  // 6. Check extension image/iframe sources
+  if (tag === 'IMG' || tag === 'IFRAME') {
+    const src = (node.getAttribute('src') || '').toLowerCase();
+    if (src.includes('chrome-extension://') || src.includes('idm') || src.includes('extension://')) {
+      return true;
     }
   }
 
-    // 7. Check open shadow root if attached
+  // 7. Check text content on candidate elements (no arbitrary children or length limits)
+  const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
+  if (rawTxt) {
+    // Safe list: protect legitimate academy buttons & notifications
+    if (
+      rawTxt.includes('Download PDF') ||
+      rawTxt.includes('PDF Document') ||
+      rawTxt.includes('Statement (PDF)') ||
+      rawTxt.includes('BrilliantAcademy.apk') ||
+      rawTxt.includes('Download Android App') ||
+      rawTxt.includes('DRM Piracy Defense') ||
+      rawTxt.includes('Security Violation: IDM') ||
+      rawTxt.includes('How to restore access:') ||
+      rawTxt.includes('I Turned Off IDM')
+    ) {
+      return false;
+    }
+
+    if (
+      rawTxt.includes('Download this video') ||
+      rawTxt.includes('Download video from this page') ||
+      rawTxt.includes('Download with IDM') ||
+      rawTxt.includes('Download all') ||
+      (rawTxt.includes('TS file') && rawTxt.includes('kbps')) ||
+      (rawTxt.includes('MP4 file') && rawTxt.includes('kbps')) ||
+      (rawTxt.includes('file, quality') && rawTxt.includes('kbps')) ||
+      rawTxt.includes('IDM Integration') ||
+      rawTxt.includes('Internet Download Manager') ||
+      rawTxt.includes('Download with Plexo')
+    ) {
+      return true;
+    }
+  }
+
+  // 8. Check shadow root if attached
   if (node.shadowRoot) {
     try {
-      const shadowChildren = node.shadowRoot.querySelectorAll('div, span, button, a, td, video, audio');
+      const shadowChildren = node.shadowRoot.querySelectorAll('*');
       for (let s = 0; s < shadowChildren.length; s++) {
         if (checkIsIdm(shadowChildren[s])) {
           return true;
@@ -275,18 +361,28 @@ export function SecurityEnforcer() {
           }
         }
 
-        // C. Fast selector lookup for known IDM classes, IDs and attributes
+        // C. Fast selector lookup for known IDM classes, IDs, and attributes
         const fastTarget = document.querySelector(
-          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]',
-          // Also check explicit hook attributes
+          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video], [data-idm-vreg]'
         );
         if (fastTarget && !fastTarget.closest('#anti-piracy-screen')) {
           purgeAndLockdown('idm');
           return;
         }
 
-        // D. Scan visible candidates across document.body
-        const candidates = document.querySelectorAll('div, span, button, a, table, td, tr, p');
+        // D. Check extension resources
+        const extElements = document.querySelectorAll(
+          'iframe[src*="chrome-extension://"], iframe[src*="idm"], img[src*="chrome-extension://"], img[src*="idm"], embed[type*="idm"], embed[id*="__IDM__"], object[type*="idm"]'
+        );
+        if (extElements.length > 0) {
+          purgeAndLockdown('idm');
+          return;
+        }
+
+        // E. Scan candidates across entire document body
+        const candidates = document.querySelectorAll(
+          'div, span, button, a, table, td, tr, p, ul, ol, li, menu, header, section, [title*="download" i], [aria-label*="download" i]'
+        );
         for (let j = 0; j < candidates.length; j++) {
           const el = candidates[j];
           if (checkIsIdm(el)) {
@@ -295,7 +391,22 @@ export function SecurityEnforcer() {
           }
         }
 
-        
+        // F. Scan ALL tracked Shadow Roots (bypasses extension closed shadow isolation)
+        const allShadows = new Set<ShadowRoot>([
+          ...trackedShadowRoots,
+          ...((window as any).__TRACKED_SHADOW_ROOTS__ || []),
+        ]);
+        for (const shadow of allShadows) {
+          try {
+            const shadowCandidates = shadow.querySelectorAll('*');
+            for (let s = 0; s < shadowCandidates.length; s++) {
+              if (checkIsIdm(shadowCandidates[s])) {
+                purgeAndLockdown('idm');
+                return;
+              }
+            }
+          } catch {}
+        }
       } catch {}
     };
 
@@ -318,7 +429,7 @@ export function SecurityEnforcer() {
                 purgeAndLockdown('idm');
                 return;
               }
-              const descendants = node.querySelectorAll?.('div, span, button, a, td, video, audio');
+              const descendants = node.querySelectorAll?.('*');
               if (descendants) {
                 for (let d = 0; d < descendants.length; d++) {
                   if (checkIsIdm(descendants[d])) {
@@ -326,6 +437,17 @@ export function SecurityEnforcer() {
                     return;
                   }
                 }
+              }
+              if (node.shadowRoot) {
+                try {
+                  const shadowAll = node.shadowRoot.querySelectorAll('*');
+                  for (let s = 0; s < shadowAll.length; s++) {
+                    if (checkIsIdm(shadowAll[s])) {
+                      purgeAndLockdown('idm');
+                      return;
+                    }
+                  }
+                } catch {}
               }
             }
           }

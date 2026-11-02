@@ -190,6 +190,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'LINK' || tag === 'NOSCRIPT' || tag === 'TEMPLATE') {
       return false;
     }
+    if (node === document.body || node === document.documentElement) {
+      return false;
+    }
 
     const id = (node.id || '').toLowerCase();
     if (
@@ -200,7 +203,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       id.startsWith('idm-') ||
       id.startsWith('__idm') ||
       id.includes('idm_') ||
-      id.includes('idm-')
+      id.includes('idm-') ||
+      id.includes('idm-panel') ||
+      id.includes('idm-dl')
     ) {
       return true;
     }
@@ -211,6 +216,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       cls.includes('idm_downloader') ||
       cls.includes('idm_select') ||
       cls.includes('idm_menu') ||
+      cls.includes('idm-panel') ||
+      cls.includes('idm-dl') ||
       cls.startsWith('idm_') ||
       cls.startsWith('idm-') ||
       cls.includes(' idm_') ||
@@ -227,12 +234,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       node.hasAttribute('__idm_handle__') ||
       node.hasAttribute('idm_disp') ||
       node.hasAttribute('data-idm-id') ||
-      node.hasAttribute('data-idm-video')
+      node.hasAttribute('data-idm-video') ||
+      node.hasAttribute('data-idm-vreg')
     ) {
       return true;
     }
 
-    // 4. Check JS properties on media elements (strictly !== undefined, NEVER check 'in' operator)
     const anyNode = node as any;
     if (
       anyNode.__idm_id__ !== undefined ||
@@ -249,43 +256,54 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (
       title.includes('download this video') ||
       title.includes('download with idm') ||
-      title.includes('idm integration')
+      title.includes('idm integration') ||
+      title.includes('download video from this page')
     ) {
       return true;
     }
 
-    if (node.children.length <= 6) {
-      const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
-      if (rawTxt && rawTxt.length < 160) {
-        if (
-          rawTxt.includes('Download PDF') ||
-          rawTxt.includes('PDF Document') ||
-          rawTxt.includes('Statement (PDF)') ||
-          rawTxt.includes('BrilliantAcademy.apk')
-        ) {
-          return false;
-        }
-
-        if (
-          rawTxt === 'Download this video' ||
-          rawTxt === 'Download video from this page' ||
-          rawTxt === 'Download with IDM' ||
-          rawTxt === 'Download all' ||
-          rawTxt.startsWith('Download this video with IDM') ||
-          rawTxt.includes('Download this video with IDM') ||
-          (rawTxt.includes('Download this video') && !rawTxt.includes('DRM Piracy Defense')) ||
-          (rawTxt.includes('TS file, quality') && rawTxt.includes('kbps')) ||
-          (rawTxt.includes('MP4 file, quality') && rawTxt.includes('kbps'))
-        ) {
-          return true;
-        }
+    if (tag === 'IMG' || tag === 'IFRAME') {
+      const src = (node.getAttribute('src') || '').toLowerCase();
+      if (src.includes('chrome-extension://') || src.includes('idm') || src.includes('extension://')) {
+        return true;
       }
     }
 
-        // 7. Check open shadow root if attached
+    const rawTxt = (node.textContent || (node as HTMLElement).innerText || '').trim();
+    if (rawTxt) {
+      if (
+        rawTxt.includes('Download PDF') ||
+        rawTxt.includes('PDF Document') ||
+        rawTxt.includes('Statement (PDF)') ||
+        rawTxt.includes('BrilliantAcademy.apk') ||
+        rawTxt.includes('Download Android App') ||
+        rawTxt.includes('DRM Piracy Defense') ||
+        rawTxt.includes('Security Violation: IDM') ||
+        rawTxt.includes('How to restore access:') ||
+        rawTxt.includes('I Turned Off IDM')
+      ) {
+        return false;
+      }
+
+      if (
+        rawTxt.includes('Download this video') ||
+        rawTxt.includes('Download video from this page') ||
+        rawTxt.includes('Download with IDM') ||
+        rawTxt.includes('Download all') ||
+        (rawTxt.includes('TS file') && rawTxt.includes('kbps')) ||
+        (rawTxt.includes('MP4 file') && rawTxt.includes('kbps')) ||
+        (rawTxt.includes('file, quality') && rawTxt.includes('kbps')) ||
+        rawTxt.includes('IDM Integration') ||
+        rawTxt.includes('Internet Download Manager') ||
+        rawTxt.includes('Download with Plexo')
+      ) {
+        return true;
+      }
+    }
+
     if (node.shadowRoot) {
       try {
-        const shadowChildren = node.shadowRoot.querySelectorAll('div, span, button, a, td, video, audio');
+        const shadowChildren = node.shadowRoot.querySelectorAll('*');
         for (let s = 0; s < shadowChildren.length; s++) {
           if (checkIsIdmNode(shadowChildren[s])) {
             return true;
@@ -297,6 +315,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     return false;
   };
 
+  // Anti-IDM
   // Anti-IDM (Internet Download Manager) and Video Downloader Interceptor
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -317,18 +336,43 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         }
 
         const fastTarget = document.querySelector(
-          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video]'
+          '[id*="idm_"], [id*="idm-"], [class*="idm_"], [class*="idm-"], [id^="__idm"], [class^="__idm"], #idm_panel, #idm_select, #idm_menu, .idm_downloader, [data-idm-video], [data-idm-vreg]'
         );
         if (fastTarget && !fastTarget.closest('#anti-piracy-screen')) {
           triggerIdmLockdown();
           return;
         }
 
-        const candidates = document.querySelectorAll('div, span, button, a, table, td, tr, p');
+        const extElements = document.querySelectorAll(
+          'iframe[src*="chrome-extension://"], iframe[src*="idm"], img[src*="chrome-extension://"], img[src*="idm"], embed[type*="idm"], embed[id*="__IDM__"], object[type*="idm"]'
+        );
+        if (extElements.length > 0) {
+          triggerIdmLockdown();
+          return;
+        }
+
+        const candidates = document.querySelectorAll(
+          'div, span, button, a, table, td, tr, p, ul, ol, li, menu, header, section, [title*="download" i], [aria-label*="download" i]'
+        );
         for (let i = 0; i < candidates.length; i++) {
           if (checkIsIdmNode(candidates[i])) {
             triggerIdmLockdown();
             return;
+          }
+        }
+
+        const tracked = (window as any).__TRACKED_SHADOW_ROOTS__;
+        if (tracked && tracked instanceof Set) {
+          for (const shadow of tracked) {
+            try {
+              const shadowCandidates = shadow.querySelectorAll('*');
+              for (let s = 0; s < shadowCandidates.length; s++) {
+                if (checkIsIdmNode(shadowCandidates[s])) {
+                  triggerIdmLockdown();
+                  return;
+                }
+              }
+            } catch {}
           }
         }
       } catch {}
