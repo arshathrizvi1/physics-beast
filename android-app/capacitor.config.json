@@ -10,6 +10,8 @@
                    "allowNavigation":  [
                                            "brilliantacademy.vercel.app",
                                            "*.vercel.app",
+                                           "brillliantacademy.site",
+                                           "*.brillliantacademy.site",
                                            "physics-beastsl.firebaseapp.com",
                                            "*.firebaseapp.com",
                                            "accounts.google.com",

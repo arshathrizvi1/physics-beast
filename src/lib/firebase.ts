@@ -3,9 +3,12 @@ import { getAuth } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const isBrowser = typeof window !== "undefined";
+const isLocalhost = isBrowser && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
 const firebaseConfig = {
   apiKey: "AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA",
-  authDomain: "physics-beastsl.firebaseapp.com",
+  authDomain: isLocalhost ? "physics-beastsl.firebaseapp.com" : "brillliantacademy.site",
   projectId: "physics-beastsl",
   storageBucket: "physics-beastsl.firebasestorage.app",
   messagingSenderId: "326758596614",
