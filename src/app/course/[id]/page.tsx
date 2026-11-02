@@ -1697,11 +1697,27 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             pointerEvents: 'auto'
                           }}
                         >
-                          {/* Top Shield to block YouTube title clickout */}
-                          {activeServer === 'youtube' && (
+                          {/* Permanent Anti-Clickout Top Shield (Blocks Title, Avatar & Channel on Mobile & Desktop while leaving Top-Right Gear accessible) */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className="absolute top-0 left-0 right-0 h-16 z-20 cursor-default bg-transparent"
+                              className="absolute top-0 left-0 right-14 sm:right-16 h-20 sm:h-16 z-30 select-none bg-transparent"
+                              style={{ touchAction: 'none' }}
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
+
+                          {/* Permanent Anti-Clickout Bottom-Right Shield (Blocks YouTube Logo & More Videos clickout on Mobile & Desktop) */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
+                            <div 
+                              className="absolute bottom-0 right-0 w-36 sm:w-44 h-12 sm:h-14 z-30 select-none bg-transparent pointer-events-auto"
+                              style={{ touchAction: 'none' }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
                           <ReactPlayer
@@ -1902,58 +1918,65 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       <>
                         {/* 1. Danger Zone 1: Top Bar (blocks Title, Avatar, & Channel link; leaves top-right Gear accessible) */}
                         <div 
-                          className="absolute top-0 left-0 right-28 h-16 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="absolute top-0 left-0 right-14 sm:right-16 h-20 sm:h-16 bg-transparent z-30 pointer-events-auto select-none"
+                          style={{ touchAction: 'none' }}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
                         {/* 2. Danger Zone 2: Bottom-Left Share & Watch Later buttons */}
                         <div 
-                          className="absolute bottom-0 left-0 w-48 h-20 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="absolute bottom-0 left-0 w-44 sm:w-48 h-16 sm:h-20 bg-transparent z-30 pointer-events-auto select-none"
+                          style={{ touchAction: 'none' }}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 3. Danger Zone 3: Bottom-Right - COMPLETELY BLOCKS YouTube logo button, More Videos shelf, and thumbnail */}
+                        {/* 3. Danger Zone 3: Bottom-Right - Blocks YouTube logo button, More Videos shelf */}
                         <div 
-                          className="absolute bottom-0 right-0 w-80 h-24 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="absolute bottom-0 right-0 w-44 sm:w-80 h-16 sm:h-24 bg-transparent z-30 pointer-events-auto select-none"
+                          style={{ touchAction: 'none' }}
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode - Big block permanently shielding '... More options' & 'CC' without any edge gaps */}
+                        {/* 4. Danger Zone 4A: Bottom-Sheet Mode (Blocks '... More options' on desktop) */}
                         <div 
-                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[460px] max-w-[95%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="hidden sm:block absolute bottom-0 left-1/2 -translate-x-1/2 w-[460px] max-w-[95%] h-[105px] bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode - Permanently blocks '... More options' (Copy URL), Captions, Speed */}
+                        {/* 5. Danger Zone 4B: Top-Right Dropdown Mode (Blocks '... More options' on desktop, leaving gear free) */}
                         <div 
-                          className="absolute top-24 right-2 w-72 h-40 bg-transparent z-30 pointer-events-auto select-none"
-                          onClick={(e) => { e.stopPropagation(); }}
-                          onContextMenu={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                          className="hidden sm:block absolute top-28 right-2 w-72 h-36 bg-transparent z-30 pointer-events-auto select-none"
+                          onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         />
 
-                        {/* 6. Pulsing visual indicator over Top-Right ⚙ Gear icon */}
-                        <div className="absolute top-2.5 right-2 w-10 h-10 border-2 border-primary/90 bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
+                        {/* 6. Pulsing visual indicator over Top-Right ⚙ Gear icon (pointer-events-none so gear is clickable) */}
+                        <div className="absolute top-2 right-1.5 sm:top-2.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 border-2 border-primary bg-primary/20 rounded-full pointer-events-none z-40 animate-pulse flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.8)]">
                           <span className="text-xs font-black text-primary animate-bounce">⚙</span>
                         </div>
 
-                        {/* 7. Top Settings Guidance Notification Popup */}
-                        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-5 py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[92%]">
-                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
-                            <Settings className="w-4 h-4 animate-spin-slow" />
+                        {/* 7. Top Settings Guidance Notification Popup (positioned safely below top bar) */}
+                        <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 sm:gap-3 bg-zinc-950/95 backdrop-blur-md border border-primary/60 px-4 py-2 sm:px-5 sm:py-3 rounded-2xl text-white shadow-2xl animate-in fade-in zoom-in-95 select-none pointer-events-auto max-w-[90%] sm:max-w-md">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+                            <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin-slow" />
                           </div>
                           <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                              Click ⚙️ Gear (Top-Right) → Quality
+                              Tap ⚙️ Gear (Top-Right)
                               <span className="inline-block animate-bounce text-primary text-sm font-black">
                                 ↗
                               </span>
                             </span>
-                            <span className="text-[11px] text-zinc-400">
-                              Click the highlighted ⚙ icon at top-right → select Quality → pick your resolution, then click Done.
+                            <span className="text-[10px] sm:text-[11px] text-zinc-400">
+                              Tap the highlighted ⚙ icon at top-right → select Quality, then click Done.
                             </span>
                           </div>
                           <button 
@@ -1961,7 +1984,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               e.stopPropagation();
                               handleDoneQuality();
                             }}
-                            className="bg-primary hover:bg-primary/80 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
+                            className="bg-primary hover:bg-primary/80 text-white font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-lg cursor-pointer flex-shrink-0"
                           >
                             Done ✓
                           </button>
@@ -2179,47 +2202,25 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               className="text-sm font-bold hover:text-primary transition-colors flex items-center gap-1 opacity-80 hover:opacity-100"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
-                                  // DIRECT YouTube trigger: Auto-pauses and shows YouTube gear/controls directly
-                                  const internal = playerRef.current?.getInternalPlayer();
-                                  if (internal && typeof internal.getPlayerState === 'function') {
-                                    const state = internal.getPlayerState();
-                                    if (state === -1 || state === 5) {
-                                      try {
-                                        internal.playVideo();
-                                        setTimeout(() => {
-                                          try { internal.pauseVideo(); } catch (err) {}
-                                        }, 250);
-                                      } catch (err) {}
-                                    }
-                                  }
-                                  setPlaying(false);
-                                  setIsAdjustingQuality(true);
-                                  setShowQualityMenu(false);
-                                  setShowSpeedMenu(false);
-                                  if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
-                                  qualityAdjustTimerRef.current = setTimeout(() => {
-                                    setIsAdjustingQuality(false);
-                                  }, 60000);
-                                } else {
-                                  // For Bunny Stream / HLS: toggle native quality menu
-                                  setShowQualityMenu(!showQualityMenu);
-                                  setShowSpeedMenu(false);
-                                }
+                                setShowQualityMenu(!showQualityMenu);
+                                setShowSpeedMenu(false);
                               }}
                             >
                               {quality} <Settings className="w-4 h-4 ml-1" />
                             </button>
 
                             {/* Dropdown Menu for Bunny / HLS ONLY */}
-                            {showQualityMenu && activeServer !== 'youtube' && activeVideo.platform !== 'youtube' && (
+                            {showQualityMenu && (
                               <div className="absolute bottom-full right-0 mb-3 flex flex-col z-50">
                                 <div className="bg-zinc-950/95 rounded-lg border border-white/20 overflow-hidden shadow-2xl pb-1 w-36 text-white backdrop-blur-md">
                                   <div className="flex justify-between items-center border-b border-white/10 mb-1 px-3 py-1.5">
                                     <span className="text-xs text-zinc-400 font-semibold">Quality</span>
                                     <X className="w-3.5 h-3.5 text-zinc-400 hover:text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowQualityMenu(false); }} />
                                   </div>
-                                  {availableQualities.filter(q => q === 'Auto' || ['720p', '480p', '360p'].includes(q)).map(q => (
+                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube' 
+                                    ? ['Auto', '720p', '480p', '360p'] 
+                                    : availableQualities.filter(q => q === 'Auto' || ['720p', '480p', '360p'].includes(q))
+                                  ).map(q => (
                                     <button 
                                       key={q} 
                                       onClick={(e) => { 
@@ -2227,36 +2228,54 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                         setQuality(q); 
                                         setShowQualityMenu(false); 
                                         try {
-                                          const hls = playerRef.current?.getInternalPlayer('hls');
-                                          if (hls && hls.levels && hls.levels.length > 0) {
-                                            if (q === 'Auto') {
-                                              if (!playing || (hls.media && hls.media.paused)) {
-                                                hls.currentLevel = -1;
+                                          if (activeServer === 'youtube' || activeVideo.platform === 'youtube') {
+                                            const internal = playerRef.current?.getInternalPlayer();
+                                            if (internal && typeof internal.setPlaybackQuality === 'function') {
+                                              const ytQualityMap: Record<string, string> = {
+                                                'Auto': 'auto',
+                                                '1080p': 'hd1080',
+                                                '720p': 'hd720',
+                                                '480p': 'large',
+                                                '360p': 'medium',
+                                                '240p': 'small',
+                                              };
+                                              const targetQ = ytQualityMap[q] || 'auto';
+                                              internal.setPlaybackQuality(targetQ);
+                                              if (typeof internal.setPlaybackQualityRange === 'function') {
+                                                internal.setPlaybackQualityRange(targetQ, targetQ);
                                               }
-                                              hls.nextLevel = -1;
-                                              hls.loadLevel = -1;
-                                            } else {
-                                              const height = parseInt(q);
-                                              let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
-                                              if (levelIndex === -1) {
-                                                let minDiff = Infinity;
-                                                hls.levels.forEach((l: any, idx: number) => {
-                                                  if (l.height) {
-                                                    const diff = Math.abs(l.height - height);
-                                                    if (diff < minDiff) {
-                                                      minDiff = diff;
-                                                      levelIndex = idx;
-                                                    }
-                                                  }
-                                                });
-                                              }
-                                              if (levelIndex !== -1) {
-                                                // Seamless transition: keep playing old quality buffer while downloading new level
+                                            }
+                                          } else {
+                                            const hls = playerRef.current?.getInternalPlayer('hls');
+                                            if (hls && hls.levels && hls.levels.length > 0) {
+                                              if (q === 'Auto') {
                                                 if (!playing || (hls.media && hls.media.paused)) {
-                                                  hls.currentLevel = levelIndex;
+                                                  hls.currentLevel = -1;
                                                 }
-                                                hls.nextLevel = levelIndex;
-                                                hls.loadLevel = levelIndex;
+                                                hls.nextLevel = -1;
+                                                hls.loadLevel = -1;
+                                              } else {
+                                                const height = parseInt(q);
+                                                let levelIndex = hls.levels.findIndex((l: any) => l.height === height);
+                                                if (levelIndex === -1) {
+                                                  let minDiff = Infinity;
+                                                  hls.levels.forEach((l: any, idx: number) => {
+                                                    if (l.height) {
+                                                      const diff = Math.abs(l.height - height);
+                                                      if (diff < minDiff) {
+                                                        minDiff = diff;
+                                                        levelIndex = idx;
+                                                      }
+                                                    }
+                                                  });
+                                                }
+                                                if (levelIndex !== -1) {
+                                                  if (!playing || (hls.media && hls.media.paused)) {
+                                                    hls.currentLevel = levelIndex;
+                                                  }
+                                                  hls.nextLevel = levelIndex;
+                                                  hls.loadLevel = levelIndex;
+                                                }
                                               }
                                             }
                                           }
@@ -2268,6 +2287,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                                       {q}
                                     </button>
                                   ))}
+
+                                  {(activeServer === 'youtube' || activeVideo.platform === 'youtube') && (
+                                    <div className="border-t border-white/10 mt-1 pt-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowQualityMenu(false);
+                                          setPlaying(false);
+                                          setIsAdjustingQuality(true);
+                                          if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
+                                          qualityAdjustTimerRef.current = setTimeout(() => {
+                                            setIsAdjustingQuality(false);
+                                          }, 60000);
+                                        }}
+                                        className="w-full px-3 py-1.5 text-[11px] text-primary hover:bg-white/15 transition-colors text-left flex items-center gap-1 font-semibold"
+                                      >
+                                        <Settings className="w-3 h-3" /> YouTube Gear ⚙
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
