@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveCorsOrigin } from '@/security/zero-trust-gate';
 
 /**
  * HTTPS HLS Proxy for RTMP Stream
@@ -38,9 +39,10 @@ export async function GET(
       ? 'video/MP2T'
       : 'application/octet-stream';
 
+    const allowedOrigin = resolveCorsOrigin(request);
     const responseHeaders = new Headers();
     responseHeaders.set('Content-Type', contentType);
-    responseHeaders.set('Access-Control-Allow-Origin', '*');
+    responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
     responseHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
 

@@ -8,6 +8,7 @@ export const POST = withZeroTrustGate(
     scope: 'live_convert_youtube',
     limit: 15,
     windowMs: 60 * 1000,
+    requireAuth: 'teacher_or_admin',
   },
   async (request, ctx) => {
     const parsed = await parseAndVerifyJsonBody<{

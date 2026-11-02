@@ -9,6 +9,7 @@ export const POST = withZeroTrustGate(
     scope: 'bunny_aws_download',
     limit: 20,
     windowMs: 60 * 1000,
+    requireAuth: 'teacher_or_admin',
   },
   async (request, ctx) => {
     const parsed = await parseAndVerifyJsonBody<{

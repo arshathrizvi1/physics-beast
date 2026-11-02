@@ -33,14 +33,25 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const isAllowedDomain =
-      referer.includes('brillliantacademy.site') ||
-      referer.includes('brilliantacademy.site') ||
-      referer.includes('brilliant-academy.vercel.app') ||
-      origin.includes('brillliantacademy.site') ||
-      origin.includes('brilliantacademy.site') ||
-      origin.includes('brilliant-academy.vercel.app') ||
-      process.env.NODE_ENV !== 'production';
+    const isAllowedDomain = (() => {
+      if (process.env.NODE_ENV !== 'production') return true;
+      const refOrOrigin = referer || origin;
+      if (!refOrOrigin) return false;
+      try {
+        const parsedHost = new URL(refOrOrigin).hostname.toLowerCase();
+        return (
+          parsedHost === 'brillliantacademy.site' ||
+          parsedHost === 'www.brillliantacademy.site' ||
+          parsedHost === 'brilliantacademy.site' ||
+          parsedHost === 'www.brilliantacademy.site' ||
+          parsedHost.endsWith('.vercel.app') ||
+          parsedHost === 'localhost' ||
+          parsedHost === '127.0.0.1'
+        );
+      } catch {
+        return false;
+      }
+    })();
 
     if (!isAllowedDomain) {
       return new NextResponse(

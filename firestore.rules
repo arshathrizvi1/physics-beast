@@ -233,9 +233,9 @@ service cloud.firestore {
     // =========================================================================
     // 7. SENSITIVE SERVER/ADMIN COLLECTIONS (LOCKED DOWN)
     // =========================================================================
-    // Zoom OAuth credentials & system secrets (/settings/zoom, etc.)
+    // Zoom OAuth credentials & system secrets (/settings/zoom, etc.) - LOCKED TO VERIFIED ADMINS ONLY
     match /settings/{docId} {
-      allow read, write: if isTeacherOrAdmin();
+      allow read, write: if isVerifiedAdmin();
     }
 
     // WhatsApp message queue — only teachers/admins can enqueue messages

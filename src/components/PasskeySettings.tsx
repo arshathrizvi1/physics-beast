@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
+import { auth } from "@/lib/firebase";
 import { startRegistration } from '@simplewebauthn/browser';
 import { Fingerprint, Loader2 } from 'lucide-react';
 
@@ -38,10 +39,20 @@ export default function PasskeySettings() {
     setError('');
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) {
+        throw new Error('Please log in again before registering a biometric passkey.');
+      }
+
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      };
+
       // 1. Get registration options from server
       const resp = await fetch('/api/passkey/generate-registration-options', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ uid: user.uid, email: user.email, displayName: user.name }),
       });
       
@@ -59,7 +70,7 @@ export default function PasskeySettings() {
       // 3. Verify registration on server
       const verifyResp = await fetch('/api/passkey/verify-registration', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ uid: user.uid, response: attResp }),
       });
 
