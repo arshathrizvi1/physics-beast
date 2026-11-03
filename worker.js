@@ -21,11 +21,11 @@ const ALERT_EMAIL = 'arshathrizvi1010@gmail.com';
 // Rate Limiting Policy Thresholds (Devnivo Parity)
 const RATE_LIMITS = {
   BURST_WINDOW_MS: 5000,      // 5 seconds
-  BURST_MAX_REQUESTS: 120,    // Allow parallel browser asset loads on refresh
+  BURST_MAX_REQUESTS: 300,    // Allow parallel browser asset loads on refresh & multi-tab browsing
   MINUTE_WINDOW_MS: 60000,    // 1 minute
-  NORMAL_MAX_PER_MIN: 300,    // 300 requests / min for normal browsing
-  API_MAX_PER_MIN: 120,       // 120 requests / min for API endpoints
-  AUTH_MAX_PER_MIN: 30,       // 30 POST auth attempts / min
+  NORMAL_MAX_PER_MIN: 1200,   // 1200 requests / min for normal browsing (prevents CGNAT lockouts in Sri Lanka)
+  API_MAX_PER_MIN: 450,       // 450 requests / min for API endpoints
+  AUTH_MAX_PER_MIN: 60,       // 60 POST auth attempts / min
 };
 
 // Known Scanner & Exploit User-Agents to Block Instantly
@@ -114,7 +114,9 @@ function evaluateRateLimit(clientIp, pathname, method = 'GET') {
     record = {
       windowStart: now,
       burstStart: now,
-      requestCount: 1,
+      pageCount: 0,
+      apiCount: 0,
+      authPostCount: 0,
       burstCount: 1,
       lastRequestTime: now,
     };
@@ -122,15 +124,12 @@ function evaluateRateLimit(clientIp, pathname, method = 'GET') {
     return { allowed: true };
   }
 
-  // Update request counts
-  record.requestCount++;
   record.lastRequestTime = now;
 
   // Check 5-second burst threshold
   if (now - record.burstStart < RATE_LIMITS.BURST_WINDOW_MS) {
     record.burstCount++;
     if (record.burstCount > RATE_LIMITS.BURST_MAX_REQUESTS) {
-      // Flag as DDoS burst attack
       return {
         allowed: false,
         isDdosBurst: true,
@@ -138,26 +137,44 @@ function evaluateRateLimit(clientIp, pathname, method = 'GET') {
       };
     }
   } else {
-    // Reset burst window
     record.burstStart = now;
     record.burstCount = 1;
   }
 
-  // Check 1-minute window thresholds based on endpoint sensitivity
-  let maxAllowed = RATE_LIMITS.NORMAL_MAX_PER_MIN;
-  if (method === 'POST' && (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/login'))) {
-    maxAllowed = RATE_LIMITS.AUTH_MAX_PER_MIN;
-  } else if (pathname.startsWith('/api/')) {
-    maxAllowed = RATE_LIMITS.API_MAX_PER_MIN;
-  }
+  // Separate counters so page navigation never locks out API or vice-versa
+  const isAuthPost = method === 'POST' && (pathname.startsWith('/api/auth/') || pathname.startsWith('/api/login'));
+  const isApi = pathname.startsWith('/api/');
 
-  if (record.requestCount > maxAllowed) {
-    return {
-      allowed: false,
-      isDdosBurst: false,
-      reason: `Rate limit exceeded: ${record.requestCount}/${maxAllowed} requests in 60s on ${pathname}`,
-      retryAfter: Math.ceil((RATE_LIMITS.MINUTE_WINDOW_MS - (now - record.windowStart)) / 1000),
-    };
+  if (isAuthPost) {
+    record.authPostCount = (record.authPostCount || 0) + 1;
+    if (record.authPostCount > RATE_LIMITS.AUTH_MAX_PER_MIN) {
+      return {
+        allowed: false,
+        isDdosBurst: false,
+        reason: `Auth rate limit exceeded: ${record.authPostCount}/${RATE_LIMITS.AUTH_MAX_PER_MIN} in 60s`,
+        retryAfter: Math.ceil((RATE_LIMITS.MINUTE_WINDOW_MS - (now - record.windowStart)) / 1000),
+      };
+    }
+  } else if (isApi) {
+    record.apiCount = (record.apiCount || 0) + 1;
+    if (record.apiCount > RATE_LIMITS.API_MAX_PER_MIN) {
+      return {
+        allowed: false,
+        isDdosBurst: false,
+        reason: `API rate limit exceeded: ${record.apiCount}/${RATE_LIMITS.API_MAX_PER_MIN} in 60s on ${pathname}`,
+        retryAfter: Math.ceil((RATE_LIMITS.MINUTE_WINDOW_MS - (now - record.windowStart)) / 1000),
+      };
+    }
+  } else {
+    record.pageCount = (record.pageCount || 0) + 1;
+    if (record.pageCount > RATE_LIMITS.NORMAL_MAX_PER_MIN) {
+      return {
+        allowed: false,
+        isDdosBurst: false,
+        reason: `Browsing rate limit exceeded: ${record.pageCount}/${RATE_LIMITS.NORMAL_MAX_PER_MIN} in 60s`,
+        retryAfter: Math.ceil((RATE_LIMITS.MINUTE_WINDOW_MS - (now - record.windowStart)) / 1000),
+      };
+    }
   }
 
   return { allowed: true };
@@ -452,18 +469,73 @@ export default {
           );
         }
 
-        // Standard rate limit exceeded
+        // Check if the request is a browser navigating to an HTML page
+        const acceptsHtml = (request.headers.get('Accept') || '').includes('text/html');
+        const retrySec = rateCheck.retryAfter || 60;
+
+        if (acceptsHtml && request.method === 'GET') {
+          const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slow Down - Brilliant Academy</title>
+  <meta http-equiv="refresh" content="${retrySec}">
+  <style>
+    body { background: #0a0a0c; color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .card { background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 36px 32px; max-width: 480px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+    .badge { display: inline-block; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; color: #ffffff; margin: 0 0 12px 0; }
+    p { font-size: 14px; line-height: 1.6; color: #a1a1aa; margin: 0 0 24px 0; }
+    .counter { font-size: 32px; font-weight: 800; color: #fbbf24; margin-bottom: 8px; }
+    .subtext { font-size: 12px; color: #71717a; margin-bottom: 24px; }
+    .btn { background: #eab308; color: #0a0a0c; font-weight: 700; font-size: 14px; border: none; padding: 12px 28px; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn:hover { background: #facc15; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Traffic Protection Active</div>
+    <h1>Too Many Rapid Requests</h1>
+    <p>Brilliant Academy's edge security is temporarily throttling requests to keep the learning platform fast and secure for all students.</p>
+    <div class="counter" id="timer">${retrySec}s</div>
+    <div class="subtext">This page will automatically refresh once the cooldown completes.</div>
+    <a href="${url.pathname}" class="btn" onclick="location.reload(); return false;">Try Again Now</a>
+  </div>
+  <script>
+    let s = ${retrySec};
+    const t = document.getElementById('timer');
+    const iv = setInterval(() => {
+      s--;
+      if (s <= 0) { clearInterval(iv); location.reload(); }
+      else { t.textContent = s + 's'; }
+    }, 1000);
+  </script>
+</body>
+</html>`;
+
+          return new Response(html, {
+            status: 429,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Retry-After': String(retrySec),
+              ...buildSecurityHeaders(request, nonce),
+            },
+          });
+        }
+
+        // Standard rate limit exceeded for API clients
         return new Response(
           JSON.stringify({
             error: 'RATE_LIMIT_EXCEEDED',
             message: 'Too many requests. Please slow down and try again shortly.',
-            retryAfterSec: rateCheck.retryAfter || 60,
+            retryAfterSec: retrySec,
           }),
           {
             status: 429,
             headers: {
               'Content-Type': 'application/json',
-              'Retry-After': String(rateCheck.retryAfter || 60),
+              'Retry-After': String(retrySec),
               ...buildSecurityHeaders(request, nonce),
             },
           }

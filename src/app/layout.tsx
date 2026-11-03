@@ -32,6 +32,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import PermissionGate from "@/components/PermissionGate";
 import { SecurityEnforcer } from "@/components/SecurityEnforcer";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -90,6 +91,7 @@ export default function RootLayout({
                 <footer className="border-t border-border/50 py-4 bg-zinc-100 dark:bg-[#070707] print:hidden mt-auto">
                   <FooterContent />
                 </footer>
+                <CookieConsentBanner />
                 <MobileBottomNav />
               </LenisProvider>
             </NotificationProvider>

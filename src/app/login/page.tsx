@@ -1294,6 +1294,12 @@ function LoginPageContent() {
               {isSubmitting ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
             </Button>
           </form>
+          <div className="mt-4 pt-3 border-t border-border/50 text-center text-xs text-muted-foreground leading-relaxed">
+            By continuing, you agree to Brilliant Academy&apos;s{' '}
+            <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>,{' '}
+            <Link href="/privacy-policy" className="text-primary hover:underline">Privacy Policy</Link>, and{' '}
+            <Link href="/return-policy" className="text-primary hover:underline">Return Policy</Link>.
+          </div>
         </CardContent>
         {!isGoogleSignupForm && (
           <CardFooter className="flex justify-center text-sm text-muted-foreground">

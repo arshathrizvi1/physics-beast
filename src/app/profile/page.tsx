@@ -9,14 +9,18 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { Camera, CheckCircle2, Save, GraduationCap, MapPin, Phone } from "lucide-react";
+import { Camera, CheckCircle2, Save, GraduationCap, MapPin, Phone, Moon, Sun, Laptop, Trash2, AlertTriangle } from "lucide-react";
+import { useTheme } from "next-themes";
 import PasskeySettings from "@/components/PasskeySettings";
 import { useRouter, useSearchParams } from "next/navigation";
 import Portal from "@/components/Portal";
 import { XCircle, Loader2, Edit2 } from "lucide-react";
 
 function StudentProfilePageContent() {
-  const { user, loading, updateProfileName, updateProfilePicture } = useAuth();
+  const { user, loading, updateProfileName, updateProfilePicture, logout } = useAuth();
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
   useEffect(() => {
@@ -232,6 +236,125 @@ function StudentProfilePageContent() {
         <div className="max-w-2xl mx-auto mt-6">
           <PasskeySettings />
         </div>
+
+        {/* Appearance Settings */}
+        <Card className="max-w-2xl mx-auto mt-6 border-border/50 bg-card/60 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Sun className="w-5 h-5 text-primary" /> Appearance
+            </CardTitle>
+            <CardDescription>
+              Choose your theme preference for Brilliant Academy.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              <Button
+                variant={theme === "light" ? "default" : "outline"}
+                className={`flex flex-col items-center justify-center gap-1.5 py-6 h-auto ${
+                  theme === "light" ? "bg-primary text-black font-bold shadow-md" : "hover:border-primary/50"
+                }`}
+                onClick={() => setTheme("light")}
+              >
+                <Sun className="w-5 h-5" />
+                <span className="text-xs">Light</span>
+              </Button>
+              <Button
+                variant={theme === "dark" ? "default" : "outline"}
+                className={`flex flex-col items-center justify-center gap-1.5 py-6 h-auto ${
+                  theme === "dark" ? "bg-primary text-black font-bold shadow-md" : "hover:border-primary/50"
+                }`}
+                onClick={() => setTheme("dark")}
+              >
+                <Moon className="w-5 h-5" />
+                <span className="text-xs">Dark</span>
+              </Button>
+              <Button
+                variant={theme === "system" ? "default" : "outline"}
+                className={`flex flex-col items-center justify-center gap-1.5 py-6 h-auto ${
+                  theme === "system" ? "bg-primary text-black font-bold shadow-md" : "hover:border-primary/50"
+                }`}
+                onClick={() => setTheme("system")}
+              >
+                <Laptop className="w-5 h-5" />
+                <span className="text-xs">System</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* GDPR & App Store Compliance: Account Deletion (Right to be Forgotten) */}
+        <Card className="border-destructive/30 bg-card">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5 text-destructive" /> Account & Data Privacy
+            </CardTitle>
+            <CardDescription>
+              Permanently delete your account and personal learning data in compliance with GDPR and App Store guidelines.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-xl text-sm text-foreground">
+              <p className="font-semibold text-destructive flex items-center gap-2 mb-1">
+                <AlertTriangle className="w-4 h-4" /> Permanent & Irreversible
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Deleting your account immediately purges your active logins, course progress, exam marks, and personal information from Brilliant Academy.
+              </p>
+            </div>
+
+            {!showDeleteConfirm ? (
+              <Button
+                variant="outline"
+                className="border-destructive/50 text-destructive hover:bg-destructive hover:text-white transition-colors"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> Request Account Deletion
+              </Button>
+            ) : (
+              <div className="p-4 rounded-xl border border-destructive bg-destructive/5 space-y-3">
+                <p className="text-sm font-bold text-destructive">
+                  Are you absolutely sure you want to permanently delete your account?
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={isDeletingAccount}
+                    onClick={async () => {
+                      if (!user?.uid) return;
+                      setIsDeletingAccount(true);
+                      try {
+                        await updateDoc(doc(db, 'users', user.uid), {
+                          status: 'DELETED',
+                          deletedAt: new Date().toISOString(),
+                          deviceId: 'REVOKED',
+                        });
+                        await logout();
+                        router.push('/');
+                      } catch (err) {
+                        console.error('Account deletion failed:', err);
+                        alert('Could not complete deletion. Please reach out to support: arshathrizvi1010@gmail.com');
+                        setIsDeletingAccount(false);
+                      }
+                    }}
+                  >
+                    {isDeletingAccount ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                    {isDeletingAccount ? 'Deleting...' : 'Yes, Delete My Account'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeletingAccount}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       </div>
     </div>

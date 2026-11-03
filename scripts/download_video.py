@@ -36,14 +36,16 @@ def is_port_open(port, timeout=0.4):
     except Exception:
         return False
 
-def try_download(cmd, desc):
+def try_download(cmd, desc, timeout=180):
     print(f"\n[Downloader] >> Attempting: {desc}...")
     try:
-        res = subprocess.run(cmd)
+        res = subprocess.run(cmd, timeout=timeout)
         if res.returncode == 0 and os.path.exists("/tmp/video.mp4") and os.path.getsize("/tmp/video.mp4") > 1000:
             size_mb = os.path.getsize("/tmp/video.mp4") / 1024 / 1024
             print(f"[Downloader] ✅ Success with {desc}! File size: {size_mb:.1f} MB")
             return True
+    except subprocess.TimeoutExpired:
+        print(f"[Downloader] ⏱️ Timeout reached ({timeout}s) during {desc}")
     except Exception as e:
         print(f"[Downloader] Command error during {desc}: {e}")
 

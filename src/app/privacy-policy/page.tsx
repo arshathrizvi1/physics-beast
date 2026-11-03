@@ -1,70 +1,98 @@
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
+
+export const metadata = {
+  title: 'Privacy Policy | Brilliant Academy',
+  description: 'Learn how Brilliant Academy protects your personal and academic data in full compliance with data privacy regulations.',
+};
 
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto bg-card rounded-2xl shadow-sm border border-border p-8">
         <div className="mb-8">
-          <Link href="/" className="inline-flex items-center text-sm font-medium text-primary hover:underline mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center text-sm font-medium text-primary hover:underline mb-6"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
           </Link>
-          <h1 className="text-3xl font-bold text-foreground">Privacy Policy</h1>
-          <p className="text-muted-foreground mt-2">Last updated: October 2026</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Shield className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Privacy Policy</h1>
+              <p className="text-muted-foreground text-sm mt-1">Last updated: November 2026</p>
+            </div>
+          </div>
         </div>
 
         <div className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none text-card-foreground">
           <h2>1. Introduction</h2>
           <p>
-            Brilliant Academy ("we", "our", or "us") respects your privacy and is committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our platform and tell you about your privacy rights.
+            Brilliant Academy ("we", "our", or "us"), located at No: 19 VTG Karunarathna Mawatha, Rakwana, Sri Lanka, respects your privacy and is committed to protecting your personal data. This privacy policy explains how we collect, process, store, and safeguard your information when you access our platform, enroll in courses, attend live classes, and use our mobile applications.
           </p>
 
-          <h2>2. The Data We Collect About You</h2>
-          <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:</p>
+          <h2>2. The Data We Collect</h2>
+          <p>We collect and process the following categories of information to provide educational services:</p>
           <ul>
-            <li><strong>Identity Data:</strong> includes first name, last name, username, title, date of birth, gender, and National Identity Card (NIC) details (where required for specific batches).</li>
-            <li><strong>Contact Data:</strong> includes billing address, email address, and telephone numbers.</li>
-            <li><strong>Technical & Usage Data:</strong> includes internet protocol (IP) address, your login data, browser type and version, time zone setting, operating system, and information about how you use our website, courses, and video player (including study time tracking).</li>
-            <li><strong>Transaction Data:</strong> includes details about payments to and from you and other details of products and services you have purchased from us. Note: We do not store your credit card details directly; these are handled securely by our payment gateway (PayHere).</li>
+            <li><strong>Identity Data:</strong> Full name, student profile picture, date of birth, grade/batch, and National Identity Card (NIC) number (used strictly for student verification and admission).</li>
+            <li><strong>Contact Data:</strong> Student email address, student phone number, and parent/guardian phone number (used for emergency notices and academic report delivery).</li>
+            <li><strong>Academic & Engagement Data:</strong> Video watch history, study minutes tracking, mock examination submissions, quiz scores, doubt forum discussions, and live class attendance.</li>
+            <li><strong>Security & Technical Data:</strong> IP address, device fingerprints, login timestamps, and anti-tamper telemetry used to enforce single-device session integrity and prevent course video piracy.</li>
+            <li><strong>Billing & Transaction Data:</strong> Course payment records, transaction reference IDs, and payment dates. <em>Note:</em> We do not store raw credit/debit card numbers on our servers; all payments are processed through our PCI-DSS compliant payment gateway partner (Payable.lk).</li>
           </ul>
 
-          <h2>3. How We Use Your Personal Data</h2>
-          <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
+          <h2>3. How We Use Your Data & Legal Basis</h2>
+          <p>We process your data strictly under the following lawful bases:</p>
           <ul>
-            <li>To register you as a new student and create your account.</li>
-            <li>To process and deliver your course content, including managing payments, fees, and charges.</li>
-            <li>To monitor your academic progress and track your study minutes for leaderboards and gamification.</li>
-            <li>To manage our relationship with you, including notifying you about changes to our terms or privacy policy.</li>
-            <li>To administer and protect our business and this website (including troubleshooting, data analysis, testing, system maintenance, support, reporting, and hosting of data).</li>
+            <li><strong>Contractual Performance:</strong> To create your student account, grant course access, deliver live lectures, and issue educational certificates.</li>
+            <li><strong>Legitimate Educational Interests:</strong> To generate performance leaderboards, monitor academic improvement, and provide personalized teacher guidance.</li>
+            <li><strong>Security & Legal Obligations:</strong> To protect digital intellectual property against illicit reproduction, detect account sharing, prevent fraud, and comply with applicable laws.</li>
           </ul>
 
-          <h2>4. Data Security</h2>
+          <h2>4. Data Sharing & Subprocessors</h2>
           <p>
-            We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used, or accessed in an unauthorized way, altered, or disclosed. We limit access to your personal data to those employees, agents, contractors, and other third parties who have a business need to know.
+            We do not sell, rent, or monetize your personal data. We only share data with verified technical infrastructure providers bound by strict confidentiality:
+          </p>
+          <ul>
+            <li><strong>Cloudflare Inc.:</strong> WAF security, edge caching, and zero-egress media storage (R2).</li>
+            <li><strong>Google Cloud & Firebase:</strong> Encrypted identity authentication, database management, and real-time messaging.</li>
+            <li><strong>BunnyWay d.o.o. (Bunny Stream):</strong> High-definition video transcoding and DRM media distribution.</li>
+            <li><strong>Payable (Pvt) Ltd:</strong> Authorized payment processing and verification gateway.</li>
+            <li><strong>Zoom Video Communications:</strong> Encrypted interactive live video broadcast delivery.</li>
+          </ul>
+
+          <h2>5. Student Minors & Parental Consent</h2>
+          <p>
+            Brilliant Academy provides educational services to secondary and advanced level students. Students under the age of 18 enroll with the express consent and supervision of a parent or legal guardian. Parents have the right to review their child's academic progress and request corrections to student records.
           </p>
 
-          <h2>5. Your Legal Rights</h2>
+          <h2>6. Data Retention & Erasure</h2>
           <p>
-            Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to request access, correction, erasure, restriction, transfer, or to object to processing.
+            We retain student data for the duration of active enrollment plus standard regulatory academic record-keeping periods. You have the right to request the permanent deletion of your account and personal data at any time through your Profile settings or by contacting our data protection team.
           </p>
 
-          <h2>6. Contact Details</h2>
+          <h2>7. Data Breach Notification</h2>
           <p>
-            If you have any questions about this privacy policy or our privacy practices, please contact us at:
+            In the event of a confirmed security incident affecting personal data, Brilliant Academy is committed to notifying affected users and relevant authorities within 72 hours of verification in accordance with international data privacy standards.
           </p>
+
+          <h2>8. Contact Our Data Protection Team</h2>
           <p>
-            <strong>Email:</strong> support@brilliantacademy.com<br />
+            For questions, data access requests, or privacy inquiries:
           </p>
+          <div className="not-prose p-5 rounded-2xl border border-border bg-secondary/10 mt-3">
+            <h4 className="font-bold text-foreground">Brilliant Academy</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              No: 19 VTG Karunarathna Mawatha, Rakwana, Sri Lanka<br />
+              Official Email: <a href="mailto:arshathrizvi1010@gmail.com" className="text-primary hover:underline font-medium">arshathrizvi1010@gmail.com</a><br />
+              Direct Phone: <a href="tel:0757391416" className="text-primary hover:underline font-medium">0757391416</a>
+            </p>
+          </div>
         </div>
-      <h2>Contact Us</h2>
-          <p>
-            If you have any questions about this Privacy Policy, please contact us at:<br/>
-            <strong>Brilliant Academy</strong><br/>
-            No:19 VTG Karunarathna Mawatha, Rakwana<br/>
-            Email: arshathrizvi1010@gmail.com<br/>
-            Phone: 0757391416
-          </p>
       </div>
     </div>
   );
