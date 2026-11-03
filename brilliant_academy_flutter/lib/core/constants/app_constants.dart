@@ -8,7 +8,9 @@ class AppConstants {
   static const String colUsers = "users";
   static const String colCourses = "courses";
   static const String colFolders = "folders";
-  static const String colMaterials = "materials";
+  static const String colMaterials = "videos";
+  static const String colVideos = "videos";
   static const String colExams = "exams";
-  static const String colLiveSessions = "live_sessions";
+  static const String colExamResults = "examResults";
+  static const String colLiveSessions = "live_classes";
 }

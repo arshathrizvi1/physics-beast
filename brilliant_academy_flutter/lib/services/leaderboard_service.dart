@@ -8,24 +8,39 @@ class LeaderboardService {
   Stream<List<LeaderboardEntry>> getLeaderboardStream() {
     return _firestore
         .collection(AppConstants.colUsers)
-        .where('role', isEqualTo: 'student')
-        .orderBy('totalXp', descending: true)
-        .limit(50)
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) {
-        return _fallbackLeaderboard;
+        return fallbackLeaderboard;
       }
+      final students = snapshot.docs
+          .map((doc) => doc.data())
+          .where((data) {
+            final role = data['role']?.toString().toLowerCase();
+            return role == null || role == 'student' || role == '';
+          })
+          .toList();
+
+      students.sort((a, b) {
+        final xpA = (a['totalXp'] as num?)?.toInt() ?? (a['xp'] as num?)?.toInt() ?? 0;
+        final xpB = (b['totalXp'] as num?)?.toInt() ?? (b['xp'] as num?)?.toInt() ?? 0;
+        return xpB.compareTo(xpA);
+      });
+
+      if (students.isEmpty) {
+        return fallbackLeaderboard;
+      }
+
       int rank = 1;
-      return snapshot.docs.map((doc) {
-        final entry = LeaderboardEntry.fromMap(doc.data(), rank);
+      return students.take(50).map((data) {
+        final entry = LeaderboardEntry.fromMap(data, rank);
         rank++;
         return entry;
       }).toList();
-    });
+    }).handleError((_) => fallbackLeaderboard);
   }
 
-  static final List<LeaderboardEntry> _fallbackLeaderboard = [
+  static final List<LeaderboardEntry> fallbackLeaderboard = [
     LeaderboardEntry(
       studentId: "BA-2026-001",
       name: "Kasun Perera",

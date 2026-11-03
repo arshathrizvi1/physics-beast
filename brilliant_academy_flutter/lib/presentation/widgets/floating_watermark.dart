@@ -70,7 +70,7 @@ class _FloatingWatermarkState extends State<FloatingWatermark> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: Colors.white24, width: 0.5),
                 ),

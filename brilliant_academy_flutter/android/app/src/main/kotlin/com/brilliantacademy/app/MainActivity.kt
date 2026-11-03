@@ -6,8 +6,9 @@ import android.content.pm.Signature
 import android.os.Build
 import android.os.Bundle
 import android.os.Debug
+import android.provider.Settings
 import android.view.WindowManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.BufferedReader
@@ -15,7 +16,7 @@ import java.io.File
 import java.io.FileReader
 import java.security.MessageDigest
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
 
     private val CHANNEL = "com.brilliantacademy.app/security"
 
@@ -60,13 +61,18 @@ class MainActivity : FlutterActivity() {
                     val signatureValid = if (!isDebug) verifySignature() else true
                     val envSafe = checkRootEnvironment() && !isDebuggerOrHookAttached(isDebug)
                     val isEmu = isEmulator()
+                    val (installerValid, installerSource) = verifyInstallSource(isDebug)
+                    val apkTampered = isApkTampered()
 
-                    val passed = signatureValid && envSafe && (!isEmu || isDebug)
+                    val passed = signatureValid && envSafe && (!isEmu || isDebug) && installerValid && !apkTampered
                     result.success(
                         mapOf(
                             "passed" to passed,
                             "signatureValid" to signatureValid,
                             "envSafe" to envSafe,
+                            "installerValid" to installerValid,
+                            "installerSource" to installerSource,
+                            "apkTampered" to apkTampered,
                             "isEmulator" to isEmu,
                             "isDebug" to isDebug
                         )
@@ -76,7 +82,9 @@ class MainActivity : FlutterActivity() {
                     val isDebug = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
                     val signatureValid = if (!isDebug) verifySignature() else true
                     val envSafe = checkRootEnvironment() && !isDebuggerOrHookAttached(isDebug)
-                    if (!signatureValid || !envSafe) {
+                    val (installerValid, _) = verifyInstallSource(isDebug)
+                    val apkTampered = isApkTampered()
+                    if (!signatureValid || !envSafe || !installerValid || apkTampered) {
                         result.error("COMPROMISED_DEVICE", "Zero-Trust Device Integrity check failed.", null)
                         return@setMethodCallHandler
                     }
@@ -98,20 +106,79 @@ class MainActivity : FlutterActivity() {
                     }
                 }
                 "setFlagSecure" -> {
-                    val enable = call.argument<Boolean>("enable") ?: false
-                    if (enable) {
-                        window.setFlags(
-                            WindowManager.LayoutParams.FLAG_SECURE,
-                            WindowManager.LayoutParams.FLAG_SECURE
-                        )
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
-                    result.success(true)
+                    // Keep screenshots enabled for development as requested by user
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    result.success(false)
                 }
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun verifyInstallSource(isDebugBuild: Boolean): Pair<Boolean, String> {
+        // ADB / Android Studio debug sessions are always authorized
+        if (isDebugBuild) {
+            return Pair(true, "adb_debug")
+        }
+
+        return try {
+            val installerPackage: String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val sourceInfo = packageManager.getInstallSourceInfo(packageName)
+                sourceInfo.installingPackageName ?: sourceInfo.initiatingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstallerPackageName(packageName)
+            }
+
+            // Allowed Official Play Store package identifiers
+            val playStorePackages = setOf(
+                "com.android.vending",
+                "com.google.android.feedback"
+            )
+
+            if (installerPackage != null && playStorePackages.contains(installerPackage)) {
+                Pair(true, installerPackage)
+            } else {
+                // Check if installed via ADB / Android Studio (null installer or com.android.shell)
+                val isAdb = installerPackage == null || installerPackage == "com.android.shell"
+                if (isAdb) {
+                    val adbEnabled = Settings.Global.getInt(
+                        contentResolver,
+                        Settings.Global.ADB_ENABLED,
+                        0
+                    ) == 1
+                    if (adbEnabled) {
+                        Pair(true, "adb_installed")
+                    } else {
+                        // Sideloaded APK detected without Play Store origin or active ADB
+                        Pair(false, "sideloaded_unknown")
+                    }
+                } else {
+                    // Sideloaded via third-party package installer, browser, or messenger
+                    Pair(false, installerPackage)
+                }
+            }
+        } catch (e: Exception) {
+            Pair(false, "installer_check_error: ${e.message}")
+        }
+    }
+
+    private fun isApkTampered(): Boolean {
+        val suspiciousClasses = arrayOf(
+            "bin.mt.apksignaturekiller",
+            "bin.mt.signature",
+            "arm.source.apkpatcher",
+            "com.chelpus.LuckyPatcher",
+            "org.lsposed.lspd",
+            "com.topjohnwu.magisk"
+        )
+        for (cls in suspiciousClasses) {
+            try {
+                Class.forName(cls)
+                return true
+            } catch (_: ClassNotFoundException) {}
+        }
+        return false
     }
 
     private fun checkRootEnvironment(): Boolean {
@@ -122,7 +189,8 @@ class MainActivity : FlutterActivity() {
             "/sbin/su", "/system/bin/su", "/system/xbin/su", "/data/local/xbin/su",
             "/data/local/bin/su", "/system/sd/xbin/su", "/system/bin/failsafe/su",
             "/data/local/su", "/su/bin/su", "/magisk/.core/bin/su", "/data/adb/magisk",
-            "/data/adb/modules/lsposed", "/system/app/Superuser.apk", "/data/adb/ksud"
+            "/data/adb/modules/lsposed", "/system/app/Superuser.apk", "/data/adb/ksud",
+            "/data/adb/ap/bin/su", "/system/xbin/daemonsu"
         )
         for (path in rootPaths) {
             if (File(path).exists()) {

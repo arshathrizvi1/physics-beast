@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/app_colors.dart';
+import '../../core/theme/theme_x.dart';
 import '../../data/models/course_model.dart';
 import '../../data/models/user_model.dart';
 
@@ -8,48 +8,50 @@ class CourseCard extends StatelessWidget {
   final Course course;
   final UserModel? user;
   final VoidCallback onTap;
+  final bool isGrid;
 
   const CourseCard({
     super.key,
     required this.course,
     required this.user,
     required this.onTap,
+    this.isGrid = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    final isDark = context.isDark;
     final bool hasAccess = user != null && user!.hasCourseAccess(course.id);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: isGrid ? 0.0 : 16.0),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
+        color: tokens.surface,
+        borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
-          color: hasAccess ? AppColors.emerald.withOpacity(0.3) : AppColors.cardBorder,
+          color: hasAccess
+              ? tokens.success.withValues(alpha: 0.4)
+              : (isDark ? tokens.border : tokens.border.withValues(alpha: 0.5)),
           width: 1.2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: isDark ? null : tokens.e1,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Course Image Banner
               Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15.0)),
                     child: AspectRatio(
                       aspectRatio: 16 / 9,
                       child: course.image != null
@@ -57,19 +59,19 @@ class CourseCard extends StatelessWidget {
                               imageUrl: course.image!,
                               fit: BoxFit.cover,
                               placeholder: (context, url) => Container(
-                                color: AppColors.surface,
-                                child: const Center(
-                                  child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
+                                color: tokens.surfaceAlt,
+                                child: Center(
+                                  child: CircularProgressIndicator(color: tokens.gold, strokeWidth: 2.0),
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
-                                color: AppColors.surface,
-                                child: const Icon(Icons.school_outlined, size: 48, color: AppColors.gold),
+                                color: tokens.surfaceAlt,
+                                child: Icon(Icons.school_outlined, size: 40.0, color: tokens.gold),
                               ),
                             )
                           : Container(
-                              color: AppColors.surface,
-                              child: const Icon(Icons.school_outlined, size: 48, color: AppColors.gold),
+                              color: tokens.surfaceAlt,
+                              child: Icon(Icons.school_outlined, size: 40.0, color: tokens.gold),
                             ),
                     ),
                   ),
@@ -78,36 +80,39 @@ class CourseCard extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.65),
+                          ],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                         ),
                       ),
                     ),
                   ),
-                  // Premium Badge
+                  // Premium Live Badge
                   Positioned(
-                    top: 12,
-                    right: 12,
+                    top: 10.0,
+                    right: 10.0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.5),
                       decoration: BoxDecoration(
-                        gradient: AppColors.goldGradient,
-                        borderRadius: BorderRadius.circular(8),
+                        gradient: tokens.goldGradient,
+                        borderRadius: BorderRadius.circular(6.0),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            blurRadius: 6,
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 4.0,
                           ),
                         ],
                       ),
-                      child: const Text(
+                      child: Text(
                         "PREMIUM LIVE",
                         style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
+                          color: tokens.onGold,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ),
@@ -115,20 +120,20 @@ class CourseCard extends StatelessWidget {
                   // Subject Tag
                   if (course.subject != null)
                     Positioned(
-                      bottom: 12,
-                      left: 12,
+                      bottom: 8.0,
+                      left: 10.0,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.black.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(6.0),
                           border: Border.all(color: Colors.white24, width: 0.8),
                         ),
                         child: Text(
                           course.subject!,
-                          style: const TextStyle(
-                            color: AppColors.cyan,
-                            fontSize: 11,
+                          style: TextStyle(
+                            color: tokens.getSubjectColor(course.subject!),
+                            fontSize: 10.5,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -138,7 +143,7 @@ class CourseCard extends StatelessWidget {
               ),
               // Content Details
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(isGrid ? 10.0 : 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -146,67 +151,82 @@ class CourseCard extends StatelessWidget {
                       course.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        height: 1.3,
+                      style: text.titleMedium?.copyWith(
+                        color: tokens.textPrimary,
+                        fontSize: isGrid ? 14.0 : 16.5,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6.0),
                     if (course.description.isNotEmpty)
                       Text(
                         course.description,
-                        maxLines: 2,
+                        maxLines: isGrid ? 2 : 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                          height: 1.4,
+                        style: text.bodySmall?.copyWith(
+                          color: tokens.textSecondary,
+                          fontSize: isGrid ? 11.0 : 12.5,
+                          height: 1.35,
                         ),
                       ),
-                    const SizedBox(height: 14),
-                    // Access Status & Action
+                    const SizedBox(height: 10.0),
+                    // Access Status & Action (Overflow-Proof)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: hasAccess
-                                ? AppColors.emerald.withOpacity(0.12)
-                                : AppColors.gold.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                        Flexible(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isGrid ? 7.0 : 10.0,
+                              vertical: 4.0,
+                            ),
+                            decoration: BoxDecoration(
                               color: hasAccess
-                                  ? AppColors.emerald.withOpacity(0.3)
-                                  : AppColors.gold.withOpacity(0.3),
+                                  ? tokens.success.withValues(alpha: 0.12)
+                                  : tokens.gold.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6.0),
+                              border: Border.all(
+                                color: hasAccess
+                                    ? tokens.success.withValues(alpha: 0.35)
+                                    : tokens.gold.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  hasAccess ? Icons.check_circle : Icons.lock_open_rounded,
+                                  size: 13.0,
+                                  color: hasAccess ? tokens.success : tokens.goldText,
+                                ),
+                                const SizedBox(width: 4.0),
+                                Flexible(
+                                  child: Text(
+                                    hasAccess
+                                        ? (isGrid ? "Enrolled" : "Enrolled (Full Access)")
+                                        : (isGrid ? "Available" : "Available Lessons"),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      color: hasAccess ? tokens.success : tokens.goldText,
+                                      fontSize: isGrid ? 10.5 : 12.0,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                hasAccess ? Icons.check_circle : Icons.lock_open,
-                                size: 14,
-                                color: hasAccess ? AppColors.emerald : AppColors.gold,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                hasAccess ? "Enrolled (Full Access)" : "Enrolled Lessons",
-                                style: TextStyle(
-                                  color: hasAccess ? AppColors.emerald : AppColors.gold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                        ),
+                        if (!isGrid) ...[
+                          const SizedBox(width: 8.0),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 13.0,
+                            color: tokens.textMuted,
                           ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 14,
-                          color: AppColors.textMuted,
-                        ),
+                        ],
                       ],
                     ),
                   ],

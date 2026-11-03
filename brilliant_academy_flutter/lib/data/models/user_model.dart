@@ -8,6 +8,8 @@ class UserModel {
   final String? stream;
   final String? batchId;
   final String? school;
+  final String? address;
+  final String? photoUrl;
   final List<String> accessibleCourses;
   final Map<String, dynamic> folderAccess;
   final int totalXp;
@@ -25,6 +27,8 @@ class UserModel {
     this.stream,
     this.batchId,
     this.school,
+    this.address,
+    this.photoUrl,
     this.accessibleCourses = const [],
     this.folderAccess = const {},
     this.totalXp = 0,
@@ -44,6 +48,8 @@ class UserModel {
       stream: map['stream'],
       batchId: map['batchId'],
       school: map['school'],
+      address: map['address'],
+      photoUrl: map['photoUrl'] ?? map['profilePicture'] ?? map['avatar'],
       accessibleCourses: List<String>.from(map['accessibleCourses'] ?? []),
       folderAccess: Map<String, dynamic>.from(map['folderAccess'] ?? {}),
       totalXp: (map['totalXp'] is num) ? (map['totalXp'] as num).toInt() : 0,
@@ -63,6 +69,7 @@ class UserModel {
       'stream': stream,
       'batchId': batchId,
       'school': school,
+      'address': address,
       'accessibleCourses': accessibleCourses,
       'folderAccess': folderAccess,
       'totalXp': totalXp,

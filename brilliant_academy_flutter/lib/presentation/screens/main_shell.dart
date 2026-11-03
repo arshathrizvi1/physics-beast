@@ -1,10 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../core/constants/app_colors.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/theme/theme_x.dart';
+import '../../core/widgets/app_bottom_nav.dart';
+import '../../core/widgets/app_dialog.dart';
+import '../../services/auth_service.dart';
 import 'home/home_screen.dart';
 import 'courses/courses_screen.dart';
 import 'live/live_screen.dart';
 import 'exams/exams_screen.dart';
 import 'profile/profile_screen.dart';
+import 'auth/login_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,9 +22,10 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  StreamSubscription<String>? _sessionSub;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onExploreCourses: () => setState(() => _currentIndex = 1)),
     CoursesScreen(),
     LiveScreen(),
     ExamsScreen(),
@@ -25,96 +33,78 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: const Border(
-            top: BorderSide(color: AppColors.cardBorder, width: 1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_rounded, "Home"),
-                _buildNavItem(1, Icons.video_library_rounded, "Courses"),
-                _buildNavItem(2, Icons.sensors_rounded, "Live", isLiveBadge: true),
-                _buildNavItem(3, Icons.assignment_rounded, "Exams"),
-                _buildNavItem(4, Icons.person_rounded, "Profile"),
-              ],
-            ),
-          ),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    _sessionSub = authService.onSessionRevoked.listen((reason) {
+      _showSessionRevokedDialog(reason);
+    });
+  }
+
+  void _showSessionRevokedDialog(String reason) {
+    if (!mounted) return;
+    showAppDialog(
+      context: context,
+      title: "Session Terminated",
+      message: reason,
+      icon: Icons.devices_rounded,
+      iconColor: context.tokens.danger,
+      confirmText: "Sign In Again",
+      onConfirm: () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      },
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label, {bool isLiveBadge = false}) {
-    final bool isSelected = _currentIndex == index;
+  @override
+  void dispose() {
+    _sessionSub?.cancel();
+    super.dispose();
+  }
 
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.gold.withOpacity(0.15) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? AppColors.gold : AppColors.textMuted,
-                  size: 24,
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: tokens.bg,
+        body: Stack(
+          children: [
+            // Screen contents
+            Positioned.fill(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
+              ),
+            ),
+
+            // Floating Navigation Bar (Adapts smoothly to Light and Dark mode)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 12,
+              child: SafeArea(
+                top: false,
+                child: AppBottomNav(
+                  currentIndex: _currentIndex,
+                  onTabSelected: (index) {
+                    setState(() => _currentIndex = index);
+                  },
                 ),
               ),
-              if (isLiveBadge)
-                Positioned(
-                  top: 2,
-                  right: 12,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.danger,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? AppColors.gold : AppColors.textMuted,
-              fontSize: 11,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/app_buttons.dart';
 import '../../../data/models/exam_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/exam_service.dart';
-import '../../widgets/custom_button.dart';
 
 class ExamTakeScreen extends StatefulWidget {
   final Exam exam;
@@ -79,56 +82,68 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
         examId: widget.exam.id,
         score: correctCount,
         totalQuestions: _questions.length,
+        examTitle: widget.exam.title,
+        subject: widget.exam.subject,
       );
     }
 
     if (!mounted) return;
 
+    final tokens = context.tokens;
+    final text = context.text;
     final double percentage = _questions.isNotEmpty
-        ? (correctCount / _questions.length) * 100
-        : 0;
+        ? (correctCount / _questions.length) * 100.0
+        : 0.0;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: tokens.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
         title: Text(
           isAuto ? "Time Expired - Submitted" : "Exam Completed!",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: text.titleMedium?.copyWith(
+            color: tokens.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 72.0,
+              height: 72.0,
               decoration: BoxDecoration(
-                color: AppColors.gold.withOpacity(0.15),
+                color: tokens.gold.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.stars_rounded, color: AppColors.gold, size: 44),
+              child: Icon(Icons.stars_rounded, color: tokens.gold, size: 44.0),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 16.0),
             Text(
               "$correctCount / ${_questions.length} Correct",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
+              style: text.headlineSmall?.copyWith(
+                color: tokens.textPrimary,
+                fontSize: 22.0,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 6.0),
             Text(
               "${percentage.toStringAsFixed(1)}% Score • +${correctCount * 20} XP Earned",
-              style: const TextStyle(color: AppColors.emerald, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: tokens.success,
+                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+              ),
             ),
           ],
         ),
         actions: [
-          CustomButton(
+          PrimaryButton(
             text: "Return to Dashboard",
+            height: 46.0,
             onPressed: () {
               Navigator.pop(ctx);
               Navigator.pop(context);
@@ -153,51 +168,57 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
+    final isDark = context.isDark;
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+      return AppScaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: tokens.gold),
+        ),
       );
     }
 
     final currentQuestion = _questions[_currentIndex];
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
+    return AppScaffold(
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
         title: Text(
           widget.exam.title,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: text.titleMedium?.copyWith(
+            color: tokens.textPrimary,
+            fontSize: 16.0,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            margin: const EdgeInsets.only(right: 16.0, top: 10.0, bottom: 10.0),
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
             decoration: BoxDecoration(
               color: _remainingSeconds < 300
-                  ? AppColors.danger.withOpacity(0.15)
-                  : AppColors.gold.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+                  ? tokens.danger.withValues(alpha: 0.15)
+                  : tokens.gold.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(20.0),
               border: Border.all(
-                color: _remainingSeconds < 300 ? AppColors.danger : AppColors.gold,
+                color: _remainingSeconds < 300 ? tokens.danger : tokens.gold,
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.timer_outlined,
-                  size: 16,
-                  color: _remainingSeconds < 300 ? AppColors.danger : AppColors.gold,
+                  size: 16.0,
+                  color: _remainingSeconds < 300 ? tokens.danger : tokens.goldText,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 6.0),
                 Text(
                   _formatTimer(_remainingSeconds),
                   style: TextStyle(
-                    color: _remainingSeconds < 300 ? AppColors.danger : AppColors.gold,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    color: _remainingSeconds < 300 ? tokens.danger : tokens.goldText,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.0,
                   ),
                 ),
               ],
@@ -207,7 +228,7 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -217,51 +238,52 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
                 children: [
                   Text(
                     "Question ${_currentIndex + 1} of ${_questions.length}",
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
+                    style: text.labelMedium?.copyWith(
+                      color: tokens.textMuted,
                       fontWeight: FontWeight.w600,
+                      fontSize: 13.0,
                     ),
                   ),
                   Text(
                     "${_selectedAnswers.length} Answered",
-                    style: const TextStyle(
-                      color: AppColors.emerald,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      color: tokens.success,
+                      fontSize: 13.0,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 8.0),
               LinearProgressIndicator(
                 value: (_currentIndex + 1) / _questions.length,
-                backgroundColor: AppColors.cardBorder,
-                valueColor: const AlwaysStoppedAnimation(AppColors.gold),
-                borderRadius: BorderRadius.circular(6),
+                backgroundColor: tokens.border,
+                valueColor: AlwaysStoppedAnimation(tokens.gold),
+                borderRadius: BorderRadius.circular(6.0),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 24.0),
 
               // Question Statement Box
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
+                  color: tokens.surface,
+                  borderRadius: BorderRadius.circular(16.0),
+                  border: Border.all(color: tokens.border.withValues(alpha: 0.8)),
+                  boxShadow: isDark ? null : tokens.e1,
                 ),
                 child: Text(
                   currentQuestion.questionText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                  style: text.bodyLarge?.copyWith(
+                    color: tokens.textPrimary,
+                    fontSize: 16.0,
                     fontWeight: FontWeight.w700,
-                    height: 1.4,
+                    height: 1.45,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 20.0),
 
               // Options
               Expanded(
@@ -272,53 +294,56 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
 
                     return GestureDetector(
                       onTap: () {
+                        HapticFeedback.selectionClick();
                         setState(() {
                           _selectedAnswers[_currentIndex] = optIdx;
                         });
                       },
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        padding: const EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.gold.withOpacity(0.12)
-                              : AppColors.surface,
-                          borderRadius: BorderRadius.circular(14),
+                              ? tokens.gold.withValues(alpha: isDark ? 0.2 : 0.12)
+                              : tokens.surface,
+                          borderRadius: BorderRadius.circular(14.0),
                           border: Border.all(
-                            color: isSelected ? AppColors.gold : AppColors.cardBorder,
-                            width: isSelected ? 1.5 : 1.0,
+                            color: isSelected ? tokens.gold : tokens.border,
+                            width: isSelected ? 1.6 : 1.0,
                           ),
+                          boxShadow: isDark ? null : tokens.e1,
                         ),
                         child: Row(
                           children: [
                             Container(
-                              width: 32,
-                              height: 32,
+                              width: 32.0,
+                              height: 32.0,
                               decoration: BoxDecoration(
-                                color: isSelected ? AppColors.gold : Colors.transparent,
+                                color: isSelected ? tokens.gold : tokens.surfaceAlt,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: isSelected ? AppColors.gold : AppColors.textMuted,
+                                  color: isSelected ? tokens.gold : tokens.border,
                                 ),
                               ),
                               child: Center(
                                 child: Text(
                                   String.fromCharCode(65 + optIdx),
                                   style: TextStyle(
-                                    color: isSelected ? Colors.black : Colors.white,
-                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? tokens.onGold : tokens.textPrimary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13.0,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 14),
+                            const SizedBox(width: 14.0),
                             Expanded(
                               child: Text(
                                 currentQuestion.options[optIdx],
-                                style: TextStyle(
-                                  color: isSelected ? Colors.white : AppColors.textSecondary,
-                                  fontSize: 14,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                style: text.bodyMedium?.copyWith(
+                                  color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                                  fontSize: 14.0,
+                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
                                 ),
                               ),
                             ),
@@ -335,16 +360,17 @@ class _ExamTakeScreenState extends State<ExamTakeScreen> {
                 children: [
                   if (_currentIndex > 0)
                     Expanded(
-                      child: CustomButton(
+                      child: SecondaryButton(
                         text: "Previous",
-                        isSecondary: true,
+                        height: 48.0,
                         onPressed: () => setState(() => _currentIndex--),
                       ),
                     ),
-                  if (_currentIndex > 0) const SizedBox(width: 12),
+                  if (_currentIndex > 0) const SizedBox(width: 12.0),
                   Expanded(
-                    child: CustomButton(
+                    child: PrimaryButton(
                       text: _currentIndex == _questions.length - 1 ? "Submit Exam" : "Next",
+                      height: 48.0,
                       onPressed: () {
                         if (_currentIndex == _questions.length - 1) {
                           _submitExam();

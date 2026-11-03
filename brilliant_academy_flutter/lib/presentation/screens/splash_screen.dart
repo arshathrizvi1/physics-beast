@@ -42,6 +42,7 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => TamperScreen(
+            violationType: securityResult.violationType,
             reason: securityResult.failureReason ?? "Security integrity check failed.",
           ),
         ),
@@ -88,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.gold.withOpacity(0.35),
+                    color: AppColors.gold.withValues(alpha: 0.35),
                     blurRadius: 24,
                     offset: const Offset(0, 6),
                   ),

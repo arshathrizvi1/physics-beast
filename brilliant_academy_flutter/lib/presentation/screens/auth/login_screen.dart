@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
@@ -21,13 +22,64 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _hasPasskeyOnDevice = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPasskeyAvailability();
+  }
+
+  Future<void> _checkPasskeyAvailability() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final hasPasskey = await authService.hasPasskeyOnDevice();
+    final creds = await authService.getSavedCredentials();
+    if (mounted) {
+      setState(() {
+        _hasPasskeyOnDevice = hasPasskey;
+        if (creds['email'] != null && (creds['email'] as String).isNotEmpty) {
+          _emailController.text = creds['email'];
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handlePasskeySignIn() async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final error = await authService.signInWithPasskey();
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (error == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+    } else {
+      if (!error.toLowerCase().contains("cancelled")) {
+        setState(() {
+          _errorMessage = error;
+        });
+      }
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -113,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.gold.withOpacity(0.3),
+                          color: AppColors.gold.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -148,9 +200,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.danger.withOpacity(0.12),
+                      color: AppColors.danger.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -201,12 +253,76 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: _handleLogin,
                   isLoading: _isLoading,
                 ),
+                const SizedBox(height: 12),
+
+                // Sign In with Passkey (Biometrics)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : _handlePasskeySignIn,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(
+                        color: _hasPasskeyOnDevice
+                            ? AppColors.gold.withValues(alpha: 0.7)
+                            : Colors.white.withValues(alpha: 0.18),
+                        width: _hasPasskeyOnDevice ? 1.5 : 1.0,
+                      ),
+                      backgroundColor: _hasPasskeyOnDevice
+                          ? AppColors.gold.withValues(alpha: 0.08)
+                          : Colors.white.withValues(alpha: 0.04),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.fingerprint_rounded,
+                          color: _hasPasskeyOnDevice ? AppColors.gold : Colors.white70,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          "Sign In with Passkey (Biometrics)",
+                          style: TextStyle(
+                            color: _hasPasskeyOnDevice ? AppColors.gold : Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_hasPasskeyOnDevice) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppColors.gold.withValues(alpha: 0.4),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: const Text(
+                              "READY",
+                              style: TextStyle(
+                                color: AppColors.gold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 20),
 
                 // Divider OR
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
+                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12), thickness: 1)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Text(
@@ -218,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: Colors.white.withOpacity(0.12), thickness: 1)),
+                    Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12), thickness: 1)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -230,8 +346,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading ? null : _handleGoogleSignIn,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.white.withOpacity(0.18)),
-                      backgroundColor: Colors.white.withOpacity(0.04),
+                      side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                      backgroundColor: Colors.white.withValues(alpha: 0.04),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Row(

@@ -1,302 +1,260 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_colors.dart';
+
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_scaffold.dart';
+import '../../../core/widgets/section_header.dart';
+import '../../../core/widgets/app_chip.dart';
+import '../../../core/widgets/live_card.dart';
+import '../../../core/widgets/state_views.dart';
+import '../../../data/models/course_model.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/course_service.dart';
-import '../../../data/models/course_model.dart';
-import '../../widgets/course_card.dart';
 import '../courses/course_detail_screen.dart';
 import '../live/live_screen.dart';
+import '../courses/courses_screen.dart';
+import 'widgets/popular_courses_carousel.dart';
+import 'widgets/home_header.dart';
+import 'widgets/home_search_bar.dart';
+import 'widgets/home_stats_grid.dart';
+import 'widgets/home_resume_card.dart';
+import 'widgets/home_testimonials.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  final VoidCallback? onExploreCourses;
+  const HomeScreen({super.key, this.onExploreCourses});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _searchController = TextEditingController();
+  final _courseService = CourseService();
+  String _activeSubject = "All";
+
+  final List<String> _subjects = const [
+    "All",
+    "Physics",
+    "Combined Mathematics",
+    "Chemistry",
+    "ICT",
+  ];
+
+  final List<Course> _websiteFallbackCourses = [
+    Course(
+      id: "physics-2026",
+      name: "Advanced Level Physics 2026",
+      description: "Master Mechanics, Waves, Electricity & Modern Physics with comprehensive problem solving.",
+      image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800",
+      teacherName: "Master Admin",
+      subject: "Physics",
+      isMonthly: true,
+    ),
+    Course(
+      id: "maths-2026",
+      name: "Combined Mathematics Masterclass",
+      description: "Pure Mathematics, Calculus, Trigonometry & Applied Statistics with structured model papers.",
+      image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800",
+      teacherName: "Senior Math Specialist",
+      subject: "Combined Mathematics",
+      isMonthly: true,
+    ),
+    Course(
+      id: "chemistry-2026",
+      name: "Organic & Physical Chemistry Revision",
+      description: "Complete reaction mechanisms, chemical calculations, and exam-focused short notes.",
+      image: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&q=80&w=800",
+      teacherName: "Chemistry Lecturer",
+      subject: "Chemistry",
+      isMonthly: false,
+    ),
+    Course(
+      id: "ict-science-2026",
+      name: "Information & Communication Technology",
+      description: "Python programming, Database Systems, Networking, and IoT practical projects.",
+      image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800",
+      teacherName: "Lead Tech Engineer",
+      subject: "ICT",
+      isMonthly: false,
+    ),
+  ];
+
+  final List<Map<String, dynamic>> _testimonials = const [
+    {
+      "name": "Kavindu P.",
+      "batch": "2026 A/L",
+      "rating": 5,
+      "comment": "Brilliant Academy changed how I study. The video lessons and downloadable revision notes are unmatched!",
+    },
+    {
+      "name": "Ayesha F.",
+      "batch": "2026 A/L",
+      "rating": 5,
+      "comment": "Best LMS app experience! Zero lag during live classes and the doubt clarification sessions are fantastic.",
+    },
+    {
+      "name": "Nisal M.",
+      "batch": "2025 A/L",
+      "rating": 5,
+      "comment": "Scored an A for Physics thanks to the structured papers and instant feedback system.",
+    },
+    {
+      "name": "Dinithi S.",
+      "batch": "2026 A/L",
+      "rating": 5,
+      "comment": "The mobile app makes revising on the go so effortless. Highly recommended for 2026 A/L students!",
+    },
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
     final authService = Provider.of<AuthService>(context);
     final user = authService.currentUser;
-    final courseService = CourseService();
 
-    final String displayName = user?.name?.split(' ').first ?? "Student";
+    final subjectColors = {
+      "Physics": tokens.subjectPhysics,
+      "Combined Mathematics": tokens.subjectMaths,
+      "Chemistry": tokens.subjectChemistry,
+      "ICT": tokens.subjectIct,
+    };
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.gold,
-          backgroundColor: AppColors.card,
-          onRefresh: () async {
-            // Hot reload cache
-          },
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top App Bar
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome back,",
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          "$displayName 👋",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Streak & XP Badges
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Text("🔥 ", style: TextStyle(fontSize: 14)),
-                              Text(
-                                "${user?.streakDays ?? 1}d",
-                                style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.goldGradient,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            "${user?.totalXp ?? 100} XP",
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+    return AppScaffold(
+      includeBottomNavInset: true,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Academy Header
+            const HomeHeader(),
 
-                // Live Session Quick Alert Card
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LiveScreen()),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF2A1010), Color(0xFF1B1B22)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.danger.withOpacity(0.4)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.danger.withOpacity(0.15),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.danger.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.sensors, color: AppColors.danger, size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Live Class Streaming Now",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                "A/L 2026 Physics - Mechanics Theory",
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            "JOIN",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+            // Search Bar
+            HomeSearchBar(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+            ),
 
-                // Academy Stats Counter Row
-                Row(
-                  children: [
-                    _buildStatCard("1,500+", "Active Students", Icons.people_outline, AppColors.cyan),
-                    const SizedBox(width: 12),
-                    _buildStatCard("98.4%", "Island Pass Rate", Icons.emoji_events_outlined, AppColors.gold),
-                    const SizedBox(width: 12),
-                    _buildStatCard("450+", "HD Lessons", Icons.play_lesson_outlined, AppColors.emerald),
-                  ],
-                ),
-                const SizedBox(height: 28),
+            const SizedBox(height: AppSpacing.sm),
 
-                // Featured Masterclass Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Your Masterclasses",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      "${user?.batchId ?? '2026'} Syllabus",
-                      style: const TextStyle(
-                        color: AppColors.gold,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+            // Live Class Streaming Card (Prominent Live Banner)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              child: LiveCard(
+                title: "Advanced Physics 2026: Mechanics & Circular Motion Masterclass",
+                subtitle: "Interactive session with live Q&A • Faculty Master Admin",
+                viewerCount: 248,
+                onJoin: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LiveScreen()),
+                  );
+                },
+              ),
+            ),
 
-                // Courses Stream
-                StreamBuilder<List<Course>>(
-                  stream: courseService.getCoursesStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32.0),
-                          child: CircularProgressIndicator(color: AppColors.gold),
-                        ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Academic Personal Dashboard (2x2 Stats Grid)
+            HomeStatsGrid(user: user),
+
+            // Continue Learning / Resume Lesson
+            HomeResumeCard(
+              onResume: () {
+                final course = _websiteFallbackCourses.first;
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => CourseDetailScreen(course: course)),
+                );
+              },
+            ),
+
+            const SizedBox(height: AppSpacing.md),
+
+            // Subject Filter Bar
+            SectionHeader(
+              title: "Syllabus Subjects",
+              subtitle: "Select a stream to filter lessons",
+            ),
+            FilterChipBar(
+              items: _subjects,
+              selectedItem: _activeSubject,
+              dotColors: subjectColors,
+              onSelected: (sub) => setState(() => _activeSubject = sub),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+
+            // Firestore Live Courses or Fallback
+            StreamBuilder<List<Course>>(
+              stream: _courseService.getCoursesStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                    child: SkeletonBox(width: double.infinity, height: 260),
+                  );
+                }
+
+                List<Course> courses = snapshot.data ?? [];
+                if (courses.isEmpty) {
+                  courses = _websiteFallbackCourses;
+                }
+
+                // Apply Subject & Search Filter
+                final query = _searchController.text.trim().toLowerCase();
+                final filtered = courses.where((c) {
+                  final matchesSubject = _activeSubject == "All" ||
+                      (c.subject != null && c.subject!.toLowerCase().contains(_activeSubject.toLowerCase())) ||
+                      c.name.toLowerCase().contains(_activeSubject.toLowerCase());
+                  final matchesSearch = query.isEmpty ||
+                      c.name.toLowerCase().contains(query) ||
+                      c.description.toLowerCase().contains(query);
+                  return matchesSubject && matchesSearch;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+                    child: EmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: "No Courses Found",
+                      message: "Try searching with a different subject or keyword.",
+                    ),
+                  );
+                }
+
+                return PopularCoursesCarousel(
+                  courses: filtered,
+                  user: user,
+                  onSeeAll: () {
+                    if (widget.onExploreCourses != null) {
+                      widget.onExploreCourses!();
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const CoursesScreen()),
                       );
                     }
-
-                    final courses = snapshot.data ?? [];
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: courses.length,
-                      itemBuilder: (context, index) {
-                        final course = courses[index];
-                        return CourseCard(
-                          course: course,
-                          user: user,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CourseDetailScreen(course: course),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    );
                   },
-                ),
-              ],
+                );
+              },
             ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.cardBorder),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-              ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Student Testimonials
+            SectionHeader(
+              title: "Student Feedback",
+              subtitle: "Real stories from top-ranked students",
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            HomeTestimonials(testimonials: _testimonials),
+
+            const SizedBox(height: AppSpacing.xxxl),
           ],
         ),
       ),

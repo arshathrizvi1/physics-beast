@@ -2,32 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'core/constants/app_colors.dart';
-import 'core/security/security_service.dart';
 import 'services/auth_service.dart';
+import 'services/theme_service.dart';
 import 'presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Screenshots allowed for development
-  // await SecurityService.enableAntiScreenCapture();
-
-  // Lock app to Portrait by default (Video player will unlock landscape)
+  // Lock app to Portrait by default (Video player can unlock landscape)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Status Bar Styling
+  // Status Bar Styling - transparent so theme controls it dynamically
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.surface,
-      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
     ),
   );
 
@@ -49,35 +43,19 @@ class BrilliantAcademyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => ThemeService()),
       ],
-      child: MaterialApp(
-        title: 'Brilliant Academy',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: AppColors.background,
-          primaryColor: AppColors.gold,
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.gold,
-            secondary: AppColors.cyan,
-            surface: AppColors.surface,
-            error: AppColors.danger,
-          ),
-          textTheme: GoogleFonts.interTextTheme(
-            ThemeData.dark().textTheme,
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: AppColors.background,
-            elevation: 0,
-            iconTheme: IconThemeData(color: Colors.white),
-            titleTextStyle: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        home: const SplashScreen(),
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, _) {
+          return MaterialApp(
+            title: 'Brilliant Academy',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeService.themeMode,
+            theme: themeService.lightTheme,
+            darkTheme: themeService.darkTheme,
+            home: const SplashScreen(),
+          );
+        },
       ),
     );
   }

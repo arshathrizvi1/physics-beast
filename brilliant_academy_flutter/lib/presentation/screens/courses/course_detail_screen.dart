@@ -48,7 +48,7 @@ class CourseDetailScreen extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          AppColors.background.withOpacity(0.9),
+                          AppColors.background.withValues(alpha: 0.9),
                           AppColors.background,
                         ],
                         begin: Alignment.topCenter,
@@ -72,9 +72,9 @@ class CourseDetailScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.cyan.withOpacity(0.12),
+                        color: AppColors.cyan.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.cyan.withOpacity(0.3)),
+                        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         course.subject!,
@@ -249,8 +249,8 @@ class CourseDetailScreen extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: hasAccess
-                    ? AppColors.gold.withOpacity(0.15)
-                    : AppColors.cardBorder.withOpacity(0.5),
+                    ? AppColors.gold.withValues(alpha: 0.15)
+                    : AppColors.cardBorder.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -288,9 +288,16 @@ class CourseDetailScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => SecurePlayerScreen(
-                    videoId: item.videoId ?? "test_video",
+                    videoId: item.videoId ?? item.id,
                     lessonTitle: item.title,
                     studentEmail: studentEmail,
+                    item: item,
+                    url: item.url,
+                    r2Url: item.r2Url,
+                    originalYoutubeUrl: item.originalYoutubeUrl,
+                    libraryId: item.libraryId,
+                    platform: item.platform,
+                    playerSettings: item.playerSettings,
                   ),
                 ),
               );

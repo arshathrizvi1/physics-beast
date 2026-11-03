@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/theme_x.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/app_card.dart';
 import '../../../services/leaderboard_service.dart';
 import '../../../data/models/exam_model.dart';
 
@@ -8,20 +10,42 @@ class LeaderboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final text = context.text;
     final leaderboardService = LeaderboardService();
 
     return StreamBuilder<List<LeaderboardEntry>>(
       stream: leaderboardService.getLeaderboardStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+          return Center(
+            child: CircularProgressIndicator(color: tokens.gold),
+          );
         }
 
-        final list = snapshot.data ?? [];
+        final list = snapshot.data ?? LeaderboardService.fallbackLeaderboard;
 
         if (list.isEmpty) {
-          return const Center(
-            child: Text("Leaderboard updating...", style: TextStyle(color: AppColors.textMuted)),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.leaderboard_rounded, size: 48, color: tokens.textMuted),
+                const SizedBox(height: 12),
+                Text(
+                  "Leaderboard Updating",
+                  style: text.titleMedium?.copyWith(
+                    color: tokens.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Rankings will update as examination papers are evaluated.",
+                  style: text.bodySmall?.copyWith(color: tokens.textMuted),
+                ),
+              ],
+            ),
           );
         }
 
@@ -29,75 +53,112 @@ class LeaderboardScreen extends StatelessWidget {
         final rest = list.skip(3).toList();
 
         return ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
           children: [
-            // Top 3 Podium
-            if (top3.isNotEmpty) _buildPodium(top3),
-            const SizedBox(height: 24),
+            // Top 3 Podium Card
+            if (top3.isNotEmpty) _buildPodium(context, top3),
+            const SizedBox(height: AppSpacing.xl),
 
-            const Text(
-              "Top Performing Students",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Icon(Icons.workspace_premium_rounded, size: 18, color: tokens.goldText),
+                const SizedBox(width: 8),
+                Text(
+                  "Top Performing Students",
+                  style: text.titleMedium?.copyWith(
+                    color: tokens.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
 
             // Ranking List (Rank 4+)
-            ...rest.map((entry) => _buildRankTile(entry)),
+            ...rest.map((entry) => _buildRankTile(context, entry)),
+            const SizedBox(height: AppSpacing.huge),
           ],
         );
       },
     );
   }
 
-  Widget _buildPodium(List<LeaderboardEntry> top3) {
+  Widget _buildPodium(BuildContext context, List<LeaderboardEntry> top3) {
+    final tokens = context.tokens;
+
     LeaderboardEntry? first = top3.isNotEmpty ? top3[0] : null;
     LeaderboardEntry? second = top3.length > 1 ? top3[1] : null;
     LeaderboardEntry? third = top3.length > 2 ? top3[2] : null;
 
-    return Container(
+    return AppCard(
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // 2nd Place
-          if (second != null) _buildPodiumPillar(second, "2", const Color(0xFFC0C0C0), 100),
+          if (second != null)
+            _buildPodiumPillar(
+              context,
+              second,
+              "2",
+              const Color(0xFF94A3B8),
+              100,
+            ),
           const SizedBox(width: 12),
           // 1st Place (Center, tallest)
-          if (first != null) _buildPodiumPillar(first, "1", AppColors.gold, 130, isFirst: true),
+          if (first != null)
+            _buildPodiumPillar(
+              context,
+              first,
+              "1",
+              tokens.gold,
+              130,
+              isFirst: true,
+            ),
           const SizedBox(width: 12),
           // 3rd Place
-          if (third != null) _buildPodiumPillar(third, "3", const Color(0xFFCD7F32), 85),
+          if (third != null)
+            _buildPodiumPillar(
+              context,
+              third,
+              "3",
+              const Color(0xFFD97706),
+              85,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildPodiumPillar(LeaderboardEntry entry, String rankStr, Color color, double height, {bool isFirst = false}) {
+  Widget _buildPodiumPillar(
+    BuildContext context,
+    LeaderboardEntry entry,
+    String rankStr,
+    Color color,
+    double height, {
+    bool isFirst = false,
+  }) {
+    final tokens = context.tokens;
+    final text = context.text;
+
     return Expanded(
       child: Column(
         children: [
           if (isFirst)
-            const Icon(Icons.emoji_events, color: AppColors.gold, size: 28),
+            Icon(Icons.emoji_events, color: tokens.gold, size: 28)
+          else
+            const SizedBox(height: 28),
           const SizedBox(height: 4),
           CircleAvatar(
-            radius: isFirst ? 26 : 22,
-            backgroundColor: color.withOpacity(0.2),
+            radius: isFirst ? 26.0 : 22.0,
+            backgroundColor: color.withValues(alpha: 0.18),
             child: Text(
               entry.name.isNotEmpty ? entry.name[0] : "S",
               style: TextStyle(
                 color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: isFirst ? 18 : 15,
+                fontWeight: FontWeight.w900,
+                fontSize: isFirst ? 18.0 : 15.0,
               ),
             ),
           ),
@@ -106,18 +167,17 @@ class LeaderboardScreen extends StatelessWidget {
             entry.name.split(' ').first,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+            style: text.bodySmall?.copyWith(
+              color: tokens.textPrimary,
+              fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             "${entry.xp} XP",
             style: TextStyle(
               color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontSize: 11.0,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 8),
@@ -126,20 +186,20 @@ class LeaderboardScreen extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [color.withOpacity(0.3), color.withOpacity(0.08)],
+                colors: [color.withValues(alpha: 0.28), color.withValues(alpha: 0.05)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              border: Border.all(color: color.withOpacity(0.4)),
+              border: Border.all(color: color.withValues(alpha: 0.4)),
             ),
             child: Center(
               child: Text(
                 rankStr,
                 style: TextStyle(
                   color: color,
-                  fontSize: 24,
                   fontWeight: FontWeight.w900,
+                  fontSize: 22.0,
                 ),
               ),
             ),
@@ -149,14 +209,17 @@ class LeaderboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRankTile(LeaderboardEntry entry) {
+  Widget _buildRankTile(BuildContext context, LeaderboardEntry entry) {
+    final tokens = context.tokens;
+    final text = context.text;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: tokens.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
+        border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
@@ -164,16 +227,17 @@ class LeaderboardScreen extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: AppColors.card,
+              color: tokens.surfaceAlt,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
             ),
             child: Center(
               child: Text(
                 "#${entry.rank}",
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                style: TextStyle(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12.0,
                 ),
               ),
             ),
@@ -185,17 +249,16 @@ class LeaderboardScreen extends StatelessWidget {
               children: [
                 Text(
                   entry.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                  style: text.bodyMedium?.copyWith(
+                    color: tokens.textPrimary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Text(
                   entry.studentId,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
+                  style: text.bodySmall?.copyWith(
+                    color: tokens.textMuted,
+                    fontSize: 11.0,
                   ),
                 ),
               ],
@@ -204,15 +267,16 @@ class LeaderboardScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.gold.withOpacity(0.1),
+              color: tokens.gold.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tokens.gold.withValues(alpha: 0.3)),
             ),
             child: Text(
               "${entry.xp} XP",
-              style: const TextStyle(
-                color: AppColors.gold,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
+              style: TextStyle(
+                color: tokens.goldText,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.0,
               ),
             ),
           ),
