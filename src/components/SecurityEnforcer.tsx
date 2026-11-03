@@ -29,40 +29,41 @@ if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element
   } catch {}
 }
 
-// Trap setAttribute calls for IDM hook attributes
+const isMobileOrTablet = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (!!(window as any).Capacitor?.isNativePlatform?.()) return true;
+  const ua = navigator.userAgent || '';
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Silk/i.test(ua)) return true;
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.platform || '')) return true;
+  if (navigator.maxTouchPoints > 1 && (window.innerWidth < 1024 || window.screen.width < 1024)) return true;
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+  return false;
+};
+
+// Trap setAttribute calls for IDM hook attributes (Windows Desktop only)
 if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element.prototype as any).__IDM_ATTR_TRAPPED__) {
   (Element.prototype as any).__IDM_ATTR_TRAPPED__ = true;
   try {
     const origSetAttribute = Element.prototype.setAttribute;
     Element.prototype.setAttribute = function (name: string, value: string) {
-      if (typeof name === 'string') {
+      if (typeof name === 'string' && !isMobileOrTablet()) {
         const n = name.toLowerCase();
         if (
-          n.startsWith('__idm') ||
-          n.startsWith('data-idm') ||
-          n === 'idm_disp' ||
           n === '__idm_id__' ||
-          n === '__idm_displayed__' ||
+          n === '__idm_uri__' ||
+          n === '__idm_obs__' ||
+          n === '__idm_watch__' ||
           n === '__idm_frm__' ||
-          n === '__idm_handle__'
+          n === '__idm_displayed__' ||
+          n === 'data-idm-video'
         ) {
           try {
             window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
           } catch {}
         }
-        if (n === 'id' || n === 'class') {
+        if (n === 'id') {
           const val = String(value || '').toLowerCase();
-          if (
-            val.includes('idm_panel') ||
-            val.includes('idm_select') ||
-            val.includes('idm_menu') ||
-            val.includes('idm_downloader') ||
-            val.includes('idm-panel') ||
-            val.includes('idm-dl') ||
-            val.startsWith('idm_') ||
-            val.startsWith('idm-') ||
-            val.startsWith('__idm')
-          ) {
+          if (val === 'idm_panel' || val === 'idm_select' || val === 'idm_menu' || val.startsWith('__idm_')) {
             try {
               window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
             } catch {}
@@ -73,14 +74,6 @@ if (typeof window !== 'undefined' && typeof Element !== 'undefined' && !(Element
     };
   } catch {}
 }
-
-const isMobileOrTablet = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) return true;
-  if (navigator.maxTouchPoints > 1 && window.innerWidth < 1024) return true;
-  return false;
-};
 
 function checkIsIdm(node: Element): boolean {
   if (!node || !(node instanceof Element)) return false;
@@ -128,11 +121,13 @@ function checkIsIdm(node: Element): boolean {
     }
   }
 
-  // 5. Exact IDM Floating Bar button text (only on leaf nodes with no children)
+  // 5. Exact IDM Floating Bar button text (only outside normal app navigation and main content)
   if (node.children.length === 0) {
     const txt = (node.textContent || '').trim();
     if (txt === 'Download this video' || txt === 'Download with IDM' || txt === 'Download video from this page') {
-      return true;
+      if (!node.closest('main') && !node.closest('nav') && !node.closest('header')) {
+        return true;
+      }
     }
   }
 
@@ -179,6 +174,7 @@ export function SecurityEnforcer() {
     // Hard Purge Function: Erases all real code, videos, and DOM elements from memory
     const purgeAndLockdown = (reason: 'devtools' | 'idm' = 'devtools') => {
       if (isPurged) return;
+      if (reason === 'idm' && isMobileOrTablet()) return;
       isPurged = true;
 
       try {
@@ -248,6 +244,7 @@ export function SecurityEnforcer() {
 
     // Global listener for anti-piracy IDM alert event
     const handleIdmAlert = () => {
+      if (isMobileOrTablet()) return;
       purgeAndLockdown('idm');
     };
     window.addEventListener('anti-piracy-idm-detected', handleIdmAlert);
@@ -327,7 +324,7 @@ export function SecurityEnforcer() {
         // A. Check window globals explicitly set by IDM
         if (typeof window !== 'undefined') {
           const win = window as any;
-          if (win.__IDM_DETECTED__ || win.IDM_DOWNLOADER_ACTIVE) {
+          if (win.__idm_init__ === true || typeof win.__idm_connect__ === 'function' || win.__IDM_DETECTED__ || win.IDM_DOWNLOADER_ACTIVE) {
             purgeAndLockdown('idm');
             return;
           }
@@ -482,6 +479,7 @@ export function SecurityEnforcer() {
     const checkMobileEmulation = () => {
       if (isAdmin) return;
       if (typeof window === 'undefined') return;
+      if (isMobileOrTablet()) return;
       const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
       if (isNative) return;
 

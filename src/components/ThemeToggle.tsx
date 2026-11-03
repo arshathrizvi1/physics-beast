@@ -1,19 +1,21 @@
-
 "use client";
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  // Removed from home page, study catalog, and mobile routes where it overlaps controls
+  if (!mounted || pathname === "/" || pathname === "/courses") return null;
 
   return (
     <button
@@ -29,4 +31,3 @@ export function ThemeToggle() {
     </button>
   );
 }
-

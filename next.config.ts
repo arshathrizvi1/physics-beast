@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://source.zoom.us https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https: http: https://*.ytimg.com https://*.youtube.com",
       "font-src 'self' data: https://fonts.gstatic.com https://source.zoom.us",
-      "connect-src 'self' https: wss: blob: data: https://*.googlevideo.com https://*.youtube.com https://*.ytimg.com https://*.google.com",
+      "connect-src 'self' https: wss: blob: data: chrome-extension: https://*.googlevideo.com https://*.youtube.com https://*.ytimg.com https://*.google.com",
       "media-src 'self' blob: data: https: https://*.googlevideo.com",
       "worker-src 'self' blob: https://unpkg.com https://cdnjs.cloudflare.com",
       "frame-src 'self' https://*.firebaseapp.com https://*.google.com https://*.zoom.us https://*.youtube.com https://*.youtube-nocookie.com https://www.youtube.com https://www.youtube-nocookie.com https://iframe.mediadelivery.net https://*.payable.lk",

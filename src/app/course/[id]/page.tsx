@@ -108,6 +108,33 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
+  // Intercept and sanitize clipboard & window.open to block external YouTube leaks
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const origWrite = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+    if (origWrite) {
+      navigator.clipboard.writeText = async (text: string) => {
+        if (typeof text === 'string' && (text.includes('youtube.com') || text.includes('youtu.be') || text.includes('googlevideo.com'))) {
+          return Promise.resolve();
+        }
+        return origWrite(text);
+      };
+    }
+    const origOpen = window.open;
+    window.open = function(url?: string | URL, target?: string, features?: string) {
+      if (typeof url === 'string' && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+        return null;
+      }
+      return origOpen.call(this, url, target, features);
+    };
+    return () => {
+      if (origWrite && navigator.clipboard) {
+        navigator.clipboard.writeText = origWrite;
+      }
+      window.open = origOpen;
+    };
+  }, []);
+
   const qualityAdjustTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [availableQualities, setAvailableQualities] = useState<string[]>(['Auto', '720p', '480p', '360p']);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -186,9 +213,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   // High-precision IDM Discriminator for Course Page (Zero False Positives)
   const isMobileOrTablet = (): boolean => {
     if (typeof window === 'undefined') return false;
+    if (!!(window as any).Capacitor?.isNativePlatform?.()) return true;
     const ua = navigator.userAgent || '';
-    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) return true;
-    if (navigator.maxTouchPoints > 1 && window.innerWidth < 1024) return true;
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Silk/i.test(ua)) return true;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.platform || '')) return true;
+    if (navigator.maxTouchPoints > 1 && (window.innerWidth < 1024 || window.screen.width < 1024)) return true;
+    if (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
     return false;
   };
 
@@ -256,6 +286,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (isMobileOrTablet()) return; // Never run on mobile devices
 
     const triggerIdmLockdown = () => {
+      if (isMobileOrTablet()) return;
       setIdmBlocked(true);
       window.dispatchEvent(new CustomEvent('anti-piracy-idm-detected'));
     };
@@ -1789,10 +1820,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             </>
                           )}
 
-                          {/* Top-Right Settings & CC Trigger: auto-activates quality adjustment mode when user taps near Gear / CC */}
+                          {/* Top-Right Settings Trigger: auto-activates quality adjustment mode ONLY when tapping Gear (0 to 48px from right) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && !isAdjustingQuality && (
                             <div 
-                              className="absolute top-0 right-0 w-36 sm:w-40 h-14 sm:h-16 z-20 pointer-events-auto cursor-pointer"
+                              className="absolute top-0 right-0 w-12 sm:w-14 h-14 sm:h-16 z-20 pointer-events-auto cursor-pointer"
                               style={{ backgroundColor: 'transparent' }}
                               onPointerDown={() => {
                                 setIsAdjustingQuality(true);
@@ -1804,13 +1835,25 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                           )}
 
-                          {/* Permanent Anti-Clickout Top Shield (Blocks Title, Avatar & Channel on Mobile & Desktop while leaving Top-Right Gear accessible) */}
+                          {/* Permanent Anti-Clickout Top Shield: Blocks Title, Avatar, Channel & CC Captions while leaving only Top-Right Gear accessible */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className="absolute top-0 left-0 right-36 sm:right-40 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" 
+                              className="absolute top-0 left-0 right-12 sm:right-14 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" 
                               style={{ touchAction: "none" }} 
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
                               onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
+
+                          {/* Targeted Anti-Clickout Shield: Makes 'Captions' and '... More options' UNTOUCHABLE in Settings Popup while keeping 'Quality' and 'Speed' fully clickable */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
+                            <div
+                              className="absolute bottom-10 sm:bottom-12 left-0 sm:left-14 w-full sm:max-w-md h-24 sm:h-28 z-40 bg-transparent pointer-events-auto cursor-default select-none"
+                              style={{ touchAction: 'none' }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
