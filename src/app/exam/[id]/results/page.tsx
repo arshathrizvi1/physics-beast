@@ -3,7 +3,8 @@
 import { useState, useEffect, use } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc } from "firebase/firestore";
+import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Trophy, Clock, CheckCircle2, XCircle, BarChart3, ArrowLeft, Send, Image as ImageIcon, Edit2, MessageSquare } from "lucide-react";
@@ -45,62 +46,75 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (!user) return;
 
-    let unsubExam: () => void;
-    let unsubResults: () => void;
+    let isMounted = true;
 
-    try {
-      unsubExam = onSnapshot(doc(db, 'exams', id), (examDoc) => {
-        if (!examDoc.exists()) {
+    const loadExamResults = async () => {
+      try {
+        const bundle = await fetchWithCache(
+          `exam_results_page_${id}_${user.uid}`,
+          CacheDuration.SHORT, // 3 minutes TTL
+          async () => {
+            const [examDoc, snapAll] = await Promise.all([
+              getDoc(doc(db, 'exams', id)),
+              getDocs(query(collection(db, 'examResults'), where('examId', '==', id)))
+            ]);
+
+            if (!examDoc.exists()) {
+              return { exam: null, results: [], myRes: null };
+            }
+
+            const examData = examDoc.data();
+            const results: any[] = [];
+            let myRes = null;
+
+            snapAll.forEach(d => {
+              const data = d.data();
+              results.push({ id: d.id, ...data });
+              if (data.userId === user.uid) {
+                myRes = { id: d.id, ...data };
+              }
+            });
+
+            // Sort by score or rawScore descending, then timeTakenSeconds ascending
+            results.sort((a, b) => {
+              const scoreA = Number(a.score ?? a.rawScore ?? 0);
+              const scoreB = Number(b.score ?? b.rawScore ?? 0);
+              if (scoreB !== scoreA) return scoreB - scoreA;
+              const timeA = Number(a.timeTakenSeconds ?? a.timeSeconds ?? 999999);
+              const timeB = Number(b.timeTakenSeconds ?? b.timeSeconds ?? 999999);
+              return timeA - timeB;
+            });
+
+            return { exam: examData, results, myRes };
+          }
+        );
+
+        if (!isMounted) return;
+
+        if (!bundle.exam) {
           setErrorMsg("Exam not found.");
           setLoading(false);
           return;
         }
 
-        const examData = examDoc.data();
+        const examData = bundle.exam;
         setExam(examData);
-        
-        // If grades and ranks have been published, the exam is officially no longer in progress
         const examActive = examData.gradesPublished ? false : (examData.endTime ? Date.now() < examData.endTime : false);
         setIsExamActive(examActive);
-      });
+        setAllResults(bundle.results || []);
+        setMyResult(bundle.myRes || null);
+      } catch (e) {
+        console.error(e);
+        if (isMounted) setErrorMsg("Failed to load results.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
 
-      const qAll = query(collection(db, 'examResults'), where('examId', '==', id));
-      unsubResults = onSnapshot(qAll, (snapAll) => {
-        const results: any[] = [];
-        let myRes = null;
-        
-        snapAll.forEach(d => {
-          const data = d.data();
-          results.push({ id: d.id, ...data });
-          if (data.userId === user.uid) {
-            myRes = { id: d.id, ...data };
-          }
-        });
-
-        // Sort by score or rawScore descending, then timeTakenSeconds ascending
-        results.sort((a, b) => {
-          const scoreA = Number(a.score ?? a.rawScore ?? 0);
-          const scoreB = Number(b.score ?? b.rawScore ?? 0);
-          if (scoreB !== scoreA) return scoreB - scoreA;
-          const timeA = Number(a.timeTakenSeconds ?? a.timeSeconds ?? 999999);
-          const timeB = Number(b.timeTakenSeconds ?? b.timeSeconds ?? 999999);
-          return timeA - timeB;
-        });
-
-        setAllResults(results);
-        setMyResult(myRes);
-        setLoading(false);
-      });
-
-    } catch (e) {
-      console.error(e);
-      setErrorMsg("Failed to load results.");
-      setLoading(false);
-    }
+    loadExamResults();
 
     return () => {
-      if (unsubExam) unsubExam();
-      if (unsubResults) unsubResults();
+      isMounted = false;
     };
   }, [id, user]);
 

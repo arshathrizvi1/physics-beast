@@ -23,6 +23,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 
 const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: { course: any, viewStyle: string, setSelectedTeacherId: (id: string) => void, user: any, folders: any[] }) => {
   let isPaid = false;
@@ -215,93 +216,118 @@ function CoursesContent() {
   }, [viewSubject]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchCourses = async () => {
       try {
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
-        );
-
-        // 1. Fetch public catalog (courses and subjects have public read access in firestore.rules)
-        const [querySnapshot, subjectsSnap] = await Promise.race([
-          Promise.all([
-            getDocs(collection(db, "courses")).catch((e) => {
-              console.warn("Public courses fetch fallback:", e);
-              return { docs: [] } as any;
-            }),
-            getDocs(collection(db, "subjects")).catch((e) => {
-              console.warn("Public subjects fetch fallback:", e);
-              return { docs: [] } as any;
-            })
-          ]),
-          timeoutPromise
-        ]);
+        const cacheKey = `catalog_courses_${user?.role || 'guest'}_${user?.graduationYear || 'any'}`;
         
-        let fetchedCourses = (querySnapshot?.docs || []).map((doc: any) => ({
-          id: doc.id,
-          ...doc.data() as any
-        }));
+        // Multi-tier cache (30 mins TTL) - slashes 90%+ Firestore reads for courses catalog
+        const catalogData = await fetchWithCache(
+          cacheKey,
+          CacheDuration.LONG,
+          async () => {
+            const timeoutPromise = new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error("FIRESTORE_TIMEOUT")), 10000)
+            );
 
-        const fetchedSubjects = (subjectsSnap?.docs || []).map((doc: any) => ({
-          id: doc.id,
-          ...doc.data() as any
-        }));
-        setSubjects(fetchedSubjects);
-
-        // 2. Fetch authenticated-only collections if session exists
-        if (user) {
-          try {
-            const [teachersSnap, foldersSnap, videosSnap] = await Promise.race([
+            // 1. Fetch public catalog (courses and subjects have public read access in firestore.rules)
+            const [querySnapshot, subjectsSnap] = await Promise.race([
               Promise.all([
-                getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] }) as any),
-                getDocs(collection(db, "folders")).catch(() => ({ docs: [] }) as any),
-                getDocs(collection(db, "videos")).catch(() => ({ docs: [] }) as any)
+                getDocs(collection(db, "courses")).catch((e) => {
+                  console.warn("Public courses fetch fallback:", e);
+                  return { docs: [] } as any;
+                }),
+                getDocs(collection(db, "subjects")).catch((e) => {
+                  console.warn("Public subjects fetch fallback:", e);
+                  return { docs: [] } as any;
+                })
               ]),
               timeoutPromise
             ]);
-
-            const fetchedTeachers = (teachersSnap?.docs || []).map((doc: any) => ({
-              id: doc.id,
-              ...doc.data() as any
-            }));
-            setTeachers(fetchedTeachers);
-
-            const fetchedFolders = (foldersSnap?.docs || []).map((doc: any) => ({
-              id: doc.id,
-              ...doc.data() as any
-            }));
-            setFolders(fetchedFolders);
-
-            const fetchedVideos = (videosSnap?.docs || []).map((doc: any) => ({
-              id: doc.id,
-              ...doc.data() as any
-            }));
-            setVideos(fetchedVideos);
             
-            if (user.role === 'student') {
+            let fetchedCourses = (querySnapshot?.docs || []).map((doc: any) => ({
+              id: doc.id,
+              ...doc.data() as any
+            }));
+
+            const fetchedSubjects = (subjectsSnap?.docs || []).map((doc: any) => ({
+              id: doc.id,
+              ...doc.data() as any
+            }));
+
+            let fetchedTeachers: any[] = [];
+            let fetchedFolders: any[] = [];
+            let fetchedVideos: any[] = [];
+
+            // 2. Fetch authenticated-only collections if session exists
+            if (user) {
               try {
-                const batchesSnap = await Promise.race([
-                  getDocs(collection(db, "batches")),
+                const [teachersSnap, foldersSnap, videosSnap] = await Promise.race([
+                  Promise.all([
+                    getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] }) as any),
+                    getDocs(collection(db, "folders")).catch(() => ({ docs: [] }) as any),
+                    getDocs(collection(db, "videos")).catch(() => ({ docs: [] }) as any)
+                  ]),
                   timeoutPromise
                 ]);
-                const batchesMap: Record<string, string> = {};
-                batchesSnap.forEach((doc: any) => {
-                  batchesMap[doc.id] = doc.data().year;
-                });
 
-                fetchedCourses = fetchedCourses.filter((c: any) => {
-                  if (!c.batchId || c.batchId === 'all') return true;
-                  return batchesMap[c.batchId] === user.graduationYear;
-                });
-              } catch (bErr) {
-                console.warn("Batches filter error:", bErr);
+                fetchedTeachers = (teachersSnap?.docs || []).map((doc: any) => ({
+                  id: doc.id,
+                  ...doc.data() as any
+                }));
+
+                fetchedFolders = (foldersSnap?.docs || []).map((doc: any) => ({
+                  id: doc.id,
+                  ...doc.data() as any
+                }));
+
+                fetchedVideos = (videosSnap?.docs || []).map((doc: any) => ({
+                  id: doc.id,
+                  ...doc.data() as any
+                }));
+                
+                if (user.role === 'student') {
+                  try {
+                    const batchesSnap = await Promise.race([
+                      getDocs(collection(db, "batches")),
+                      timeoutPromise
+                    ]);
+                    const batchesMap: Record<string, string> = {};
+                    batchesSnap.forEach((doc: any) => {
+                      batchesMap[doc.id] = doc.data().year;
+                    });
+
+                    fetchedCourses = fetchedCourses.filter((c: any) => {
+                      if (!c.batchId || c.batchId === 'all') return true;
+                      return batchesMap[c.batchId] === user.graduationYear;
+                    });
+                  } catch (bErr) {
+                    console.warn("Batches filter error:", bErr);
+                  }
+                }
+              } catch (pErr) {
+                console.warn("Protected collections fetch error:", pErr);
               }
             }
-          } catch (pErr) {
-            console.warn("Protected collections fetch error:", pErr);
-          }
-        }
 
-        setCourses(fetchedCourses);
+            return {
+              courses: fetchedCourses,
+              subjects: fetchedSubjects,
+              teachers: fetchedTeachers,
+              folders: fetchedFolders,
+              videos: fetchedVideos,
+            };
+          }
+        );
+
+        if (!isMounted) return;
+
+        setCourses(catalogData.courses || []);
+        setSubjects(catalogData.subjects || []);
+        setTeachers(catalogData.teachers || []);
+        setFolders(catalogData.folders || []);
+        setVideos(catalogData.videos || []);
       } catch (error: any) {
         if (error.message === "FIRESTORE_TIMEOUT") {
           console.log("Database timeout - likely quota exceeded.");
@@ -310,11 +336,15 @@ function CoursesContent() {
           console.error("Error fetching courses:", error);
         }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchCourses();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const displayedCourses = courses.filter(c => {

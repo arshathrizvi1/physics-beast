@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
+import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import {
   Search, X, BookOpen, PlayCircle, FileQuestion, GraduationCap,
   User, Award, Calendar, Clock, ExternalLink, ArrowRight, ArrowLeft, Compass,
@@ -115,40 +116,51 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
     const fetchAllSearchData = async () => {
       setIsLoading(true);
       try {
-        const promises: Promise<any>[] = [
-          getDocs(collection(db, "courses")).catch(() => ({ docs: [] })),
-          getDocs(collection(db, "exams")).catch(() => ({ docs: [] })),
-          getDocs(query(collection(db, "videos"), limit(100))).catch(() => ({ docs: [] })),
-          getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] })),
-        ];
+        const cacheRole = canAccessStudentData ? 'staff' : (user?.uid || 'guest');
+        const searchBundle = await fetchWithCache(
+          `global_search_dataset_${cacheRole}`,
+          CacheDuration.MEDIUM, // 10 minutes cache
+          async () => {
+            const promises: Promise<any>[] = [
+              getDocs(collection(db, "courses")).catch(() => ({ docs: [] })),
+              getDocs(collection(db, "exams")).catch(() => ({ docs: [] })),
+              getDocs(query(collection(db, "videos"), limit(100))).catch(() => ({ docs: [] })),
+              getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] })),
+            ];
 
-        // Fetch students & marks if Admin or Teacher
-        if (canAccessStudentData) {
-          promises.push(
-            getDocs(query(collection(db, "users"), where("role", "==", "student"), limit(200))).catch(() => ({ docs: [] })),
-            getDocs(query(collection(db, "examResults"), limit(200))).catch(() => ({ docs: [] }))
-          );
-        } else if (user?.uid) {
-          // Normal student only gets their own exam results
-          promises.push(
-            Promise.resolve({ docs: [] }), // placeholder for students
-            getDocs(query(collection(db, "examResults"), where("userId", "==", user.uid))).catch(() => ({ docs: [] }))
-          );
-        }
+            // Fetch students & marks if Admin or Teacher
+            if (canAccessStudentData) {
+              promises.push(
+                getDocs(query(collection(db, "users"), where("role", "==", "student"), limit(200))).catch(() => ({ docs: [] })),
+                getDocs(query(collection(db, "examResults"), limit(200))).catch(() => ({ docs: [] }))
+              );
+            } else if (user?.uid) {
+              // Normal student only gets their own exam results
+              promises.push(
+                Promise.resolve({ docs: [] }), // placeholder for students
+                getDocs(query(collection(db, "examResults"), where("userId", "==", user.uid))).catch(() => ({ docs: [] }))
+              );
+            }
 
-        const [coursesSnap, examsSnap, videosSnap, teachersSnap, studentsSnap, marksSnap] = await Promise.all(promises);
+            const [coursesSnap, examsSnap, videosSnap, teachersSnap, studentsSnap, marksSnap] = await Promise.all(promises);
 
-        setCourses(coursesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-        setExams(examsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-        setVideos(videosSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-        setTeachers(teachersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
+            return {
+              courses: coursesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+              exams: examsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+              videos: videosSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+              teachers: teachersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+              students: studentsSnap?.docs ? studentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) : [],
+              marks: marksSnap?.docs ? marksSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) : [],
+            };
+          }
+        );
 
-        if (studentsSnap?.docs) {
-          setStudents(studentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-        }
-        if (marksSnap?.docs) {
-          setMarks(marksSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-        }
+        setCourses(searchBundle.courses || []);
+        setExams(searchBundle.exams || []);
+        setVideos(searchBundle.videos || []);
+        setTeachers(searchBundle.teachers || []);
+        setStudents(searchBundle.students || []);
+        setMarks(searchBundle.marks || []);
 
         setHasLoadedData(true);
       } catch (err) {

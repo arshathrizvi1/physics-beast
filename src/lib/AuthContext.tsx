@@ -221,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               name: firebaseUser.displayName || 'Student',
-              role: 'User',
+              role: 'student',
               isApproved: false,
               pendingReason: 'Email Verification',
             } as UserProfile);
@@ -379,6 +379,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!prev) return prev;
                 const freshXp = fresh.totalXp ?? prev.totalXp ?? 0;
                 const freshLevel = fresh.xpLevel ?? calculateXpLevel(freshXp);
+                
+                // Shallow equality check to avoid full-app re-renders on trivial timestamp updates
+                const hasChanged = 
+                  prev.role !== (fresh.role || prev.role) ||
+                  prev.name !== (fresh.name || prev.name) ||
+                  prev.isApproved !== (fresh.isApproved ?? prev.isApproved) ||
+                  prev.totalXp !== freshXp ||
+                  prev.xpLevel !== freshLevel ||
+                  prev.totalStudyTimeMins !== (fresh.totalStudyTimeMins ?? prev.totalStudyTimeMins ?? 0) ||
+                  prev.streakDays !== (fresh.streakDays ?? prev.streakDays ?? 0) ||
+                  prev.averageGrade !== (fresh.averageGrade ?? prev.averageGrade ?? 0) ||
+                  prev.examsDone !== (fresh.examsDone ?? prev.examsDone ?? 0) ||
+                  prev.examsMissed !== (fresh.examsMissed ?? prev.examsMissed ?? 0) ||
+                  prev.totpSecret !== (fresh.totpSecret ?? null) ||
+                  JSON.stringify(prev.folderAccess) !== JSON.stringify(fresh.folderAccess ?? prev.folderAccess) ||
+                  JSON.stringify(prev.accessibleCourses) !== JSON.stringify(fresh.accessibleCourses ?? prev.accessibleCourses);
+
+                if (!hasChanged) return prev;
+
                 const updated = {
                   ...prev,
                   uid: firebaseUser.uid, // ALWAYS FORCE UID to prevent undefined crashes
@@ -494,17 +513,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Global Online Presence Heartbeat
+  // Global Online Presence Heartbeat - Optimized (throttled to 5 mins, active tabs only)
   useEffect(() => {
     if (!user?.uid) return;
     
-    // Initial ping
-    updateDoc(doc(db, 'users', user.uid), { lastOnlinePing: Date.now() }).catch(() => {});
-    
-    // Ping every 60 seconds
-    const interval = setInterval(() => {
+    const sendPresencePing = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       updateDoc(doc(db, 'users', user.uid), { lastOnlinePing: Date.now() }).catch(() => {});
-    }, 60000);
+    };
+
+    // Initial ping
+    sendPresencePing();
+    
+    // Ping every 5 minutes (reduces Firestore writes by 80%)
+    const interval = setInterval(sendPresencePing, 300000);
     
     return () => clearInterval(interval);
   }, [user?.uid]);

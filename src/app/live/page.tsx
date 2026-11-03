@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc, getDoc } from "firebase/firestore";
+import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume1, Volume2, VolumeX, Maximize, Settings, ShieldAlert } from "lucide-react";
@@ -31,16 +32,17 @@ export default function StudentLivePortal() {
 
   useEffect(() => {
     setDeviceType(detectDeviceType());
-    const unsubPlayer = onSnapshot(doc(db, 'siteConfig', 'playerSettings'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as any;
+    fetchWithCache<any>('siteConfig_playerSettings', CacheDuration.VERY_LONG, async () => {
+      const snap = await getDoc(doc(db, 'siteConfig', 'playerSettings'));
+      return snap.exists() ? snap.data() : null;
+    }).then(data => {
+      if (data) {
         setGlobalPlayerSettings({
           bunny: { ...defaultPlayerSettings.bunny, ...(data.bunny || {}) },
           youtube: { ...defaultPlayerSettings.youtube, ...(data.youtube || {}) },
         });
       }
-    });
-    return () => unsubPlayer();
+    }).catch(() => {});
   }, []);
 
   // Video Player States
@@ -252,8 +254,11 @@ export default function StudentLivePortal() {
     const fetchData = async () => {
       let folderCourseMap = new Map<string, string>();
       try {
-        const foldersSnap: any = await getDocs(collection(db, 'folders'));
-        foldersSnap.forEach((d: any) => folderCourseMap.set(d.id, d.data().courseId));
+        const folderPairs = await fetchWithCache('folders_course_map', CacheDuration.LONG, async () => {
+          const foldersSnap: any = await getDocs(collection(db, 'folders'));
+          return foldersSnap.docs.map((d: any) => ({ id: d.id, courseId: d.data().courseId }));
+        });
+        folderPairs.forEach((d: any) => folderCourseMap.set(d.id, d.courseId));
       } catch (err) {
         console.error("Could not fetch folders. Relying on cached access.", err);
       }

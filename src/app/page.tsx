@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, limit as fsLimit, where, doc, getDoc } from "firebase/firestore";
+import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import { Lock, PlayCircle, Search, Users, MonitorPlay, Award, Code, Globe, TrendingUp, GraduationCap, ArrowRight, BookOpen, Star, X, Mail, Phone, MapPin, Smartphone, Download, Wifi, Battery, Bell, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import PasskeySettings from "@/components/PasskeySettings";
@@ -212,10 +213,11 @@ export default function Home() {
  useEffect(() => {
  const fetchAboutContact = async () => {
  try {
+ const contact = await fetchWithCache('siteConfig_about_contact', CacheDuration.VERY_LONG, async () => {
  const snap = await getDoc(doc(db, "siteConfig", "about"));
- if (snap.exists() && snap.data().contact) {
- setAboutContact(snap.data().contact);
- }
+ return (snap.exists() && snap.data().contact) ? snap.data().contact : null;
+ });
+ if (contact) setAboutContact(contact);
  } catch {}
  };
  fetchAboutContact();
@@ -237,104 +239,111 @@ export default function Home() {
  return () => clearTimeout(timer);
  }, []);
 
- // Fetch real top reviews (4 and 5 star) for the testimonial slider
- useEffect(() => {
- const fetchTopReviews = async () => {
- try {
- // Simple query â€” only filter by rating to avoid needing a composite index
- const q = query(
- collection(db, "reviews"),
- where("rating", ">=", 4),
- fsLimit(30)
- );
- const snap = await getDocs(q);
- // Sort client-side: highest rating first, then newest
- const data = snap.docs
- .map(d => ({ id: d.id, ...d.data() as any }))
- .filter((r: any) => r.rating >= 4)
- .sort((a: any, b: any) => b.rating - a.rating || (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
- const finalReviews = data.length > 0 ? data : [
- { id: "1", userName: "Kavindu P.", rating: 5, comment: "Brilliant Academy changed how I study. The video lessons and downloadable revision notes are unmatched!" },
- { id: "2", userName: "Ayesha F.", rating: 5, comment: "Best LMS app experience! Zero lag during live classes and the doubt clarification sessions are fantastic." },
- { id: "3", userName: "Nisal M.", rating: 5, comment: "Scored an A for Physics thanks to the structured papers and instant feedback system." },
- { id: "4", userName: "Dinithi S.", rating: 5, comment: "The mobile app makes revising on the go so effortless. Highly recommended for 2026 A/L students!" }
- ];
- setTopReviews(finalReviews);
- } catch {
- setTopReviews([
- { id: "1", userName: "Kavindu P.", rating: 5, comment: "Brilliant Academy changed how I study. The video lessons and downloadable revision notes are unmatched!" },
- { id: "2", userName: "Ayesha F.", rating: 5, comment: "Best LMS app experience! Zero lag during live classes and the doubt clarification sessions are fantastic." }
- ]);
- }
- };
- fetchTopReviews();
- }, []);
+ // Fetch real top reviews (4 and 5 star) for the testimonial slider with 30-min cache
+  useEffect(() => {
+    const fetchTopReviews = async () => {
+      try {
+        const finalReviews = await fetchWithCache('homepage_top_reviews', CacheDuration.LONG, async () => {
+          const q = query(
+            collection(db, "reviews"),
+            where("rating", ">=", 4),
+            fsLimit(30)
+          );
+          const snap = await getDocs(q);
+          const data = snap.docs
+            .map(d => ({ id: d.id, ...d.data() as any }))
+            .filter((r: any) => r.rating >= 4)
+            .sort((a: any, b: any) => b.rating - a.rating || (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          return data.length > 0 ? data : [
+            { id: "1", userName: "Kavindu P.", rating: 5, comment: "Brilliant Academy changed how I study. The video lessons and downloadable revision notes are unmatched!" },
+            { id: "2", userName: "Ayesha F.", rating: 5, comment: "Best LMS app experience! Zero lag during live classes and the doubt clarification sessions are fantastic." },
+            { id: "3", userName: "Nisal M.", rating: 5, comment: "Scored an A for Physics thanks to the structured papers and instant feedback system." },
+            { id: "4", userName: "Dinithi S.", rating: 5, comment: "The mobile app makes revising on the go so effortless. Highly recommended for 2026 A/L students!" }
+          ];
+        });
+        setTopReviews(finalReviews);
+      } catch {
+        setTopReviews([
+          { id: "1", userName: "Kavindu P.", rating: 5, comment: "Brilliant Academy changed how I study. The video lessons and downloadable revision notes are unmatched!" },
+          { id: "2", userName: "Ayesha F.", rating: 5, comment: "Best LMS app experience! Zero lag during live classes and the doubt clarification sessions are fantastic." }
+        ]);
+      }
+    };
+    fetchTopReviews();
+  }, []);
 
- useEffect(() => {
- const fetchData = async () => {
- try {
- const snap = await getDocs(query(collection(db, "courses")));
- let coursesData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const cacheKey = `homepage_catalog_${user?.graduationYear || 'all'}`;
+        const data = await fetchWithCache(cacheKey, CacheDuration.LONG, async () => {
+          const snap = await getDocs(query(collection(db, "courses")));
+          let coursesData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
- // Filter based on user batch
- if (user && user.role === 'student') {
- const batchesSnap = await getDocs(collection(db, "batches"));
- const batchesMap: Record<string, string> = {};
- batchesSnap.forEach(doc => {
- batchesMap[doc.id] = doc.data().year;
- });
+          // Filter based on user batch
+          if (user && user.role === 'student') {
+            const batchesSnap = await getDocs(collection(db, "batches"));
+            const batchesMap: Record<string, string> = {};
+            batchesSnap.forEach(doc => {
+              batchesMap[doc.id] = doc.data().year;
+            });
 
- coursesData = coursesData.filter(c => {
- if (c.batchId === 'all') return true;
- return batchesMap[c.batchId] === user.graduationYear;
- });
- }
- if (coursesData.length === 0) {
- coursesData = [
- {
- id: "physics-2026",
- name: "Advanced Level Physics 2026",
- description: "Master Mechanics, Waves, Electricity & Modern Physics with comprehensive problem solving.",
- image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800",
- },
- {
- id: "maths-2026",
- name: "Combined Mathematics Masterclass",
- description: "Pure Mathematics, Calculus, Trigonometry & Applied Statistics with structured model papers.",
- image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800",
- },
- {
- id: "chemistry-2026",
- name: "Organic & Physical Chemistry Revision",
- description: "Complete reaction mechanisms, chemical calculations, and exam-focused short notes.",
- image: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&q=80&w=800",
- },
- {
- id: "ict-science-2026",
- name: "Information & Communication Technology",
- description: "Python programming, Database Systems, Networking, and IoT practical projects.",
- image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800",
- }
- ];
- }
- setCourses(coursesData.slice(0, 8));
+            coursesData = coursesData.filter(c => {
+              if (c.batchId === 'all') return true;
+              return batchesMap[c.batchId] === user.graduationYear;
+            });
+          }
+          if (coursesData.length === 0) {
+            coursesData = [
+              {
+                id: "physics-2026",
+                name: "Advanced Level Physics 2026",
+                description: "Master Mechanics, Waves, Electricity & Modern Physics with comprehensive problem solving.",
+                image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&q=80&w=800",
+              },
+              {
+                id: "maths-2026",
+                name: "Combined Mathematics Masterclass",
+                description: "Pure Mathematics, Calculus, Trigonometry & Applied Statistics with structured model papers.",
+                image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=800",
+              },
+              {
+                id: "chemistry-2026",
+                name: "Organic & Physical Chemistry Revision",
+                description: "Complete reaction mechanisms, chemical calculations, and exam-focused short notes.",
+                image: "https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&q=80&w=800",
+              },
+              {
+                id: "ict-science-2026",
+                name: "Information & Communication Technology",
+                description: "Python programming, Database Systems, Networking, and IoT practical projects.",
+                image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800",
+              }
+            ];
+          }
 
- // Fetch videos for search
- try {
- const videosSnap = await getDocs(query(collection(db, "videos")));
- const videosData = videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
- setAllVideos(videosData);
- } catch {
- // Guest user preview: videos query requires authentication
- }
- } catch (e) {
- setCourses(FALLBACK_COURSES);
- }
- };
- fetchData();
- }, [user]);
+          let videosData: any[] = [];
+          try {
+            const videosSnap = await getDocs(query(collection(db, "videos")));
+            videosData = videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+          } catch {}
 
- // Search handler
+          return {
+            courses: coursesData.slice(0, 8),
+            videos: videosData,
+          };
+        });
+
+        setCourses(data.courses);
+        setAllVideos(data.videos);
+      } catch (e) {
+        setCourses(FALLBACK_COURSES);
+      }
+    };
+    fetchData();
+  }, [user]);
+
+  // Search handler
  const handleSearch = (q: string) => {
  setSearchQuery(q);
  if (!q.trim()) { setSearchResults([]); setShowSearch(false); return; }
