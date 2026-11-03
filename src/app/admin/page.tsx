@@ -2144,8 +2144,8 @@ export default function AdminDashboard() {
   const nowMs = Date.now();
   const approvedStudents = allStudents.filter(s => s.isApproved);
   
-  // Active on website in last 10 minutes (aligned with 5-min ping window)
-  const liveStudyingStudents = approvedStudents.filter(s => s.lastOnlinePing && (nowMs - s.lastOnlinePing) < 600000);
+  // Active on website in last 40 minutes (aligned with 30-min heartbeat window)
+  const liveStudyingStudents = approvedStudents.filter(s => s.lastOnlinePing && (nowMs - s.lastOnlinePing) < 2400000);
   const liveStudyingCount = liveStudyingStudents.length;
   
   const studiedTodayStudents = approvedStudents.filter(s => s.lastStudyDate === todayStr);

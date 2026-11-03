@@ -486,7 +486,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     });
 
     const prevSaved = lastSavedProgressRef.current[videoId] || 0;
-    if (Math.abs(finalPct - prevSaved) >= 2 || finalPct === 100 || (prevSaved === 100 && clean < 98)) {
+    if (Math.abs(finalPct - prevSaved) >= 5 || finalPct === 100 || (prevSaved === 100 && clean < 98)) {
       lastSavedProgressRef.current[videoId] = finalPct;
       updateVideoProgress?.(videoId, finalPct);
     }
@@ -1223,18 +1223,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       }
     }, 60000);
 
-    // Presence pinger (runs every 5 minutes to vastly reduce Firebase write costs)
-    const presenceTimer = setInterval(() => {
-      const currentVideo = activeVideoRef.current;
-      if (!currentVideo) return;
-      
-      const presenceRef = doc(db, 'presence', `${currentVideo.id}_${user.uid}`);
-      setDoc(presenceRef, { videoId: currentVideo.id, userId: user.uid, lastActive: Date.now() }, { merge: true }).catch(() => {});
-    }, 300000);
-
     return () => {
       clearInterval(studyTimer);
-      clearInterval(presenceTimer);
     };
   }, [user?.uid]); // Removed activeVideo and playing from deps so interval never resets!
 
@@ -1246,7 +1236,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   }, [playing, activeVideo?.id, user?.uid]);
 
-  // Viewers count with SWR caching (queries every 3 mins, eliminates N^2 onSnapshot multiplier)
+  // Viewers count with SWR caching (loads once on video change, 0 periodic polling reads)
   useEffect(() => {
     if (!activeVideo?.id) return;
     let isMounted = true;
@@ -1255,7 +1245,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       try {
         const count = await fetchWithCache(
           `viewers_${activeVideo.id}`,
-          CacheDuration.SHORT, // 3 minutes TTL
+          CacheDuration.LONG, // 30 minutes TTL
           async () => {
             const qPresence = query(collection(db, 'presence'), where('videoId', '==', activeVideo.id));
             const countSnap = await getCountFromServer(qPresence).catch(async () => {
@@ -1274,11 +1264,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     };
 
     fetchViewers();
-    const interval = setInterval(fetchViewers, 180000); // 3 minutes interval
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, [activeVideo?.id]);
 
