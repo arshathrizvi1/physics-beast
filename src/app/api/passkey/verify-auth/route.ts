@@ -2,94 +2,100 @@ import { NextResponse } from 'next/server';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { rpID, origin } from '@/lib/passkey-config';
+import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
-  try {
-    const { response, challengeId } = await req.json();
+export const POST = withZeroTrustGate(
+  {
+    scope: 'passkey_verify_auth',
+    limit: 20,
+    windowMs: 60 * 1000,
+  },
+  async (req, ctx) => {
+    try {
+      const parsed = await parseAndVerifyJsonBody<{ response?: any; challengeId?: string }>(req, ctx);
+      if (!parsed.ok) return parsed.response;
 
-    if (!response || !challengeId) {
-      return NextResponse.json({ error: 'Missing response or challengeId' }, { status: 400 });
-    }
+      const { response, challengeId } = parsed.body;
 
-    // Retrieve the expected challenge
-    const challengeDoc = await adminDb.collection('authChallenges').doc(challengeId).get();
-    if (!challengeDoc.exists) {
-      return NextResponse.json({ error: 'Challenge not found or expired' }, { status: 404 });
-    }
+      if (!response || !challengeId) {
+        return NextResponse.json({ error: 'Missing response or challengeId' }, { status: 400 });
+      }
 
-    const expectedChallenge = challengeDoc.data()?.challenge;
-    
-    // The userHandle is the uid we encoded during registration
-    const uidBytes = response.response.userHandle;
-    if (!uidBytes) {
-      return NextResponse.json({ error: 'No userHandle provided by authenticator' }, { status: 400 });
-    }
-    
-    // Decode base64url userHandle to get uid
-    const uid = Buffer.from(uidBytes, 'base64url').toString('utf8');
+      // Retrieve the expected challenge
+      const challengeDoc = await adminDb.collection('authChallenges').doc(challengeId).get();
+      if (!challengeDoc.exists) {
+        return NextResponse.json({ error: 'Challenge not found or expired' }, { status: 404 });
+      }
 
-    // Retrieve the user's credential from Firestore
-    const credentialIDStr = response.id;
-    const credentialDoc = await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).get();
-    
-    if (!credentialDoc.exists) {
-      return NextResponse.json({ error: 'Credential not found for this user' }, { status: 404 });
-    }
+      const expectedChallenge = challengeDoc.data()?.challenge;
 
-    const credentialData = credentialDoc.data()!;
-    const credentialPublicKey = new Uint8Array(Buffer.from(credentialData.credentialPublicKey, 'base64'));
+      // The userHandle is the uid we encoded during registration
+      const uidBytes = response.response?.userHandle;
+      if (!uidBytes) {
+        return NextResponse.json({ error: 'No userHandle provided by authenticator' }, { status: 400 });
+      }
 
-    const expectedOrigins = [
-      'android:apk-key-hash:LVpJceSiciBSkcTsTyhTX8Z_1WFOBs5YhWg2fmL0ZsQ',
-      ...origin,
-      // The base64url encoded sha256 fingerprint (what Android actually sends!)
-              // The NEW Android APK Key Hash (Base64Url)
+      // Decode base64url userHandle to get uid
+      const uid = Buffer.from(uidBytes, 'base64url').toString('utf8');
+
+      // Retrieve the user's credential from Firestore
+      const credentialIDStr = response.id;
+      const credentialDoc = await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).get();
+
+      if (!credentialDoc.exists) {
+        return NextResponse.json({ error: 'Credential not found for this user' }, { status: 404 });
+      }
+
+      const credentialData = credentialDoc.data()!;
+      const credentialPublicKey = new Uint8Array(Buffer.from(credentialData.credentialPublicKey, 'base64'));
+
+      const expectedOrigins = [
+        'android:apk-key-hash:LVpJceSiciBSkcTsTyhTX8Z_1WFOBs5YhWg2fmL0ZsQ',
+        ...origin,
         'android:apk-key-hash:f7b9eTX3IGGpLqlBHINGPYd1uGlmxRJUH_mUUZWejYA',
         'android:apk-key-hash:BUAmTVxIv5_l8b-kstpHWDPDCx-X8VT-wmGqfvGUJDQ',
-        // The NEW Android APK Key Hash (Raw Hex Uppercase)
         'android:apk-key-hash:7FB6FD7935F72061A92EA9411E53463D8775B86226C512541FF99451959E2660',
-        // The NEW Android APK Key Hash (Raw Hex Lowercase)
         'android:apk-key-hash:7fb6fd7935f72061a92ea9411e53463d8775b86226c512541ff99451959e2660',
         'android:apk-key-hash:7viLPxh4pyDq9NQNu0OnVxepwqqGvBsWp6n6adCA0_I',
-      // The exact lowercased sha256 fingerprint WITHOUT colons (fallback)
-      'android:apk-key-hash:eef88b3f1878a720eaf4d40dbb43a75717a9c2aa86bc1b16a7a9fa69d080d3f2',
-      'android:apk-key-hash:EEF88B3F1878A720EAF4D40DBB43A75717A9C2AA86BC1B16A7A9FA69D080D3F2'
-    ];
+        'android:apk-key-hash:eef88b3f1878a720eaf4d40dbb43a75717a9c2aa86bc1b16a7a9fa69d080d3f2',
+        'android:apk-key-hash:EEF88B3F1878A720EAF4D40DBB43A75717A9C2AA86BC1B16A7A9FA69D080D3F2',
+      ];
 
-    const verification = await verifyAuthenticationResponse({
-      response,
-      expectedChallenge,
-      expectedOrigin: expectedOrigins,
-      expectedRPID: rpID,
-      credential: {
-        id: credentialIDStr,
-        publicKey: credentialPublicKey,
-        counter: credentialData.counter,
-        transports: credentialData.transports,
-      },
-    });
-
-    if (verification.verified && verification.authenticationInfo) {
-      // Update counter
-      await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).update({
-        counter: verification.authenticationInfo.newCounter,
+      const verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge,
+        expectedOrigin: expectedOrigins,
+        expectedRPID: rpID,
+        credential: {
+          id: credentialIDStr,
+          publicKey: credentialPublicKey,
+          counter: credentialData.counter,
+          transports: credentialData.transports,
+        },
       });
 
-      // Clear the used challenge
-      await challengeDoc.ref.delete();
+      if (verification.verified && verification.authenticationInfo) {
+        // Update counter
+        await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).update({
+          counter: verification.authenticationInfo.newCounter,
+        });
 
-      // Mint a custom Firebase token for login
-      const customToken = await adminAuth.createCustomToken(uid);
+        // Clear the used challenge
+        await challengeDoc.ref.delete();
 
-      return NextResponse.json({ verified: true, customToken });
+        // Mint a custom Firebase token for login
+        const customToken = await adminAuth.createCustomToken(uid);
+
+        return NextResponse.json({ verified: true, customToken });
+      }
+
+      return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400 });
+    } catch (error: any) {
+      console.error('Error verifying auth:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    return NextResponse.json({ verified: false, error: 'Verification failed' }, { status: 400 });
-  } catch (error: any) {
-    console.error('Error verifying auth:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-}
+);

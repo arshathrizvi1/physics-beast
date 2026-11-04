@@ -3,27 +3,35 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { rpID } from '@/lib/passkey-config';
 import crypto from 'crypto';
+import { withZeroTrustGate } from '@/security/zero-trust-gate';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
-  try {
-    const options = await generateAuthenticationOptions({
-      rpID,
-      userVerification: 'preferred',
-    });
+export const POST = withZeroTrustGate(
+  {
+    scope: 'passkey_generate_auth_options',
+    limit: 30,
+    windowMs: 60 * 1000,
+  },
+  async () => {
+    try {
+      const options = await generateAuthenticationOptions({
+        rpID,
+        userVerification: 'preferred',
+      });
 
-    // Store the challenge temporarily with a 5-minute expiration
-    const challengeId = crypto.randomBytes(32).toString('hex');
-    await adminDb.collection('authChallenges').doc(challengeId).set({
-      challenge: options.challenge,
-      createdAt: new Date().getTime(),
-    });
+      // Store the challenge temporarily with a 5-minute expiration
+      const challengeId = crypto.randomBytes(32).toString('hex');
+      await adminDb.collection('authChallenges').doc(challengeId).set({
+        challenge: options.challenge,
+        createdAt: Date.now(),
+      });
 
-    return NextResponse.json({ options, challengeId });
-  } catch (error: any) {
-    console.error('Error generating auth options:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ options, challengeId });
+    } catch (error: any) {
+      console.error('Error generating auth options:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
-}
+);

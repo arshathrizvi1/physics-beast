@@ -13,7 +13,13 @@ export async function GET(
 ) {
   try {
     const { key, file } = await context.params;
+    if (!key || !/^[a-zA-Z0-9_-]+$/.test(key)) {
+      return new NextResponse('Bad Request: Invalid stream key', { status: 400 });
+    }
     const filePath = file && file.length > 0 ? file.join('/') : 'index.m3u8';
+    if (!filePath || filePath.includes('..') || filePath.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(filePath)) {
+      return new NextResponse('Bad Request: Invalid segment file path', { status: 400 });
+    }
 
     const host = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
     const port = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';

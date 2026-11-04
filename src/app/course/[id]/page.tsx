@@ -108,6 +108,22 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [quality, setQuality] = useState('Auto');
   const [isAdjustingQuality, setIsAdjustingQuality] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
+
+  // Dynamic resolution of next video in syllabus for seamless transition
+  const nextVideo = useMemo(() => {
+    if (!activeVideo || !videos || videos.length === 0) return null;
+    const currentIndex = videos.findIndex((v: any) => v.id === activeVideo.id);
+    if (currentIndex >= 0 && currentIndex < videos.length - 1) {
+      return videos[currentIndex + 1];
+    }
+    return null;
+  }, [activeVideo, videos]);
+
+  useEffect(() => {
+    setHasEnded(false);
+    setIsAdjustingQuality(false);
+  }, [activeVideo?.id]);
   // Intercept and sanitize clipboard & window.open to block external YouTube leaks
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1820,17 +1836,18 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             </>
                           )}
 
-                          {/* Top-Right Settings Trigger: auto-activates quality adjustment mode ONLY when tapping Gear (0 to 48px from right) */}
+                          {/* Top-Right Settings Trigger: auto-activates quality adjustment mode ONLY when tapping Gear (0 to 42px from right) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && !isAdjustingQuality && (
                             <div 
-                              className="absolute top-0 right-0 w-12 sm:w-14 h-14 sm:h-16 z-20 pointer-events-auto cursor-pointer"
+                              className="absolute top-0 right-0 w-10 sm:w-11 h-12 sm:h-14 z-30 pointer-events-auto cursor-pointer"
                               style={{ backgroundColor: 'transparent' }}
+                              title="Open Quality Settings"
                               onPointerDown={() => {
                                 setIsAdjustingQuality(true);
                                 if (qualityAdjustTimerRef.current) clearTimeout(qualityAdjustTimerRef.current);
                                 qualityAdjustTimerRef.current = setTimeout(() => {
                                   setIsAdjustingQuality(false);
-                                }, 60000);
+                                }, 45000);
                               }}
                             />
                           )}
@@ -1838,19 +1855,28 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           {/* Permanent Anti-Clickout Top Shield: Blocks Title, Avatar, Channel & CC Captions while leaving only Top-Right Gear accessible */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className="absolute top-0 left-0 right-12 sm:right-14 h-14 sm:h-16 z-30 select-none bg-transparent cursor-pointer" 
+                              className={`absolute top-0 left-0 right-10 sm:right-11 h-14 sm:h-16 select-none bg-transparent ${isAdjustingQuality ? 'z-50 cursor-default' : 'z-30 cursor-pointer'}`}
                               style={{ touchAction: "none" }} 
-                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
-                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); togglePlayPause(); }} 
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                e.stopPropagation(); 
+                                if (!isAdjustingQuality) togglePlayPause(); 
+                              }} 
+                              onTouchStart={(e) => { 
+                                e.preventDefault(); 
+                                e.stopPropagation(); 
+                                if (!isAdjustingQuality) togglePlayPause(); 
+                              }} 
                               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
 
-                          {/* Targeted Anti-Clickout Shield: Makes 'Captions' and '... More options' UNTOUCHABLE in Settings Popup while keeping 'Quality' and 'Speed' fully clickable */}
+                          {/* Targeted Anti-Clickout Shield: Makes 'Captions' (CC) and '... More options' UNTOUCHABLE in Settings Popup across ALL screen sizes while keeping 'Quality' and 'Speed' fully clickable */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
                             <div
-                              className="absolute bottom-10 sm:bottom-12 left-0 sm:left-14 w-full sm:max-w-md h-24 sm:h-28 z-40 bg-transparent pointer-events-auto cursor-default select-none"
+                              className="absolute bottom-11 sm:bottom-12 left-0 right-0 h-24 sm:h-28 z-40 bg-transparent pointer-events-auto cursor-default select-none"
                               style={{ touchAction: 'none' }}
+                              title="Protected by Brilliant Academy"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1901,6 +1927,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                       onPause={() => setPlaying(false)}
                       onEnded={() => {
                         setPlaying(false);
+                        setHasEnded(true);
+                        setIsAdjustingQuality(false);
                         if (activeVideo?.id) {
                           recordProgress(activeVideo.id, 100);
                         }
@@ -2082,9 +2110,9 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                 )}
 
                 {/* Big Center Play Button Overlay when !playing */}
-                {!playing && !isAdjustingQuality && (
+                {!playing && !isAdjustingQuality && !hasEnded && (
                   <div 
-                    className="absolute inset-0 z-20 flex items-center justify-center pointer-events-auto cursor-pointer"
+                    className="absolute inset-0 z-20 flex items-center justify-center pointer-events-auto cursor-pointer bg-black/40 backdrop-blur-[2px] transition-all"
                     onClick={(e) => {
                       e.stopPropagation();
                       togglePlayPause();
@@ -2092,6 +2120,50 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                   >
                     <div className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center pl-2 shadow-2xl drop-shadow-2xl hover:scale-105 active:scale-95 transition-all">
                       <Play className="w-10 h-10 fill-current" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Branded Lecture Completed Overlay - Completely shields YouTube end-screen recommendations */}
+                {hasEnded && (
+                  <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none animate-in fade-in duration-200">
+                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4 ring-8 ring-primary/10">
+                      <CheckCircle2 className="w-8 h-8 text-primary animate-pulse" />
+                    </div>
+                    <span className="text-xs font-semibold text-primary tracking-widest uppercase mb-1">
+                      Lesson Completed 🎉
+                    </span>
+                    <h3 className="text-lg md:text-xl font-bold text-white max-w-md line-clamp-2 mb-6">
+                      {activeVideo?.title || 'Lesson Completed'}
+                    </h3>
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasEnded(false);
+                          playedSecondsRef.current = 0;
+                          playerRef.current?.seekTo(0, 'seconds');
+                          setPlaying(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-xl shadow-lg shadow-primary/25 transition-all cursor-pointer"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Replay Lesson</span>
+                      </button>
+                      {nextVideo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHasEnded(false);
+                            setActiveVideo(nextVideo);
+                            setPlaying(true);
+                          }}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold rounded-xl border border-zinc-700 transition-all cursor-pointer"
+                        >
+                          <span>Next Lesson</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

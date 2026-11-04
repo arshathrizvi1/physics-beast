@@ -45,19 +45,20 @@ export async function GET(
     }
 
     const filePath = path && path.length > 0 ? path.join('/') : '';
-    if (!filePath || filePath.includes('..')) {
+    if (!filePath || filePath.includes('..') || filePath.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(filePath)) {
       return new NextResponse('Bad Request: Invalid file path', { status: 400 });
     }
 
     const hostParam = request.nextUrl.searchParams.get('host');
     let r2PublicBase = (process.env.R2_PUBLIC_URL || DEFAULT_R2_BASE).replace(/\/$/, '');
 
-    if (
-      hostParam &&
-      (hostParam.includes('.r2.dev') || hostParam.includes('.cloudflarestorage.com'))
-    ) {
-      const cleanHost = hostParam.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      r2PublicBase = `https://${cleanHost}`;
+    if (hostParam) {
+      const cleanHost = hostParam.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim().toLowerCase();
+      // Strict SSRF validation: only valid Cloudflare R2 subdomains permitted
+      const isValidR2Host = /^[a-zA-Z0-9_-]+\.r2\.dev$/.test(cleanHost) || /^[a-zA-Z0-9._-]+\.cloudflarestorage\.com$/.test(cleanHost);
+      if (isValidR2Host && !cleanHost.includes('..')) {
+        r2PublicBase = `https://${cleanHost}`;
+      }
     }
 
     let upstreamRes = await fetch(`${r2PublicBase}/${filePath}`, {

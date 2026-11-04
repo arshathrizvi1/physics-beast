@@ -949,6 +949,18 @@ export default {
         return new Response(JSON.stringify({ error: 'DB not configured' }), { status: 500 });
       }
 
+      // Enforce Admin Authentication
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+      const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site'];
+      if (!caller || !caller.email || !adminEmails.includes(caller.email.toLowerCase())) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin privileges required.' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+        });
+      }
+
       const logs = await env.DB.prepare(
         `SELECT * FROM audit_ledger ORDER BY created_at DESC LIMIT 50`
       ).all();
@@ -960,6 +972,16 @@ export default {
 
     // 9. Security Alert Test Endpoint (/api/security/test-alert)
     if (url.pathname === '/api/security/test-alert') {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+      const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site'];
+      if (!caller || !caller.email || !adminEmails.includes(caller.email.toLowerCase())) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin privileges required.' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+        });
+      }
       const testIncident = {
         type: 'TEST_INTRUSION_SIMULATION',
         detail: 'User initiated security alert test verification',
@@ -1007,9 +1029,38 @@ export default {
 
       const key = decodeURIComponent(url.pathname.replace('/api/r2-media/', ''));
 
-      // Direct R2 Streaming PUT Upload
+      // Validate storage key integrity against path traversal and dangerous extensions
+      if (!key || key.includes('..') || key.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(key)) {
+        return new Response('Bad Request: Invalid storage key path', { status: 400 });
+      }
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.endsWith('.html') || lowerKey.endsWith('.htm') || lowerKey.endsWith('.svg') || lowerKey.endsWith('.exe') || lowerKey.endsWith('.sh') || lowerKey.endsWith('.php')) {
+        return new Response('Forbidden: Script or executable uploads prohibited', { status: 403 });
+      }
+
+      // Direct R2 Streaming PUT Upload - Authenticated Admin/Teacher or Internal Service Only
       if (request.method === 'PUT') {
-        const contentType = request.headers.get('content-type') || (key.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+        const workerSecret = env.RTMP_CALLBACK_SECRET || 'ba_secure_hls_stream_key_2026';
+        const internalAuth = request.headers.get('x-worker-auth') || '';
+        const authHeader = request.headers.get('Authorization') || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+        let isAuthorized = internalAuth === workerSecret;
+        if (!isAuthorized && token) {
+          const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+          if (caller && (caller.role === 'admin' || caller.role === 'teacher' || (caller.email && caller.email.toLowerCase() === ALERT_EMAIL))) {
+            isAuthorized = true;
+          }
+        }
+
+        if (!isAuthorized) {
+          return new Response(JSON.stringify({ error: 'Unauthorized: File uploads require admin or internal service authorization.' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+          });
+        }
+
+        const contentType = request.headers.get('content-type') || (lowerKey.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
         await env.MEDIA.put(key, request.body, {
           httpMetadata: {
             contentType: contentType,
@@ -1063,10 +1114,48 @@ export default {
       });
     }
 
-    // 10b. PDF Proxy for external/legacy CDN files (e.g. Bunny CDN) to eliminate CORS errors
+    // 10b. PDF Proxy for external/legacy CDN files with Strict SSRF Defense
     if (url.pathname === '/api/pdf-proxy') {
       const targetUrl = url.searchParams.get('url');
       if (!targetUrl) return new Response('Missing url parameter', { status: 400 });
+
+      let parsedTarget;
+      try {
+        parsedTarget = new URL(targetUrl);
+      } catch {
+        return new Response('Invalid target URL', { status: 400 });
+      }
+
+      if (parsedTarget.protocol !== 'https:') {
+        return new Response('Only secure HTTPS resources are allowed', { status: 403 });
+      }
+
+      const host = parsedTarget.hostname.toLowerCase();
+      const isAllowedHost =
+        host === 'brillliantacademy.site' ||
+        host === 'www.brillliantacademy.site' ||
+        host === 'brilliantacademy.site' ||
+        host === 'www.brilliantacademy.site' ||
+        host === 'firebasestorage.googleapis.com' ||
+        (host.endsWith('.r2.dev') && !host.includes('..')) ||
+        (host.endsWith('.cloudflarestorage.com') && !host.includes('..')) ||
+        (host.endsWith('.b-cdn.net') && !host.includes('..'));
+
+      const isPrivateHost =
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0' ||
+        host === '::1' ||
+        host === '169.254.169.254' ||
+        host.startsWith('10.') ||
+        host.startsWith('192.168.') ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+        host.endsWith('.internal') ||
+        host.endsWith('.local');
+
+      if (!isAllowedHost || isPrivateHost) {
+        return new Response('Access Denied: Target host is not permitted by proxy policy.', { status: 403 });
+      }
 
       try {
         const upstreamRes = await fetch(targetUrl, {
