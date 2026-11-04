@@ -393,6 +393,110 @@ async function dispatchSecurityAlertEmail({ env, incident }) {
   }
 }
 
+// ============================================================================
+// FIREBASE ID TOKEN CRYPTOGRAPHIC AUTHENTICATOR (Web Crypto RS256 + Google JWKS)
+// Zero-latency verification for Cloudflare Edge Workers
+// ============================================================================
+
+let cachedGoogleJwks = null;
+let cachedJwksExpiry = 0;
+
+async function getGoogleJwks() {
+  const now = Date.now();
+  if (cachedGoogleJwks && now < cachedJwksExpiry) {
+    return cachedGoogleJwks;
+  }
+  try {
+    const res = await fetch(
+      'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com',
+      { cf: { cacheTtl: 3600, cacheEverything: true } }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const cc = res.headers.get('cache-control') || '';
+      const match = cc.match(/max-age=(\d+)/);
+      const maxAgeSec = match ? parseInt(match[1], 10) : 3600;
+      cachedGoogleJwks = data;
+      cachedJwksExpiry = now + maxAgeSec * 1000;
+      return cachedGoogleJwks;
+    }
+  } catch (e) {
+    console.error('[Auth] Failed to fetch Google JWKS:', e);
+  }
+  return cachedGoogleJwks;
+}
+
+function base64UrlToUint8Array(str) {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function verifyFirebaseIdToken(token, projectId) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  try {
+    const headerStr = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'));
+    const header = JSON.parse(headerStr);
+    if (header.alg !== 'RS256' || !header.kid) return null;
+
+    const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadStr);
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!payload.exp || payload.exp < nowSec - 120) return null;
+    if (payload.iat && payload.iat > nowSec + 120) return null;
+
+    const targetProject = projectId || 'physics-beastsl';
+    if (payload.aud !== targetProject) return null;
+    if (payload.iss !== ('https://securetoken.google.com/' + targetProject)) return null;
+    if (!payload.sub || typeof payload.sub !== 'string') return null;
+
+    const jwks = await getGoogleJwks();
+    if (!jwks || !Array.isArray(jwks.keys)) return null;
+
+    const keyJwk = jwks.keys.find((k) => k.kid === header.kid);
+    if (!keyJwk) return null;
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      keyJwk,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const encoder = new TextEncoder();
+    const dataBytes = encoder.encode(parts[0] + '.' + parts[1]);
+    const signatureBytes = base64UrlToUint8Array(parts[2]);
+
+    const isValid = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      cryptoKey,
+      signatureBytes,
+      dataBytes
+    );
+
+    if (!isValid) return null;
+
+    return {
+      uid: payload.sub,
+      email: payload.email || '',
+      role: payload.role || 'student',
+    };
+  } catch (err) {
+    console.error('[Auth] Token verification failed:', err);
+    return null;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -700,17 +804,80 @@ export default {
       }
     }
 
-    // 7. Cloudflare D1 Flush-on-Close API (/api/sync-flush)
+    // 7. Authenticated Cloudflare D1 Flush-on-Close API (/api/sync-flush)
+    // Protected with Web Crypto RS256 token authentication, batch cap, and identity binding
     if (url.pathname === '/api/sync-flush' && request.method === 'POST') {
       try {
         const bodyText = await request.text();
-        const payload = JSON.parse(bodyText);
+        let payload = {};
+        try {
+          payload = JSON.parse(bodyText);
+        } catch {
+          return new Response(JSON.stringify({ success: false, error: 'Malformed JSON payload' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+          });
+        }
 
-        if (env.DB && payload.mutations && Array.isArray(payload.mutations)) {
+        // 1. Authenticate Request (Bearer Token in Header or authToken in Body)
+        let token = null;
+        const authHeader = request.headers.get('Authorization') || '';
+        if (authHeader.startsWith('Bearer ')) {
+          token = authHeader.slice(7).trim();
+        }
+        if (!token && payload.authToken) {
+          token = String(payload.authToken).trim();
+        }
+
+        const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+        if (!caller || !caller.uid) {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Unauthorized: Valid Firebase authentication token required for /api/sync-flush' 
+          }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+          });
+        }
+
+        const verifiedUserId = caller.uid;
+
+        // 2. Validate Mutation Array & Prevent Batch Overflow
+        if (!payload.mutations || !Array.isArray(payload.mutations)) {
+          return new Response(JSON.stringify({ success: false, error: 'Invalid payload: mutations array required' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+          });
+        }
+
+        if (payload.mutations.length > 50) {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Batch limit exceeded: Maximum 50 mutations allowed per flush' 
+          }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
+          });
+        }
+
+        if (env.DB) {
           const statements = [];
+          let auditLogsCount = 0;
 
           for (const m of payload.mutations) {
+            if (!m || typeof m !== 'object') continue;
+
             if (m.type === 'video_progress') {
+              if (!m.courseId || !m.lessonId || typeof m.courseId !== 'string' || typeof m.lessonId !== 'string') {
+                continue;
+              }
+
+              // SECURE IDENTITY BINDING:
+              // Force user_id to verifiedUserId (never trust client-supplied userId)
+              const watched = Math.max(0, Math.min(86400, Math.round(Number(m.watchedSeconds) || 0)));
+              const total = Math.max(0, Math.min(86400, Math.round(Number(m.totalSeconds) || 0)));
+              const completed = m.isCompleted ? 1 : (total > 0 && watched >= total * 0.9 ? 1 : 0);
+
               statements.push(
                 env.DB.prepare(
                   `INSERT INTO video_progress (id, user_id, course_id, lesson_id, watched_seconds, total_seconds, is_completed, last_watched_at)
@@ -721,44 +888,57 @@ export default {
                      is_completed = excluded.is_completed,
                      last_watched_at = CURRENT_TIMESTAMP`
                 ).bind(
-                  m.id || crypto.randomUUID(),
-                  m.userId,
-                  m.courseId,
-                  m.lessonId,
-                  m.watchedSeconds || 0,
-                  m.totalSeconds || 0,
-                  m.isCompleted ? 1 : 0
+                  verifiedUserId + '_' + m.lessonId.trim(),
+                  verifiedUserId,
+                  m.courseId.trim(),
+                  m.lessonId.trim(),
+                  watched,
+                  total,
+                  completed
                 )
               );
             } else if (m.type === 'audit_log') {
+              // Rate limit / cap audit log flood attacks (max 5 per flush)
+              if (auditLogsCount >= 5) continue;
+              auditLogsCount++;
+
+              const allowedEventTypes = ['video_pause', 'video_complete', 'video_seek', 'lecture_open', 'user_action'];
+              const eventType = allowedEventTypes.includes(m.eventType) ? m.eventType : 'user_action';
+              const sanitizedDetails = JSON.stringify(m.details || {}).slice(0, 1000);
+
               statements.push(
                 env.DB.prepare(
                   `INSERT INTO audit_ledger (id, event_type, actor_id, ip_address, user_agent, details)
                    VALUES (?, ?, ?, ?, ?, ?)`
                 ).bind(
                   crypto.randomUUID(),
-                  m.eventType || 'user_action',
-                  m.userId || 'anonymous',
+                  eventType,
+                  verifiedUserId,
                   clientIp,
-                  userAgent,
-                  JSON.stringify(m.details || {})
+                  userAgent.slice(0, 255),
+                  sanitizedDetails
                 )
               );
             }
           }
 
-          if (statements.length > 0) {
-            await env.DB.batch(statements);
+          // Execute statements in safe chunks of 50 (Cloudflare D1 batch limit safeguard)
+          const CHUNK_SIZE = 50;
+          for (let i = 0; i < statements.length; i += CHUNK_SIZE) {
+            const chunk = statements.slice(i, i + CHUNK_SIZE);
+            if (chunk.length > 0) {
+              await env.DB.batch(chunk);
+            }
           }
         }
 
-        return new Response(JSON.stringify({ success: true, flushed: true }), {
+        return new Response(JSON.stringify({ success: true, flushed: true, count: payload.mutations.length }), {
           headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
         });
       } catch (err) {
         return new Response(JSON.stringify({ success: false, error: err.message }), {
           status: 500,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
         });
       }
     }

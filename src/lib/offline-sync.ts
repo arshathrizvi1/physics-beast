@@ -3,9 +3,12 @@
 // Architecture:
 //   1. 0ms Synchronous Local Reads from LocalStorage / IndexedDB Cache
 //   2. Write-Behind Mutation Queue (Updates locally instantly, syncs async)
-//   3. Bulletproof Exit Flush: `visibilitychange` + `navigator.sendBeacon`
-//      flushes queued mutations to Cloudflare D1 SQL even if tab is abruptly closed
+//   3. Cryptographically Authenticated Exit Flush: `visibilitychange` + `keepalive fetch`
+//      flushes queued mutations to Cloudflare D1 SQL with verified Firebase Auth ID tokens
 // ============================================================================
+
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export interface PendingMutation {
   id: string;
@@ -28,13 +31,37 @@ class OfflineSyncManager {
   private queue: PendingMutation[] = [];
   private syncTimer: any = null;
   private isSyncing = false;
+  private cachedIdToken: string | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.loadQueueFromDisk();
       this.initExitFlushHandler();
       this.startPeriodicSync();
+
+      try {
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            try {
+              this.cachedIdToken = await user.getIdToken();
+            } catch {}
+          } else {
+            this.cachedIdToken = null;
+          }
+        });
+      } catch {}
     }
+  }
+
+  private async getIdToken(): Promise<string | null> {
+    try {
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        this.cachedIdToken = token;
+        return token;
+      }
+    } catch {}
+    return this.cachedIdToken;
   }
 
   // --- 1. 0ms Synchronous Local Reads ---
@@ -84,7 +111,7 @@ class OfflineSyncManager {
     const progressData = {
       watchedSeconds,
       totalSeconds,
-      isCompleted: isCompleted || watchedSeconds >= totalSeconds * 0.9,
+      isCompleted: isCompleted || (totalSeconds > 0 && watchedSeconds >= totalSeconds * 0.9),
       updatedAt: Date.now(),
     };
 
@@ -158,16 +185,41 @@ class OfflineSyncManager {
     const flush = () => {
       if (this.queue.length === 0) return;
 
-      const payload = JSON.stringify({ mutations: [...this.queue] });
-      const blob = new Blob([payload], { type: 'application/json' });
+      const token = this.cachedIdToken;
+      if (!token) return; // Never send unauthenticated requests
 
-      // Navigator sendBeacon is guaranteed to send even after page teardown
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const sent = navigator.sendBeacon('/api/sync-flush', blob);
-        if (sent) {
-          this.queue = [];
-          this.saveQueueToDisk();
-        }
+      // Enforce batch limit of max 50 items
+      const batch = this.queue.slice(0, 50);
+      const payload = JSON.stringify({ authToken: token, mutations: batch });
+
+      let sent = false;
+      // Modern browsers: fetch with keepalive: true supports Authorization header on page unload
+      if (typeof fetch !== 'undefined') {
+        try {
+          fetch('/api/sync-flush', {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: payload,
+          }).catch(() => {});
+          sent = true;
+        } catch {}
+      }
+
+      // Fallback to sendBeacon with token in payload if fetch keepalive is unavailable
+      if (!sent && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        try {
+          const blob = new Blob([payload], { type: 'application/json' });
+          sent = navigator.sendBeacon('/api/sync-flush', blob);
+        } catch {}
+      }
+
+      if (sent) {
+        this.queue = this.queue.filter((m) => !batch.some((b) => b.id === m.id));
+        this.saveQueueToDisk();
       }
     };
 
@@ -191,16 +243,23 @@ class OfflineSyncManager {
   }
 
   public async syncNow(): Promise<void> {
-    if (this.isSyncing || this.queue.length === 0 || !navigator.onLine) return;
+    if (this.isSyncing || this.queue.length === 0 || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+
+    const token = await this.getIdToken();
+    if (!token) return; // Cannot flush without authenticated student identity
 
     this.isSyncing = true;
-    const batch = [...this.queue];
+    // Enforce maximum batch size of 50 to prevent D1 batch overflow
+    const batch = this.queue.slice(0, 50);
 
     try {
       const res = await fetch('/api/sync-flush', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mutations: batch }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ authToken: token, mutations: batch }),
       });
 
       if (res.ok) {
