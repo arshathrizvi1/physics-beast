@@ -1048,8 +1048,12 @@ export default {
         let isAuthorized = internalAuth === workerSecret;
         if (!isAuthorized && token) {
           const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
-          if (caller && (caller.role === 'admin' || caller.role === 'teacher' || (caller.email && caller.email.toLowerCase() === ALERT_EMAIL))) {
-            isAuthorized = true;
+          if (caller && caller.uid) {
+            const isStaff = caller.role === 'admin' || caller.role === 'teacher' || (caller.email && caller.email.toLowerCase() === ALERT_EMAIL);
+            const isStudentUpload = lowerKey.startsWith('payment-slips/') || lowerKey.startsWith('submissions/') || lowerKey.startsWith('bug-reports/') || lowerKey.startsWith('uploads/');
+            if (isStaff || isStudentUpload) {
+              isAuthorized = true;
+            }
           }
         }
 

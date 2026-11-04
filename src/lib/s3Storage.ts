@@ -1,3 +1,5 @@
+import { auth } from "./firebase";
+
 /**
  * Direct Cloudflare R2 Streaming Uploader.
  * Stores PDFs and resources with zero egress fees and native same-origin CORS.
@@ -13,11 +15,21 @@ export async function uploadToR2(
   
   const uploadUrl = `/api/r2-media/${encodeURIComponent(key)}`;
 
+  let idToken = "";
+  try {
+    if (typeof window !== "undefined" && auth?.currentUser) {
+      idToken = await auth.currentUser.getIdToken();
+    }
+  } catch {}
+
   if (onProgress) {
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl, true);
       xhr.setRequestHeader("Content-Type", file.type || "application/pdf");
+      if (idToken) {
+        xhr.setRequestHeader("Authorization", `Bearer ${idToken}`);
+      }
       if (xhr.upload) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
@@ -34,11 +46,15 @@ export async function uploadToR2(
       xhr.send(file);
     });
   } else {
+    const headers: Record<string, string> = {
+      "Content-Type": file.type || "application/pdf",
+    };
+    if (idToken) {
+      headers["Authorization"] = `Bearer ${idToken}`;
+    }
     const res = await fetch(uploadUrl, {
       method: "PUT",
-      headers: {
-        "Content-Type": file.type || "application/pdf",
-      },
+      headers,
       body: file,
     });
     if (!res.ok) {
@@ -69,9 +85,21 @@ export async function uploadToS3(
 
   const apiUrl = forceBunny ? "/api/bunny/s3-upload" : "/api/s3/upload";
   
+  let idToken = "";
+  try {
+    if (typeof window !== "undefined" && auth?.currentUser) {
+      idToken = await auth.currentUser.getIdToken();
+    }
+  } catch {}
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (idToken) {
+    headers["Authorization"] = `Bearer ${idToken}`;
+  }
+
   const res = await fetch(apiUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       filename: file.name,
       contentType: file.type || "application/octet-stream",

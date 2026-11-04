@@ -23,6 +23,7 @@ export const POST = withZeroTrustGate(
     scope: 'bunny_s3_presigned_upload',
     limit: 25,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (req, ctx) => {
     const parsed = await parseAndVerifyJsonBody(req, ctx);
