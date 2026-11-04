@@ -54,9 +54,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           `exam_results_page_${id}_${user.uid}`,
           CacheDuration.SHORT, // 3 minutes TTL
           async () => {
-            const [examDoc, snapAll] = await Promise.all([
+            const isStaff = user.role === 'admin' || user.role === 'teacher';
+            const [examDoc, mySnap, snapAll] = await Promise.all([
               getDoc(doc(db, 'exams', id)),
-              getDocs(query(collection(db, 'examResults'), where('examId', '==', id)))
+              getDocs(query(collection(db, 'examResults'), where('examId', '==', id), where('userId', '==', user.uid))),
+              isStaff ? getDocs(query(collection(db, 'examResults'), where('examId', '==', id))) : Promise.resolve(null),
             ]);
 
             if (!examDoc.exists()) {
@@ -67,13 +69,19 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
             const results: any[] = [];
             let myRes = null;
 
-            snapAll.forEach(d => {
-              const data = d.data();
-              results.push({ id: d.id, ...data });
-              if (data.userId === user.uid) {
-                myRes = { id: d.id, ...data };
-              }
-            });
+            if (mySnap && !mySnap.empty) {
+              const myDoc = mySnap.docs[0];
+              myRes = { id: myDoc.id, ...myDoc.data() };
+            }
+
+            if (snapAll) {
+              snapAll.forEach((d) => {
+                const data = d.data();
+                results.push({ id: d.id, ...data });
+              });
+            } else if (myRes) {
+              results.push(myRes);
+            }
 
             // Sort by score or rawScore descending, then timeTakenSeconds ascending
             results.sort((a, b) => {

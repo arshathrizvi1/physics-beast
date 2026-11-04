@@ -54,7 +54,7 @@ export const POST = withZeroTrustGate(
             title,
             metadata,
             webhookUrl: 'https://brillliantacademy.site/api/bunny/aws-webhook',
-            callbackSecret: process.env.RTMP_CALLBACK_SECRET || 'ba_secure_hls_stream_key_2026',
+            callbackSecret: process.env.RTMP_CALLBACK_SECRET || '',
           },
         }),
       });

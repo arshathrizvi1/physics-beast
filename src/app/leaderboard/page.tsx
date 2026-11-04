@@ -34,28 +34,10 @@ export default function LeaderboardPage() {
         setLoading(true);
         setDbError(false);
         
-        // Multi-tier cache (10 mins TTL) - slashes 90%+ Firestore reads for leaderboard
-        const bundle = await fetchWithCache(
-          'leaderboard_dataset',
-          CacheDuration.MEDIUM,
-          async () => {
-            const [usersSnap, resultsSnap, examsSnap, subjectsSnap, batchesSnap] = await Promise.all([
-              getDocs(query(collection(db, 'users'), where('role', '==', 'student'))),
-              getDocs(collection(db, 'examResults')),
-              getDocs(collection(db, 'exams')),
-              getDocs(collection(db, 'subjects')),
-              getDocs(collection(db, 'batches'))
-            ]);
-
-            return {
-              users: usersSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
-              examResults: resultsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
-              allExams: examsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
-              subjects: subjectsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
-              batches: batchesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
-            };
-          }
-        );
+        // Secure zero-trust aggregation API with PII stripping & edge caching
+        const res = await fetch('/api/leaderboard');
+        if (!res.ok) throw new Error('Failed to fetch leaderboard dataset');
+        const bundle = await res.json();
 
         if (!isMounted) return;
 

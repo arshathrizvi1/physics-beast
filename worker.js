@@ -1040,12 +1040,12 @@ export default {
 
       // Direct R2 Streaming PUT Upload - Authenticated Admin/Teacher or Internal Service Only
       if (request.method === 'PUT') {
-        const workerSecret = env.RTMP_CALLBACK_SECRET || 'ba_secure_hls_stream_key_2026';
+        const workerSecret = env.RTMP_CALLBACK_SECRET;
         const internalAuth = request.headers.get('x-worker-auth') || '';
         const authHeader = request.headers.get('Authorization') || '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
 
-        let isAuthorized = internalAuth === workerSecret;
+        let isAuthorized = Boolean(workerSecret) && internalAuth === workerSecret;
         if (!isAuthorized && token) {
           const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
           if (caller && caller.uid) {

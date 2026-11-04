@@ -84,16 +84,10 @@ export const POST = withZeroTrustGate(
     // 1. Unlock course securely
     await adminDb.collection('users').doc(userId).update({ folderAccess });
 
-    // 2. Add to payments collection with atomic idempotency check
+    // 2. Add to payments collection with atomic idempotency check (keyed by payment ID)
     if (!alreadyProcessed) {
-      const existingPayment = await adminDb
-        .collection('payments')
-        .where('transactionId', '==', checkout.payment.id)
-        .limit(1)
-        .get();
-
-      if (existingPayment.empty) {
-        await adminDb.collection('payments').add({
+      await adminDb.collection('payments').doc(String(checkout.payment.id)).set(
+        {
           studentId: userId,
           studentName: userData.name || 'Student',
           studentEmail: userData.email || '',
@@ -106,8 +100,9 @@ export const POST = withZeroTrustGate(
           createdAt: now,
           gateway: 'payable',
           transactionId: checkout.payment.id,
-        });
-      }
+        },
+        { merge: true }
+      );
     }
 
     return NextResponse.json({

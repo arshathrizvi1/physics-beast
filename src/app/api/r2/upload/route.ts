@@ -57,6 +57,7 @@ export const POST = withZeroTrustGate(
         method: 'PUT',
         headers: {
           'Content-Type': mimeType,
+          'x-worker-auth': process.env.RTMP_CALLBACK_SECRET || '',
         },
         body: bytes,
       });

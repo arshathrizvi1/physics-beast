@@ -70,7 +70,7 @@ export const POST = withZeroTrustGate(
               title,
               metadata,
               webhookUrl: `${websiteUrl}/api/bunny/aws-webhook`,
-              callbackSecret: env.RTMP_CALLBACK_SECRET || 'ba_secure_hls_stream_key_2026',
+              callbackSecret: env.RTMP_CALLBACK_SECRET || '',
             },
           }),
         });

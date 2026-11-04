@@ -10,6 +10,7 @@ export const POST = withZeroTrustGate(
     scope: 'auth_send_email_change',
     limit: 10,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (req, ctx) => {
     const parsed = await parseAndVerifyJsonBody<{
@@ -27,6 +28,15 @@ export const POST = withZeroTrustGate(
       return NextResponse.json(
         { error: 'Current email and new email are required' },
         { status: 400 }
+      );
+    }
+
+    // Security Invariant: Caller can ONLY request email changes for their own authenticated account
+    const callerEmail = ctx.caller?.email?.toLowerCase();
+    if (!callerEmail || callerEmail !== email.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Forbidden: You may only initiate an email change for your own verified account.' },
+        { status: 403 }
       );
     }
 

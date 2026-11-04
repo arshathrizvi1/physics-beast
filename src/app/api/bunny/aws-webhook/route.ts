@@ -14,7 +14,6 @@ export async function POST(request: Request) {
       expectedSecret,
       process.env.RTMP_CALLBACK_SECRET,
       process.env.WEBHOOK_SECRET,
-      'ba_secure_hls_stream_key_2026',
     ].filter(Boolean) as string[];
 
     const isSecretValid =

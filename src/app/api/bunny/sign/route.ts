@@ -22,6 +22,7 @@ export const GET = withZeroTrustGate(
     scope: 'bunny_video_sign',
     limit: 60,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (request) => {
     const env = getServerEnv();
