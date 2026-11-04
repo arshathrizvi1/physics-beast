@@ -1,8 +1,10 @@
 -- ============================================================================
 -- BRILLIANT ACADEMY - ENTERPRISE CLOUDFLARE D1 SQL RELATIONAL SCHEMA
 -- Ultra-Low Latency (<10ms) Global Edge Database
--- Execute via: npx wrangler d1 execute brilliant-academy-db --file=./cloudflare-d1-schema.sql
+-- Execute via: npx wrangler d1 execute brilliant-academy-db --remote --file=./cloudflare-d1-schema.sql
 -- ============================================================================
+
+PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -11,7 +13,6 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT DEFAULT '',
   role TEXT DEFAULT 'student',
   avatar TEXT DEFAULT '',
-  enrolled_courses TEXT DEFAULT '[]',
   last_active_at TEXT DEFAULT CURRENT_TIMESTAMP,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   payment_id TEXT DEFAULT '',
   enrolled_at TEXT DEFAULT CURRENT_TIMESTAMP,
   expires_at TEXT DEFAULT NULL,
+  UNIQUE(user_id, course_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 );
@@ -65,7 +67,10 @@ CREATE TABLE IF NOT EXISTS video_progress (
   total_seconds INTEGER DEFAULT 0,
   is_completed INTEGER DEFAULT 0,
   last_watched_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, lesson_id)
+  UNIQUE(user_id, lesson_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -76,8 +81,10 @@ CREATE TABLE IF NOT EXISTS payments (
   currency TEXT DEFAULT 'LKR',
   payment_method TEXT DEFAULT 'payable',
   status TEXT DEFAULT 'pending',
-  txn_id TEXT DEFAULT '',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  txn_id TEXT UNIQUE NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS audit_ledger (
@@ -94,7 +101,9 @@ CREATE TABLE IF NOT EXISTS audit_ledger (
 -- Indices for instant (<5ms) edge queries
 CREATE INDEX IF NOT EXISTS idx_enrollments_user ON enrollments(user_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_course ON enrollments(course_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_enrollments_user_course ON enrollments(user_id, course_id);
 CREATE INDEX IF NOT EXISTS idx_progress_user_course ON video_progress(user_id, course_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_txn ON payments(txn_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
 CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_ledger(event_type, created_at);

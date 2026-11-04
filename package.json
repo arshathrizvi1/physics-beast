@@ -12,6 +12,7 @@
     "start": "next start",
     "lint": "eslint",
     "security:check": "node scripts/security-audit.mjs",
+    "gate": "node scripts/mergegate-check.mjs",
     "postinstall": "node scripts/patch-licenses.mjs",
     "test:coverage": "node scripts/generate-coverage.mjs",
     "deploy:cf": "wrangler deploy"

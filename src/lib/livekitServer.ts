@@ -11,7 +11,7 @@ const MASTER_ADMIN_EMAILS = env.MASTER_ADMIN_EMAILS;
 const FIREBASE_WEB_API_KEY =
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
   process.env.FIREBASE_WEB_API_KEY ||
-  'AIzaSyCB84MWm3jF1PmRQyJxugarBfQT1Th4BwA';
+  '';
 
 export interface VerifiedCaller {
   uid: string;
