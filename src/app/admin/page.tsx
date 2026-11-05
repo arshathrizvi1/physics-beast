@@ -178,6 +178,16 @@ export default function AdminDashboard() {
   const [contentBrowseFolderId, setContentBrowseFolderId] = useState<string | null>(null);
 
     const [isCourseManagerOpen, setIsCourseManagerOpen] = useState(false);
+
+  // Authenticated zero-trust fetch helper ensuring Bearer ID token is sent with all admin API calls
+  const adminAuthFetch = async (url: string, init?: RequestInit) => {
+    const token = await auth.currentUser?.getIdToken();
+    const headers = new Headers(init?.headers || {});
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+    return fetch(url, { ...init, headers });
+  };
   const [isFolderManagerOpen, setIsFolderManagerOpen] = useState(false);
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [subjectToEdit, setSubjectToEdit] = useState<any>(null);
@@ -327,7 +337,7 @@ export default function AdminDashboard() {
     const interval = setInterval(async () => {
       for (const vid of processingVideos) {
         try {
-          const res = await fetch(`/api/s3/convert?jobId=${vid.transcodeJobId}`);
+          const res = await adminAuthFetch(`/api/s3/convert?jobId=${vid.transcodeJobId}`);
           if (!res.ok) continue;
           const data = await res.json();
           if (data.status === 'COMPLETE') {
@@ -514,7 +524,7 @@ export default function AdminDashboard() {
     
     try {
       // 0. Delete user from Firebase Auth via server
-      await fetch('/api/admin/delete-user', {
+      await adminAuthFetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -1473,7 +1483,7 @@ export default function AdminDashboard() {
         
         // Step 2: Trigger AWS Elemental MediaConvert to generate 1080p, 720p, 480p, 144p HLS!
         try {
-          const convertRes = await fetch("/api/s3/convert", {
+          const convertRes = await adminAuthFetch("/api/s3/convert", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ s3Url: originalS3Url, filename: resourceFile.name })
@@ -1559,7 +1569,7 @@ export default function AdminDashboard() {
              });
 
              // 4. Start AWS Download
-             const fetchRes = await fetch("/api/bunny/aws-download", {
+             const fetchRes = await adminAuthFetch("/api/bunny/aws-download", {
                method: "POST",
                headers: { "Content-Type": "application/json" },
                body: JSON.stringify({ url: videoUrl, password: zoomPassword, title: videoTitle, metadata })
@@ -1582,7 +1592,7 @@ export default function AdminDashboard() {
             setTimeout(() => setUploadSuccess(false), 6000);
              return;
            } else {
-             const fetchRes = await fetch("/api/bunny/fetch", {
+             const fetchRes = await adminAuthFetch("/api/bunny/fetch", {
                method: "POST",
                headers: { "Content-Type": "application/json" },
                body: JSON.stringify({ url: videoUrl, title: videoTitle, zoomPassword })
@@ -1712,7 +1722,7 @@ export default function AdminDashboard() {
             setVideoUploadStatusText("Upload complete! Starting 720p/480p/360p HLS conversion...");
             await updateDoc(videoRef, { processingStatus: 'processing' });
 
-            const fetchRes = await fetch("/api/bunny/aws-download", {
+            const fetchRes = await adminAuthFetch("/api/bunny/aws-download", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ url: uploadedVideoUrl, title: videoTitle, metadata })

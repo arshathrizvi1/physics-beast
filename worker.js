@@ -1228,6 +1228,9 @@ export default {
       if (url.pathname === '/api/stream/session' || url.pathname === '/api/stream/live') {
         let vPath = url.searchParams.get('v') || '';
         if (!vPath) return new Response('Missing video parameter', { status: 400 });
+        if (vPath.includes('..') || vPath.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(vPath)) {
+          return new Response('Bad Request: Invalid video path', { status: 400 });
+        }
         if (!vPath.endsWith('.m3u8')) vPath += '.m3u8';
         if (vPath.startsWith('/')) vPath = vPath.slice(1);
 
@@ -1273,6 +1276,9 @@ export default {
         const q = url.searchParams.get('q') || '';
         const d = url.searchParams.get('d') || '';
         if (!q || !d) return new Response('Missing parameters', { status: 400 });
+        if (q.includes('..') || d.includes('..') || q.includes('\0') || d.includes('\0') || !/^[a-zA-Z0-9_\-\.]+$/.test(q) || !/^[a-zA-Z0-9_\-\.\/]+$/.test(d)) {
+          return new Response('Bad Request: Invalid stream parameters', { status: 400 });
+        }
 
         const subKey = `${d}/${q.endsWith('.m3u8') ? q : q + '.m3u8'}`;
         let subText = '';
@@ -1315,6 +1321,9 @@ export default {
       if (url.pathname === '/api/stream/chunk') {
         const s = url.searchParams.get('s') || '';
         if (!s) return new Response('Missing segment parameter', { status: 400 });
+        if (s.includes('..') || s.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(s)) {
+          return new Response('Bad Request: Invalid segment parameter', { status: 400 });
+        }
 
         const segKey = s.endsWith('.ts') ? s : s + '.ts';
         let chunkBody = null;
@@ -1353,6 +1362,9 @@ export default {
       // Handler 4: Legacy /api/stream/hls/* route with automatic obfuscation rewrite
       if (url.pathname.startsWith('/api/stream/hls/')) {
         const hlsPath = url.pathname.replace('/api/stream/hls/', '');
+        if (!hlsPath || hlsPath.includes('..') || hlsPath.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(hlsPath)) {
+          return new Response('Bad Request: Invalid stream path', { status: 400 });
+        }
         if (hlsPath.endsWith('.m3u8')) {
           let mText = '';
           if (env.MEDIA) {

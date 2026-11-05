@@ -35,7 +35,8 @@ service cloud.firestore {
         isAuthenticated()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher', 'instructor']
+          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher', 'instructor']
+           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isApproved == true)
           || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
         )
       );
@@ -44,12 +45,13 @@ service cloud.firestore {
     // Prevent privilege escalation & unauthorized course self-unlocking
     function hasNoPrivilegeEscalation() {
       return !request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned']);
+        .hasAny(['role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned'])
+        && !(resource.data.isApproved == false && request.resource.data.isApproved == true);
     }
 
     function isSafeInitialUserCreate(userId) {
       return isOwner(userId)
-        && (!('role' in request.resource.data) || request.resource.data.role == 'student')
+        && (!('role' in request.resource.data) || request.resource.data.role == 'student' || (request.resource.data.role == 'teacher' && request.resource.data.isApproved == false))
         && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
         && (!('accessibleCourses' in request.resource.data) || request.resource.data.accessibleCourses.size() == 0);
     }
