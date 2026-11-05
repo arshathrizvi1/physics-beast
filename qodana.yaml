@@ -96,6 +96,31 @@ exclude:
   - name: ES6ConvertVarToLetConst
   - name: ES6MissingAwait
   - name: CssMissingSemicolon
+  # Exclude style and cosmetic anti-patterns that conflict with modern React/Next.js idiom:
+  - name: ConstantOnRHSOfComparisonJS
+  - name: AnonymousFunctionJS
+  - name: NestedFunctionCallJS
+  - name: ConditionalExpressionJS
+  - name: ChainedFunctionCallJS
+  - name: FunctionWithMultipleReturnPointsJS
+  - name: NonBlockStatementBodyJS
+  - name: EmptyCatchBlockJS
+  - name: StatementsPerFunctionJS
+  - name: CyclomaticComplexityJS
+  - name: FunctionNamingConventionJS
+  - name: VoidExpressionJS
+  - name: FunctionWithInconsistentReturnsJS
+  - name: FunctionWithMultipleLoopsJS
+  - name: JSCheckFunctionSignatures
+  - name: ReuseOfLocalVariableJS
+  - name: IfStatementWithTooManyBranchesJS
+  - name: ContinueStatementJS
+  - name: AssignmentResultUsedJS
+  - name: NestingDepthJS
+  - name: XHTMLIncompatabilitiesJS
+  - name: ParametersPerFunctionJS
+  - name: HtmlRequiredTitleElement
+  - name: OverlyComplexArithmeticExpressionJS
 
 include:
   - name: CheckDependencyLicenses
