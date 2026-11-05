@@ -121,6 +121,9 @@ if (!fs.existsSync(firestoreRulesPath)) {
   if (!rules.includes('match /settings/{docId}')) {
     recordFinding('Pillar 2 (Firestore Rules)', 'firestore.rules', 'Missing explicit lock on /settings/{docId} (Zoom secrets)');
   }
+  if (!rules.includes('request.resource.data.userId == request.auth.uid')) {
+    recordFinding('Pillar 2 (Firestore Rules)', 'firestore.rules', 'Reviews and Doubts must enforce caller uid provenance on document creation');
+  }
 }
 
 // ============================================================================
@@ -223,6 +226,19 @@ for (const hlsRoute of ['src/app/api/stream/hls/[...path]/route.ts', 'src/app/ap
     if (content.includes("'Access-Control-Allow-Origin': '*'") || !content.includes('resolveCorsOrigin')) {
       recordFinding('Pillar 6 (HLS DRM Stream)', hlsRoute, 'HLS route must not use wildcard CORS and must enforce resolveCorsOrigin');
     }
+  }
+}
+
+// Anti-Clickout Player Shields verification
+const coursePlayerPath = path.join(ROOT, 'src/app/course/[id]/page.tsx');
+if (fs.existsSync(coursePlayerPath)) {
+  passCheck();
+  const playerCode = fs.readFileSync(coursePlayerPath, 'utf8');
+  if (!playerCode.includes('right-12') || !playerCode.includes('h-[40%] min-h-[195px]')) {
+    recordFinding('Pillar 6 (Video Player Hardening)', 'src/app/course/[id]/page.tsx', 'Player must enforce top-right gear cutout (right-12) and bottom targeted shield (h-[40%] min-h-[195px]) to neutralize CC and More options');
+  }
+  if (!playerCode.includes('w-[50%]') || !playerCode.includes('Anti-Recommendation Shield')) {
+    recordFinding('Pillar 6 (Video Player Hardening)', 'src/app/course/[id]/page.tsx', 'Player must enforce right-side anti-recommendation shield (w-[50%]) during quality adjustment');
   }
 }
 

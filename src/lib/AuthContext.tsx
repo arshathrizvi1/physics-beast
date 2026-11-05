@@ -243,6 +243,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (docSnap.exists()) {
             const data = docSnap.data();
+
+            // Security: Enforce immediate lockout for banned or deleted accounts
+            if (data.status === 'DELETED' || data.isBanned === true) {
+              console.warn("Access denied: Account is deleted or banned.");
+              await firebaseSignOut(auth);
+              setUser(null);
+              setLoading(false);
+              alert("Your account has been deleted or suspended. Please contact support if you believe this is an error: arshathrizvi1010@gmail.com");
+              return;
+            }
             
             // Check for multi-device login (only for students, admins bypass this)
             const localDeviceId = safeStorage.local.getItem('localDeviceId');
@@ -898,61 +908,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (emailOrId: string): Promise<{ success: boolean; email?: string; error?: string }> => {
-    let targetEmail = emailOrId.trim();
+    const identifier = emailOrId.trim();
 
-    if (!targetEmail) {
+    if (!identifier) {
       return { success: false, error: "Please enter your email or Student ID." };
-    }
-
-    // If user provided Student ID instead of email, look it up in Firestore
-    if (!targetEmail.includes('@')) {
-      try {
-        const usersRef = collection(db, 'users');
-        let formattedId = targetEmail.toUpperCase();
-        if (!formattedId.startsWith('PB-') && /^\d+$/.test(formattedId)) {
-          formattedId = `PB-${formattedId}`;
-        }
-        
-        const qId = query(usersRef, where("studentId", "==", formattedId));
-        const idSnapshot = await getDocs(qId);
-        
-        if (!idSnapshot.empty) {
-          targetEmail = idSnapshot.docs[0].data().email;
-        } else {
-          const qIdRaw = query(usersRef, where("studentId", "==", emailOrId.trim()));
-          const rawSnapshot = await getDocs(qIdRaw);
-          if (!rawSnapshot.empty) {
-            targetEmail = rawSnapshot.docs[0].data().email;
-          } else {
-            return { success: false, error: `Student ID "${emailOrId}" not found. Please enter your registered email.` };
-          }
-        }
-      } catch (e: any) {
-        console.error("Student ID lookup failed during password reset:", e);
-      }
     }
 
     try {
       const res = await fetch('/api/auth/send-password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail })
+        body: JSON.stringify({ identifier })
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error("Failed to send password reset email via server");
+        throw new Error(data?.error || "Failed to send password reset email via server");
       }
-      return { success: true, email: targetEmail };
+      return { success: true, email: identifier };
     } catch (error: any) {
       console.log("Password reset failed:", error?.message || "Unknown error");
-      let message = "Failed to send reset email. Please verify your email address.";
-      if (error?.code === 'auth/user-not-found') {
-        message = "No account found with this email address.";
-      } else if (error?.code === 'auth/invalid-email') {
-        message = "The email address is invalid.";
-      } else if (error?.code === 'auth/too-many-requests') {
-        message = "Too many reset attempts. Please wait a few minutes before trying again.";
-      }
-      return { success: false, error: message };
+      return { success: false, error: error?.message || "Failed to send reset email. Please verify your details." };
     }
   };
 

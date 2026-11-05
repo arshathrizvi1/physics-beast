@@ -1860,11 +1860,12 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                           )}
 
-                          {/* Permanent Anti-Clickout Top Shield: Blocks Title, Avatar, Channel & CC Captions while leaving only Top-Right Gear accessible */}
+                          {/* Permanent Anti-Clickout Top Shield: Blocks Title, Avatar, Channel & CC Captions (0 to 48px from right left open for ⚙ Gear) */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && (
                             <div 
-                              className={`absolute top-0 left-0 ${isAdjustingQuality ? 'right-0 z-50 cursor-default' : 'right-10 sm:right-11 z-30 cursor-pointer'} h-14 sm:h-16 select-none bg-transparent`}
+                              className="absolute top-0 left-0 right-12 h-14 sm:h-16 z-40 select-none bg-transparent pointer-events-auto cursor-default"
                               style={{ touchAction: "none" }} 
+                              title="Protected by Brilliant Academy"
                               onClick={(e) => { 
                                 e.preventDefault(); 
                                 e.stopPropagation(); 
@@ -1879,10 +1880,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                             />
                           )}
 
-                          {/* Targeted Anti-Clickout Shield: Makes 'Captions' (CC) and '... More options' UNTOUCHABLE in Settings Popup across ALL screen sizes while keeping 'Quality' and 'Speed' fully clickable */}
+                          {/* Targeted Anti-Clickout Bottom Shield: Makes 'Captions' (CC), '... More options', and bottom cards 100% UNTOUCHABLE in Settings Popup while keeping 'Quality' and 'Speed' fully clickable */}
                           {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
                             <div
-                              className="absolute bottom-0 left-0 right-0 h-32 sm:h-34 z-40 bg-transparent pointer-events-auto cursor-default select-none"
+                              className="absolute bottom-0 left-0 right-0 h-[40%] min-h-[195px] z-40 bg-transparent pointer-events-auto cursor-default select-none"
                               style={{ touchAction: 'none' }}
                               title="Protected by Brilliant Academy"
                               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1893,6 +1894,31 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               onPointerUp={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
+
+                          {/* Right-Side Anti-Recommendation Shield: Blocks recommended video cards on the right while leaving Top-Right Gear accessible */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
+                            <div
+                              className="absolute top-16 bottom-0 right-0 w-[50%] z-40 bg-transparent pointer-events-auto cursor-default select-none"
+                              style={{ touchAction: 'none' }}
+                              title="Protected by Brilliant Academy"
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            />
+                          )}
+
+                          {/* Far-Left Margin Shield: Blocks clicks on the far left edge during quality adjustment */}
+                          {(activeServer === 'youtube' || activeVideo?.platform === 'youtube') && isAdjustingQuality && (
+                            <div
+                              className="absolute top-16 bottom-0 left-0 w-[14%] z-40 bg-transparent pointer-events-auto cursor-default select-none"
+                              style={{ touchAction: 'none' }}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             />
                           )}
 
@@ -1955,11 +1981,11 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           const pct = Math.min(100, Math.round(state.played * 100));
                           recordProgress(activeVideo.id, pct);
                         }
-                        // Anti-Leak: When within 1.5 seconds of the end or >= 99% watched, trigger hasEnded
+                        // Anti-Leak: When within 2.5 seconds of the end or >= 98.5% watched, trigger hasEnded
                         // This prevents YouTube's end-screen recommendation cards from ever appearing on screen!
                         if (
-                          (durationRef.current > 0 && durationRef.current - state.playedSeconds <= 1.5 && state.playedSeconds > 10) ||
-                          (state.played != null && state.played >= 0.99)
+                          (durationRef.current > 0 && durationRef.current - state.playedSeconds <= 2.5 && state.playedSeconds > 10) ||
+                          (state.played != null && state.played >= 0.985)
                         ) {
                           setHasEnded(true);
                           setPlaying(false);
