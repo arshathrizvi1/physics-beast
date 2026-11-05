@@ -12,11 +12,12 @@ export async function POST(request: Request) {
     const providedSecret = secretQuery || secretHeader || (authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader);
 
     const env = getServerEnv();
+    const isProd = env.NODE_ENV === 'production';
     const validSecrets = [
       env.RTMP_CALLBACK_SECRET,
       process.env.BUNNY_STREAM_API_KEY,
       process.env.WEBHOOK_SECRET,
-      'ba_secure_hls_stream_key_2026',
+      (!isProd ? 'ba_secure_hls_stream_key_2026' : null),
     ].filter(Boolean) as string[];
 
     const isSecretValid = Boolean(providedSecret) && validSecrets.some((s) => timingSafeEqualStr(providedSecret, s));
