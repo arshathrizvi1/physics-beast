@@ -25,7 +25,7 @@ export const POST = withZeroTrustGate(
     if (!studentQuery.empty) {
       return NextResponse.json({
         exists: true,
-        reason: 'This number is already registered as a student.',
+        reason: 'This phone number is already registered to an existing account.',
       });
     }
 
@@ -33,7 +33,7 @@ export const POST = withZeroTrustGate(
     if (!parentQuery.empty) {
       return NextResponse.json({
         exists: true,
-        reason: 'This number is already registered as a parent.',
+        reason: 'This phone number is already registered to an existing account.',
       });
     }
 

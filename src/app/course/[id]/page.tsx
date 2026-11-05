@@ -996,10 +996,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       // Show processing state
       const verifyPayment = async () => {
         try {
+          const idToken = await auth.currentUser?.getIdToken();
           const res = await fetch('/api/payable/verify', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ checkoutId: sessionId })
+            headers: {
+              'Content-Type': 'application/json',
+              ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+            },
+            body: JSON.stringify({ checkoutId: sessionId }),
           });
           const data = await res.json();
           if (data.success) {
@@ -1341,20 +1345,24 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     if (paymentMethod === 'card') {
       setIsSubmittingPayment(true);
       try {
+        const idToken = await auth.currentUser?.getIdToken();
         const res = await fetch('/api/payable/create-checkout', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: JSON.stringify({
             courseId: id,
-              folderId: checkoutFolder.id,
+            folderId: checkoutFolder.id,
             courseName: course.name || checkoutFolder.name,
             price: checkoutFolder.price,
             userId: user.uid,
             userEmail: user.email,
             userPhone: user.phone,
             studentId: user.studentId,
-            userName: user.name
-          })
+            userName: user.name,
+          }),
         });
         const data = await res.json();
         if (data.url) {

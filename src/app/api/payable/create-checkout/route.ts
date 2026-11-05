@@ -17,6 +17,7 @@ export const POST = withZeroTrustGate(
     scope: 'payable_create_checkout',
     limit: 20,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (req, ctx) => {
     const parsed = await parseAndVerifyJsonBody(req, ctx);
@@ -52,6 +53,14 @@ export const POST = withZeroTrustGate(
       userPhone,
       userName,
     } = validation.data;
+
+    // Security check: Caller must be the user purchasing the course or an admin
+    if (ctx.caller && ctx.caller.uid !== userId && !ctx.caller.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden: You cannot initiate a checkout for another user account.' },
+        { status: 403 }
+      );
+    }
 
     // 1. Server-Side Price Authority: Resolve true folder/course price from Firestore
     const priceAuth = await resolveAuthoritativeCoursePrice({

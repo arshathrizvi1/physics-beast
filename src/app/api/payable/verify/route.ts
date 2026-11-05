@@ -14,6 +14,7 @@ export const POST = withZeroTrustGate(
     scope: 'payable_verify_payment',
     limit: 20,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (req, ctx) => {
     const parsed = await parseAndVerifyJsonBody<{ checkoutId?: string }>(req, ctx);
@@ -67,6 +68,14 @@ export const POST = withZeroTrustGate(
     }
 
     const { folderId, userId, paidAmountLkr, alreadyProcessed } = dualLock;
+
+    // Security check: Caller must be the user receiving the course or an admin
+    if (ctx.caller && ctx.caller.uid !== userId && !ctx.caller.isAdmin) {
+      return NextResponse.json(
+        { error: 'Forbidden: You cannot verify payment for another user account.' },
+        { status: 403 }
+      );
+    }
 
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
