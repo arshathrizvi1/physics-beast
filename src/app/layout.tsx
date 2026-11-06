@@ -33,6 +33,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import PermissionGate from "@/components/PermissionGate";
 import { SecurityEnforcer } from "@/components/SecurityEnforcer";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import CachePrewarmer from "@/components/CachePrewarmer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -92,6 +93,7 @@ export default function RootLayout({
                   <FooterContent />
                 </footer>
                 <CookieConsentBanner />
+                <CachePrewarmer />
                 <MobileBottomNav />
               </LenisProvider>
             </NotificationProvider>

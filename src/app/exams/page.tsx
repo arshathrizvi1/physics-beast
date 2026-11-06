@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
+import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 
 type GroupByOption = 'folder' | 'date' | 'status' | 'course' | 'none';
 type StatusFilterOption = 'all' | 'submitted' | 'unsubmitted' | 'closed' | 'upcoming';
@@ -33,10 +33,28 @@ type SortByOption = 'newest' | 'oldest' | 'title';
 
 export default function ExamsPage() {
   const { user } = useAuth();
-  const [exams, setExams] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_exams"); if(c) return JSON.parse(c); } return []; });
-  const [myResults, setMyResults] = useState<Record<string, any>>({});
-  const [folders, setFolders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_exams") ? false : true; } return true; });
+  const cacheKey = user?.uid ? `exams_bundle_${user.uid}` : 'exams_bundle_guest';
+  const cachedExams = typeof window !== "undefined"
+    ? (getCachedData<any>(cacheKey, CacheDuration.MEDIUM) || getStaleCachedData<any>(cacheKey))
+    : null;
+
+  const [exams, setExams] = useState<any[]>(() => {
+    if (cachedExams?.exams?.length) return cachedExams.exams;
+    if (typeof window !== "undefined") {
+      try {
+        const c = localStorage.getItem("cache_exams");
+        if (c) return JSON.parse(c);
+      } catch {}
+    }
+    return [];
+  });
+  const [myResults, setMyResults] = useState<Record<string, any>>(() => cachedExams?.results || {});
+  const [folders, setFolders] = useState<any[]>(() => cachedExams?.folders || []);
+  const [loading, setLoading] = useState(() => {
+    if (cachedExams?.exams?.length) return false;
+    if (typeof window !== "undefined" && localStorage.getItem("cache_exams")) return false;
+    return true;
+  });
   const [now, setNow] = useState(Date.now());
 
   // Filter & Group states
@@ -97,6 +115,12 @@ export default function ExamsPage() {
         setExams(bundle.exams || []);
         setFolders(bundle.folders || []);
         setMyResults(bundle.results || {});
+        setCachedData(cacheKey, bundle);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("cache_exams", JSON.stringify(bundle.exams || []));
+          } catch {}
+        }
       } catch (err) {
         console.log("Could not fetch exam data:", err);
       } finally {

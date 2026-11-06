@@ -1,8 +1,8 @@
 /**
  * Brilliant Academy - Ultra High-Efficiency Client Cache Engine
  * Slashes Firestore & Database reads by 90%+ across the entire platform
- * using Stale-While-Revalidate (SWR), multi-tier memory + sessionStorage caching,
- * and resilient offline/quota fallbacks.
+ * using Stale-While-Revalidate (SWR), multi-tier memory + localStorage + sessionStorage caching,
+ * and resilient offline/quota fallbacks for sub-millisecond page navigations.
  */
 
 interface CacheEntry<T> {
@@ -20,23 +20,38 @@ export const CacheDuration = {
   VERY_LONG: 60 * 60 * 1000, // 1 hour (e.g. site config, player settings, about page)
 };
 
+/**
+ * Returns fresh cached data if within maxAgeMs.
+ * Checks L1 (Memory) -> L2 (sessionStorage) -> L3 (localStorage).
+ */
 export function getCachedData<T>(key: string, maxAgeMs: number): T | null {
   try {
     const now = Date.now();
 
-    // 1. Check L1 In-Memory Cache
+    // 1. Check L1 In-Memory Cache (0ms)
     const mem = MEMORY_L1.get(key);
     if (mem && (now - mem.timestamp) < maxAgeMs) {
       return mem.data as T;
     }
 
-    // 2. Check L2 sessionStorage Cache
+    // 2. Check L2 sessionStorage Cache (~1ms)
     if (typeof window !== 'undefined' && window.sessionStorage) {
       const raw = window.sessionStorage.getItem(`ba_cache_${key}`);
       if (raw) {
         const parsed: CacheEntry<T> = JSON.parse(raw);
         if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < maxAgeMs) {
-          // Promote to L1
+          MEMORY_L1.set(key, parsed);
+          return parsed.data;
+        }
+      }
+    }
+
+    // 3. Check L3 localStorage Cache (~1-2ms, survives browser reloads)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(`ba_cache_${key}`);
+      if (raw) {
+        const parsed: CacheEntry<T> = JSON.parse(raw);
+        if (parsed && typeof parsed.timestamp === 'number' && (now - parsed.timestamp) < maxAgeMs) {
           MEMORY_L1.set(key, parsed);
           return parsed.data;
         }
@@ -48,6 +63,49 @@ export function getCachedData<T>(key: string, maxAgeMs: number): T | null {
   return null;
 }
 
+/**
+ * Stale-While-Revalidate Helper:
+ * Returns cached data immediately regardless of timestamp so page renders
+ * in 0ms without showing an empty page or spinner.
+ */
+export function getStaleCachedData<T>(key: string): T | null {
+  try {
+    // 1. L1 Memory
+    const mem = MEMORY_L1.get(key);
+    if (mem && mem.data) return mem.data as T;
+
+    // 2. L2 sessionStorage
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const raw = window.sessionStorage.getItem(`ba_cache_${key}`);
+      if (raw) {
+        const parsed: CacheEntry<T> = JSON.parse(raw);
+        if (parsed?.data) {
+          MEMORY_L1.set(key, parsed);
+          return parsed.data;
+        }
+      }
+    }
+
+    // 3. L3 localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(`ba_cache_${key}`);
+      if (raw) {
+        const parsed: CacheEntry<T> = JSON.parse(raw);
+        if (parsed?.data) {
+          MEMORY_L1.set(key, parsed);
+          return parsed.data;
+        }
+      }
+    }
+  } catch (e) {
+    // Silent
+  }
+  return null;
+}
+
+/**
+ * Writes data into L1 Memory, L2 sessionStorage, and L3 localStorage.
+ */
 export function setCachedData<T>(key: string, data: T): void {
   try {
     const entry: CacheEntry<T> = {
@@ -60,10 +118,18 @@ export function setCachedData<T>(key: string, data: T): void {
 
     // Store in L2 (sessionStorage)
     if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.setItem(`ba_cache_${key}`, JSON.stringify(entry));
+      try {
+        window.sessionStorage.setItem(`ba_cache_${key}`, JSON.stringify(entry));
+      } catch {}
+    }
+
+    // Store in L3 (localStorage for multi-tab & restart persistence)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(`ba_cache_${key}`, JSON.stringify(entry));
+      } catch {}
     }
   } catch (e) {
-    // QuotaExceededError in sessionStorage can be safely ignored; L1 still holds data
     console.warn(`[CacheEngine] Write error for key "${key}":`, e);
   }
 }
@@ -72,15 +138,23 @@ export function invalidateCache(keyPrefix?: string): void {
   try {
     if (!keyPrefix) {
       MEMORY_L1.clear();
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < window.sessionStorage.length; i++) {
-          const k = window.sessionStorage.key(i);
-          if (k && k.startsWith('ba_cache_')) {
-            keysToRemove.push(k);
+      if (typeof window !== 'undefined') {
+        if (window.sessionStorage) {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < window.sessionStorage.length; i++) {
+            const k = window.sessionStorage.key(i);
+            if (k && k.startsWith('ba_cache_')) keysToRemove.push(k);
           }
+          keysToRemove.forEach(k => window.sessionStorage.removeItem(k));
         }
-        keysToRemove.forEach(k => window.sessionStorage.removeItem(k));
+        if (window.localStorage) {
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < window.localStorage.length; i++) {
+            const k = window.localStorage.key(i);
+            if (k && k.startsWith('ba_cache_')) keysToRemove.push(k);
+          }
+          keysToRemove.forEach(k => window.localStorage.removeItem(k));
+        }
       }
       return;
     }
@@ -92,16 +166,24 @@ export function invalidateCache(keyPrefix?: string): void {
       }
     });
 
-    if (typeof window !== 'undefined' && window.sessionStorage) {
+    if (typeof window !== 'undefined') {
       const storagePrefix = `ba_cache_${keyPrefix}`;
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < window.sessionStorage.length; i++) {
-        const k = window.sessionStorage.key(i);
-        if (k && k.startsWith(storagePrefix)) {
-          keysToRemove.push(k);
+      if (window.sessionStorage) {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < window.sessionStorage.length; i++) {
+          const k = window.sessionStorage.key(i);
+          if (k && k.startsWith(storagePrefix)) keysToRemove.push(k);
         }
+        keysToRemove.forEach(k => window.sessionStorage.removeItem(k));
       }
-      keysToRemove.forEach(k => window.sessionStorage.removeItem(k));
+      if (window.localStorage) {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && k.startsWith(storagePrefix)) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(k => window.localStorage.removeItem(k));
+      }
     }
   } catch (e) {
     console.warn(`[CacheEngine] Invalidate error for prefix "${keyPrefix}":`, e);
@@ -133,18 +215,11 @@ export async function fetchWithCache<T>(
     return freshData;
   } catch (fetchErr) {
     // Graceful fallback to stale cache on network/quota failure
-    try {
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        const raw = window.sessionStorage.getItem(`ba_cache_${key}`);
-        if (raw) {
-          const stale = JSON.parse(raw) as CacheEntry<T>;
-          if (stale && stale.data) {
-            console.warn(`[CacheEngine] Fetch failed for "${key}", using stale cache fallback.`);
-            return stale.data;
-          }
-        }
-      }
-    } catch {}
+    const stale = getStaleCachedData<T>(key);
+    if (stale !== null) {
+      console.warn(`[CacheEngine] Fetch failed for "${key}", using stale cache fallback.`);
+      return stale;
+    }
     throw fetchErr;
   }
 }

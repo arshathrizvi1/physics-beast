@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc, getDoc } from "firebase/firestore";
-import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
+import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Video, Calendar, PlayCircle, Clock, ExternalLink, Play, Pause, Volume1, Volume2, VolumeX, Maximize, Settings, ShieldAlert } from "lucide-react";
@@ -20,9 +20,12 @@ import { detectDeviceType, isPlayerPermitted, defaultPlayerSettings, VideoPlayer
 
 export default function StudentLivePortal() {
   const { user, loading, recordStudyMinute } = useAuth();
-  const [liveClasses, setLiveClasses] = useState<any[]>([]);
+  const cachedLive = typeof window !== 'undefined'
+    ? (getCachedData<any[]>('cached_live_classes', CacheDuration.SHORT) || getStaleCachedData<any[]>('cached_live_classes'))
+    : null;
+  const [liveClasses, setLiveClasses] = useState<any[]>(() => cachedLive || []);
   const [activeStreamMap, setActiveStreamMap] = useState<Record<string, string>>({});
-  const [fetchingClasses, setFetchingClasses] = useState(true);
+  const [fetchingClasses, setFetchingClasses] = useState(() => !cachedLive?.length);
   const [joinedClasses, setJoinedClasses] = useState<string[]>([]);
   
   const [showOldRecordsModal, setShowOldRecordsModal] = useState(false);
@@ -308,6 +311,7 @@ export default function StudentLivePortal() {
           });
           
           setLiveClasses(classes);
+          setCachedData('cached_live_classes', classes);
           setFetchingClasses(false);
         }, (err) => {
           console.error("Quota exceeded fetching live classes?", err);

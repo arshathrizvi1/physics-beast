@@ -34,10 +34,17 @@ function StudentProfilePageContent() {
     return () => window.removeEventListener('open-pfp-modal', handleOpenModal);
   }, [searchParams]);
 
-  const [profileName, setProfileName] = useState("");
-  const [profilePhone, setProfilePhone] = useState("");
-  const [profileSchool, setProfileSchool] = useState("");
-  const [profileAddress, setProfileAddress] = useState("");
+  const cachedUser = typeof window !== 'undefined' ? (() => {
+    try {
+      const raw = localStorage.getItem('cachedUserProfile');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })() : null;
+
+  const [profileName, setProfileName] = useState(() => (user || cachedUser)?.name || "");
+  const [profilePhone, setProfilePhone] = useState(() => (user || cachedUser)?.phone || "");
+  const [profileSchool, setProfileSchool] = useState(() => (user || cachedUser)?.school || "");
+  const [profileAddress, setProfileAddress] = useState(() => (user || cachedUser)?.address || "");
   
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -59,7 +66,7 @@ function StudentProfilePageContent() {
     }
   }, [user]);
 
-  if (loading || !user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (!user && loading && typeof window !== 'undefined' && !localStorage.getItem('cachedUserProfile')) return <div className="min-h-screen flex items-center justify-center text-muted-foreground animate-pulse">Loading profile...</div>;
 
   const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

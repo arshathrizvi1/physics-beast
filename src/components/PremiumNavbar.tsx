@@ -130,7 +130,7 @@ export default function PremiumNavbar() {
               animate={mounted ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: 0.3, duration: 1, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Link href="/" className="flex items-center gap-3 shrink-0 group">
+              <Link href="/" prefetch={true} className="flex items-center gap-3 shrink-0 group">
                 <div className="relative">
                   <div className="w-11 h-11 rounded-full overflow-hidden border border-[#d4af37]/30 shadow-[0_0_15px_rgba(212,175,55,0.15)] group-hover:shadow-[0_0_25px_rgba(212,175,55,0.35)] group-hover:border-[#d4af37]/60 transition-all duration-500">
                     <Image src="/logo.jpg" alt="Brilliant Academy" width={44} height={44} className="object-cover w-full h-full" priority />
@@ -166,7 +166,13 @@ export default function PremiumNavbar() {
                     animate={mounted ? { opacity: 1, y: 0 } : {}}
                     transition={{ delay: 0.4 + i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <Link href={link.href} className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5">
+                    <Link 
+                      href={link.href} 
+                      prefetch={true}
+                      onMouseEnter={() => router.prefetch(link.href)}
+                      onTouchStart={() => router.prefetch(link.href)}
+                      className="relative px-3 py-2 text-sm font-semibold group flex flex-col items-center gap-0.5"
+                    >
                       <span className={`transition-colors duration-200 flex items-center gap-1.5 ${active ? "text-[#C9A227]" : "text-[#D8D8D8] group-hover:text-[#E7C866]"}`}>
                         {link.label}
                         {link.label === "Live" && isLive && (
@@ -190,7 +196,7 @@ export default function PremiumNavbar() {
             {/* 3. RIGHT CONTROLS */}
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               {(isTeacher || isAdmin) && (
-                <Link href="/admin" className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-xs transition-all duration-200 hover:-translate-y-[1px]" style={{ background: "linear-gradient(135deg, #E7C866, #C9A227, #F4E3A1)", color: "#171717", boxShadow: "0 4px 15px rgba(201,162,39,0.3)", border: "1px solid #F4E3A1" }}>
+                <Link href="/admin" prefetch={true} onMouseEnter={() => router.prefetch('/admin')} onTouchStart={() => router.prefetch('/admin')} className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-xs transition-all duration-200 hover:-translate-y-[1px]" style={{ background: "linear-gradient(135deg, #E7C866, #C9A227, #F4E3A1)", color: "#171717", boxShadow: "0 4px 15px rgba(201,162,39,0.3)", border: "1px solid #F4E3A1" }}>
                   <LayoutDashboard className="w-4 h-4" />
                   Admin Dashboard
                 </Link>
@@ -242,7 +248,7 @@ export default function PremiumNavbar() {
                   </motion.button>
                 </div>
               ) : (
-                <Link href="/login">
+                <Link href="/login" prefetch={true} onMouseEnter={() => router.prefetch('/login')}>
                   <motion.div
                     whileHover={{ scale: 1.04, y: -1 }}
                     className="flex items-center gap-1.5 bg-[#C9A227] text-[#171717] text-xs font-bold px-4 py-2 rounded-full hover:bg-[#E7C866] transition-colors shadow-[0_0_15px_rgba(201,162,39,0.3)] hover:shadow-[0_0_25px_rgba(201,162,39,0.5)]"
@@ -297,7 +303,7 @@ export default function PremiumNavbar() {
                     >
                       <Link
                         href={link.href}
-                        className={`flex items-center justify-between py-4 border-b border-[#242424] text-lg font-semibold transition-colors ${active ? "text-[#C9A227]" : "text-[#D8D8D8] hover:text-[#E7C866]"}`}
+                        prefetch={true} onTouchStart={() => router.prefetch(link.href)} className={`flex items-center justify-between py-4 border-b border-[#242424] text-lg font-semibold transition-colors ${active ? "text-[#C9A227]" : "text-[#D8D8D8] hover:text-[#E7C866]"}`}
                       >
                         {link.label}
                         {active && <span className="w-2 h-2 rounded-full bg-[#d4af37]" />}
@@ -313,7 +319,7 @@ export default function PremiumNavbar() {
                     transition={{ delay: 0.4, duration: 0.4 }}
                     className="mt-4"
                   >
-                    <Link href="/admin" className="flex items-center gap-3 py-3 px-5 bg-[#d4af37]/10 border border-[#d4af37]/30 rounded-xl text-[#d4af37] font-bold">
+                    <Link href="/admin" prefetch={true} onMouseEnter={() => router.prefetch('/admin')} onTouchStart={() => router.prefetch('/admin')} className="flex items-center gap-3 py-3 px-5 bg-[#d4af37]/10 border border-[#d4af37]/30 rounded-xl text-[#d4af37] font-bold">
                       <LayoutDashboard className="w-5 h-5" />
                       {isAdmin ? "Admin Dashboard" : "Teacher Dashboard"}
                     </Link>

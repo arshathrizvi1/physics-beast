@@ -8,30 +8,38 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { calculateXpLevel } from "@/lib/xp";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
-import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
+import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
-  const [examResults, setExamResults] = useState<any[]>([]);
-  const [allExams, setAllExams] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
+
+  const cachedBoard = typeof window !== "undefined"
+    ? (getCachedData<any>('leaderboard_bundle', CacheDuration.LONG) || getStaleCachedData<any>('leaderboard_bundle'))
+    : null;
+
+  const [users, setUsers] = useState<any[]>(() => cachedBoard?.users || []);
+  const [examResults, setExamResults] = useState<any[]>(() => cachedBoard?.examResults || []);
+  const [allExams, setAllExams] = useState<any[]>(() => cachedBoard?.allExams || []);
+  const [batches, setBatches] = useState<any[]>(() => cachedBoard?.batches || []);
+  const [subjects, setSubjects] = useState<any[]>(() => cachedBoard?.subjects || []);
   
   const [selectedMetric, setSelectedMetric] = useState<string>("overall");
-  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>(() => {
+    if (user?.role === 'student' && user.graduationYear) return user.graduationYear;
+    return cachedBoard?.batches?.[0]?.year || cachedBoard?.batches?.[0]?.id || "";
+  });
+  const [loading, setLoading] = useState(() => !cachedBoard?.users?.length);
 
   const [dbError, setDbError] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-
     let isMounted = true;
 
     const fetchLeaderboardData = async () => {
       try {
-        setLoading(true);
+        if (!cachedBoard?.users?.length) {
+          setLoading(true);
+        }
         setDbError(false);
         
         // Secure zero-trust aggregation API with PII stripping & edge caching
@@ -46,19 +54,21 @@ export default function LeaderboardPage() {
         setAllExams(bundle.allExams || []);
         setSubjects(bundle.subjects || []);
         setBatches(bundle.batches || []);
+        setCachedData('leaderboard_bundle', bundle);
 
         const batchesData = bundle.batches || [];
         // Set initial batch based on role
-        if (user.role === 'student' && user.graduationYear) {
+        if (user?.role === 'student' && user.graduationYear) {
           setSelectedBatchId(user.graduationYear);
-        } else if (user.role !== 'student' && batchesData.length > 0) {
-          // Default to the first batch or 'all' if preferred. Let's default to the first one available
+        } else if (user?.role !== 'student' && batchesData.length > 0 && !selectedBatchId) {
           setSelectedBatchId(batchesData[0].year || batchesData[0].id);
         }
 
       } catch (err: any) {
         console.error("Failed to fetch leaderboard data:", err);
-        setDbError(true);
+        if (!cachedBoard?.users?.length) {
+          setDbError(true);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -217,7 +227,19 @@ export default function LeaderboardPage() {
             <CardContent className="p-0">
               <div className="flex flex-col">
                 {loading ? (
-                  <div className="p-12 text-center text-muted-foreground animate-pulse">Loading live leaderboard data...</div>
+                  <div className="flex flex-col divide-y divide-secondary/20">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="grid grid-cols-12 gap-2 md:gap-4 items-center p-3 sm:p-4 animate-pulse">
+                        <div className="col-span-2 md:col-span-1 h-6 bg-secondary/30 rounded w-8 mx-auto md:mx-0" />
+                        <div className="col-span-5 md:col-span-7 flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-secondary/30 shrink-0" />
+                          <div className="h-4 bg-secondary/30 rounded w-36" />
+                        </div>
+                        <div className="col-span-3 md:col-span-2 h-4 bg-secondary/30 rounded w-16 mx-auto" />
+                        <div className="col-span-2 md:col-span-2 h-4 bg-secondary/30 rounded w-12 ml-auto" />
+                      </div>
+                    ))}
+                  </div>
                 ) : displayBoard.length === 0 ? (
                   <div className="p-12 text-center text-muted-foreground italic">No rankings available yet.</div>
                 ) : (

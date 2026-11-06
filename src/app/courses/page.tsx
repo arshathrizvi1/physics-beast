@@ -23,7 +23,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "@/lib/AuthContext";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
+import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 
 const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: { course: any, viewStyle: string, setSelectedTeacherId: (id: string) => void, user: any, folders: any[] }) => {
   let isPaid = false;
@@ -186,11 +186,42 @@ const CourseCard = ({ course, viewStyle, setSelectedTeacherId, user, folders }: 
 };
 
 function CoursesContent() {
-  const [courses, setCourses] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_courses"); if(c) return JSON.parse(c); } return []; });
-  const [teachers, setTeachers] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_teachers"); if(c) return JSON.parse(c); } return []; });
-  const [subjects, setSubjects] = useState<any[]>(() => { if(typeof window !== "undefined"){ const c = localStorage.getItem("cache_subjects"); if(c) return JSON.parse(c); } return []; });
-  const [folders, setFolders] = useState<any[]>([]);
-  const [videos, setVideos] = useState<any[]>([]);
+  const cachedCatalog = typeof window !== "undefined"
+    ? (getCachedData<any>('catalog_courses_data', CacheDuration.LONG) || getStaleCachedData<any>('catalog_courses_data'))
+    : null;
+
+  const [courses, setCourses] = useState<any[]>(() => {
+    if (cachedCatalog?.courses?.length) return cachedCatalog.courses;
+    if (typeof window !== "undefined") {
+      try {
+        const c = localStorage.getItem("cache_courses");
+        if (c) return JSON.parse(c);
+      } catch {}
+    }
+    return [];
+  });
+  const [teachers, setTeachers] = useState<any[]>(() => {
+    if (cachedCatalog?.teachers?.length) return cachedCatalog.teachers;
+    if (typeof window !== "undefined") {
+      try {
+        const t = localStorage.getItem("cache_teachers");
+        if (t) return JSON.parse(t);
+      } catch {}
+    }
+    return [];
+  });
+  const [subjects, setSubjects] = useState<any[]>(() => {
+    if (cachedCatalog?.subjects?.length) return cachedCatalog.subjects;
+    if (typeof window !== "undefined") {
+      try {
+        const s = localStorage.getItem("cache_subjects");
+        if (s) return JSON.parse(s);
+      } catch {}
+    }
+    return [];
+  });
+  const [folders, setFolders] = useState<any[]>(() => cachedCatalog?.folders || []);
+  const [videos, setVideos] = useState<any[]>(() => cachedCatalog?.videos || []);
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search')?.toLowerCase() || "";
   const viewSubject = searchParams.get('viewSubject');
@@ -199,7 +230,11 @@ function CoursesContent() {
   
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(viewTeacher || "all");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>(viewSubject || "");
-  const [loading, setLoading] = useState(() => { if(typeof window !== "undefined"){ return localStorage.getItem("cache_courses") ? false : true; } return true; });
+  const [loading, setLoading] = useState(() => {
+    if (cachedCatalog?.courses?.length) return false;
+    if (typeof window !== "undefined" && localStorage.getItem("cache_courses")) return false;
+    return true;
+  });
   const [dbError, setDbError] = useState(false);
   const [viewStyle, setViewStyle] = useState<"grid" | "list">("grid");
   const [localSearch, setLocalSearch] = useState("");
@@ -328,6 +363,16 @@ function CoursesContent() {
         setTeachers(catalogData.teachers || []);
         setFolders(catalogData.folders || []);
         setVideos(catalogData.videos || []);
+
+        // Sync to multi-tier cache for sub-millisecond route transitions
+        setCachedData('catalog_courses_data', catalogData);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("cache_courses", JSON.stringify(catalogData.courses || []));
+            localStorage.setItem("cache_subjects", JSON.stringify(catalogData.subjects || []));
+            localStorage.setItem("cache_teachers", JSON.stringify(catalogData.teachers || []));
+          } catch {}
+        }
       } catch (error: any) {
         if (error.message === "FIRESTORE_TIMEOUT") {
           console.log("Database timeout - likely quota exceeded.");
@@ -751,7 +796,18 @@ function CoursesContent() {
             <p className="text-red-400">Could not fetch courses. Please check your internet connection and try again.</p>
           </div>
         ) : loading ? (
-          <div className="flex justify-center p-12 text-muted-foreground animate-pulse">Loading live courses...</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="rounded-xl border border-secondary/20 bg-secondary/10 overflow-hidden animate-pulse">
+                <div className="aspect-video bg-secondary/30 w-full" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-secondary/40 rounded w-3/4" />
+                  <div className="h-3 bg-secondary/30 rounded w-1/2" />
+                  <div className="h-8 bg-secondary/20 rounded mt-4" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : displayedCourses.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center bg-secondary/10 rounded-xl border border-secondary/30">
             <BookOpen className="w-12 h-12 text-muted-foreground mb-4 opacity-50" />

@@ -66,7 +66,7 @@ export function MobileBottomNav() {
             return (
             <Link 
               key={link.name} 
-              href={link.href}
+              href={link.href} prefetch={true}
               className="flex-1 flex justify-center items-center h-full relative"
             >
               <div 
