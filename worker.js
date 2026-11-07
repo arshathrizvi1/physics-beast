@@ -1072,6 +1072,11 @@ export default {
       });
     }
 
+    // 4.1 Dashboard legacy redirect to Home (/)
+    if (url.pathname === '/dashboard' || url.pathname === '/dashboard/' || url.pathname.startsWith('/dashboard/')) {
+      return Response.redirect(`${url.origin}/`, 307);
+    }
+
     // 5. Firebase Auth Custom Domain Reverse Proxy (/__/auth/*)
     if (url.pathname === '/__/auth' || url.pathname === '/__/auth/') {
       return Response.redirect(`${url.origin}/login`, 302);

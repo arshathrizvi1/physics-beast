@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { AlertCircle, RefreshCw, Home } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function GlobalError({
@@ -21,7 +21,8 @@ export default function GlobalError({
       error.message?.toLowerCase().includes("chunk") || 
       error.message?.toLowerCase().includes("fetch") ||
       error.message?.toLowerCase().includes("network") ||
-      error.message?.toLowerCase().includes("failed to load")
+      error.message?.toLowerCase().includes("failed to load") ||
+      error.message?.toLowerCase().includes("dynamically imported module")
     ) {
       console.log("Chunk error detected. Auto-reloading...");
       window.location.reload();
@@ -49,15 +50,13 @@ export default function GlobalError({
           <RefreshCw className="w-4 h-4 mr-2" />
           Reload App
         </Button>
-        <Button 
-          render={<Link href="/dashboard" />}
-          variant="outline"
-          size="lg"
-          className="font-semibold"
+        <Link 
+          href="/"
+          className={buttonVariants({ variant: "outline", size: "lg", className: "font-semibold px-8" })}
         >
           <Home className="w-4 h-4 mr-2" />
           Go Home
-        </Button>
+        </Link>
       </div>
     </div>
   );

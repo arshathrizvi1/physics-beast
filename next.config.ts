@@ -32,6 +32,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/dashboard",
+        destination: "/",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/:path*",
+        destination: "/",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     const isProd = process.env.NODE_ENV === "production";
     const cspDirectives = [
