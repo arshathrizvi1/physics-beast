@@ -497,6 +497,274 @@ async function verifyFirebaseIdToken(token, projectId) {
   }
 }
 
+// ============================================================================
+// FLEET SYNCHRONIZATION & THREAT DEFENSE LOCKDOWN ENGINE
+// ============================================================================
+
+let cachedFleetPosture = {
+  defconLevel: 1,
+  isLockdown: false,
+  tieredLockdown: { underAttackMode: false, apiReadOnlyMode: false, originSeverance: false },
+  quarantinedIps: [],
+};
+let lastPostureSyncTime = 0;
+const POSTURE_SYNC_INTERVAL_MS = 6000; // 6 seconds edge cache
+
+async function getSynchronizedFleetPosture(env) {
+  const now = Date.now();
+  if (now - lastPostureSyncTime > POSTURE_SYNC_INTERVAL_MS) {
+    lastPostureSyncTime = now;
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timeoutId = controller ? setTimeout(() => controller.abort(), 1800) : null;
+      const res = await fetch('https://devnivo.shop/api/security/fleet-policy?site_id=brilliant_academy', {
+        method: 'GET',
+        headers: { 'User-Agent': 'BrilliantAcademyEdgeSentinel/1.0' },
+        signal: controller?.signal,
+      });
+      if (timeoutId) clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        const dl = data.defconLevel || data.bundle?.defconLevel || 1;
+        const tl = data.tieredLockdown || data.bundle?.tieredLockdown || {};
+        const isLd = data.isLockdown !== undefined
+          ? Boolean(data.isLockdown)
+          : (Number(dl) === 5 || Boolean(tl.originSeverance) || Boolean(tl.underAttackMode));
+        const qIps = Array.isArray(data.quarantinedIps)
+          ? data.quarantinedIps
+          : (Array.isArray(data.bundle?.quarantinedIps) ? data.bundle.quarantinedIps : []);
+
+        cachedFleetPosture = {
+          defconLevel: Number(dl),
+          isLockdown: isLd,
+          tieredLockdown: tl,
+          quarantinedIps: qIps,
+        };
+      }
+    } catch {
+      // Retain last known safe posture if central endpoint is unreachable
+    }
+  }
+  return cachedFleetPosture;
+}
+
+function renderBrilliantLockdownResponse(request, nonce = '', { defconLevel = 5, reason = 'Threat Defense Protocol Active' } = {}) {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brilliant Academy — Threat Defense Protocol Active (DEFCON ${defconLevel})</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style nonce="${nonce}">
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(18, 12, 16, 0.88);
+      --card-border: rgba(244, 63, 94, 0.35);
+      --crimson: #f43f5e;
+      --crimson-glow: rgba(244, 63, 94, 0.45);
+      --text-main: #fff1f2;
+      --text-muted: #fda4af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 50% 15%, rgba(244, 63, 94, 0.18), transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(225, 29, 72, 0.10), transparent 40%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+    .grid-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      pointer-events: none;
+    }
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 580px;
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 2.75rem 2.25rem;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(244, 63, 94, 0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      margin-bottom: 1.75rem;
+      box-shadow: 0 0 24px var(--crimson-glow);
+      font-size: 32px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fda4af;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--crimson);
+      box-shadow: 0 0 8px var(--crimson);
+      animation: pulse 1.8s infinite;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+    }
+    p {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.65;
+      margin-bottom: 1.75rem;
+    }
+    .details-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 1.1rem 1.25rem;
+      margin-bottom: 2rem;
+      text-align: left;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.7;
+    }
+    .details-box strong { color: #f1f5f9; }
+    .actions {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #10b981;
+      color: #022c22;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background: #34d399;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+    }
+    .footer-text {
+      margin-top: 2rem;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .footer-text a {
+      color: #94a3b8;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-text a:hover {
+      color: #cbd5e1;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="container">
+    <div class="logo-container">🎓</div>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      DEFCON ${defconLevel} • EMERGENCY DEFENSE LOCKDOWN
+    </div>
+    <h1>Threat Defense Protocol Active</h1>
+    <p>
+      Brilliant Academy has entered an autonomous threat defense lockdown. All public traffic on
+      <strong>brillliantacademy.site</strong> is temporarily suspended at the Cloudflare Edge to protect student accounts and LMS data integrity.
+    </p>
+    
+    <div class="details-box">
+      <div>• <strong>Posture:</strong> DEFCON ${defconLevel} LOCKDOWN</div>
+      <div>• <strong>Trigger:</strong> Autonomous Distributed Threat Isolation</div>
+      <div>• <strong>Status:</strong> Edge Anycast Ingress Suspended</div>
+    </div>
+
+    <div class="actions">
+      <a href="mailto:arshathrizvi1010@gmail.com?subject=Brilliant%20Academy%20Security%20Lockdown%20Inquiry" class="btn btn-primary">
+        <span style="width: 7px; height: 7px; border-radius: 50%; background: #022c22; display: inline-block;"></span>
+        Contact Security Officer
+      </a>
+    </div>
+
+    <div class="footer-text">
+      Brilliant Academy • Zero-Trust Distributed Edge Shield
+      <div style="margin-top: 10px;">
+        <a href="/login?dev_bypass=true" style="opacity: 0.5; font-size: 10px;">Administrator Bypass</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return new Response(html, {
+    status: 503,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Retry-After': '300',
+      'X-Defcon-Level': String(defconLevel),
+      'X-Robots-Tag': 'noindex, nofollow',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      ...buildSecurityHeaders(request, nonce),
+    },
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -506,16 +774,122 @@ export default {
     const country = request.cf?.country || 'LK';
     const colo = request.cf?.colo || 'CMB';
 
-    // 1. IP Blacklist Gatekeeper
+    // Static assets & Auth iframe/handlers bypass rate limiting & lockdown
+    const isStaticOrAuthAsset =
+      url.pathname.startsWith('/_next/') ||
+      url.pathname.startsWith('/__/auth/') ||
+      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json|mp4|webm|ts|m3u8)$/i);
+
+    // 0A. Handle Instant Simulation Query (?simulate_lockdown=1 or ?simulate_lockdown=off)
+    const simQuery = url.searchParams.get('simulate_lockdown');
+    if (simQuery === 'off' || simQuery === 'clear') {
+      const cleanUrl = new URL(request.url);
+      cleanUrl.searchParams.delete('simulate_lockdown');
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: cleanUrl.toString(),
+          'Set-Cookie': 'brilliant_simulate_lockdown=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax',
+        },
+      });
+    }
+
+    const cookieHeader = request.headers.get('Cookie') || '';
+    const isLockdownSimulation =
+      simQuery === '1' ||
+      simQuery === 'true' ||
+      cookieHeader.includes('brilliant_simulate_lockdown=true');
+
+    // 0B. Synchronized Fleet DEFCON Posture & Emergency Lockdown
+    const fleetPosture = await getSynchronizedFleetPosture(env);
     const isAdmin = request.headers.get('x-admin-key') === 'brilliant_admin_master_secret';
+    const isDevBypass =
+      url.searchParams.get('dev_bypass') === 'true' ||
+      url.searchParams.get('dev_bypass') === '1' ||
+      cookieHeader.includes('devnivo_dev_bypass=true') ||
+      cookieHeader.includes('brilliant_dev_bypass=true');
+
+    const isAdminImmune = !isLockdownSimulation && (
+      isAdmin ||
+      isDevBypass ||
+      url.pathname.startsWith('/admin') ||
+      url.pathname.startsWith('/api/admin')
+    );
+
+    // 0C. Enforce Full Page 503 Threat Defense Lockdown (DEFCON 5 / Origin Severance / Simulation)
+    if ((fleetPosture.isLockdown || isLockdownSimulation) && !isAdminImmune && !isStaticOrAuthAsset) {
+      if (url.pathname.startsWith('/api/')) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            code: 'ERR_PLATFORM_LOCKDOWN_ENFORCED',
+            error: 'Brilliant Academy is currently operating under DEFCON 5 Emergency Defense Lockdown. Public requests are suspended.',
+            defconLevel: fleetPosture.defconLevel,
+            lockdown: fleetPosture.tieredLockdown,
+            simulated: isLockdownSimulation,
+          }),
+          {
+            status: 503,
+            headers: {
+              'Content-Type': 'application/json',
+              ...buildSecurityHeaders(request, nonce),
+            },
+          }
+        );
+      }
+
+      const response = renderBrilliantLockdownResponse(request, nonce, {
+        defconLevel: fleetPosture.defconLevel || 5,
+        reason: 'Threat Defense Protocol Active',
+      });
+
+      if (isLockdownSimulation && !cookieHeader.includes('brilliant_simulate_lockdown=true')) {
+        const headers = new Headers(response.headers);
+        headers.set('Set-Cookie', 'brilliant_simulate_lockdown=true; Path=/; HttpOnly; SameSite=Lax');
+        return new Response(response.body, {
+          status: response.status,
+          headers,
+        });
+      }
+
+      return response;
+    }
+
+    // 0D. Enforce API Read-Only Mode (block POST, PUT, DELETE, PATCH mutations)
+    const isMutatingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method.toUpperCase());
+    if (
+      fleetPosture.tieredLockdown?.apiReadOnlyMode &&
+      isMutatingMethod &&
+      !isAdminImmune &&
+      !url.pathname.startsWith('/__/auth/')
+    ) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          code: 'ERR_SERVICE_READ_ONLY_LOCKDOWN',
+          error: 'Brilliant Academy operating under DEFCON 5 / API Read-Only Mode. Mutating student actions temporarily suspended.',
+        }),
+        {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            ...buildSecurityHeaders(request, nonce),
+          },
+        }
+      );
+    }
+
+    // 1. IP Blacklist Gatekeeper (Local Quarantine + Fleet Quarantined IPs)
     const banExpiry = blacklistedIps.get(clientIp);
-    if (!isAdmin && banExpiry && Date.now() < banExpiry) {
+    const isQuarantinedInFleet = fleetPosture.quarantinedIps && fleetPosture.quarantinedIps.includes(clientIp);
+
+    if (!isAdmin && ((banExpiry && Date.now() < banExpiry) || isQuarantinedInFleet)) {
       return new Response(
         JSON.stringify({
           error: 'ACCESS_RESTRICTED',
-          message: 'Your IP has been quarantined due to repeated security policy violations.',
+          message: 'Your IP has been quarantined due to repeated security policy violations across Devnivo Fleet.',
           clientIp,
-          cooldownRemainingSec: Math.ceil((banExpiry - Date.now()) / 1000),
+          cooldownRemainingSec: banExpiry ? Math.max(0, Math.ceil((banExpiry - Date.now()) / 1000)) : 1800,
         }),
         {
           status: 403,
@@ -524,11 +898,6 @@ export default {
       );
     }
 
-    // Static assets & Auth iframe/handlers bypass rate limiting
-    const isStaticOrAuthAsset =
-      url.pathname.startsWith('/_next/') ||
-      url.pathname.startsWith('/__/auth/') ||
-      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json|mp4|webm|ts|m3u8)$/i);
 
     // 2. Layer-7 DDoS Rate Limiting & Burst Protection
     if (!isAdmin && !isStaticOrAuthAsset) {
