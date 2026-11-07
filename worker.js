@@ -15,6 +15,7 @@
 
 const BLACKLIST_DURATION_MS = 30 * 60 * 1000; // 30 minutes quarantine
 const blacklistedIps = new Map();
+const honeypotStrikes = new Map();
 const rateLimitWindow = new Map(); // IP -> { count, burstCount, windowStart, lastRequestTime }
 const ALERT_EMAIL = 'arshathrizvi1010@gmail.com';
 
@@ -268,6 +269,20 @@ async function engageCryptographicTarpit(ms = 2200) {
  * Dispatches a high-priority HTML Security Alert Email to arshathrizvi1010@gmail.com
  */
 async function dispatchSecurityAlertEmail({ env, incident }) {
+  // USER INVARIANT: If the attack was deflected/blocked/quarantined at the edge, DO NOT SEND EMAIL!
+  // ONLY send email if it is an actual breach (incident.isActualBreach) or an explicit test alert.
+  const isActualBreach = Boolean(
+    incident.isActualBreach ||
+    incident.type === 'UNCONTAINED_BREACH' ||
+    incident.type === 'DATABASE_BREACH'
+  );
+  const isTestAlert = Boolean(incident.isTestAlert || incident.forceImmediate);
+
+  if (!isActualBreach && !isTestAlert) {
+    // Silently suppress routine email for defended/blocked attacks
+    return { ok: true, suppressed: true, reason: 'Deflected attack suppressed per zero-alert-spam protocol' };
+  }
+
   const timestamp = new Date().toUTCString();
   const subject = `🚨 [ZERO-TRUST ALERT] Attack Blocked on Brilliant Academy: ${incident.type} (IP: ${incident.ip})`;
 
@@ -1019,7 +1034,55 @@ export default {
     // 3. Intrusion Detection & Honeypot Interceptor
     const intrusion = inspectIntrusionAttempt(url, userAgent);
     if (intrusion.isAttack) {
-      // Blacklist attacker IP for 30 minutes
+      const cookieHeader = request.headers.get('cookie') || '';
+      const hasStudentSession =
+        cookieHeader.includes('brilliant_student_session') ||
+        cookieHeader.includes('student_session') ||
+        cookieHeader.includes('firebase') ||
+        cookieHeader.includes('token=') ||
+        cookieHeader.includes('auth=');
+      const isBrowserNavigation =
+        request.headers.get('sec-fetch-mode') === 'navigate' ||
+        request.headers.get('sec-fetch-dest') === 'document' ||
+        (request.headers.get('accept') || '').includes('text/html');
+      const isAutomatedAttackTool =
+        userAgent.toLowerCase().includes('sqlmap') ||
+        userAgent.toLowerCase().includes('nikto') ||
+        userAgent.toLowerCase().includes('curl') ||
+        userAgent.toLowerCase().includes('python-requests') ||
+        userAgent.toLowerCase().includes('go-http-client') ||
+        userAgent.toLowerCase().includes('wget');
+
+      // 3A. Student / Customer Mistake Protection:
+      // If a student with an active session visits a canary/honeypot path by accident, NEVER IP-BAN!
+      if (hasStudentSession && intrusion.type === 'CANARY_HONEYPOT_PROBE') {
+        return new Response(
+          '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="background:#07090e;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h2>404 - Page Not Found</h2><p>The page you requested does not exist or has been moved.</p><a href="/" style="color:#f43f5e;">Return to Home</a></body></html>',
+          {
+            status: 404,
+            headers: { 'Content-Type': 'text/html; charset=utf-8', ...buildSecurityHeaders(request, nonce) },
+          }
+        );
+      }
+
+      // 3B. 3-Strike Tolerance for Regular Web Browsers on Restricted Paths:
+      if (isBrowserNavigation && !isAutomatedAttackTool && intrusion.type === 'CANARY_HONEYPOT_PROBE') {
+        const strikes = (honeypotStrikes.get(clientIp) || 0) + 1;
+        honeypotStrikes.set(clientIp, strikes);
+
+        if (strikes < 3) {
+          // Graceful 404 for accidental clicks - NO BAN, NO TARPIT
+          return new Response(
+            '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body style="background:#07090e;color:#fff;font-family:sans-serif;text-align:center;padding:50px;"><h2>404 - Page Not Found</h2><p>The page you requested does not exist or has been moved.</p><a href="/" style="color:#f43f5e;">Return to Home</a></body></html>',
+            {
+              status: 404,
+              headers: { 'Content-Type': 'text/html; charset=utf-8', ...buildSecurityHeaders(request, nonce) },
+            }
+          );
+        }
+      }
+
+      // 3C. Malicious Actor / Automated Scanner / Deliberate Exploit:
       blacklistedIps.set(clientIp, Date.now() + BLACKLIST_DURATION_MS);
 
       // Generate SHA-256 Audit Hash
