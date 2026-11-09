@@ -44,6 +44,16 @@ const nextConfig: NextConfig = {
         destination: "/",
         permanent: false,
       },
+      {
+        source: "/register",
+        destination: "/login?mode=signup",
+        permanent: false,
+      },
+      {
+        source: "/signup",
+        destination: "/login?mode=signup",
+        permanent: false,
+      },
     ];
   },
   async headers() {

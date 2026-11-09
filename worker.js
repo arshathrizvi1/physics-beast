@@ -1140,6 +1140,11 @@ export default {
       return Response.redirect(`${url.origin}/`, 307);
     }
 
+    // 4.2 Signup & Register edge redirects to /login?mode=signup
+    if (url.pathname === '/signup' || url.pathname === '/signup/' || url.pathname === '/register' || url.pathname === '/register/') {
+      return Response.redirect(`${url.origin}/login?mode=signup`, 307);
+    }
+
     // 5. Firebase Auth Custom Domain Reverse Proxy (/__/auth/*)
     if (url.pathname === '/__/auth' || url.pathname === '/__/auth/') {
       return Response.redirect(`${url.origin}/login`, 302);

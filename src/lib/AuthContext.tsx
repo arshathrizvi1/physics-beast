@@ -467,11 +467,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   safeStorage.local.setItem('cachedUserProfile', JSON.stringify(fallbackUser));
                 }
               } else {
-                // Orphaned student (Firebase Auth exists but no DB doc). 
-                // They likely abandoned signup halfway. Force signout instead of making a blank profile.
-                await auth.signOut();
-                setUser(null);
-                setLoading(false);
+                // Orphaned student auto-recovery: create baseline profile so they aren't locked out!
+                const recoveredProfile: UserProfile = {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email || '',
+                  name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Student',
+                  role: 'student',
+                  isApproved: true,
+                  pendingReason: undefined,
+                  studentId: `PB-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`,
+                  totalStudyTimeMins: 0,
+                  streakDays: 0,
+                  averageGrade: 0,
+                  examsDone: 0,
+                  examsMissed: 0,
+                  xpLevel: 1,
+                  totalXp: 0,
+                  accessibleCourses: [],
+                  createdAt: Date.now()
+                };
+                try {
+                  await setDoc(docRef, recoveredProfile);
+                  setUser(recoveredProfile);
+                  if (typeof window !== 'undefined') {
+                    safeStorage.local.setItem('cachedUserProfile', JSON.stringify(recoveredProfile));
+                  }
+                } catch (e) {
+                  console.error("Failed to self-heal orphaned student doc", e);
+                  setUser(fallbackUser);
+                }
               }
             } else {
               // We are in the middle of a signup process (either manual or Google popup), 
@@ -560,29 +584,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check if the user entered a Student ID (e.g. PB-1234 or doesn't have an @)
     if (!email.includes('@')) {
-      // Query the users collection to find the email associated with this studentId
-      const usersRef = collection(db, 'users');
-      // They might type PB-1234 or pb-1234 or just 1234
-      let formattedId = email.toUpperCase();
-      if (!formattedId.startsWith('PB-') && /^\d+$/.test(formattedId)) {
-        formattedId = `PB-${formattedId}`;
-      }
-      
-      const qId = query(usersRef, where("studentId", "==", formattedId));
-      const idSnapshot = await getDocs(qId);
-      
-      if (!idSnapshot.empty) {
-        email = idSnapshot.docs[0].data().email;
-      } else {
-        // Fallback: try querying without PB- if they just typed numbers, or as is
-        const qIdRaw = query(usersRef, where("studentId", "==", email));
-        const rawSnapshot = await getDocs(qIdRaw);
-        if (!rawSnapshot.empty) {
-           email = rawSnapshot.docs[0].data().email;
+      try {
+        const resolveRes = await fetch('/api/auth/resolve-student-id', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId: email }),
+        });
+        const resolveData = await resolveRes.json();
+        if (resolveData?.email) {
+          email = resolveData.email;
         } else {
-           // Not found. Let it fail in Firebase Auth (which requires an email)
-           email = loginId; 
+          email = loginId; // Fallback to raw input
         }
+      } catch (e) {
+        console.error("Failed to resolve student ID via server:", e);
+        email = loginId;
       }
     }
 
@@ -752,33 +768,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to send verification email:", emailErr);
       }
 
-      // 1. Check if NIC number already exists (duplicate check)
+      // 1. Check if NIC number already exists via secure server API
       if (profileData.nicNumber) {
-        const qNic = query(usersRef, where("nicNumber", "==", profileData.nicNumber));
-        const nicSnapshot = await Promise.race([getDocs(qNic), timeoutPromise]) as any;
-        if (!nicSnapshot.empty) {
-          await firebaseUser.delete().catch(() => {});
-          throw new Error("NIC_DUPLICATE");
+        try {
+          const nicRes = await fetch('/api/check-nic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nicNumber: profileData.nicNumber.trim() }),
+          });
+          const nicData = await nicRes.json();
+          if (nicData.exists) {
+            await firebaseUser.delete().catch(() => {});
+            throw new Error("NIC_DUPLICATE");
+          }
+        } catch (e: any) {
+          if (e.message === "NIC_DUPLICATE") throw e;
+          // Non-blocking network check fallback
         }
       }
 
-      // 2. Check if student phone number already exists
-      if (profileData.phone) {
-        const qPhone = query(usersRef, where("phone", "==", profileData.phone));
-        const phoneSnapshot = await Promise.race([getDocs(qPhone), timeoutPromise]) as any;
-        if (!phoneSnapshot.empty) {
-          await firebaseUser.delete().catch(() => {});
-          throw new Error("PHONE_DUPLICATE");
-        }
-      }
-      
       let nicUrl = "";
       if (nicFile) {
         try {
           nicUrl = await uploadToS3(nicFile, "student-nic", true);
         } catch (uploadError) {
           console.error("NIC upload failed:", uploadError);
-          // Continue anyway, maybe they can upload later
         }
       }
 
@@ -788,18 +802,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         safeStorage.local.setItem('localDeviceIdTime', Date.now().toString());
       }
 
-      let studentId = "";
-      if (email !== 'arshathrizvi1010@gmail.com') {
-        try {
-          const qStudents = query(collection(db, 'users'), where("role", "==", "student"));
-          const countSnap = await getCountFromServer(qStudents);
-          const nextId = countSnap.data().count + 1;
-          studentId = `PB-${nextId.toString().padStart(4, '0')}`;
-        } catch (e) {
-          console.error("Failed to generate student ID", e);
-          studentId = `PB-${Math.floor(Math.random() * 9000) + 1000}`; // fallback
-        }
-      }
+      // Generate clean unique student ID without illegal client collection queries
+      const studentId = email === 'arshathrizvi1010@gmail.com' 
+        ? 'PB-ADMIN'
+        : `PB-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
 
       const newProfile: UserProfile = {
         uid: firebaseUser.uid,
@@ -1093,16 +1099,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) throw new Error("Not authenticated with Google.");
 
-      const usersRef = collection(db, 'users');
       if (profileData.nicNumber) {
-        const qNic = query(usersRef, where("nicNumber", "==", profileData.nicNumber));
-        const nicSnapshot = await getDocs(qNic);
-        if (!nicSnapshot.empty) throw new Error("NIC_DUPLICATE");
-      }
-      if (profileData.phone) {
-        const qPhone = query(usersRef, where("phone", "==", profileData.phone));
-        const phoneSnapshot = await getDocs(qPhone);
-        if (!phoneSnapshot.empty) throw new Error("PHONE_DUPLICATE");
+        try {
+          const nicRes = await fetch('/api/check-nic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nicNumber: profileData.nicNumber.trim() }),
+          });
+          const nicData = await nicRes.json();
+          if (nicData.exists) throw new Error("NIC_DUPLICATE");
+        } catch (e: any) {
+          if (e.message === "NIC_DUPLICATE") throw e;
+        }
       }
 
       if (password) {
@@ -1124,14 +1132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         safeStorage.local.setItem('localDeviceIdTime', Date.now().toString());
       }
 
-      let studentId = "";
-      try {
-        const qStudents = query(collection(db, 'users'), where("role", "==", "student"));
-        const countSnap = await getCountFromServer(qStudents);
-        studentId = `PB-${(countSnap.data().count + 1).toString().padStart(4, '0')}`;
-      } catch (e) {
-        studentId = `PB-${Math.floor(Math.random() * 9000) + 1000}`;
-      }
+      const studentId = `PB-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
 
       const email = firebaseUser.email || '';
       const newProfile: UserProfile = {

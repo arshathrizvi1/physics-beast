@@ -38,6 +38,11 @@ function LoginPageContent() {
   useEffect(() => {
     const mode = searchParams.get('mode');
     const oobCode = searchParams.get('oobCode');
+    if (mode === 'signup' || searchParams.get('signup') === 'true') {
+      setIsLogin(false);
+    } else if (mode === 'login') {
+      setIsLogin(true);
+    }
     if (mode === 'verifyEmail' && oobCode) {
       applyActionCode(auth, oobCode)
         .then(() => {
@@ -354,75 +359,52 @@ function LoginPageContent() {
     setPhoneError("");
 
     try {
-      // PRE-CHECK: Securely query database to ensure this phone isn't already registered
-      const checkRes = await fetch('/api/check-phone', {
+      const res = await fetch('/api/auth/phone-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim() })
+        body: JSON.stringify({ action: 'send', phone: phone.trim() }),
       });
-      const checkData = await checkRes.json();
+      const data = await res.json();
       
-      if (checkData.exists) {
-        setPhoneError(checkData.reason);
+      if (!data.success) {
+        setPhoneError(data.error || "Failed to send verification code.");
         setOtpSending(false);
-        return; // Stop here, do NOT send OTP
+        return;
       }
-    } catch (e) {
-      console.error("Failed to verify phone uniqueness", e);
-      // If the check fails for network reasons, we'll just continue so we don't block them entirely
-    }
 
-    try {
-      let fmtPhone = phone.trim();
-      if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
-      if (!fmtPhone.startsWith('+')) fmtPhone = '+94' + fmtPhone;
-      
-      const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
-      
-      // Save OTP to DB
-      await setDoc(doc(db, 'otp_verifications', fmtPhone), {
-        code: otp,
-        timestamp: serverTimestamp()
-      });
-      
-      // Add message to AWS WhatsApp Queue
-      await addDoc(collection(db, 'academy_whatsapp_queue'), {
-        phone: fmtPhone,
-        message: `*Brilliant Academy 🎓*\n\nYour Verification Code is: *${otp}*\n\nPlease enter this code to verify your account.\n\n_Do not share this code with anyone._`,
-        status: 'pending',
-        isGroup: false,
-        type: 'otp',
-        createdAt: serverTimestamp()
-      });
-
-      setShowOtpScreen(true); 
+      setShowOtpScreen(true);
       setOtpSending(false);
-    } catch(e: any) {
-        console.error("WhatsApp Request Error", e);
-        setPhoneError("Failed to request WhatsApp code.");
-        setOtpSending(false);
+    } catch (e: any) {
+      console.error("WhatsApp Request Error", e);
+      setPhoneError("Failed to request WhatsApp code. Please check your connection.");
+      setOtpSending(false);
     }
   };
 
   const handleVerifyInlineOtp = async () => {
-    if (!otpCode || otpCode.length !== 6) return;
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setPhoneError("Please enter the 6-digit code.");
+      return;
+    }
     setOtpSending(true);
+    setPhoneError("");
     try {
-      let fmtPhone = phone.trim();
-      if (fmtPhone.startsWith('0')) fmtPhone = '+94' + fmtPhone.substring(1);
-      if (!fmtPhone.startsWith('+')) fmtPhone = '+94' + fmtPhone;
+      const res = await fetch('/api/auth/phone-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', phone: phone.trim(), code: otpCode.trim() }),
+      });
+      const data = await res.json();
 
-      const otpDoc = await getDoc(doc(db, 'otp_verifications', fmtPhone));
-      
-      if (otpDoc.exists() && otpDoc.data().code === otpCode) {
+      if (data.success && data.verified) {
         setIsPhoneVerified(true);
         setShowOtpScreen(false);
         setPhoneError("");
       } else {
-        setPhoneError("Invalid OTP Code.");
+        setPhoneError(data.error || "Invalid verification code.");
       }
       setOtpSending(false);
-    } catch(e) {
+    } catch (e) {
       setPhoneError("An error occurred verifying the OTP.");
       setOtpSending(false);
     }
