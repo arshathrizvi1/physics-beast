@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_LK",
-    url: "https://brillliantacademy.site/",
+    url: "https://www.brillliantacademy.site/",
     title: "Brilliant Academy | Rakwana's Premier Educational Institute",
     description: `Master Maths, Science, and ICT with Brilliant Academy Rakwana. Join physical and online classes today.`,
     siteName: "Brilliant Academy",

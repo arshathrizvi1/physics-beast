@@ -1,8 +1,8 @@
 Contact: mailto:arshathrizvi1010@gmail.com
 Expires: 2027-12-31T23:59:59.000Z
-Encryption: https://brillliantacademy.site/pgp-key.txt
-Acknowledgments: https://brillliantacademy.site/acknowledgments
+Encryption: https://www.brillliantacademy.site/pgp-key.txt
+Acknowledgments: https://www.brillliantacademy.site/acknowledgments
 Preferred-Languages: en, ta, si
-Canonical: https://brillliantacademy.site/.well-known/security.txt
-Policy: https://brillliantacademy.site/privacy-policy
-Hiring: https://brillliantacademy.site/careers
+Canonical: https://www.brillliantacademy.site/.well-known/security.txt
+Policy: https://www.brillliantacademy.site/privacy-policy
+Hiring: https://www.brillliantacademy.site/careers

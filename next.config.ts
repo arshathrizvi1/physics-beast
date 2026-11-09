@@ -35,6 +35,17 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "brillliantacademy.site",
+          },
+        ],
+        destination: "https://www.brillliantacademy.site/:path*",
+        permanent: true,
+      },
+      {
         source: "/dashboard",
         destination: "/",
         permanent: false,

@@ -66,7 +66,7 @@ function resolveCorsOrigin(request) {
     'capacitor://localhost',
     'http://localhost',
   ];
-  return allowed.includes(origin) ? origin : 'https://brillliantacademy.site';
+  return allowed.includes(origin) ? origin : 'https://www.brillliantacademy.site';
 }
 
 function buildSecurityHeaders(request, nonce) {
@@ -783,6 +783,22 @@ function renderBrilliantLockdownResponse(request, nonce = '', { defconLevel = 5,
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // 0. Canonical Domain Redirect: Enforce single canonical origin www.brillliantacademy.site
+    // Automatically 301/308 redirects apex brillliantacademy.site to www.brillliantacademy.site
+    // so all sessions, IndexedDB, Firebase Auth tokens, and cookies share the unified www origin.
+    // Preserves exact pathname, query parameters, and HTTP method.
+    // Excludes internal Firebase Auth iframe/handler proxy (/__/auth/*).
+    if (url.hostname === 'brillliantacademy.site' && !url.pathname.startsWith('/__/auth/')) {
+      const redirectStatus = (request.method === 'GET' || request.method === 'HEAD') ? 301 : 308;
+      return new Response(null, {
+        status: redirectStatus,
+        headers: {
+          'Location': `https://www.brillliantacademy.site${url.pathname}${url.search}`,
+          'Cache-Control': 'public, max-age=86400',
+        },
+      });
+    }
+
     const nonce = generateNonce();
     const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
     const userAgent = (request.headers.get('User-Agent') || 'unknown').slice(0, 200);
@@ -1517,7 +1533,7 @@ export default {
         return new Response(JSON.stringify({
           success: true,
           key: key,
-          publicUrl: `https://brillliantacademy.site/api/r2-media/${encodeURIComponent(key)}`,
+          publicUrl: `https://www.brillliantacademy.site/api/r2-media/${encodeURIComponent(key)}`,
         }), {
           status: 200,
           headers: {

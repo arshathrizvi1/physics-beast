@@ -34,7 +34,7 @@
   ],
   "vars": {
     "FIREBASE_PROJECT_ID": "physics-beastsl",
-    "SITE_URL": "https://brillliantacademy.site",
+    "SITE_URL": "https://www.brillliantacademy.site",
     "ENVIRONMENT": "production",
     "SECURITY_ALERT_EMAIL": "arshathrizvi1010@gmail.com"
   }

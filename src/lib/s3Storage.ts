@@ -62,7 +62,7 @@ export async function uploadToR2(
     }
   }
 
-  const host = typeof window !== 'undefined' ? window.location.origin : 'https://brillliantacademy.site';
+  const host = typeof window !== 'undefined' ? window.location.origin : 'https://www.brillliantacademy.site';
   return `${host}/api/r2-media/${encodeURIComponent(key)}`;
 }
 
