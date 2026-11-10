@@ -58,15 +58,29 @@ function generateNonce() {
 
 function resolveCorsOrigin(request) {
   const origin = request.headers.get('Origin') || '';
-  const allowed = [
+  let reqHost = '';
+  try {
+    reqHost = new URL(request.url).hostname.toLowerCase();
+  } catch {
+    reqHost = 'brillliantacademy.site';
+  }
+  const isLocalHost = reqHost === 'localhost' || reqHost === '127.0.0.1';
+
+  const prodAllowed = [
     'https://brillliantacademy.site',
     'https://www.brillliantacademy.site',
+    'capacitor://localhost',
+  ];
+  const devAllowed = [
     'http://localhost:3000',
     'http://localhost:4000',
-    'capacitor://localhost',
     'http://localhost',
   ];
-  return allowed.includes(origin) ? origin : 'https://www.brillliantacademy.site';
+
+  if (isLocalHost && devAllowed.includes(origin)) {
+    return origin;
+  }
+  return prodAllowed.includes(origin) ? origin : 'https://www.brillliantacademy.site';
 }
 
 function buildSecurityHeaders(request, nonce) {
@@ -74,9 +88,9 @@ function buildSecurityHeaders(request, nonce) {
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.googleapis.com https://source.zoom.us https://*.zoom.us https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com https://*.youtube.com https://s.ytimg.com https://*.ytimg.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://source.zoom.us https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://source.zoom.us https://cdn.jsdelivr.net",
     "img-src 'self' data: blob: https: http: https://*.ytimg.com https://*.youtube.com",
-    "font-src 'self' data: https://fonts.gstatic.com https://source.zoom.us",
+    "font-src 'self' data: https://source.zoom.us",
     "connect-src 'self' https: wss: blob: data: chrome-extension: https://*.googlevideo.com https://*.youtube.com https://*.ytimg.com https://*.google.com",
     "media-src 'self' blob: data: https: https://*.googlevideo.com",
     "worker-src 'self' blob: https://unpkg.com https://cdnjs.cloudflare.com",
