@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminFirestore } from '@/lib/firebaseAdmin';
+import { adminAuth, adminDb as adminFirestore } from '@/lib/firebase-admin';
 import { Resend } from 'resend';
 import { getServerEnv } from '@/security/env';
 import { sanitizeEmail, sanitizeText, escapeHtml } from '@/security/sanitize';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export const POST = withZeroTrustGate(
   {
