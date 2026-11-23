@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { RefreshCw, AlertCircle, ShieldCheck, Maximize, Minimize, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Document, Page, pdfjs } from "react-pdf";
+import { auth } from "@/lib/firebase";
 
 // Import styles required by react-pdf
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -12,12 +13,20 @@ import "react-pdf/dist/Page/TextLayer.css";
 // Configure PDF.js worker with standard HTTPS CDN
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+export interface PdfAuthContext {
+  videoId?: string;
+  examId?: string;
+  mode?: "take" | "results";
+  r2Key?: string;
+}
+
 interface PdfViewerProps {
   url: string;
   title?: string;
   className?: string;
   height?: string;
   allowDownload?: boolean;
+  authContext?: PdfAuthContext;
 }
 
 export function PdfViewer({ 
@@ -25,8 +34,12 @@ export function PdfViewer({
   title = "Document", 
   className = "", 
   height = "600px",
-  allowDownload = false 
+  allowDownload = false,
+  authContext
 }: PdfViewerProps) {
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string>("");
+  const [authLoading, setAuthLoading] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string>("");
   const [numPages, setNumPages] = useState<number>();
   const [renderScale, setRenderScale] = useState<number>(1.0); // The high-res react-pdf scale
   const [cssScale, setCssScale] = useState<number>(1.0); // The smooth CSS preview scale
@@ -208,6 +221,83 @@ export function PdfViewer({
     setNumPages(numPages);
   };
 
+  useEffect(() => {
+    let active = true;
+    if (!url || !url.trim()) {
+      setSignedPdfUrl("");
+      setAuthError("");
+      setAuthLoading(false);
+      return;
+    }
+
+    let candidate = url.trim();
+    if (candidate.startsWith("http://res.cloudinary.com")) {
+      candidate = candidate.replace("http://", "https://");
+    }
+    if (candidate.includes("cloudinary.com") && !candidate.toLowerCase().includes(".pdf")) {
+      candidate += ".pdf";
+    }
+
+    const isExt = candidate.startsWith("http://") || candidate.startsWith("https://");
+    const sameHost = typeof window !== "undefined" && candidate.includes(window.location.host);
+    const ourDomain = candidate.includes("brillliantacademy.site") || candidate.includes("localhost");
+    const requiresSign =
+      !candidate.includes("pt=") &&
+      (candidate.includes("/api/r2-media/") ||
+        candidate.includes("/api/pdf-proxy") ||
+        (isExt && (!sameHost && !ourDomain || candidate.includes("b-cdn.net"))));
+
+    if (!requiresSign) {
+      setSignedPdfUrl(candidate);
+      setAuthError("");
+      setAuthLoading(false);
+      return;
+    }
+
+    const authorizePdf = async () => {
+      setAuthLoading(true);
+      setAuthError("");
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          if (active) setAuthError("Please log in to view this protected document.");
+          return;
+        }
+        const res = await fetch("/api/stream/authorize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            ...(authContext || {}),
+            pdfUrl: candidate,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.url) {
+          if (active) {
+            setAuthError(data?.error || "Access Denied: Active course access is required to view this document.");
+            setSignedPdfUrl("");
+          }
+          return;
+        }
+        if (active) {
+          setSignedPdfUrl(data.url);
+        }
+      } catch {
+        if (active) setAuthError("Unable to authorize protected document. Please refresh.");
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    };
+
+    authorizePdf();
+    return () => {
+      active = false;
+    };
+  }, [url, authContext?.videoId, authContext?.examId, authContext?.mode, authContext?.r2Key]);
+
   if (!url) {
     return (
       <div className="flex flex-col items-center justify-center h-[500px] text-muted-foreground p-6 text-center">
@@ -235,10 +325,20 @@ export function PdfViewer({
   const isSameHost = typeof window !== 'undefined' && trimmed.includes(window.location.host);
   const isOurDomain = trimmed.includes("brillliantacademy.site") || trimmed.includes("localhost");
 
-  let resolvedFileUrl = trimmed;
+  const needsEdgeAuth = Boolean(
+    trimmed &&
+      !trimmed.includes("pt=") &&
+      (trimmed.includes("/api/r2-media/") ||
+        trimmed.includes("/api/pdf-proxy") ||
+        (isExternalHttp && (!isSameHost && !isOurDomain || trimmed.includes("b-cdn.net"))))
+  );
+
+  let fallbackResolvedUrl = trimmed;
   if (isExternalHttp && (!isSameHost && !isOurDomain || trimmed.includes("b-cdn.net"))) {
-    resolvedFileUrl = `/api/pdf-proxy?url=${encodeURIComponent(trimmed)}`;
+    fallbackResolvedUrl = `/api/pdf-proxy?url=${encodeURIComponent(trimmed)}`;
   }
+
+  const resolvedFileUrl = needsEdgeAuth ? signedPdfUrl : fallbackResolvedUrl;
 
   return (
     <div 
@@ -358,6 +458,20 @@ export function PdfViewer({
             }}
             className="flex flex-col shrink-0 min-w-max mx-auto"
           >
+            {authLoading ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-zinc-300 shrink-0">
+                <RefreshCw className="w-8 h-8 mb-4 animate-spin text-[#d4af37]" />
+                <p className="text-sm font-medium">Verifying document access...</p>
+              </div>
+            ) : authError || !resolvedFileUrl ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-red-400 p-6 text-center shrink-0">
+                <AlertCircle className="w-10 h-10 mb-2 opacity-80" />
+                <p className="font-bold text-base">Protected Document</p>
+                <p className="text-xs mt-2 opacity-80 text-zinc-300 max-w-sm">
+                  {authError || "Active course enrollment is required to access this document."}
+                </p>
+              </div>
+            ) : (
             <Document
               file={resolvedFileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
@@ -401,6 +515,7 @@ export function PdfViewer({
                 </div>
               ))}
             </Document>
+            )}
           </div>
         </div>
       </div>

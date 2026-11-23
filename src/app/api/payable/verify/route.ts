@@ -51,11 +51,13 @@ export const POST = withZeroTrustGate(
       );
     }
 
-    // Enforce Dual-Lock Verification (HMAC Signature + Authoritative Price Match + Idempotency)
+    const transactionId = String(checkout.payment.id || checkoutId);
+
+    // Enforce Fail-Closed Dual-Lock Verification (HMAC Signature + Authoritative Price Match + Persistent Idempotency)
     const dualLock = await verifyPayableDualLock({
       referenceStr: refDataStr,
       paidAmountCents: Number(checkout.payment.amountCents || 0),
-      transactionId: String(checkout.payment.id || checkoutId),
+      transactionId,
       ip: ctx.ip,
       fingerprint: ctx.fingerprint,
     });
@@ -77,49 +79,66 @@ export const POST = withZeroTrustGate(
       );
     }
 
+    // Replay Defense: If transaction was already persisted in Firestore, return idempotent success
+    // WITHOUT re-extending folderAccess expiry!
+    if (alreadyProcessed) {
+      return NextResponse.json({
+        success: true,
+        alreadyProcessed: true,
+        folderId,
+        userId,
+        amount: paidAmountLkr,
+        paymentId: transactionId,
+      });
+    }
+
     const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     const userData = userDoc.data() || {};
 
-    const courseDoc = await adminDb.collection('folders').doc(folderId).get();
-    const courseName = courseDoc.exists ? courseDoc.data()?.name : 'Course';
+    const folderDoc = await adminDb.collection('folders').doc(folderId).get();
+    const folderData = folderDoc.exists ? folderDoc.data() || {} : {};
+    const courseName = folderData.name || 'Course';
+    const courseId = String(folderData.courseId || '');
 
     const now = Date.now();
-    const folderAccess = userData.folderAccess || {};
-    folderAccess[folderId] = now + 30 * 24 * 60 * 60 * 1000; // 30 days access
+    const folderAccess = { ...(userData.folderAccess || {}) };
+    const existingExpiry = Number(folderAccess[folderId] || 0);
+    const baseTime = existingExpiry > now ? existingExpiry : now;
+    folderAccess[folderId] = baseTime + 30 * 24 * 60 * 60 * 1000; // 30 days access
 
-    // 1. Unlock course securely
+    // 1. Record payment document first with unique transactionId key (persistent replay lock)
+    await adminDb.collection('payments').doc(transactionId).set(
+      {
+        userId,
+        studentId: userId,
+        studentName: userData.name || 'Student',
+        studentEmail: userData.email || '',
+        courseId,
+        folderId,
+        folderName: courseName,
+        courseName,
+        amount: paidAmountLkr,
+        method: 'card',
+        status: 'approved',
+        createdAt: now,
+        gateway: 'payable',
+        transactionId,
+      },
+      { merge: true }
+    );
+
+    // 2. Unlock course folder securely via server Admin SDK
     await adminDb.collection('users').doc(userId).update({ folderAccess });
-
-    // 2. Add to payments collection with atomic idempotency check (keyed by payment ID)
-    if (!alreadyProcessed) {
-      await adminDb.collection('payments').doc(String(checkout.payment.id)).set(
-        {
-          studentId: userId,
-          studentName: userData.name || 'Student',
-          studentEmail: userData.email || '',
-          folderId,
-          folderName: courseName,
-          courseName,
-          amount: paidAmountLkr,
-          method: 'card',
-          status: 'approved',
-          createdAt: now,
-          gateway: 'payable',
-          transactionId: checkout.payment.id,
-        },
-        { merge: true }
-      );
-    }
 
     return NextResponse.json({
       success: true,
       folderId,
       userId,
       amount: paidAmountLkr,
-      paymentId: checkout.payment.id,
+      paymentId: transactionId,
     });
   }
 );

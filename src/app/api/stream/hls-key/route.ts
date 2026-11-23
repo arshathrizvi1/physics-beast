@@ -8,9 +8,14 @@ export const GET = withZeroTrustGate(
     scope: 'hls_stream_key',
     limit: 120,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
-  async (request) => {
+  async (request, ctx) => {
     try {
+      if (!ctx.caller) {
+        return new NextResponse('Unauthorized: Active session required.', { status: 401 });
+      }
+
       const url = new URL(request.url);
       const token = url.searchParams.get('token') || url.searchParams.get('k');
 
@@ -31,6 +36,7 @@ export const GET = withZeroTrustGate(
         userAgent.includes('curl') ||
         userAgent.includes('wget') ||
         userAgent.includes('python') ||
+        userAgent.includes('yt-dlp') ||
         userAgent.includes('vlc');
 
       if (isDownloader) {

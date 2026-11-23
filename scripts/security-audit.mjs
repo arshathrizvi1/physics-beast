@@ -317,6 +317,52 @@ for (const ciFile of [
 }
 
 // ============================================================================
+// PILLAR 10: ANTI-CONSOLE-UNLOCK & SERVER-GATED CONTENT ENTITLEMENT CHECKS
+// ============================================================================
+const contentSecurityFiles = [
+  { file: 'src/security/entitlement.ts', mustInclude: ['hasCourseOrFolderEntitlement', 'stripSensitiveVideoFields', 'sanitizeExamDocument'] },
+  { file: 'src/app/api/content/course/route.ts', mustInclude: ['stripSensitiveVideoFields', 'hasCourseOrFolderEntitlement'] },
+  { file: 'src/app/api/content/catalog/route.ts', mustInclude: ['stripSensitiveVideoFields'] },
+  { file: 'src/app/api/content/live/route.ts', mustInclude: ['hasLiveClassEntitlement'] },
+  { file: 'src/app/api/content/exams/route.ts', mustInclude: ['hasExamEntitlement', 'sanitizeExamDocument'] },
+  { file: 'src/app/api/content/exam-submit/route.ts', mustInclude: ['hasExamEntitlement', 'adminDb'] },
+  { file: 'src/app/api/bunny/sign/route.ts', mustInclude: ['hasCourseOrFolderEntitlement'] },
+  { file: 'src/app/api/livekit/token/route.ts', mustInclude: ['hasLiveClassEntitlement'] },
+  { file: 'src/app/api/zoom/signature/route.ts', mustInclude: ['hasLiveClassEntitlement'] },
+  { file: 'src/app/api/stream/hls/[...path]/route.ts', mustInclude: ['getAuthenticatedCaller', 'hasCourseOrFolderEntitlement'] },
+  { file: 'src/app/api/pdf-proxy/route.ts', mustInclude: ["requireAuth: 'authenticated'"] },
+  { file: 'worker.js', mustInclude: ['verifyEdgePlaybackToken', 'signEdgePlaybackToken', '/api/stream/authorize', 'isPublicSafeR2Key'] },
+];
+
+for (const spec of contentSecurityFiles) {
+  const full = path.join(ROOT, spec.file);
+  passCheck();
+  if (!fs.existsSync(full)) {
+    recordFinding('Pillar 10 (Content DRM & Entitlement)', spec.file, `Missing required content security file: ${spec.file}`);
+    continue;
+  }
+  const txt = fs.readFileSync(full, 'utf8');
+  for (const token of spec.mustInclude) {
+    passCheck();
+    if (!txt.includes(token)) {
+      recordFinding('Pillar 10 (Content DRM & Entitlement)', spec.file, `Missing required security control: ${token}`);
+    }
+  }
+}
+
+// Ensure firestore.rules does not leave paid collections readable by any authenticated user
+if (fs.existsSync(firestoreRulesPath)) {
+  const rulesText = fs.readFileSync(firestoreRulesPath, 'utf8');
+  for (const col of ['videos', 'materials', 'exams', 'live_classes']) {
+    passCheck();
+    const leakyPattern = new RegExp(`match\\s+\\/${col}\\/\\{[^}]+\\}\\s*\\{\\s*allow\\s+read:\\s*if\\s+isAuthenticated\\(\\);`, 'm');
+    if (leakyPattern.test(rulesText)) {
+      recordFinding('Pillar 10 (Content DRM & Entitlement)', 'firestore.rules', `Collection /${col} must NOT allow unrestricted read for all authenticated users`);
+    }
+  }
+}
+
+// ============================================================================
 // SUMMARY REPORT
 // ============================================================================
 console.log('============================================================================');

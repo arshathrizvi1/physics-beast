@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 import { resolveCorsOrigin } from '@/security/zero-trust-gate';
+import { getAuthenticatedCaller } from '@/security/session';
+import {
+  getUserEntitlementContext,
+  hasLiveClassEntitlement,
+} from '@/security/entitlement';
 
 /**
- * HTTPS HLS Proxy for RTMP Stream
- * 
- * Securely proxies HLS video streams from the AWS RTMP server over HTTPS,
- * preventing browser "Mixed Content" security blocks.
+ * Authenticated & Entitlement-Gated HTTPS HLS Proxy for RTMP Live Streams.
+ * Never allows unauthenticated or unpaid students to stream live RTMP feeds.
  */
 export async function GET(
   request: NextRequest,
@@ -21,6 +25,37 @@ export async function GET(
       return new NextResponse('Bad Request: Invalid segment file path', { status: 400 });
     }
 
+    // Require authenticated & entitled caller
+    const caller = await getAuthenticatedCaller(request);
+    const ent = await getUserEntitlementContext(caller);
+    if (!ent || ent.isBanned) {
+      return new NextResponse('Unauthorized: Active session required.', { status: 401 });
+    }
+
+    if (!ent.isStaff) {
+      const [classesSnap, foldersSnap] = await Promise.all([
+        adminDb.collection('live_classes').where('streamKey', '==', key).limit(1).get(),
+        adminDb.collection('folders').get(),
+      ]);
+
+      const folderCourseMap = new Map<string, string>();
+      foldersSnap.docs.forEach((d) => {
+        const data = d.data() || {};
+        if (data.courseId) folderCourseMap.set(d.id, String(data.courseId));
+      });
+
+      if (classesSnap.empty) {
+        return new NextResponse('Forbidden: Stream not found or unauthorized.', { status: 403 });
+      }
+
+      const cls = { id: classesSnap.docs[0].id, ...(classesSnap.docs[0].data() || {}) };
+      if (!hasLiveClassEntitlement(ent, cls, folderCourseMap)) {
+        return new NextResponse('Payment Required: You do not have access to this live stream.', {
+          status: 403,
+        });
+      }
+    }
+
     const host = process.env.NEXT_PUBLIC_RTMP_SERVER_HOST || '13.60.252.104';
     const port = process.env.NEXT_PUBLIC_RTMP_HTTP_PORT || '8000';
 
@@ -34,8 +69,8 @@ export async function GET(
     });
 
     if (!upstreamRes.ok) {
-      return new NextResponse(`Segment not ready or stream ended (${upstreamRes.status})`, { 
-        status: upstreamRes.status 
+      return new NextResponse(`Segment not ready or stream ended (${upstreamRes.status})`, {
+        status: upstreamRes.status,
       });
     }
 
@@ -50,7 +85,7 @@ export async function GET(
     responseHeaders.set('Content-Type', contentType);
     responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    responseHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    responseHeaders.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
 
     return new NextResponse(upstreamRes.body, {
       status: 200,

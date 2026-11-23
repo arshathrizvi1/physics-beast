@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot, where, getDocs, updateDoc, doc, increment, setDoc, getDoc } from "firebase/firestore";
 import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -253,86 +253,37 @@ export default function StudentLivePortal() {
 
   useEffect(() => {
     if (!user) return;
-    
-    const fetchData = async () => {
-      let folderCourseMap = new Map<string, string>();
+    let isMounted = true;
+
+    const loadEntitledLiveClasses = async () => {
       try {
-        const folderPairs = await fetchWithCache('folders_course_map', CacheDuration.LONG, async () => {
-          const foldersSnap: any = await getDocs(collection(db, 'folders'));
-          return foldersSnap.docs.map((d: any) => ({ id: d.id, courseId: d.data().courseId }));
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) return;
+        const res = await fetch('/api/content/live', {
+          headers: { Authorization: `Bearer ${idToken}` },
+          cache: 'no-store',
         });
-        folderPairs.forEach((d: any) => folderCourseMap.set(d.id, d.courseId));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted) return;
+        const classes = Array.isArray(data.classes) ? data.classes : [];
+        setLiveClasses(classes);
+        setCachedData('cached_live_classes', classes);
       } catch (err) {
-        console.error("Could not fetch folders. Relying on cached access.", err);
-      }
-
-      // Get all courses the student has ACTIVE folder access to
-      const activeCourseIds = new Set<string>();
-      if (user.folderAccess) {
-        const now = Date.now();
-        Object.entries(user.folderAccess).forEach(([folderId, expiry]) => {
-          if (typeof expiry === 'number' && expiry > now) {
-            const cId = folderCourseMap.get(folderId);
-            if (cId) activeCourseIds.add(cId);
-          }
-        });
-      }
-      
-      // Add legacy accessible courses
-      if (user.accessibleCourses) {
-        user.accessibleCourses.forEach((cId: string) => activeCourseIds.add(cId));
-      }
-
-      try {
-        const q = query(collection(db, 'live_classes'));
-        
-        const unsub = onSnapshot(q, (snap) => {
-          let classes = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-          
-          classes = classes.filter(cls => {
-            if (cls.status === 'draft') return false; // Never show drafts
-            if (user.role === 'admin' || user.role === 'teacher') return true;
-
-            // Batch filtering
-            if (cls.batchId && cls.batchId !== "all") {
-              if (user.graduationYear !== cls.batchId) return false;
-            }
-
-            // Course / Folder access filtering
-            if (cls.audienceFolderId && cls.audienceFolderId !== "all" && cls.audienceFolderId !== "none") { const expiry = user.folderAccess?.[cls.audienceFolderId]; return !!(expiry && expiry > Date.now()); }
-              if (!cls.courseId || cls.courseId === "all") return true; 
-            return activeCourseIds.has(cls.courseId);
-          });
-          
-          classes.sort((a, b) => {
-            if (a.status === 'live' && b.status !== 'live') return -1;
-            if (a.status !== 'live' && b.status === 'live') return 1;
-            return a.scheduledFor - b.scheduledFor;
-          });
-          
-          setLiveClasses(classes);
-          setCachedData('cached_live_classes', classes);
-          setFetchingClasses(false);
-        }, (err) => {
-          console.error("Quota exceeded fetching live classes?", err);
-          setFetchingClasses(false);
-        });
-
-        return unsub;
-      } catch (err) {
-        console.error("Failed to fetch dependencies for live classes", err);
-        setFetchingClasses(false);
-        return () => {};
+        console.error("Failed to load live classes:", err);
+      } finally {
+        if (isMounted) setFetchingClasses(false);
       }
     };
 
-    let unsubFunc: any = null;
-    fetchData().then(fn => { unsubFunc = fn; });
+    loadEntitledLiveClasses();
+    const pollInterval = setInterval(loadEntitledLiveClasses, 15000);
 
     return () => {
-      if (unsubFunc) unsubFunc();
+      isMounted = false;
+      clearInterval(pollInterval);
     };
-  }, [user]);
+  }, [user?.uid]);
 
   // Heartbeat to track study time and presence if there is a LIVE class currently happening
   useEffect(() => {

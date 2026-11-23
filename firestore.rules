@@ -1,10 +1,80 @@
 rules_version = '2';
 
+// =============================================================================
+// ASSUMED DATA MODEL (Brilliant Academy — Zero-Trust Content & Access Rules)
+// =============================================================================
+//
+// Collection: users/{userId}
+//   - uid: string (matches userId, immutable)
+//   - email, name, phone, parentPhone, school, address, nicNumber, nicUrl,
+//     subject, studentId, deviceId, fcmToken, pendingReason, photoUrl: string (bounded)
+//   - role: 'student' | 'teacher' | 'instructor' | 'admin' (immutable for non-staff)
+//   - isAdmin: bool (immutable for non-staff; false on initial create)
+//   - isApproved: bool (true/false on student create; strictly false on teacher create; cannot self-approve on update)
+//   - isBanned: bool (immutable for non-staff; false on initial create)
+//   - permissions: absent on create, immutable for non-staff
+//   - accessibleCourses: list<string> (empty on create, immutable for non-staff)
+//   - folderAccess: map<string, int> (folderId -> epoch ms expiry; empty on create, immutable for non-staff)
+//   - createdAt: int/timestamp (immutable)
+//   Subcollection: users/{userId}/passkeys/{credId} — owner or verified admin only
+//
+// Collection: courses/{courseId}, batches/{batchId}, subjects/{subjectId},
+//             streams/{streamId}, siteConfig/{configId}
+//   - Public catalog / display metadata (no secrets or paid content URLs)
+//
+// Collection: folders/{folderId}
+//   - Course monthly folder catalog metadata (name, courseId, price, order); auth read
+//
+// Collection: videos/{videoId}, materials/{materialId}
+//   - courseId: string, folderId: string, isFree: bool
+//   - Sensitive media URLs (url, r2Url, youtubeUrl, pdfUrl, bunnyUrl, etc.)
+//   - Read restricted to staff OR active non-banned students with isFree==true or entitlement
+//
+// Collection: live_classes/{classId}, liveSessions/{sessionId}
+//   - status: 'draft' | 'scheduled' | 'live' | 'ended'
+//   - courseId: string|null, audienceFolderId: string|null, isFree: bool
+//   - Sensitive join links (link, zoomLink, streamKey, multiStreams, password)
+//   - Read restricted to staff OR active students for non-draft entitled/open/free classes
+//
+// Collection: exams/{examId}
+//   - Contains answer keys (questions[i].correct) & questionPdfUrl -> staff-only direct read
+//   - Students read sanitized exams exclusively via server Admin SDK (/api/content/exams)
+//
+// Collection: examResults/{resultId}
+//   - userId / studentId: string, examId: string, score: number
+//   - Owner or staff read; writes restricted to staff / server Admin SDK (/api/content/exam-submit)
+//
+// Collection: payments/{paymentId}, paymentRequests/{requestId}
+//   - userId / studentId: string, courseId, folderId, amount: number (0..10000000)
+//   - method: 'bank' | 'qr' | 'bank_transfer' on student create (never 'card')
+//   - status: 'pending' | 'initiated' on student create; updates/approvals staff-only
+//
+// Collection: examMessages/{messageId}, doubts/{doubtId}
+//   - Owner or staff read; validated create/update with bounded fields & owner provenance
+//
+// Collection: live_chats/{chatId}
+//   - Active student or staff read; create/update/delete strictly bound to userId == auth.uid or staff
+//
+// Collection: presence/{presenceId}
+//   - Live viewer / hand-raise heartbeat scoped to owner or staff
+//
+// Collection: notifications/{notificationId}
+//   - Auth read; staff-only create/delete; students may only update readBy/clearedBy/isRead
+//
+// Collection: reviews/{reviewId}
+//   - Public read; active user create with userId == auth.uid, rating 1..5, bounded comment
+//
+// Collection: settings/{docId}, academy_whatsapp_queue/{msgId},
+//             otp_verifications/{emailId}, authChallenges/{uid},
+//             security_audit_ledger/{entryId}
+//   - Locked server/admin-only collections
+// =============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // ZERO-TRUST SECURITY HELPERS (UpGuard / Military-Grade Hardened)
+    // ZERO-TRUST SECURITY & ENTITLEMENT HELPERS (Military-Grade Hardened)
     // =========================================================================
     function isAuthenticated() {
       return request.auth != null;
@@ -14,46 +84,262 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function uidUnchanged() {
+      return !('uid' in request.resource.data)
+        || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in resource.data)
+        || request.resource.data.get('uid', resource.data.uid) == resource.data.uid;
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidOptionalString(data, field, minLen, maxLen) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is string
+            && data[field].size() >= minLen
+            && data[field].size() <= maxLen);
+    }
+
     // Verified Admin check: requires cryptographic Firebase Auth token with
     // verified email and explicit admin claim or verified admin email.
     function isVerifiedAdmin() {
       return isAuthenticated()
-        && request.auth.token.email_verified == true
+        && request.auth.token.get('email_verified', false) == true
         && (
-          request.auth.token.admin == true
-          || request.auth.token.role == 'admin'
-          || request.auth.token.email in [
+          request.auth.token.get('admin', false) == true
+          || request.auth.token.get('role', '') == 'admin'
+          || request.auth.token.get('email', '') in [
             'admin@brilliantacademy.com',
             'arshathrizvi1010@gmail.com'
           ]
         );
     }
 
-    // Teacher or Admin role lookup from verified user profile document
+    // Fetch authoritative user profile document for the authenticated caller
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Active non-banned authenticated student check
+    function isActiveStudent() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getUserData().get('isBanned', false) != true;
+    }
+
+    // Teacher or Admin role lookup from verified auth token or non-banned approved profile
     function isTeacherOrAdmin() {
       return isVerifiedAdmin() || (
         isAuthenticated()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getUserData().get('isBanned', false) != true
         && (
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher', 'instructor']
-           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isApproved == true)
-          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+          (getUserData().get('role', '') in ['admin', 'teacher', 'instructor']
+           && getUserData().get('isApproved', false) == true)
+          || getUserData().get('isAdmin', false) == true
         )
       );
     }
 
-    // Prevent privilege escalation & unauthorized course self-unlocking
+    // Authoritative server-side course/monthly-folder entitlement verification
+    function hasCourseOrFolderAccess(courseId, folderId) {
+      return isActiveStudent() && (
+        (
+          courseId is string
+          && courseId != ''
+          && getUserData().get('accessibleCourses', []) is list
+          && courseId in getUserData().get('accessibleCourses', [])
+        )
+        || (
+          folderId is string
+          && folderId != ''
+          && getUserData().get('folderAccess', {}) is map
+          && folderId in getUserData().get('folderAccess', {})
+          && (
+            (getUserData().folderAccess[folderId] is int
+              && getUserData().folderAccess[folderId] > request.time.toMillis())
+            || (getUserData().folderAccess[folderId] is float
+              && getUserData().folderAccess[folderId] > request.time.toMillis())
+          )
+        )
+      );
+    }
+
+    // Null-safe live class audience scope helpers
+    function hasSpecificAudienceFolder(data) {
+      return data.get('audienceFolderId', null) is string
+        && data.audienceFolderId != ''
+        && data.audienceFolderId != 'all'
+        && data.audienceFolderId != 'none';
+    }
+
+    function isOpenCourseScope(data) {
+      return data.get('courseId', null) == null
+        || data.get('courseId', '') == ''
+        || data.get('courseId', '') == 'all';
+    }
+
+    // =========================================================================
+    // DOMAIN VALIDATORS (Enforced on BOTH create and update)
+    // =========================================================================
+
+    // Prevent privilege escalation & unauthorized course self-unlocking on update
     function hasNoPrivilegeEscalation() {
       return !request.resource.data.diff(resource.data).affectedKeys()
         .hasAny(['role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned'])
-        && !(resource.data.isApproved == false && request.resource.data.isApproved == true);
+        && (!('isApproved' in request.resource.data) || request.resource.data.isApproved is bool)
+        && !(resource.data.get('isApproved', false) != true && request.resource.data.get('isApproved', false) == true)
+        && uidNotModified()
+        && areImmutableFieldsUnchanged(['createdAt']);
+    }
+
+    function isValidUserProfile(data) {
+      return isValidOptionalString(data, 'name', 0, 150)
+        && isValidOptionalString(data, 'email', 0, 254)
+        && isValidOptionalString(data, 'phone', 0, 40)
+        && isValidOptionalString(data, 'parentPhone', 0, 40)
+        && isValidOptionalString(data, 'school', 0, 200)
+        && isValidOptionalString(data, 'address', 0, 500)
+        && isValidOptionalString(data, 'nicNumber', 0, 40)
+        && isValidOptionalString(data, 'nicUrl', 0, 2048)
+        && isValidOptionalString(data, 'subject', 0, 150)
+        && isValidOptionalString(data, 'studentId', 0, 64)
+        && isValidOptionalString(data, 'deviceId', 0, 256)
+        && isValidOptionalString(data, 'fcmToken', 0, 512)
+        && isValidOptionalString(data, 'pendingReason', 0, 200)
+        && isValidOptionalString(data, 'photoUrl', 0, 500000);
     }
 
     function isSafeInitialUserCreate(userId) {
       return isOwner(userId)
-        && (!('role' in request.resource.data) || request.resource.data.role == 'student' || (request.resource.data.role == 'teacher' && request.resource.data.isApproved == false))
+        && uidUnchanged()
+        && isValidUserProfile(request.resource.data)
+        && (
+          ((!('role' in request.resource.data) || request.resource.data.role == 'student')
+            && (!('isApproved' in request.resource.data) || request.resource.data.isApproved is bool))
+          || ('role' in request.resource.data
+              && request.resource.data.role == 'teacher'
+              && 'isApproved' in request.resource.data
+              && request.resource.data.isApproved == false)
+        )
         && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false)
-        && (!('accessibleCourses' in request.resource.data) || request.resource.data.accessibleCourses.size() == 0);
+        && (!('accessibleCourses' in request.resource.data)
+            || (request.resource.data.accessibleCourses is list && request.resource.data.accessibleCourses.size() == 0))
+        && (!('folderAccess' in request.resource.data)
+            || (request.resource.data.folderAccess is map && request.resource.data.folderAccess.size() == 0))
+        && (!('isBanned' in request.resource.data) || request.resource.data.isBanned == false)
+        && !('permissions' in request.resource.data);
+    }
+
+    function isPaymentOwnerOnCreate(data) {
+      return (data.get('userId', '') == request.auth.uid
+              || data.get('studentId', '') == request.auth.uid)
+        && (!('userId' in data) || data.userId == null || data.userId == request.auth.uid)
+        && (!('studentId' in data) || data.studentId == null || data.studentId == request.auth.uid);
+    }
+
+    function isValidStudentPaymentCreate(data) {
+      return isActiveStudent()
+        && isPaymentOwnerOnCreate(data)
+        && (!('status' in data) || data.status in ['pending', 'initiated'])
+        && data.get('method', 'bank') != 'card'
+        && (!('method' in data) || data.method in ['bank', 'qr', 'bank_transfer'])
+        && (!('amount' in data) || data.amount == null || (data.amount is number && data.amount >= 0 && data.amount <= 10000000))
+        && isValidOptionalString(data, 'studentName', 0, 150)
+        && isValidOptionalString(data, 'studentEmail', 0, 254)
+        && isValidOptionalString(data, 'folderId', 0, 128)
+        && isValidOptionalString(data, 'folderName', 0, 200)
+        && isValidOptionalString(data, 'courseId', 0, 128)
+        && isValidOptionalString(data, 'courseName', 0, 200)
+        && isValidOptionalString(data, 'teacherId', 0, 128)
+        && isValidOptionalString(data, 'teacherName', 0, 150)
+        && isValidOptionalString(data, 'receiptUrl', 0, 2048);
+    }
+
+    function isValidReview(data) {
+      return 'userId' in data
+        && data.userId is string
+        && data.userId.size() > 0
+        && data.userId.size() <= 128
+        && isValidOptionalString(data, 'userName', 1, 150)
+        && 'rating' in data
+        && data.rating is number
+        && data.rating >= 1
+        && data.rating <= 5
+        && 'comment' in data
+        && data.comment is string
+        && data.comment.size() > 0
+        && data.comment.size() <= 2000;
+    }
+
+    function isValidDoubt(data) {
+      return isValidOptionalString(data, 'userId', 0, 128)
+        && isValidOptionalString(data, 'studentId', 0, 128)
+        && isValidOptionalString(data, 'studentName', 0, 150)
+        && isValidOptionalString(data, 'courseId', 0, 128)
+        && isValidOptionalString(data, 'videoId', 0, 128)
+        && isValidOptionalString(data, 'title', 0, 300)
+        && isValidOptionalString(data, 'question', 0, 5000)
+        && isValidOptionalString(data, 'message', 0, 5000)
+        && isValidOptionalString(data, 'answer', 0, 10000)
+        && isValidOptionalString(data, 'imageUrl', 0, 2048);
+    }
+
+    function isValidExamMessage(data) {
+      return (!('userId' in data) || data.userId == null || data.userId == '' || data.userId == request.auth.uid)
+        && (!('studentId' in data) || data.studentId == null || data.studentId == '' || data.studentId == request.auth.uid)
+        && (!('status' in data) || data.status == 'unread')
+        && isValidOptionalString(data, 'type', 0, 64)
+        && isValidOptionalString(data, 'studentName', 0, 150)
+        && isValidOptionalString(data, 'email', 0, 254)
+        && isValidOptionalString(data, 'studentEmail', 0, 254)
+        && isValidOptionalString(data, 'phone', 0, 40)
+        && isValidOptionalString(data, 'topic', 0, 200)
+        && isValidOptionalString(data, 'message', 0, 5000)
+        && isValidOptionalString(data, 'imageUrl', 0, 2048)
+        && isValidOptionalString(data, 'courseId', 0, 128)
+        && isValidOptionalString(data, 'courseName', 0, 200)
+        && isValidOptionalString(data, 'videoId', 0, 128)
+        && isValidOptionalString(data, 'videoTitle', 0, 250)
+        && isValidOptionalString(data, 'teacherId', 0, 128)
+        && isValidOptionalString(data, 'teacherName', 0, 150);
+    }
+
+    function isValidLiveChat(data) {
+      return 'userId' in data
+        && data.userId is string
+        && data.userId.size() > 0
+        && data.userId.size() <= 128
+        && 'liveClassId' in data
+        && data.liveClassId is string
+        && data.liveClassId.size() > 0
+        && data.liveClassId.size() <= 128
+        && isValidOptionalString(data, 'message', 0, 2000)
+        && isValidOptionalString(data, 'userName', 0, 150)
+        && isValidOptionalString(data, 'userAvatar', 0, 500000)
+        && isValidOptionalString(data, 'attachmentName', 0, 255)
+        && (!('attachmentType' in data) || data.attachmentType == null || data.attachmentType in ['image', 'file'])
+        && isValidOptionalString(data, 'attachmentBase64', 0, 950000);
+    }
+
+    function isValidPresence(data) {
+      return isValidOptionalString(data, 'userId', 0, 128)
+        && isValidOptionalString(data, 'liveClassId', 0, 128)
+        && isValidOptionalString(data, 'videoId', 0, 128)
+        && isValidOptionalString(data, 'studentName', 0, 150)
+        && (!('handRaised' in data) || data.handRaised is bool);
+    }
+
+    function isValidNotificationReadUpdate(data) {
+      return (!('readBy' in data) || (data.readBy is list && data.readBy.size() <= 5000))
+        && (!('clearedBy' in data) || (data.clearedBy is list && data.clearedBy.size() <= 5000))
+        && (!('isRead' in data) || data.isRead is bool);
     }
 
     // =========================================================================
@@ -62,11 +348,22 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isTeacherOrAdmin();
       allow create: if isSafeInitialUserCreate(userId) || isTeacherOrAdmin();
-      allow update: if (isOwner(userId) && hasNoPrivilegeEscalation()) || isTeacherOrAdmin();
+      allow update: if (
+        isOwner(userId)
+        && resource.data.get('isBanned', false) != true
+        && hasNoPrivilegeEscalation()
+        && isValidUserProfile(request.resource.data)
+      ) || isTeacherOrAdmin();
       allow delete: if isTeacherOrAdmin();
 
       match /passkeys/{credId} {
-        allow read, write: if isOwner(userId) || isVerifiedAdmin();
+        allow read: if (isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId)))
+          || isVerifiedAdmin();
+        allow write: if (
+          isOwner(userId)
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && get(/databases/$(database)/documents/users/$(userId)).data.get('isBanned', false) != true
+        ) || isVerifiedAdmin();
       }
     }
 
@@ -101,72 +398,129 @@ service cloud.firestore {
     // =========================================================================
     // 3. LEARNING CONTENT: VIDEOS, MATERIALS, EXAMS, RESULTS, MESSAGES
     // =========================================================================
+    // Strictly gated by payment/folder entitlement to eliminate unpaid YouTube/R2/Bunny/PDF leaks
     match /videos/{videoId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isTeacherOrAdmin();
-      // Students may only increment view counters or reactions if needed; full edits require teacher/admin
-      allow update: if isTeacherOrAdmin();
+      allow read: if isTeacherOrAdmin() || (
+        isActiveStudent() && (
+          resource.data.get('isFree', false) == true
+          || hasCourseOrFolderAccess(resource.data.get('courseId', ''), resource.data.get('folderId', ''))
+        )
+      );
+      allow create, update, delete: if isTeacherOrAdmin();
     }
 
+    // Study materials & PDFs — strictly gated by payment/folder entitlement
     match /materials/{materialId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacherOrAdmin() || (
+        isActiveStudent() && (
+          resource.data.get('isFree', false) == true
+          || hasCourseOrFolderAccess(resource.data.get('courseId', ''), resource.data.get('folderId', ''))
+        )
+      );
       allow create, update, delete: if isTeacherOrAdmin();
     }
 
+    // Exams contain answer keys (`questions[i].correct`) and unpaid `questionPdfUrl`:
+    // Direct client reads are locked to staff only; students read sanitized exams via /api/content/exams.
     match /exams/{examId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacherOrAdmin();
       allow create, update, delete: if isTeacherOrAdmin();
     }
 
+    // Exam results: owner/staff read only; writes locked to staff / server Admin SDK (/api/content/exam-submit)
+    // so students can never forge scores from the browser console.
     match /examResults/{resultId} {
       allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid
-        || resource.data.studentId == request.auth.uid
+        resource.data.get('userId', '') == request.auth.uid
+        || resource.data.get('studentId', '') == request.auth.uid
         || isTeacherOrAdmin()
       );
-      allow create: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid
-        || request.resource.data.studentId == request.auth.uid
-        || isTeacherOrAdmin()
-      );
-      allow update, delete: if isTeacherOrAdmin();
+      allow create, update, delete: if isTeacherOrAdmin();
     }
 
+    // Student inquiries, technical issue reports, and video doubts (PII isolated to owner + staff)
     match /examMessages/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isTeacherOrAdmin() || (
+        isAuthenticated() && (
+          resource.data.get('userId', '') == request.auth.uid
+          || resource.data.get('studentId', '') == request.auth.uid
+        )
+      );
+      allow create: if isTeacherOrAdmin()
+        || (isActiveStudent() && isValidExamMessage(request.resource.data));
       allow update, delete: if isTeacherOrAdmin();
     }
 
     // =========================================================================
     // 4. LIVE CLASSES, SESSIONS, CHATS & PRESENCE
     // =========================================================================
+    // Strictly gated to eliminate unpaid live stream / Zoom / YouTube / RTMP link leaks
     match /live_classes/{classId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && resource.data.get('status', '') != 'draft'
+        && (
+          resource.data.get('isFree', false) == true
+          || (
+            hasSpecificAudienceFolder(resource.data)
+              ? hasCourseOrFolderAccess(resource.data.get('courseId', ''), resource.data.audienceFolderId)
+              : (isOpenCourseScope(resource.data) || hasCourseOrFolderAccess(resource.data.get('courseId', ''), ''))
+          )
+        )
+      );
       allow create, update, delete: if isTeacherOrAdmin();
     }
 
     match /liveSessions/{sessionId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && resource.data.get('status', '') != 'draft'
+        && (
+          resource.data.get('isFree', false) == true
+          || (
+            hasSpecificAudienceFolder(resource.data)
+              ? hasCourseOrFolderAccess(resource.data.get('courseId', ''), resource.data.audienceFolderId)
+              : (isOpenCourseScope(resource.data) || hasCourseOrFolderAccess(resource.data.get('courseId', ''), resource.data.get('folderId', '')))
+          )
+        )
+      );
       allow create, update, delete: if isTeacherOrAdmin();
     }
 
     match /live_chats/{chatId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
-        && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isTeacherOrAdmin()
-        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if isActiveStudent() || isTeacherOrAdmin();
+      allow create: if (isActiveStudent() || isTeacherOrAdmin())
+        && request.resource.data.userId == request.auth.uid
+        && isValidLiveChat(request.resource.data);
+      allow update: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && resource.data.get('userId', '') == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && areImmutableFieldsUnchanged(['userId', 'liveClassId', 'createdAt'])
+        && isValidLiveChat(request.resource.data)
+      );
+      allow delete: if isTeacherOrAdmin()
+        || (isAuthenticated() && resource.data.get('userId', '') == request.auth.uid);
     }
 
     match /presence/{presenceId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && (
-        presenceId == request.auth.uid
-        || request.resource.data.userId == request.auth.uid
-        || isTeacherOrAdmin()
+      allow create: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && (presenceId == request.auth.uid || request.resource.data.get('userId', '') == request.auth.uid)
+        && (!('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid)
+        && isValidPresence(request.resource.data)
       );
-      allow delete: if isOwner(presenceId) || isTeacherOrAdmin();
+      allow update: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && (presenceId == request.auth.uid || resource.data.get('userId', '') == request.auth.uid)
+        && (!('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid)
+        && isValidPresence(request.resource.data)
+      );
+      allow delete: if isTeacherOrAdmin() || (
+        isAuthenticated()
+        && (presenceId == request.auth.uid || resource.data.get('userId', '') == request.auth.uid)
+      );
     }
 
     // =========================================================================
@@ -174,24 +528,24 @@ service cloud.firestore {
     // =========================================================================
     match /payments/{paymentId} {
       allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid
+        resource.data.get('userId', '') == request.auth.uid
+        || resource.data.get('studentId', '') == request.auth.uid
         || isTeacherOrAdmin()
       );
-      // Students can only submit pending payment records for themselves; status approval requires admin/server
-      allow create: if isAuthenticated()
-        && request.resource.data.userId == request.auth.uid
-        && (!('status' in request.resource.data) || request.resource.data.status in ['pending', 'initiated']);
+      // Students can only submit pending bank/QR slips for themselves; card payments & approvals require Admin SDK / staff
+      allow create: if isTeacherOrAdmin()
+        || isValidStudentPaymentCreate(request.resource.data);
       allow update, delete: if isTeacherOrAdmin();
     }
 
     match /paymentRequests/{requestId} {
       allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid
+        resource.data.get('userId', '') == request.auth.uid
+        || resource.data.get('studentId', '') == request.auth.uid
         || isTeacherOrAdmin()
       );
-      allow create: if isAuthenticated()
-        && request.resource.data.userId == request.auth.uid
-        && (!('status' in request.resource.data) || request.resource.data.status == 'pending');
+      allow create: if isTeacherOrAdmin()
+        || isValidStudentPaymentCreate(request.resource.data);
       allow update, delete: if isTeacherOrAdmin();
     }
 
@@ -201,38 +555,65 @@ service cloud.firestore {
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
       allow create, delete: if isTeacherOrAdmin();
-      // Users can mark their own notification as read (`readBy` array update)
+      // Users can only mark notifications as read/cleared; content fields remain immutable
       allow update: if isTeacherOrAdmin() || (
-        isAuthenticated()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'isRead'])
+        isActiveStudent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'clearedBy', 'isRead'])
+        && isValidNotificationReadUpdate(request.resource.data)
       );
     }
 
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isTeacherOrAdmin()
-        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if (isActiveStudent() || isTeacherOrAdmin())
+        && request.resource.data.userId == request.auth.uid
+        && isValidReview(request.resource.data);
+      allow update: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && resource.data.get('userId', '') == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && areImmutableFieldsUnchanged(['userId', 'createdAt'])
+        && isValidReview(request.resource.data)
+      );
+      allow delete: if isTeacherOrAdmin()
+        || (isAuthenticated() && resource.data.get('userId', '') == request.auth.uid);
     }
 
     match /doubts/{doubtId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (
-        request.resource.data.userId == request.auth.uid
-        || request.resource.data.studentId == request.auth.uid
+      allow read: if isTeacherOrAdmin() || (
+        isAuthenticated() && (
+          resource.data.get('userId', '') == request.auth.uid
+          || resource.data.get('studentId', '') == request.auth.uid
+        )
       );
-      allow update: if isAuthenticated() && (
-        resource.data.userId == request.auth.uid
-        || resource.data.studentId == request.auth.uid
-        || isTeacherOrAdmin()
+      allow create: if (isActiveStudent() || isTeacherOrAdmin())
+        && (
+          request.resource.data.get('userId', '') == request.auth.uid
+          || request.resource.data.get('studentId', '') == request.auth.uid
+        )
+        && (!('userId' in request.resource.data) || request.resource.data.userId == null || request.resource.data.userId == request.auth.uid)
+        && (!('studentId' in request.resource.data) || request.resource.data.studentId == null || request.resource.data.studentId == request.auth.uid)
+        && isValidDoubt(request.resource.data);
+      allow update: if isTeacherOrAdmin() || (
+        isActiveStudent()
+        && (
+          resource.data.get('userId', '') == request.auth.uid
+          || resource.data.get('studentId', '') == request.auth.uid
+        )
+        && areImmutableFieldsUnchanged(['userId', 'studentId', 'createdAt', 'answer', 'answeredBy', 'resolved'])
+        && isValidDoubt(request.resource.data)
       );
-      allow delete: if isTeacherOrAdmin()
-        || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isTeacherOrAdmin() || (
+        isAuthenticated() && (
+          resource.data.get('userId', '') == request.auth.uid
+          || resource.data.get('studentId', '') == request.auth.uid
+        )
+      );
     }
 
     match /siteConfig/{configId} {
       allow read: if true;
-      allow write: if isTeacherOrAdmin();
+      allow create, update, delete: if isTeacherOrAdmin();
     }
 
     // =========================================================================

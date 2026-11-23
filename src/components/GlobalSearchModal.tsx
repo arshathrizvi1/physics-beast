@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
 import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import {
@@ -121,10 +121,17 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
           `global_search_dataset_${cacheRole}`,
           CacheDuration.MEDIUM, // 10 minutes cache
           async () => {
+            const catalogHeaders: Record<string, string> = {};
+            try {
+              const idToken = await auth.currentUser?.getIdToken();
+              if (idToken) catalogHeaders['Authorization'] = `Bearer ${idToken}`;
+            } catch {}
+
             const promises: Promise<any>[] = [
               getDocs(collection(db, "courses")).catch(() => ({ docs: [] })),
-              getDocs(collection(db, "exams")).catch(() => ({ docs: [] })),
-              getDocs(query(collection(db, "videos"), limit(100))).catch(() => ({ docs: [] })),
+              fetch('/api/content/catalog?includeExams=1&limit=100', { headers: catalogHeaders })
+                .then(r => r.ok ? r.json() : { videos: [], exams: [] })
+                .catch(() => ({ videos: [], exams: [] })),
               getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] })),
             ];
 
@@ -142,12 +149,12 @@ export default function GlobalSearchModal({ isOpen, onClose }: GlobalSearchModal
               );
             }
 
-            const [coursesSnap, examsSnap, videosSnap, teachersSnap, studentsSnap, marksSnap] = await Promise.all(promises);
+            const [coursesSnap, catalogJson, teachersSnap, studentsSnap, marksSnap] = await Promise.all(promises);
 
             return {
               courses: coursesSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
-              exams: examsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
-              videos: videosSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
+              exams: Array.isArray(catalogJson?.exams) ? catalogJson.exams : [],
+              videos: Array.isArray(catalogJson?.videos) ? catalogJson.videos : [],
               teachers: teachersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })),
               students: studentsSnap?.docs ? studentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) : [],
               marks: marksSnap?.docs ? marksSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) : [],

@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { adminDb } from '@/lib/firebase-admin';
 import { getServerEnv } from '@/security/env';
 import { timingSafeEqualStr } from '@/security/session';
 import { withZeroTrustGate } from '@/security/zero-trust-gate';
 import { sanitizeText } from '@/security/sanitize';
+import {
+  getUserEntitlementContext,
+  hasCourseOrFolderEntitlement,
+} from '@/security/entitlement';
 
 // Runtime XOR-decoded fallback matching the native C++ JNI key array
 const NATIVE_XOR_KEY_BYTES = [
@@ -24,16 +29,87 @@ export const GET = withZeroTrustGate(
     windowMs: 60 * 1000,
     requireAuth: 'authenticated',
   },
-  async (request) => {
+  async (request, ctx) => {
     const env = getServerEnv();
     const { searchParams } = new URL(request.url);
     const videoId = sanitizeText(searchParams.get('videoId'), 128);
+    const videoDocId = sanitizeText(searchParams.get('videoDocId'), 128);
     const libraryId =
       sanitizeText(searchParams.get('libraryId'), 64) || env.BUNNY_STREAM_LIBRARY_ID;
 
     if (!videoId) {
       return NextResponse.json({ error: 'Missing videoId parameter' }, { status: 400 });
     }
+
+    // --- SERVER-SIDE ENTITLEMENT CHECK (Anti-Bypass Payment Lock) ---
+    const ent = await getUserEntitlementContext(ctx.caller);
+    if (!ent || ent.isBanned) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!ent.isStaff) {
+      let matchedVideo: Record<string, any> | null = null;
+
+      if (videoDocId) {
+        const snap = await adminDb.collection('videos').doc(videoDocId).get();
+        if (snap.exists) {
+          const data = snap.data() || {};
+          const storedUrl = String(data.url || '');
+          const storedVid = String(data.videoId || '');
+          if (storedVid === videoId || storedUrl.includes(videoId)) {
+            matchedVideo = { id: snap.id, ...data };
+          }
+        }
+      }
+
+      if (!matchedVideo) {
+        const byVidSnap = await adminDb
+          .collection('videos')
+          .where('videoId', '==', videoId)
+          .limit(1)
+          .get();
+        if (!byVidSnap.empty) {
+          matchedVideo = { id: byVidSnap.docs[0].id, ...(byVidSnap.docs[0].data() || {}) };
+        }
+      }
+
+      if (!matchedVideo) {
+        // Fallback: scan bunny videos only if videoId wasn't indexed as top-level field
+        const bunnySnap = await adminDb
+          .collection('videos')
+          .where('platform', '==', 'bunny')
+          .limit(300)
+          .get();
+        for (const d of bunnySnap.docs) {
+          const data = d.data() || {};
+          if (String(data.url || '').includes(videoId) || String(data.videoId || '') === videoId) {
+            matchedVideo = { id: d.id, ...data };
+            break;
+          }
+        }
+      }
+
+      if (!matchedVideo) {
+        return NextResponse.json(
+          { error: 'Forbidden: Video entitlement could not be verified.' },
+          { status: 403 }
+        );
+      }
+
+      const entitled = hasCourseOrFolderEntitlement(ent, {
+        courseId: matchedVideo.courseId,
+        folderId: matchedVideo.folderId,
+        isFree: matchedVideo.isFree === true,
+      });
+
+      if (!entitled) {
+        return NextResponse.json(
+          { error: 'Payment required: You do not have active access to this lesson.' },
+          { status: 403 }
+        );
+      }
+    }
+    // --- END SERVER-SIDE ENTITLEMENT CHECK ---
 
     // --- CLOUD DRM HANDSHAKE VERIFICATION ---
     const CLOUD_SECRET_KEY = resolveNativeCloudDrmKey();

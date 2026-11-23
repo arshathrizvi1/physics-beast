@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveCorsOrigin, withZeroTrustGate } from '@/security/zero-trust-gate';
+import { getUserEntitlementContext } from '@/security/entitlement';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,8 +38,14 @@ export const GET = withZeroTrustGate(
     scope: 'pdf_proxy',
     limit: 60,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
-  async (req: Request) => {
+  async (req: Request, ctx) => {
+    const ent = await getUserEntitlementContext(ctx.caller);
+    if (!ent || ent.isBanned) {
+      return new NextResponse('Unauthorized: Active authenticated session required.', { status: 401 });
+    }
+
     const urlObj = new URL(req.url);
     const targetUrl = urlObj.searchParams.get('url');
 
@@ -58,39 +65,41 @@ export const GET = withZeroTrustGate(
     }
 
     if (!isAllowedPdfHost(parsed.hostname)) {
-      return new NextResponse('Forbidden: Target domain is not permitted by proxy policy', {
+      return new NextResponse('Access Denied: Target host is not permitted by PDF proxy policy.', {
         status: 403,
       });
     }
 
     try {
-      const upstreamRes = await fetch(parsed.toString(), {
+      const upstreamRes = await fetch(targetUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) BrilliantAcademy/1.0',
         },
-        signal: AbortSignal.timeout(10000),
+        redirect: 'error',
       });
 
       if (!upstreamRes.ok) {
-        return new NextResponse(`Upstream returned ${upstreamRes.status}`, {
+        return new NextResponse(`Upstream error: ${upstreamRes.status}`, {
           status: upstreamRes.status,
         });
       }
 
-      const buffer = await upstreamRes.arrayBuffer();
+      const contentType = upstreamRes.headers.get('content-type') || 'application/pdf';
       const allowedOrigin = resolveCorsOrigin(req);
 
-      return new NextResponse(buffer, {
+      return new NextResponse(upstreamRes.body, {
+        status: 200,
         headers: {
-          'Content-Type': upstreamRes.headers.get('content-type') || 'application/pdf',
+          'Content-Type': contentType,
+          'Cache-Control': 'private, no-store, no-cache',
           'Access-Control-Allow-Origin': allowedOrigin,
           'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-          'Cache-Control': 'public, max-age=86400',
           'X-Content-Type-Options': 'nosniff',
         },
       });
     } catch (err: any) {
-      return new NextResponse(err?.message || 'Proxy error', { status: 502 });
+      console.error('PDF Proxy error:', err);
+      return new NextResponse('Proxy failed: ' + err.message, { status: 502 });
     }
   }
 );

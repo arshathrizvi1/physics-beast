@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { usePathname } from "next/navigation";
 
 export default function LiveNavLink() {
@@ -11,27 +9,35 @@ export default function LiveNavLink() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const q = query(collection(db, 'live_classes'), where('status', '==', 'live'));
-    const unsub = onSnapshot(q, (snap) => {
-      setIsLive(!snap.empty);
-    }, (err) => {
-      console.log("Could not fetch live status", err);
-    });
-    return () => unsub();
+    let active = true;
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('/api/content/live?statusOnly=1');
+        if (res.ok && active) {
+          const data = await res.json();
+          setIsLive(Boolean(data?.hasLive));
+        }
+      } catch {}
+    };
+    checkStatus();
+    const timer = setInterval(checkStatus, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const isActive = pathname === "/live";
 
   return (
-    <Link 
-      href="/live" 
+    <Link
+      href="/live"
       className={`transition-all duration-200 flex items-center gap-1.5 relative ${isActive ? 'text-[#d4af37]' : 'text-foreground/90 hover:text-[#d4af37]'}`}
     >
-      Live 
+      Live
       {isLive && (
         <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
       )}
     </Link>
   );
 }
-

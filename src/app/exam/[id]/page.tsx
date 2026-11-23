@@ -52,64 +52,50 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> |
 
     const initExam = async () => {
       try {
-        const examDocRef = doc(db, 'exams', id);
-        const examDoc = await getDoc(examDocRef);
-        if (!examDoc.exists()) {
-          setErrorMsg("Exam not found or has been deleted.");
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          setErrorMsg("Please log in to take this exam.");
           return;
         }
-        
-        const examData = examDoc.data();
-        setExam(examData);
 
-        // Security check: Single attempt
-        const qResults = query(collection(db, 'examResults'), where('userId', '==', user.uid), where('examId', '==', id));
-        const existingResults = await getDocs(qResults);
-        if (!existingResults.empty) {
+        const res = await fetch(`/api/content/exams?examId=${encodeURIComponent(id)}&mode=take`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+          cache: 'no-store',
+        });
+        const payload = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setErrorMsg(payload.error || "You do not have access to this exam.");
+          return;
+        }
+
+        if (payload.myResult) {
           router.replace(`/exam/${id}/results`);
           return;
         }
 
-        // Security check: Timing bounds
-        const now = Date.now();
-        if (examData.startTime && now < examData.startTime) {
-          setErrorMsg("This exam has not started yet.");
+        const examData = payload.exam;
+        if (!examData) {
+          setErrorMsg("Exam not found or has been deleted.");
           return;
         }
-        if (examData.endTime && now > examData.endTime) {
-          setErrorMsg("This exam has ended and is closed for new submissions.");
-          return;
-        }
+        setExam(examData);
 
-        // Initialize exam state
         const duration = examData.durationSeconds || 900;
         setExamData({ title: examData.title, durationSeconds: duration });
-        setQuestions(examData.questions);
-        
+        setQuestions(Array.isArray(examData.questions) ? examData.questions : []);
+
         const storageKey = `exam_start_${id}_${user.uid}`;
         let startTimestamp = parseInt(localStorage.getItem(storageKey) || "0");
         if (!startTimestamp) {
           startTimestamp = Date.now();
           localStorage.setItem(storageKey, startTimestamp.toString());
         }
-        
+
         const elapsedSeconds = Math.floor((Date.now() - startTimestamp) / 1000);
         const remaining = Math.max(0, duration - elapsedSeconds);
         setTimeLeft(remaining);
         setIsLoaded(true);
-
-        // Real-time listener for exam changes (e.g. admin ending exam early)
-        unsubExamDoc = onSnapshot(examDocRef, (snap) => {
-          if (snap.exists()) {
-            const updated = snap.data();
-            setExam(updated);
-            if (updated.endTime && Date.now() >= updated.endTime) {
-              setTimeUp(true);
-              if (handleSubmitRef.current) handleSubmitRef.current(true);
-            }
-          }
-        });
-
       } catch (err) {
         console.error("Failed to load exam", err);
         setErrorMsg("Failed to load exam data.");
@@ -269,81 +255,39 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> |
     }
     setEssayUploading(false);
 
-    let totalCorrect = 0;
-    if (exam?.examType === 'mcq') {
-      questions.forEach((q, idx) => {
-        const isCorrect = Array.isArray(q.correct) ? q.correct.includes(answers[idx]) : answers[idx] === q.correct;
-        if (isCorrect) totalCorrect++;
-      });
-    }
-    setScore(totalCorrect);
-
     const duration = examData.durationSeconds || 900;
     const taken = Math.max(1, duration - timeLeft);
     setTimeTaken(taken);
 
-    // Calculate XP based on Marks, Time efficiency, and Completion!
-    const xpDetails = calculateExamXp({
-      correctAnswers: totalCorrect,
-      totalQuestions: exam?.examType === 'essay' ? 100 : (questions.length || 1), // dummy values for essay
-      timeTakenSeconds: taken,
-      durationSeconds: duration,
-    });
-    setXpResult(xpDetails);
-
-    // Save to Firestore if user is authenticated
-    if (user && user.role === 'student') {
-      try {
-        // 1. Record exam result
-        await addDoc(collection(db, 'examResults'), {
+    // Server-Authoritative Grading & Result Persistence (/api/content/exam-submit)
+    try {
+      const idToken = await auth.currentUser?.getIdToken();
+      const submitRes = await fetch('/api/content/exam-submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body: JSON.stringify({
           examId: String(id),
-          examTitle: examData.title,
-          userId: user.uid,
-          studentName: user.name || user.email?.split('@')[0] || "Student",
-          score: exam?.examType === 'essay' ? 0 : xpDetails.percentage,
-          rawScore: totalCorrect,
-          totalQuestions: exam?.examType === 'essay' ? 0 : questions.length,
-          grade: exam?.examType === 'essay' ? "Pending" : xpDetails.grade,
-          status: exam?.examType === 'essay' ? "pending_grading" : "done",
-          timeSeconds: taken,
-          timeTakenSeconds: taken,
-          durationSeconds: duration,
-          xpEarned: exam?.examType === 'essay' ? 10 : xpDetails.totalXp, // minimum 10 XP for doing it
-          timestamp: Date.now(),
           answers: exam?.examType === 'essay' ? {} : answers,
-          answerPdfUrl: answerPdfUrl,
-          examType: exam?.examType || 'mcq'
-        });
-
-        // 2. Fetch past exams to compute fresh average grade
-        const qResults = query(collection(db, 'examResults'), where('userId', '==', user.uid));
-        const resultsSnap = await getDocs(qResults);
-        const allScores: number[] = [];
-        resultsSnap.forEach(d => {
-          const data = d.data();
-          if (data.examType !== 'essay' && typeof data.score === 'number') allScores.push(data.score);
-        });
-        if (exam?.examType !== 'essay') {
-          allScores.push(xpDetails.percentage);
-        }
-        const avgGrade = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
-
-        // 3. Update student user document with XP, Level, Exam Count, Study Time, and Average Grade
-        const userRef = doc(db, 'users', user.uid);
-        const xpToGain = exam?.examType === 'essay' ? 10 : xpDetails.totalXp;
-        const currentTotalXp = (user.totalXp || 0) + xpToGain;
-        const newLevel = calculateXpLevel(currentTotalXp);
-
-        await updateDoc(userRef, {
-          totalXp: increment(xpToGain),
-          xpLevel: newLevel,
-          examsDone: increment(1),
-          totalStudyTimeMins: increment(xpDetails.studyMinutes), // exam time counts as study time
-          averageGrade: avgGrade
-        });
-      } catch (err) {
-        console.error("Failed to save exam result & XP", err);
+          answerPdfUrl,
+          timeTakenSeconds: taken,
+        }),
+      });
+      const submitJson = await submitRes.json().catch(() => ({}));
+      if (!submitRes.ok && !submitJson.alreadySubmitted) {
+        throw new Error(submitJson.error || 'Failed to submit exam.');
       }
+      setScore(Number(submitJson.score || 0));
+      if (submitJson.xpResult) {
+        setXpResult(submitJson.xpResult);
+      }
+    } catch (err: any) {
+      console.error("Failed to submit exam to server:", err);
+      alert(err?.message || "Failed to submit exam. Please try again.");
+      setIsSubmitting(false);
+      return;
     }
 
     localStorage.removeItem(`exam_start_${id}_${user?.uid}`);
@@ -509,7 +453,8 @@ export default function ExamPage({ params }: { params: Promise<{ id: string }> |
               <PdfViewer 
                 url={exam.questionPdfUrl} 
                 title={examData.title || "Question Paper"} 
-                height="650px" 
+                height="650px"
+                authContext={{ examId: String(id), mode: "take" }}
               />
             </CardContent>
           </Card>

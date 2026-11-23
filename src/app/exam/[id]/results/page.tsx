@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc, orderBy, addDoc, updateDoc } from "firebase/firestore";
 import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -54,34 +54,18 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           `exam_results_page_${id}_${user.uid}`,
           CacheDuration.SHORT, // 3 minutes TTL
           async () => {
-            const isStaff = user.role === 'admin' || user.role === 'teacher';
-            const [examDoc, mySnap, snapAll] = await Promise.all([
-              getDoc(doc(db, 'exams', id)),
-              getDocs(query(collection(db, 'examResults'), where('examId', '==', id), where('userId', '==', user.uid))),
-              isStaff ? getDocs(query(collection(db, 'examResults'), where('examId', '==', id))) : Promise.resolve(null),
-            ]);
-
-            if (!examDoc.exists()) {
+            const idToken = await auth.currentUser?.getIdToken();
+            const res = await fetch(`/api/content/exams?examId=${encodeURIComponent(id)}&mode=results`, {
+              headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+              cache: 'no-store',
+            });
+            if (!res.ok) {
               return { exam: null, results: [], myRes: null };
             }
-
-            const examData = examDoc.data();
-            const results: any[] = [];
-            let myRes = null;
-
-            if (mySnap && !mySnap.empty) {
-              const myDoc = mySnap.docs[0];
-              myRes = { id: myDoc.id, ...myDoc.data() };
-            }
-
-            if (snapAll) {
-              snapAll.forEach((d) => {
-                const data = d.data();
-                results.push({ id: d.id, ...data });
-              });
-            } else if (myRes) {
-              results.push(myRes);
-            }
+            const payload = await res.json();
+            const examData = payload.exam || null;
+            const myRes = payload.myResult || null;
+            const results: any[] = Array.isArray(payload.results) ? [...payload.results] : [];
 
             // Sort by score or rawScore descending, then timeTakenSeconds ascending
             results.sort((a, b) => {
@@ -407,12 +391,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
             <TabsContent value="answers" className="mt-6">
               <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
                 <CardContent className="p-0 flex-1 min-h-[650px] relative">
-                  <PdfViewer 
-                    url={myResult.answerPdfUrl} 
+                  <PdfViewer url={myResult.answerPdfUrl} 
                     title="Your Submitted Answer Sheet" 
                     height="650px" 
                     allowDownload={true}
-                  />
+                   authContext={{ examId: String(id), mode: "results" }} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -451,12 +434,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
                         <CardTitle className="text-lg">Corrected Paper</CardTitle>
                       </CardHeader>
                       <CardContent className="p-0 flex-1 min-h-[650px] relative">
-                        <PdfViewer 
-                          url={myResult.correctedPdfUrl} 
+                        <PdfViewer url={myResult.correctedPdfUrl} 
                           title="Teacher's Corrected Answer Sheet" 
                           height="650px" 
                           allowDownload={true}
-                        />
+                         authContext={{ examId: String(id), mode: "results" }} />
                       </CardContent>
                     </Card>
                   ) : (
@@ -500,12 +482,11 @@ export default function ExamResultsPage({ params }: { params: Promise<{ id: stri
           <TabsContent value="question" className="mt-6">
             <Card className="border-secondary/50 shadow-md flex flex-col overflow-hidden">
               <CardContent className="p-0 flex-1 min-h-[650px] relative">
-                <PdfViewer 
-                  url={exam.questionPdfUrl} 
+                <PdfViewer url={exam.questionPdfUrl} 
                   title={exam.title || "Question Paper"} 
                   height="650px" 
                   allowDownload={true}
-                />
+                 authContext={{ examId: String(id), mode: "results" }} />
               </CardContent>
             </Card>
           </TabsContent>

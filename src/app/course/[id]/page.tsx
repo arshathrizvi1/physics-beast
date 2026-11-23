@@ -10,7 +10,7 @@ import { PlayCircle, Lock, Eye, ShieldAlert, Folder, ChevronDown, ChevronUp, Che
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useEffect, useState, use, useRef, useCallback, useMemo } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { uploadToS3 } from "@/lib/s3Storage";
 import { doc, getDoc, collection, query, where, getDocs, setDoc, updateDoc, increment, onSnapshot, addDoc, getCountFromServer } from "firebase/firestore";
 import { fetchWithCache, CacheDuration } from "@/lib/cache-util";
@@ -60,6 +60,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [selectedMonthlyFolderId, setSelectedMonthlyFolderId] = useState<string | null>(null);
   const [activeVideo, setActiveVideo] = useState<any>(null);
+  const [authorizedR2StreamUrl, setAuthorizedR2StreamUrl] = useState<string>('');
+  const [r2AuthError, setR2AuthError] = useState<string>('');
   const [viewersCount, setViewersCount] = useState(0);
 
   // Instant recovery from sessionStorage so course never disappears during playback
@@ -474,16 +476,23 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             headers['x-app-platform'] = 'web';
           }
           
-          const res = await fetch(`/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}`, { headers });
+          const idToken = await auth.currentUser?.getIdToken();
+          if (idToken) {
+            headers['Authorization'] = `Bearer ${idToken}`;
+          }
+          const res = await fetch(
+            `/api/bunny/sign?videoId=${encodeURIComponent(vid)}&libraryId=${encodeURIComponent(lib)}&videoDocId=${encodeURIComponent(activeVideo.id || '')}`,
+            { headers }
+          );
           if (!res.ok) {
-              setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
-              return;
+            setBunnyEmbedUrl('');
+            return;
           }
           const data = await res.json();
           if (data.url) setBunnyEmbedUrl(data.url);
-          else setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
+          else setBunnyEmbedUrl('');
         } catch (e) {
-          setBunnyEmbedUrl(`https://iframe.mediadelivery.net/embed/${lib}/${vid}?autoplay=true`);
+          setBunnyEmbedUrl('');
         }
       };
       fetchVideoUrl();
@@ -491,6 +500,65 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       setBunnyEmbedUrl('');
     }
   }, [activeVideo?.id, activeVideo?.url, activeVideo?.platform, user?.email]);
+
+  // Mint short-lived, device-bound HMAC-SHA256 Edge Playback Token for Cloudflare R2 streams
+  useEffect(() => {
+    let active = true;
+    const isR2Target = Boolean(
+      activeVideo?.id &&
+        activeVideo.type !== 'resource' &&
+        activeVideo.hasAccess !== false &&
+        (activeVideo.r2Url ||
+          activeVideo.platform === 'r2' ||
+          (activeVideo.url &&
+            (activeVideo.url.includes('r2.dev') ||
+              activeVideo.url.includes('r2.cloudflarestorage.com') ||
+              activeVideo.url.includes('/api/r2-media/'))))
+    );
+
+    if (!isR2Target || !user) {
+      setAuthorizedR2StreamUrl('');
+      setR2AuthError('');
+      return;
+    }
+
+    const authorizeStream = async () => {
+      setR2AuthError('');
+      try {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          if (active) setR2AuthError('Please log in to stream this lesson.');
+          return;
+        }
+        const res = await fetch('/api/stream/authorize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ videoId: activeVideo.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.streamUrl) {
+          if (active) {
+            setAuthorizedR2StreamUrl('');
+            setR2AuthError(data?.error || 'Payment required: Active enrollment needed to stream.');
+          }
+          return;
+        }
+        if (active) {
+          setAuthorizedR2StreamUrl(data.streamUrl);
+        }
+      } catch {
+        if (active) setR2AuthError('Stream authorization failed. Please refresh.');
+      }
+    };
+
+    authorizeStream();
+    return () => {
+      active = false;
+    };
+  }, [activeVideo?.id, activeVideo?.r2Url, activeVideo?.url, activeVideo?.hasAccess, user?.uid]);
 
   // Video Progress Tracking State & Persistence
   const [localVideoProgress, setLocalVideoProgress] = useState<Record<string, number>>({});
@@ -1032,29 +1100,30 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
     const loadCourseData = async (forceRefresh = false) => {
       try {
-        const cacheKey = `course_bundle_${id}`;
+        const accessFingerprint = user?.uid
+          ? `${user.uid}_${Object.keys(user.folderAccess || {}).length}_${(user.accessibleCourses || []).length}`
+          : 'guest';
+        const cacheKey = `course_bundle_${id}_${accessFingerprint}`;
         
-        // SWR (Stale-While-Revalidate) Cache (10 minutes TTL)
-        // Eliminates 5 persistent onSnapshot listeners and reduces 95%+ Firestore reads
+        // Server-Gated Course Content Fetch: unpaid folders NEVER receive YouTube, R2, Bunny, or PDF URLs!
         const bundle = await fetchWithCache(
           cacheKey,
-          CacheDuration.MEDIUM,
+          CacheDuration.SHORT,
           async () => {
-            const [courseSnap, foldersSnap, videosSnap, liveSnap, configSnap] = await Promise.all([
-              getDoc(doc(db, "courses", id)),
-              getDocs(query(collection(db, "folders"), where("courseId", "==", id))),
-              getDocs(query(collection(db, "videos"), where("courseId", "==", id))),
-              getDocs(query(collection(db, "live_classes"), where("courseId", "==", id), where("status", "==", "ended"))),
-              getDoc(doc(db, "siteConfig", "payments"))
-            ]);
+            const headers: Record<string, string> = {};
+            try {
+              const idToken = await auth.currentUser?.getIdToken();
+              if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+            } catch {}
 
-            return {
-              course: courseSnap.exists() ? { id: courseSnap.id, ...courseSnap.data() } : null,
-              folders: foldersSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt),
-              videos: videosSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => a.createdAt - b.createdAt),
-              live: liveSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => b.scheduledFor - a.scheduledFor),
-              paymentConfig: configSnap.exists() ? configSnap.data() : null,
-            };
+            const res = await fetch(`/api/content/course?courseId=${encodeURIComponent(id)}`, {
+              headers,
+              cache: 'no-store',
+            });
+            if (!res.ok) {
+              throw new Error(`Failed to load course content (${res.status})`);
+            }
+            return await res.json();
           },
           { forceRefresh }
         );
@@ -1100,7 +1169,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
       isMounted = false;
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [id]);
+  }, [id, user?.uid, JSON.stringify(user?.folderAccess || {}), JSON.stringify(user?.accessibleCourses || {})]);
 
   const hasAutoOpenedRef = useRef(false);
 
@@ -1400,9 +1469,10 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         }
       }
 
-      // Save payment record to Firestore
+      // Save pending bank/QR payment record to Firestore (approval is strictly Admin/Server-only)
       try {
         await addDoc(collection(db, "payments"), {
+          userId: user.uid,
           studentId: user.uid,
           studentName: user.name || "Student",
           studentEmail: user.email,
@@ -1412,51 +1482,22 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           courseName: course.name || "",
           teacherId: course.teacherId || null,
           teacherName: course.teacherName || null,
-          amount: checkoutFolder.price || 0,
-          method: paymentMethod,
+          amount: Number(checkoutFolder.price || 0),
+          method: paymentMethod === 'qr' ? 'qr' : 'bank',
           receiptUrl: receiptUrl,
-          status: (paymentMethod as string) === 'card' ? 'approved' : 'pending',
+          status: 'pending',
           createdAt: Date.now()
         });
-
-        // Notify Admin of payment / pending payment receipt
-        const studentLabel = user.name ? `${user.name}${user.studentId ? ` (${user.studentId})` : ''}` : (user.studentId || user.email || 'A student');
-        const paymentTypeLabel = paymentMethod === 'bank' ? 'Bank Transfer' : paymentMethod.toUpperCase();
-        
-        addDoc(collection(db, "notifications"), {
-          target: "admin",
-          title: paymentMethod === 'bank' ? "New Pending Payment Receipt 🧾" : "Payment Received (Card) 🧾",
-          message: `${studentLabel} submitted a ${paymentTypeLabel} payment of Rs. ${checkoutFolder.price || 0} for "${checkoutFolder.name}". Pending payment verification.`,
-          link: "/admin#payments",
-          timestamp: Date.now(),
-          type: "payment",
-          readBy: []
-        }).catch(err => console.error("Failed to notify admin of payment:", err));
       } catch (writeError: any) {
         if (writeError.code === 'permission-denied') {
-          alert("⛔ Permission Denied: Your Firestore Rules are blocking payment submissions.\n\nPlease update Firestore Rules in Firebase Console to allow authenticated writes.");
+          alert("⛔ Permission Denied: Unable to submit payment receipt. Please ensure you are logged in with an active account.");
           setIsSubmittingPayment(false);
           return;
         }
         throw writeError;
       }
 
-      if ((paymentMethod as string) === 'card') {
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          const folderAccess = user.folderAccess || {};
-          const now = Date.now();
-          const currentExp = folderAccess[checkoutFolder.id] && folderAccess[checkoutFolder.id] > now ? folderAccess[checkoutFolder.id] : now;
-          folderAccess[checkoutFolder.id] = currentExp + (30 * 24 * 60 * 60 * 1000);
-          await updateDoc(userRef, { folderAccess });
-        } catch (dbError) {
-          console.error("Error updating user folderAccess:", dbError);
-        }
-        alert("Card Payment Successful! Access granted for 30 days.");
-        setCheckoutFolder(null);
-      } else {
-        setPaymentSuccess(true);
-      }
+      setPaymentSuccess(true);
     } catch (e) {
       console.error("Payment failed", e);
       alert("Something went wrong submitting your payment. Please try again.");
@@ -1681,6 +1722,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     height="100%" 
                     allowDownload={true} 
                     className="w-full h-full"
+                    authContext={{ videoId: activeVideo.id }}
                   />
                 </div>
               ) : (activeVideo.processingStatus === 'error') ? (
@@ -1783,7 +1825,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
 
                           {activeServer === 'bunny' && isBunnyPermitted && activeVideo.platform === 'bunny' && (
                             <iframe 
-                              src={(bunnyEmbedUrl && !bunnyEmbedUrl.startsWith('CRACKED')) ? bunnyEmbedUrl : activeVideo.url} 
+                              src={(bunnyEmbedUrl && !bunnyEmbedUrl.startsWith('CRACKED')) ? bunnyEmbedUrl : ''} 
                               className="w-full h-full border-0 relative z-[50]"
                               allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
                               allowFullScreen={true}
@@ -1952,7 +1994,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                           activeServer === 'youtube'
                             ? (activeVideo.originalYoutubeUrl || activeVideo.youtubeUrl || (activeYoutubeId ? `https://www.youtube.com/watch?v=${activeYoutubeId}` : activeVideo.url))
                             : activeServer === 'r2'
-                            ? getSecureStreamUrl(activeVideo.r2Url || activeVideo.url)
+                            ? (authorizedR2StreamUrl || '')
                             : activeVideo.url
                         }
                       width="100%"

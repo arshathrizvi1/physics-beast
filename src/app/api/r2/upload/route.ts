@@ -49,7 +49,7 @@ export const POST = withZeroTrustGate(
       const timestamp = Date.now();
       const key = `${folder}/${timestamp}_${cleanFilename}`;
 
-      const host = process.env.SITE_URL || 'https://brillliantacademy.site';
+      const host = process.env.SITE_URL || 'https://www.brillliantacademy.site';
       const uploadUrl = `${host}/api/r2-media/${encodeURIComponent(key)}`;
       const bytes = await file.arrayBuffer();
 

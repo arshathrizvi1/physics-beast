@@ -22,7 +22,7 @@ import {
   Check,
   RotateCcw
 } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { fetchWithCache, CacheDuration, getCachedData, getStaleCachedData, setCachedData } from "@/lib/cache-util";
 
@@ -88,24 +88,19 @@ export default function ExamsPage() {
           `exams_bundle_${user.uid}`,
           CacheDuration.MEDIUM,
           async () => {
-            const [examsSnap, foldersSnap, resultsSnap] = await Promise.all([
-              getDocs(collection(db, 'exams')).catch(() => ({ docs: [] }) as any),
-              getDocs(collection(db, 'folders')).catch(() => ({ docs: [] }) as any),
-              getDocs(query(collection(db, 'examResults'), where('userId', '==', user.uid))).catch(() => ({ docs: [] }) as any)
-            ]);
-
-            const examsList = (examsSnap?.docs || []).map((doc: any) => ({ id: doc.id, ...doc.data() })).filter((e: any) => !e.hidden && !e.deleted);
-            const foldersList = (foldersSnap?.docs || []).map((doc: any) => ({ id: doc.id, ...doc.data() }));
-            
-            const resMap: Record<string, any> = {};
-            (resultsSnap?.docs || []).forEach((d: any) => {
-              resMap[d.data().examId] = d.data();
+            const idToken = await auth.currentUser?.getIdToken();
+            const res = await fetch('/api/content/exams', {
+              headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+              cache: 'no-store',
             });
-
+            if (!res.ok) {
+              return { exams: [], folders: [], results: {} };
+            }
+            const data = await res.json();
             return {
-              exams: examsList,
-              folders: foldersList,
-              results: resMap,
+              exams: Array.isArray(data.exams) ? data.exams : [],
+              folders: Array.isArray(data.folders) ? data.folders : [],
+              results: data.results && typeof data.results === 'object' ? data.results : {},
             };
           }
         );

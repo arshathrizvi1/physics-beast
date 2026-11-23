@@ -527,6 +527,248 @@ async function verifyFirebaseIdToken(token, projectId) {
 }
 
 // ============================================================================
+// CRYPTOGRAPHIC PLAYBACK TOKEN ENGINE & FIRESTORE ENTITLEMENT VERIFIER
+// Protects Cloudflare R2 HLS videos, course PDFs, and study materials at Edge:
+//   1. Verifies Firebase ID Token (RS256) + Authoritative Firestore Entitlements
+//   2. Mints short-lived (2h) HMAC-SHA256 tokens bound to (uid, scope, deviceFp, exp)
+//   3. Prevents URL sharing (device-bound), unpaid console bypass, & direct R2 leaks
+// ============================================================================
+
+const PLAYBACK_TOKEN_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const PUBLIC_R2_IMAGE_PREFIXES = ['public/', 'avatars/', 'thumbnails/', 'banners/', 'course-covers/', 'profiles/'];
+const PUBLIC_R2_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico'];
+
+function uint8ToBase64Url(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function sha256Hex(str) {
+  const bytes = new TextEncoder().encode(String(str || ''));
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+function getIpSubnetPrefix(ip) {
+  const clean = String(ip || '').trim();
+  if (clean.includes('.')) {
+    const parts = clean.split('.');
+    if (parts.length === 4) return parts.slice(0, 3).join('.');
+  }
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    return parts.slice(0, 3).join(':');
+  }
+  return clean || '0.0.0';
+}
+
+async function computeEdgeDeviceFingerprint(clientIp, userAgent) {
+  const subnet = getIpSubnetPrefix(clientIp);
+  const normUa = String(userAgent || 'unknown').trim().slice(0, 160).toLowerCase();
+  const hash = await sha256Hex(subnet + '|' + normUa);
+  return hash.slice(0, 16);
+}
+
+async function importMediaHmacKey(secret) {
+  const keyMaterial = new TextEncoder().encode(secret);
+  return crypto.subtle.importKey(
+    'raw',
+    keyMaterial,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign', 'verify']
+  );
+}
+
+async function signEdgePlaybackToken(payloadObj, secret) {
+  if (!secret) throw new Error('MEDIA_TOKEN_SECRET not configured');
+  const payloadJson = JSON.stringify(payloadObj);
+  const payloadB64 = uint8ToBase64Url(new TextEncoder().encode(payloadJson));
+  const hmacKey = await importMediaHmacKey(secret);
+  const sigBuf = await crypto.subtle.sign('HMAC', hmacKey, new TextEncoder().encode(payloadB64));
+  const sigB64 = uint8ToBase64Url(new Uint8Array(sigBuf));
+  return payloadB64 + '.' + sigB64;
+}
+
+async function verifyEdgePlaybackToken(token, secret, expectedKind, targetValue, currentFp) {
+  if (!token || typeof token !== 'string' || !secret) return { ok: false, reason: 'MISSING_TOKEN' };
+  const parts = token.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return { ok: false, reason: 'MALFORMED_TOKEN' };
+
+  try {
+    const hmacKey = await importMediaHmacKey(secret);
+    const sigBytes = base64UrlToUint8Array(parts[1]);
+    const dataBytes = new TextEncoder().encode(parts[0]);
+    const validSig = await crypto.subtle.verify('HMAC', hmacKey, sigBytes, dataBytes);
+    if (!validSig) return { ok: false, reason: 'INVALID_SIGNATURE' };
+
+    const payloadBytes = base64UrlToUint8Array(parts[0]);
+    const payload = JSON.parse(new TextDecoder().decode(payloadBytes));
+
+    if (!payload || typeof payload.exp !== 'number' || Date.now() > payload.exp) {
+      return { ok: false, reason: 'TOKEN_EXPIRED' };
+    }
+    if (payload.kind !== expectedKind) {
+      return { ok: false, reason: 'KIND_MISMATCH' };
+    }
+    if (currentFp && payload.fp && payload.fp !== currentFp) {
+      return { ok: false, reason: 'DEVICE_FINGERPRINT_MISMATCH' };
+    }
+
+    const scope = String(payload.scope || '').trim();
+    const target = String(targetValue || '').trim();
+    if (!scope || !target) return { ok: false, reason: 'EMPTY_SCOPE' };
+
+    if (expectedKind === 'hls') {
+      // Target must be inside the exact authorized video directory prefix
+      if (target !== scope && !target.startsWith(scope + '/')) {
+        return { ok: false, reason: 'SCOPE_MISMATCH' };
+      }
+    } else {
+      // Exact key or exact URL hash match for R2 object / PDF proxy
+      if (target !== scope) {
+        return { ok: false, reason: 'SCOPE_MISMATCH' };
+      }
+    }
+
+    return { ok: true, payload };
+  } catch (err) {
+    return { ok: false, reason: 'VERIFY_ERROR' };
+  }
+}
+
+function parseFirestoreValue(val) {
+  if (!val || typeof val !== 'object') return null;
+  if ('stringValue' in val) return val.stringValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('integerValue' in val) return Number(val.integerValue);
+  if ('doubleValue' in val) return Number(val.doubleValue);
+  if ('nullValue' in val) return null;
+  if ('timestampValue' in val) return Date.parse(val.timestampValue) || 0;
+  if ('arrayValue' in val) {
+    return Array.isArray(val.arrayValue?.values)
+      ? val.arrayValue.values.map(parseFirestoreValue)
+      : [];
+  }
+  if ('mapValue' in val) {
+    const out = {};
+    const fields = val.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = parseFirestoreValue(v);
+    }
+    return out;
+  }
+  return null;
+}
+
+function parseFirestoreDoc(docJson) {
+  if (!docJson || !docJson.fields) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(docJson.fields)) {
+    out[k] = parseFirestoreValue(v);
+  }
+  return out;
+}
+
+async function fetchFirestoreDocAsCaller(projectId, docPath, idToken) {
+  const targetProject = projectId || 'physics-beastsl';
+  const apiUrl = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(targetProject) + '/databases/(default)/documents/' + docPath;
+  const res = await fetch(apiUrl, {
+    method: 'GET',
+    headers: {
+      Authorization: 'Bearer ' + idToken,
+      Accept: 'application/json',
+    },
+  });
+  if (!res.ok) return { ok: false, status: res.status, data: null };
+  const json = await res.json();
+  return { ok: true, status: 200, data: parseFirestoreDoc(json) };
+}
+
+function isStaffUserDoc(userDoc, callerEmail) {
+  const email = String(callerEmail || userDoc?.email || '').toLowerCase();
+  if (email === ALERT_EMAIL || email === 'admin@brilliantacademy.com' || email === 'admin@brillliantacademy.site') {
+    return true;
+  }
+  if (!userDoc) return false;
+  if (userDoc.isAdmin === true || userDoc.role === 'admin') return true;
+  if ((userDoc.role === 'teacher' || userDoc.role === 'instructor') && userDoc.isApproved !== false) {
+    return true;
+  }
+  return false;
+}
+
+function hasEdgeFolderOrCourseAccess(userDoc, courseId, folderId, isFree) {
+  if (isFree === true) return true;
+  if (!userDoc || userDoc.isBanned === true) return false;
+  const now = Date.now();
+  const cId = String(courseId || '').trim();
+  const fId = String(folderId || '').trim();
+
+  if (cId && Array.isArray(userDoc.accessibleCourses) && userDoc.accessibleCourses.includes(cId)) {
+    return true;
+  }
+  if (fId && userDoc.folderAccess && typeof userDoc.folderAccess === 'object') {
+    const exp = Number(userDoc.folderAccess[fId] || 0);
+    if (Number.isFinite(exp) && exp > now) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function extractEdgeR2Key(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (trimmed.includes('/api/r2-media/')) {
+    const idx = trimmed.indexOf('/api/r2-media/');
+    const after = trimmed.slice(idx + '/api/r2-media/'.length).split('?')[0];
+    try {
+      return decodeURIComponent(after).replace(/^\/+/, '');
+    } catch {
+      return after.replace(/^\/+/, '');
+    }
+  }
+  if (trimmed.includes('r2.dev/') || trimmed.includes('r2.cloudflarestorage.com/')) {
+    const parts = trimmed.split(/r2\.dev\/|r2\.cloudflarestorage\.com\/[^\/]+\//);
+    if (parts.length > 1) {
+      return parts[1].split('?')[0].replace(/^\/+/, '');
+    }
+  }
+  return '';
+}
+
+function isPublicSafeR2Key(key) {
+  const lower = String(key || '').toLowerCase();
+  const matchesPrefix = PUBLIC_R2_IMAGE_PREFIXES.some((p) => lower.startsWith(p));
+  const matchesExt = PUBLIC_R2_IMAGE_EXTS.some((ext) => lower.endsWith(ext));
+  return matchesPrefix && matchesExt;
+}
+
+async function logMediaSecurityEvent(env, eventType, actorId, clientIp, userAgent, details) {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(
+      'INSERT INTO audit_ledger (id, event_type, actor_id, ip_address, user_agent, details) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(
+      crypto.randomUUID(),
+      eventType,
+      String(actorId || 'anonymous'),
+      String(clientIp || ''),
+      String(userAgent || '').slice(0, 255),
+      JSON.stringify(details || {}).slice(0, 1000)
+    ).run();
+  } catch {
+    // Non-blocking audit log write
+  }
+}
+
+// ============================================================================
 // FLEET SYNCHRONIZATION & THREAT DEFENSE LOCKDOWN ENGINE
 // ============================================================================
 
@@ -1521,26 +1763,35 @@ export default {
         if (!isAuthorized && token) {
           const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
           if (caller && caller.uid) {
-            const isStaff = caller.role === 'admin' || caller.role === 'teacher' || (caller.email && caller.email.toLowerCase() === ALERT_EMAIL);
-            const isStudentUpload = lowerKey.startsWith('payment-slips/') || lowerKey.startsWith('submissions/') || lowerKey.startsWith('bug-reports/') || lowerKey.startsWith('uploads/');
-            if (isStaff || isStudentUpload) {
+            const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, token);
+            const userDoc = userLookup.data;
+            const isStaff = isStaffUserDoc(userDoc, caller.email);
+            const isStudentUpload =
+              lowerKey.startsWith('payment-slips/') ||
+              lowerKey.startsWith('payment-receipts/') ||
+              lowerKey.startsWith('student-answers/') ||
+              lowerKey.startsWith('submissions/') ||
+              lowerKey.startsWith('bug-reports/') ||
+              lowerKey.startsWith('uploads/');
+            if ((isStaff || (isStudentUpload && userDoc?.isBanned !== true))) {
               isAuthorized = true;
             }
           }
         }
 
         if (!isAuthorized) {
-          return new Response(JSON.stringify({ error: 'Unauthorized: File uploads require admin or internal service authorization.' }), {
+          return new Response(JSON.stringify({ error: 'Unauthorized: File uploads require valid authorization.' }), {
             status: 401,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
           });
         }
 
         const contentType = request.headers.get('content-type') || (lowerKey.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream');
+        const isPublicImg = isPublicSafeR2Key(key);
         await env.MEDIA.put(key, request.body, {
           httpMetadata: {
             contentType: contentType,
-            cacheControl: 'public, max-age=31536000, immutable',
+            cacheControl: isPublicImg ? 'public, max-age=31536000, immutable' : 'private, no-store',
           }
         });
 
@@ -1558,7 +1809,55 @@ export default {
         });
       }
 
-      // GET / HEAD download from R2 with byte range support
+      // GET / HEAD download from R2 — ZERO-TRUST ENTITLEMENT GATE FOR ALL PROTECTED OBJECTS
+      const isPublicObj = isPublicSafeR2Key(key);
+      if (!isPublicObj) {
+        const mediaSecret = env.MEDIA_TOKEN_SECRET;
+        const pt = url.searchParams.get('pt') || '';
+        const deviceFp = await computeEdgeDeviceFingerprint(clientIp, userAgent);
+
+        let allowed = false;
+
+        if (pt && mediaSecret) {
+          const checkR2 = await verifyEdgePlaybackToken(pt, mediaSecret, 'r2', key, deviceFp);
+          if (checkR2.ok) {
+            allowed = true;
+          } else {
+            const checkHls = await verifyEdgePlaybackToken(pt, mediaSecret, 'hls', key, deviceFp);
+            if (checkHls.ok) allowed = true;
+          }
+        }
+
+        if (!allowed) {
+          // Allow direct Bearer auth strictly for verified Staff (admin/teacher)
+          const authHeader = request.headers.get('Authorization') || '';
+          const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+          if (bearer) {
+            const caller = await verifyFirebaseIdToken(bearer, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+            if (caller && caller.uid) {
+              const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, bearer);
+              if (isStaffUserDoc(userLookup.data, caller.email)) {
+                allowed = true;
+              }
+            }
+          }
+        }
+
+        if (!allowed) {
+          if (ctx && ctx.waitUntil) {
+            ctx.waitUntil(logMediaSecurityEvent(env, 'UNAUTHORIZED_R2_ACCESS_BLOCKED', 'anonymous', clientIp, userAgent, { key }));
+          }
+          return new Response('Access Denied: Valid signed playback token required for protected R2 media.', {
+            status: 403,
+            headers: {
+              'Content-Type': 'text/plain',
+              'Cache-Control': 'private, no-store',
+              'Access-Control-Allow-Origin': corsOrigin,
+            },
+          });
+        }
+      }
+
       const rangeHeader = request.headers.get('range');
       let object;
       if (rangeHeader) {
@@ -1574,13 +1873,14 @@ export default {
       const headers = new Headers();
       object.writeHttpMetadata(headers);
       headers.set('etag', object.httpEtag);
-      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      headers.set('Cache-Control', isPublicObj ? 'public, max-age=31536000, immutable' : 'private, no-store, no-cache');
       headers.set('Access-Control-Allow-Origin', corsOrigin);
       headers.set('Access-Control-Allow-Methods', 'GET, HEAD, PUT, OPTIONS');
-      headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
+      headers.set('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
       headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
       headers.set('Accept-Ranges', 'bytes');
-      if (key.toLowerCase().endsWith('.pdf')) {
+      headers.set('X-Content-Type-Options', 'nosniff');
+      if (lowerKey.endsWith('.pdf')) {
         headers.set('Content-Type', 'application/pdf');
       }
 
@@ -1590,8 +1890,21 @@ export default {
       });
     }
 
-    // 10b. PDF Proxy for external/legacy CDN files with Strict SSRF Defense
+    // 10b. Authenticated & Token-Gated PDF Proxy with Strict SSRF Defense
     if (url.pathname === '/api/pdf-proxy') {
+      const corsOrigin = resolveCorsOrigin(request);
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': corsOrigin,
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '86400',
+          },
+        });
+      }
+
       const targetUrl = url.searchParams.get('url');
       if (!targetUrl) return new Response('Missing url parameter', { status: 400 });
 
@@ -1633,6 +1946,62 @@ export default {
         return new Response('Access Denied: Target host is not permitted by proxy policy.', { status: 403 });
       }
 
+      // Require cryptographically signed PDF playback token (pt) OR verified Staff Bearer token
+      const mediaSecret = env.MEDIA_TOKEN_SECRET;
+      const pt = url.searchParams.get('pt') || '';
+      const deviceFp = await computeEdgeDeviceFingerprint(clientIp, userAgent);
+      const targetUrlHash = await sha256Hex(targetUrl);
+
+      let pdfAllowed = false;
+      if (pt && mediaSecret) {
+        const checkPdf = await verifyEdgePlaybackToken(pt, mediaSecret, 'pdf', targetUrlHash, deviceFp);
+        if (checkPdf.ok) pdfAllowed = true;
+      }
+
+      if (!pdfAllowed) {
+        const authHeader = request.headers.get('Authorization') || '';
+        const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+        if (bearer) {
+          const caller = await verifyFirebaseIdToken(bearer, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+          if (caller && caller.uid) {
+            const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, bearer);
+            if (isStaffUserDoc(userLookup.data, caller.email)) {
+              pdfAllowed = true;
+            }
+          }
+        }
+      }
+
+      if (!pdfAllowed) {
+        if (ctx && ctx.waitUntil) {
+          ctx.waitUntil(logMediaSecurityEvent(env, 'UNAUTHORIZED_PDF_PROXY_BLOCKED', 'anonymous', clientIp, userAgent, { host }));
+        }
+        return new Response('Access Denied: Valid signed document token required.', {
+          status: 403,
+          headers: {
+            'Content-Type': 'text/plain',
+            'Cache-Control': 'private, no-store',
+            'Access-Control-Allow-Origin': corsOrigin,
+          },
+        });
+      }
+
+      // If targetUrl points to our own R2 media key, serve directly from private env.MEDIA binding!
+      const localR2Key = extractEdgeR2Key(targetUrl);
+      if (localR2Key && env.MEDIA && !localR2Key.includes('..')) {
+        const obj = await env.MEDIA.get(localR2Key);
+        if (obj) {
+          const headers = new Headers();
+          obj.writeHttpMetadata(headers);
+          headers.set('Content-Type', headers.get('content-type') || 'application/pdf');
+          headers.set('Access-Control-Allow-Origin', corsOrigin);
+          headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+          headers.set('Cache-Control', 'private, no-store, no-cache');
+          headers.set('X-Content-Type-Options', 'nosniff');
+          return new Response(obj.body, { status: 200, headers });
+        }
+      }
+
       try {
         const upstreamRes = await fetch(targetUrl, {
           headers: {
@@ -1644,16 +2013,17 @@ export default {
         }
         const headers = new Headers();
         headers.set('Content-Type', upstreamRes.headers.get('content-type') || 'application/pdf');
-        headers.set('Access-Control-Allow-Origin', resolveCorsOrigin(request));
+        headers.set('Access-Control-Allow-Origin', corsOrigin);
         headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-        headers.set('Cache-Control', 'public, max-age=86400');
+        headers.set('Cache-Control', 'private, no-store, no-cache');
+        headers.set('X-Content-Type-Options', 'nosniff');
         return new Response(upstreamRes.body, { headers });
       } catch (err) {
         return new Response('Proxy error: ' + err.message, { status: 502 });
       }
     }
 
-    // 10c. Anti-IDM Obfuscated Edge Streaming Engine (/api/stream/*)
+    // 10c. Zero-Trust Cryptographic Edge Streaming & Authorization Engine (/api/stream/*)
     if (url.pathname.startsWith('/api/stream/')) {
       const corsOrigin = resolveCorsOrigin(request);
       if (request.method === 'OPTIONS') {
@@ -1661,31 +2031,292 @@ export default {
           status: 204,
           headers: {
             'Access-Control-Allow-Origin': corsOrigin,
-            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
             'Access-Control-Max-Age': '86400',
           }
         });
       }
 
+      // Handler 0: Mint Device-Bound Signed Playback Token (POST /api/stream/authorize)
+      if (url.pathname === '/api/stream/authorize' && request.method === 'POST') {
+        try {
+          const mediaSecret = env.MEDIA_TOKEN_SECRET;
+          if (!mediaSecret) {
+            return new Response(JSON.stringify({ ok: false, error: 'Media signing key not configured on edge worker.' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          const authHeader = request.headers.get('Authorization') || '';
+          const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+          const caller = await verifyFirebaseIdToken(idToken, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
+          if (!caller || !caller.uid) {
+            return new Response(JSON.stringify({ ok: false, error: 'Unauthorized: Please log in to access lessons.' }), {
+              status: 401,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return new Response(JSON.stringify({ ok: false, error: 'Malformed JSON body' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          const projectId = env.FIREBASE_PROJECT_ID || 'physics-beastsl';
+          const userLookup = await fetchFirestoreDocAsCaller(projectId, 'users/' + caller.uid, idToken);
+          const userDoc = userLookup.data;
+
+          if (userDoc?.isBanned === true) {
+            return new Response(JSON.stringify({ ok: false, error: 'Account suspended.' }), {
+              status: 403,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          const isStaff = isStaffUserDoc(userDoc, caller.email);
+          const deviceFp = await computeEdgeDeviceFingerprint(clientIp, userAgent);
+          const exp = Date.now() + PLAYBACK_TOKEN_TTL_MS;
+
+          const videoId = String(body.videoId || '').trim();
+          const examId = String(body.examId || '').trim();
+          const requestedR2Key = String(body.r2Key || '').trim().replace(/^\/+/, '');
+          const requestedPdfUrl = String(body.pdfUrl || '').trim();
+
+          // CASE A: Course Video or Course Resource PDF authorization via authoritative Firestore videos/{videoId}
+          if (videoId) {
+            if (!/^[a-zA-Z0-9_-]{3,128}$/.test(videoId)) {
+              return new Response(JSON.stringify({ ok: false, error: 'Invalid videoId' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+
+            const vidLookup = await fetchFirestoreDocAsCaller(projectId, 'videos/' + videoId, idToken);
+            if (!vidLookup.ok || !vidLookup.data) {
+              if (ctx && ctx.waitUntil) {
+                ctx.waitUntil(logMediaSecurityEvent(env, 'UNPAID_VIDEO_TOKEN_DENIED', caller.uid, clientIp, userAgent, { videoId, status: vidLookup.status }));
+              }
+              return new Response(JSON.stringify({ ok: false, error: 'Payment required: You do not have active access to this lesson.' }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+
+            const v = vidLookup.data;
+            const entitled = isStaff || hasEdgeFolderOrCourseAccess(userDoc, v.courseId, v.folderId, v.isFree === true);
+            if (!entitled) {
+              if (ctx && ctx.waitUntil) {
+                ctx.waitUntil(logMediaSecurityEvent(env, 'UNPAID_VIDEO_TOKEN_DENIED', caller.uid, clientIp, userAgent, { videoId, folderId: v.folderId }));
+              }
+              return new Response(JSON.stringify({ ok: false, error: 'Payment required: Active folder access required.' }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+
+            const rawSource = String(v.r2Url || v.url || v.pdfUrl || '').trim();
+            const extractedKey = extractEdgeR2Key(rawSource);
+
+            // Course Resource PDF
+            if (v.type === 'resource' || rawSource.toLowerCase().includes('.pdf')) {
+              if (extractedKey) {
+                const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'r2', scope: extractedKey, fp: deviceFp, exp }, mediaSecret);
+                return new Response(JSON.stringify({
+                  ok: true,
+                  kind: 'r2',
+                  pt,
+                  expiresAt: exp,
+                  url: `/api/r2-media/${encodeURIComponent(extractedKey)}?pt=${encodeURIComponent(pt)}`,
+                }), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+                });
+              }
+              if (rawSource.startsWith('https://')) {
+                const urlHash = await sha256Hex(rawSource);
+                const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'pdf', scope: urlHash, fp: deviceFp, exp }, mediaSecret);
+                return new Response(JSON.stringify({
+                  ok: true,
+                  kind: 'pdf',
+                  pt,
+                  expiresAt: exp,
+                  url: `/api/pdf-proxy?url=${encodeURIComponent(rawSource)}&pt=${encodeURIComponent(pt)}`,
+                }), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+                });
+              }
+            }
+
+            // R2 HLS Video Stream
+            if (extractedKey) {
+              const dirScope = extractedKey.includes('/')
+                ? extractedKey.slice(0, extractedKey.lastIndexOf('/'))
+                : extractedKey;
+              const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'hls', scope: dirScope, fp: deviceFp, exp }, mediaSecret);
+              return new Response(JSON.stringify({
+                ok: true,
+                kind: 'hls',
+                pt,
+                expiresAt: exp,
+                streamUrl: `/api/stream/session?v=${encodeURIComponent(extractedKey)}&pt=${encodeURIComponent(pt)}`,
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+
+            return new Response(JSON.stringify({ ok: false, error: 'No R2/PDF media source bound to this lesson.' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          // CASE B: Exam Question/Answer PDF Authorization (verified against server /api/content/exams)
+          if (examId) {
+            if (!/^[a-zA-Z0-9_-]{3,128}$/.test(examId)) {
+              return new Response(JSON.stringify({ ok: false, error: 'Invalid examId' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+            const examMode = String(body.mode || 'take') === 'results' ? 'results' : 'take';
+            const examRes = await fetch(
+              `https://brilliantacademy.vercel.app/api/content/exams?examId=${encodeURIComponent(examId)}&mode=${examMode}`,
+              {
+                method: 'GET',
+                headers: { Authorization: 'Bearer ' + idToken, Accept: 'application/json' },
+              }
+            );
+            if (!examRes.ok) {
+              return new Response(JSON.stringify({ ok: false, error: 'Not authorized to access this exam document.' }), {
+                status: examRes.status === 404 ? 404 : 403,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+            const examJson = await examRes.json();
+            const allowedPdfUrls = [
+              examJson?.exam?.questionPdfUrl,
+              examJson?.exam?.markingSchemeUrl,
+              examJson?.myResult?.answerPdfUrl,
+              examJson?.myResult?.correctedPdfUrl,
+            ].filter((u) => typeof u === 'string' && u.trim().length > 0);
+
+            const targetPdf = requestedPdfUrl
+              ? allowedPdfUrls.find((u) => u.trim() === requestedPdfUrl)
+              : allowedPdfUrls[0];
+
+            if (!targetPdf) {
+              return new Response(JSON.stringify({ ok: false, error: 'Requested PDF is not authorized for this exam.' }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+
+            const keyFromPdf = extractEdgeR2Key(targetPdf);
+            if (keyFromPdf) {
+              const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'r2', scope: keyFromPdf, fp: deviceFp, exp }, mediaSecret);
+              return new Response(JSON.stringify({
+                ok: true,
+                kind: 'r2',
+                pt,
+                expiresAt: exp,
+                url: `/api/r2-media/${encodeURIComponent(keyFromPdf)}?pt=${encodeURIComponent(pt)}`,
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+            const urlHash = await sha256Hex(targetPdf);
+            const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'pdf', scope: urlHash, fp: deviceFp, exp }, mediaSecret);
+            return new Response(JSON.stringify({
+              ok: true,
+              kind: 'pdf',
+              pt,
+              expiresAt: exp,
+              url: `/api/pdf-proxy?url=${encodeURIComponent(targetPdf)}&pt=${encodeURIComponent(pt)}`,
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+            });
+          }
+
+          // CASE C: Staff-only direct authorization for Admin Panel viewing payment slips, grading PDFs, and previews
+          if (isStaff) {
+            const key = requestedR2Key || extractEdgeR2Key(requestedPdfUrl);
+            if (key && !key.includes('..')) {
+              const isHls = key.endsWith('.m3u8');
+              const kind = isHls ? 'hls' : 'r2';
+              const scope = isHls && key.includes('/') ? key.slice(0, key.lastIndexOf('/')) : key;
+              const pt = await signEdgePlaybackToken({ uid: caller.uid, kind, scope, fp: deviceFp, exp }, mediaSecret);
+              return new Response(JSON.stringify({
+                ok: true,
+                kind,
+                pt,
+                expiresAt: exp,
+                url: isHls
+                  ? `/api/stream/session?v=${encodeURIComponent(key)}&pt=${encodeURIComponent(pt)}`
+                  : `/api/r2-media/${encodeURIComponent(key)}?pt=${encodeURIComponent(pt)}`,
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+            if (requestedPdfUrl.startsWith('https://')) {
+              const urlHash = await sha256Hex(requestedPdfUrl);
+              const pt = await signEdgePlaybackToken({ uid: caller.uid, kind: 'pdf', scope: urlHash, fp: deviceFp, exp }, mediaSecret);
+              return new Response(JSON.stringify({
+                ok: true,
+                kind: 'pdf',
+                pt,
+                expiresAt: exp,
+                url: `/api/pdf-proxy?url=${encodeURIComponent(requestedPdfUrl)}&pt=${encodeURIComponent(pt)}`,
+              }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+              });
+            }
+          }
+
+          return new Response(JSON.stringify({ ok: false, error: 'Forbidden: Missing lesson or exam entitlement context.' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        } catch (err) {
+          return new Response(JSON.stringify({ ok: false, error: 'Authorization failed: ' + err.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        }
+      }
+
       const referer = request.headers.get('referer') || '';
       const origin = request.headers.get('origin') || '';
-      const userAgent = request.headers.get('user-agent') || '';
       const secFetchSite = request.headers.get('sec-fetch-site') || '';
 
-      // Reject external downloader tools (IDM.exe, FDM, wget, curl, scrapers)
-      const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader/i.test(userAgent);
-      const isAuthorizedOrigin = 
-        referer.includes('brillliantacademy.site') || 
-        referer.includes('brilliantacademy.site') || 
-        referer.includes('localhost') || 
-        origin.includes('brillliantacademy.site') || 
-        origin.includes('brilliantacademy.site') || 
+      // Reject external downloader tools (IDM.exe, FDM, wget, curl, yt-dlp, scrapers)
+      const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader|yt-dlp|ffmpeg/i.test(userAgent);
+      const isAuthorizedOrigin =
+        referer.includes('brillliantacademy.site') ||
+        referer.includes('brilliantacademy.site') ||
+        referer.includes('localhost') ||
+        origin.includes('brillliantacademy.site') ||
+        origin.includes('brilliantacademy.site') ||
         origin.includes('localhost') ||
         secFetchSite === 'same-origin' ||
         secFetchSite === 'same-site';
 
       if (isDownloaderUA || (!isAuthorizedOrigin && !url.pathname.endsWith('/hls-key'))) {
+        if (ctx && ctx.waitUntil) {
+          ctx.waitUntil(logMediaSecurityEvent(env, 'STREAM_DOWNLOADER_OR_ORIGIN_BLOCKED', 'anonymous', clientIp, userAgent, { path: url.pathname }));
+        }
         return new Response('Access Denied: Playback is restricted to the Brilliant Academy protected player.', {
           status: 403,
           headers: {
@@ -1695,8 +2326,11 @@ export default {
         });
       }
 
+      const mediaSecret = env.MEDIA_TOKEN_SECRET;
+      const pt = url.searchParams.get('pt') || '';
+      const deviceFp = await computeEdgeDeviceFingerprint(clientIp, userAgent);
+
       // Handler 1: Master Playlist Session (/api/stream/session or /api/stream/live)
-      // Obfuscates sub-playlists so IDM never sees any .m3u8 files
       if (url.pathname === '/api/stream/session' || url.pathname === '/api/stream/live') {
         let vPath = url.searchParams.get('v') || '';
         if (!vPath) return new Response('Missing video parameter', { status: 400 });
@@ -1705,6 +2339,18 @@ export default {
         }
         if (!vPath.endsWith('.m3u8')) vPath += '.m3u8';
         if (vPath.startsWith('/')) vPath = vPath.slice(1);
+
+        // STRICT CRYPTOGRAPHIC PLAYBACK TOKEN VERIFICATION
+        const tokenCheck = await verifyEdgePlaybackToken(pt, mediaSecret, 'hls', vPath, deviceFp);
+        if (!tokenCheck.ok) {
+          if (ctx && ctx.waitUntil) {
+            ctx.waitUntil(logMediaSecurityEvent(env, 'HLS_SESSION_TOKEN_REJECTED', 'anonymous', clientIp, userAgent, { vPath, reason: tokenCheck.reason }));
+          }
+          return new Response('Access Denied: Valid playback authorization token required (' + tokenCheck.reason + ').', {
+            status: 403,
+            headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        }
 
         let manifestText = '';
         if (env.MEDIA) {
@@ -1721,12 +2367,18 @@ export default {
           return new Response('Master stream not found', { status: 404 });
         }
 
-        const vDir = vPath.substring(0, vPath.lastIndexOf('/'));
+        const vDir = vPath.includes('/') ? vPath.substring(0, vPath.lastIndexOf('/')) : '';
+        const encodedPt = encodeURIComponent(pt);
         const rewritten = manifestText.split('\n').map(line => {
           const trimmed = line.trim();
           if (trimmed && !trimmed.startsWith('#')) {
+            if (trimmed.endsWith('.ts')) {
+              const segName = trimmed.replace(/\.ts$/, '');
+              const fullSeg = vDir ? (vDir + '/' + segName) : segName;
+              return `/api/stream/chunk?s=${encodeURIComponent(fullSeg)}&pt=${encodedPt}`;
+            }
             const subName = trimmed.replace(/\.m3u8$/, '');
-            return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(vDir)}`;
+            return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(vDir)}&pt=${encodedPt}`;
           }
           return line;
         }).join('\n');
@@ -1743,7 +2395,6 @@ export default {
       }
 
       // Handler 2: Sub-playlist Manifest (/api/stream/sub)
-      // Obfuscates video chunks so IDM never sees any .ts files
       if (url.pathname === '/api/stream/sub') {
         const q = url.searchParams.get('q') || '';
         const d = url.searchParams.get('d') || '';
@@ -1753,6 +2404,16 @@ export default {
         }
 
         const subKey = `${d}/${q.endsWith('.m3u8') ? q : q + '.m3u8'}`;
+
+        // STRICT CRYPTOGRAPHIC PLAYBACK TOKEN VERIFICATION
+        const tokenCheck = await verifyEdgePlaybackToken(pt, mediaSecret, 'hls', subKey, deviceFp);
+        if (!tokenCheck.ok) {
+          return new Response('Access Denied: Valid playback token required (' + tokenCheck.reason + ').', {
+            status: 403,
+            headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        }
+
         let subText = '';
         if (env.MEDIA) {
           const obj = await env.MEDIA.get(subKey);
@@ -1768,11 +2429,12 @@ export default {
           return new Response('Variant stream not found', { status: 404 });
         }
 
+        const encodedPt = encodeURIComponent(pt);
         const rewritten = subText.split('\n').map(line => {
           const trimmed = line.trim();
           if (trimmed && !trimmed.startsWith('#')) {
             const segName = trimmed.replace(/\.ts$/, '');
-            return `/api/stream/chunk?s=${encodeURIComponent(d + '/' + segName)}`;
+            return `/api/stream/chunk?s=${encodeURIComponent(d + '/' + segName)}&pt=${encodedPt}`;
           }
           return line;
         }).join('\n');
@@ -1789,7 +2451,6 @@ export default {
       }
 
       // Handler 3: Segment Chunks (/api/stream/chunk)
-      // Delivered as application/octet-stream so IDM does not recognize it as video files
       if (url.pathname === '/api/stream/chunk') {
         const s = url.searchParams.get('s') || '';
         if (!s) return new Response('Missing segment parameter', { status: 400 });
@@ -1798,6 +2459,16 @@ export default {
         }
 
         const segKey = s.endsWith('.ts') ? s : s + '.ts';
+
+        // STRICT CRYPTOGRAPHIC PLAYBACK TOKEN VERIFICATION
+        const tokenCheck = await verifyEdgePlaybackToken(pt, mediaSecret, 'hls', segKey, deviceFp);
+        if (!tokenCheck.ok) {
+          return new Response('Access Denied: Valid playback token required (' + tokenCheck.reason + ').', {
+            status: 403,
+            headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        }
+
         let chunkBody = null;
         let etag = '';
 
@@ -1823,7 +2494,7 @@ export default {
           headers: {
             'Content-Type': 'application/octet-stream',
             'Content-Disposition': 'inline; filename="stream.bin"',
-            'Cache-Control': 'private, max-age=86400, immutable',
+            'Cache-Control': 'private, no-store',
             'Access-Control-Allow-Origin': corsOrigin,
             'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
             ...(etag ? { 'ETag': etag } : {}),
@@ -1831,12 +2502,21 @@ export default {
         });
       }
 
-      // Handler 4: Legacy /api/stream/hls/* route with automatic obfuscation rewrite
+      // Handler 4: Legacy /api/stream/hls/* route with strict token gate & obfuscation rewrite
       if (url.pathname.startsWith('/api/stream/hls/')) {
         const hlsPath = url.pathname.replace('/api/stream/hls/', '');
         if (!hlsPath || hlsPath.includes('..') || hlsPath.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(hlsPath)) {
           return new Response('Bad Request: Invalid stream path', { status: 400 });
         }
+
+        const tokenCheck = await verifyEdgePlaybackToken(pt, mediaSecret, 'hls', hlsPath, deviceFp);
+        if (!tokenCheck.ok) {
+          return new Response('Access Denied: Valid playback token required (' + tokenCheck.reason + ').', {
+            status: 403,
+            headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'private, no-store', 'Access-Control-Allow-Origin': corsOrigin },
+          });
+        }
+
         if (hlsPath.endsWith('.m3u8')) {
           let mText = '';
           if (env.MEDIA) {
@@ -1850,16 +2530,17 @@ export default {
           }
 
           if (mText) {
-            const hlsDir = hlsPath.substring(0, hlsPath.lastIndexOf('/'));
+            const hlsDir = hlsPath.includes('/') ? hlsPath.substring(0, hlsPath.lastIndexOf('/')) : '';
+            const encodedPt = encodeURIComponent(pt);
             const rewritten = mText.split('\n').map(line => {
               const trimmed = line.trim();
               if (trimmed && !trimmed.startsWith('#')) {
                 if (trimmed.endsWith('.m3u8')) {
                   const subName = trimmed.replace(/\.m3u8$/, '');
-                  return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(hlsDir)}`;
+                  return `/api/stream/sub?q=${encodeURIComponent(subName)}&d=${encodeURIComponent(hlsDir)}&pt=${encodedPt}`;
                 } else if (trimmed.endsWith('.ts')) {
                   const segName = trimmed.replace(/\.ts$/, '');
-                  return `/api/stream/chunk?s=${encodeURIComponent(hlsDir + '/' + segName)}`;
+                  return `/api/stream/chunk?s=${encodeURIComponent(hlsDir + '/' + segName)}&pt=${encodedPt}`;
                 }
               }
               return line;

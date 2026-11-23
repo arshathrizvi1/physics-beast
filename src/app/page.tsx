@@ -324,8 +324,11 @@ export default function Home() {
 
           let videosData: any[] = [];
           try {
-            const videosSnap = await getDocs(query(collection(db, "videos")));
-            videosData = videosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+            const catRes = await fetch('/api/content/catalog?limit=150');
+            if (catRes.ok) {
+              const catJson = await catRes.json();
+              videosData = Array.isArray(catJson.videos) ? catJson.videos : [];
+            }
           } catch {}
 
           return {

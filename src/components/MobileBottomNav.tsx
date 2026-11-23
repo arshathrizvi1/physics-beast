@@ -14,13 +14,22 @@ export function MobileBottomNav() {
   const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'live_classes'), where('status', '==', 'live'));
-    const unsub = onSnapshot(q, (snap) => {
-      setIsLive(!snap.empty);
-    }, (err) => {
-      console.log("Could not fetch live status for mobile nav", err);
-    });
-    return () => unsub();
+    let active = true;
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('/api/content/live?statusOnly=1');
+        if (res.ok && active) {
+          const data = await res.json();
+          setIsLive(Boolean(data?.hasLive));
+        }
+      } catch {}
+    };
+    checkStatus();
+    const timer = setInterval(checkStatus, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   // Hide on admin routes or auth routes

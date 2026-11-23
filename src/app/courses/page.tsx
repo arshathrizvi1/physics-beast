@@ -298,11 +298,11 @@ function CoursesContent() {
             // 2. Fetch authenticated-only collections if session exists
             if (user) {
               try {
-                const [teachersSnap, foldersSnap, videosSnap] = await Promise.race([
+                const [teachersSnap, foldersSnap, catalogJson] = await Promise.race([
                   Promise.all([
                     getDocs(query(collection(db, "users"), where("role", "==", "teacher"))).catch(() => ({ docs: [] }) as any),
                     getDocs(collection(db, "folders")).catch(() => ({ docs: [] }) as any),
-                    getDocs(collection(db, "videos")).catch(() => ({ docs: [] }) as any)
+                    fetch('/api/content/catalog?limit=300').then(r => r.ok ? r.json() : { videos: [] }).catch(() => ({ videos: [] }))
                   ]),
                   timeoutPromise
                 ]);
@@ -317,10 +317,7 @@ function CoursesContent() {
                   ...doc.data() as any
                 }));
 
-                fetchedVideos = (videosSnap?.docs || []).map((doc: any) => ({
-                  id: doc.id,
-                  ...doc.data() as any
-                }));
+                fetchedVideos = Array.isArray(catalogJson?.videos) ? catalogJson.videos : [];
                 
                 if (user.role === 'student') {
                   try {

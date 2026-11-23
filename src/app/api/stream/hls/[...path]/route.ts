@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 import { resolveCorsOrigin } from '@/security/zero-trust-gate';
+import { getAuthenticatedCaller } from '@/security/session';
+import {
+  getUserEntitlementContext,
+  hasCourseOrFolderEntitlement,
+  extractR2KeyFromUrl,
+} from '@/security/entitlement';
 
 const DEFAULT_R2_BASE = 'https://pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev';
 
@@ -11,12 +18,11 @@ export async function GET(
     const { path } = await context.params;
     const referer = request.headers.get('referer') || '';
     const origin = request.headers.get('origin') || '';
-    const host = request.headers.get('host') || '';
     const userAgent = request.headers.get('user-agent') || '';
     const allowedOrigin = resolveCorsOrigin(request);
 
-    // Block IDM and standalone downloader grabbers
-    const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader/i.test(userAgent);
+    // 1. Block IDM and standalone downloader grabbers
+    const isDownloaderUA = /idm|internet download manager|fdm|curl|wget|python|aria2|jdownloader|yt-dlp/i.test(userAgent);
     if (isDownloaderUA) {
       return new NextResponse(
         'Access Denied: External download managers are prohibited on Brilliant Academy.',
@@ -24,20 +30,36 @@ export async function GET(
       );
     }
 
-    const isAllowedDomain =
-      referer.includes('brillliantacademy.site') ||
-      referer.includes('brilliantacademy.site') ||
-      referer.includes('brilliant-academy.vercel.app') ||
-      origin.includes('brillliantacademy.site') ||
-      origin.includes('brilliantacademy.site') ||
-      origin.includes('brilliant-academy.vercel.app') ||
-      host.includes('brillliantacademy.site') ||
-      host.includes('brilliantacademy.site') ||
-      host.includes('brilliant-academy.vercel.app') ||
-      host.includes('localhost') ||
-      process.env.NODE_ENV !== 'production';
+    // 2. Require strictly verified authenticated caller (never trust Host header alone!)
+    const caller = await getAuthenticatedCaller(request);
+    const ent = await getUserEntitlementContext(caller);
+    if (!ent || ent.isBanned) {
+      return new NextResponse(
+        'Unauthorized: Active authenticated session required to stream lessons.',
+        { status: 401 }
+      );
+    }
 
-    if (!isAllowedDomain) {
+    // 3. Enforce strict player origin/referer in production
+    const refOrOrigin = referer || origin;
+    const isAllowedOrigin = (() => {
+      if (process.env.NODE_ENV !== 'production') return true;
+      if (!refOrOrigin) return false;
+      try {
+        const parsedHost = new URL(refOrOrigin).hostname.toLowerCase();
+        return (
+          parsedHost === 'brillliantacademy.site' ||
+          parsedHost === 'www.brillliantacademy.site' ||
+          parsedHost === 'brilliantacademy.site' ||
+          parsedHost === 'www.brilliantacademy.site' ||
+          parsedHost.endsWith('.vercel.app')
+        );
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!isAllowedOrigin) {
       return new NextResponse(
         'Access Denied: Playback outside the official Brilliant Academy video player is prohibited.',
         { status: 403 }
@@ -49,12 +71,43 @@ export async function GET(
       return new NextResponse('Bad Request: Invalid file path', { status: 400 });
     }
 
+    // 4. Verify student payment/folder entitlement for this video directory prefix
+    if (!ent.isStaff) {
+      const videoDir = filePath.includes('/') ? filePath.slice(0, filePath.lastIndexOf('/')) : filePath;
+      const videosSnap = await adminDb.collection('videos').limit(500).get();
+      let authorized = false;
+
+      for (const docSnap of videosSnap.docs) {
+        const v = docSnap.data() || {};
+        const keys = [extractR2KeyFromUrl(v.r2Url || ''), extractR2KeyFromUrl(v.url || '')].filter(Boolean) as string[];
+        const matches = keys.some((k) => k === filePath || k.startsWith(`${videoDir}/`));
+        if (matches) {
+          if (
+            hasCourseOrFolderEntitlement(ent, {
+              courseId: v.courseId,
+              folderId: v.folderId,
+              isFree: v.isFree === true,
+            })
+          ) {
+            authorized = true;
+            break;
+          }
+        }
+      }
+
+      if (!authorized) {
+        return new NextResponse(
+          'Payment Required: You do not have active access to this lesson.',
+          { status: 403 }
+        );
+      }
+    }
+
     const hostParam = request.nextUrl.searchParams.get('host');
     let r2PublicBase = (process.env.R2_PUBLIC_URL || DEFAULT_R2_BASE).replace(/\/$/, '');
 
     if (hostParam) {
       const cleanHost = hostParam.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim().toLowerCase();
-      // Strict SSRF validation: only valid Cloudflare R2 subdomains permitted
       const isValidR2Host = /^[a-zA-Z0-9_-]+\.r2\.dev$/.test(cleanHost) || /^[a-zA-Z0-9._-]+\.cloudflarestorage\.com$/.test(cleanHost);
       if (isValidR2Host && !cleanHost.includes('..')) {
         r2PublicBase = `https://${cleanHost}`;
@@ -114,11 +167,10 @@ export async function GET(
       });
     }
 
-    // Serve binary chunks as application/octet-stream so IDM sniffer ignores them
     const responseHeaders = new Headers();
     responseHeaders.set('Content-Type', 'application/octet-stream');
     responseHeaders.set('Content-Disposition', 'inline; filename="stream.bin"');
-    responseHeaders.set('Cache-Control', 'public, max-age=31536000, immutable');
+    responseHeaders.set('Cache-Control', 'private, no-store');
     responseHeaders.set('Access-Control-Allow-Origin', allowedOrigin);
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
 

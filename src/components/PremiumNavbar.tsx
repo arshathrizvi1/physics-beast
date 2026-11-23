@@ -31,9 +31,22 @@ export default function PremiumNavbar() {
   // Live class indicator
   const [isLive, setIsLive] = useState(false);
   useEffect(() => {
-    const q = query(collection(db, "live_classes"), where("status", "==", "live"));
-    const unsub = onSnapshot(q, (snap) => setIsLive(!snap.empty), () => {});
-    return () => unsub();
+    let active = true;
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('/api/content/live?statusOnly=1');
+        if (res.ok && active) {
+          const data = await res.json();
+          setIsLive(Boolean(data?.hasLive));
+        }
+      } catch {}
+    };
+    checkStatus();
+    const timer = setInterval(checkStatus, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   // Navbar entrance

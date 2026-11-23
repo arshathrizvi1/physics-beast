@@ -3,10 +3,9 @@
 import { useAuth } from '@/lib/AuthContext';
 import { useEffect, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import dynamic from 'next/dynamic';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FullscreenShell from '@/components/FullscreenShell';
 
@@ -17,6 +16,7 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
   const { user, loading } = useAuth();
   const router = useRouter();
   const [classData, setClassData] = useState<any>(null);
+  const [accessDenied, setAccessDenied] = useState<string>('');
   const [loadingClass, setLoadingClass] = useState(true);
   const wmRef = useRef<HTMLDivElement>(null);
 
@@ -31,19 +31,19 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
     const animate = () => {
       x += dx;
       y += dy;
-      
+
       if (x <= 1) { x = 1; dx = Math.abs(dx); }
       if (x >= 82) { x = 82; dx = -Math.abs(dx); }
       if (y <= 1) { y = 1; dy = Math.abs(dy); }
       if (y >= 88) { y = 88; dy = -Math.abs(dy); }
-      
+
       if (wmRef.current) {
         wmRef.current.style.left = `${x}%`;
         wmRef.current.style.top = `${y}%`;
       }
       animationFrameId = requestAnimationFrame(animate);
     };
-    
+
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
@@ -57,9 +57,21 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
   useEffect(() => {
     const fetchClass = async () => {
       try {
-        const docSnap = await getDoc(doc(db, 'live_classes', params.id));
-        if (docSnap.exists()) {
-          setClassData({ id: docSnap.id, ...docSnap.data() });
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) {
+          setAccessDenied('Please log in to join this live class.');
+          return;
+        }
+        const res = await fetch(`/api/content/live?id=${encodeURIComponent(params.id)}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          setAccessDenied(data.error || 'Payment required: You do not have active access to this live class.');
+          return;
+        }
+        if (res.ok && data.liveClass) {
+          setClassData(data.liveClass);
         }
       } catch (err) {
         console.error(err);
@@ -77,6 +89,21 @@ export default function StudentFullScreenRoom(props: { params: Promise<{ id: str
       <FullscreenShell>
         <div className="flex h-full w-full items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+        </div>
+      </FullscreenShell>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <FullscreenShell>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6 text-center">
+          <Lock className="h-12 w-12 text-amber-500" />
+          <h1 className="text-2xl font-bold">Live Class Locked</h1>
+          <p className="max-w-md text-sm text-zinc-400">{accessDenied}</p>
+          <Button onClick={() => router.push('/courses')} variant="outline" className="text-black">
+            View Courses & Enroll
+          </Button>
         </div>
       </FullscreenShell>
     );
