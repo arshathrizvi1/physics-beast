@@ -198,6 +198,11 @@ export async function verifyAndConsumeServerOtp(params: {
   if (now > record.expiresAt) {
     record.consumed = true;
     memoryOtpStore.set(challengeKey, record);
+    try {
+      await adminDb.collection('otp_verifications').doc(challengeKey).update({ consumed: true });
+    } catch {
+      // Ignore
+    }
     return {
       valid: false,
       status: 400,
@@ -208,6 +213,11 @@ export async function verifyAndConsumeServerOtp(params: {
   if (record.attempts >= OTP_MAX_ATTEMPTS) {
     record.consumed = true;
     memoryOtpStore.set(challengeKey, record);
+    try {
+      await adminDb.collection('otp_verifications').doc(challengeKey).update({ consumed: true });
+    } catch {
+      // Ignore
+    }
     return {
       valid: false,
       status: 429,
@@ -218,7 +228,17 @@ export async function verifyAndConsumeServerOtp(params: {
   const expectedHash = computeOtpHmac(cleanEmail, params.purpose, cleanCode);
   if (!timingSafeEqualStr(record.otpHash, expectedHash)) {
     record.attempts += 1;
+    const locked = record.attempts >= OTP_MAX_ATTEMPTS;
+    if (locked) record.consumed = true;
     memoryOtpStore.set(challengeKey, record);
+    try {
+      await adminDb.collection('otp_verifications').doc(challengeKey).update({
+        attempts: record.attempts,
+        ...(locked ? { consumed: true } : {}),
+      });
+    } catch {
+      // Ignore
+    }
     const remaining = Math.max(0, OTP_MAX_ATTEMPTS - record.attempts);
     return {
       valid: false,

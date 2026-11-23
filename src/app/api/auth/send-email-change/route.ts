@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 import { getServerEnv } from '@/security/env';
-import { sanitizeEmail, sanitizeText } from '@/security/sanitize';
+import { sanitizeEmail, sanitizeText, escapeHtml } from '@/security/sanitize';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
 export const POST = withZeroTrustGate(
@@ -22,7 +22,7 @@ export const POST = withZeroTrustGate(
 
     const email = sanitizeEmail(parsed.body.email);
     const newEmail = sanitizeEmail(parsed.body.newEmail);
-    const name = sanitizeText(parsed.body.name || 'Student', 80);
+    const name = escapeHtml(sanitizeText(parsed.body.name || 'Student', 80));
 
     if (!email || !newEmail) {
       return NextResponse.json(

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 import { resolveCorsOrigin, withZeroTrustGate } from '@/security/zero-trust-gate';
-import { getUserEntitlementContext } from '@/security/entitlement';
+import {
+  getUserEntitlementContext,
+  hasCourseOrFolderEntitlement,
+  hasExamEntitlement,
+} from '@/security/entitlement';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,6 +73,70 @@ export const GET = withZeroTrustGate(
       return new NextResponse('Access Denied: Target host is not permitted by PDF proxy policy.', {
         status: 403,
       });
+    }
+
+    // Fail-closed Server-Side Entitlement Gate for non-staff callers hitting Next.js directly
+    if (!ent.isStaff) {
+      let authorized = false;
+      const normalizedTarget = targetUrl.trim();
+      const [videosSnap, examsSnap, myResultsSnap] = await Promise.all([
+        adminDb.collection('videos').limit(500).get(),
+        adminDb.collection('exams').limit(200).get(),
+        adminDb.collection('examResults').where('userId', '==', ent.uid).limit(100).get(),
+      ]);
+
+      for (const d of videosSnap.docs) {
+        const v = d.data() || {};
+        const urls = [v.url, v.r2Url, v.pdfUrl].filter((u) => typeof u === 'string').map((u) => u.trim());
+        if (urls.includes(normalizedTarget)) {
+          if (
+            hasCourseOrFolderEntitlement(ent, {
+              courseId: v.courseId,
+              folderId: v.folderId,
+              isFree: v.isFree === true,
+            })
+          ) {
+            authorized = true;
+            break;
+          }
+        }
+      }
+
+      if (!authorized) {
+        const now = Date.now();
+        for (const d of examsSnap.docs) {
+          const e = d.data() || {};
+          const examEnded = e.endTime ? now >= Number(e.endTime) : true;
+          const isQuestionPdf = typeof e.questionPdfUrl === 'string' && e.questionPdfUrl.trim() === normalizedTarget;
+          const isMarkingPdf =
+            typeof e.markingSchemeUrl === 'string' &&
+            e.markingSchemeUrl.trim() === normalizedTarget &&
+            (e.gradesPublished === true || examEnded);
+          if ((isQuestionPdf || isMarkingPdf) && hasExamEntitlement(ent, e, now)) {
+            authorized = true;
+            break;
+          }
+        }
+      }
+
+      if (!authorized) {
+        for (const d of myResultsSnap.docs) {
+          const r = d.data() || {};
+          if (
+            (typeof r.answerPdfUrl === 'string' && r.answerPdfUrl.trim() === normalizedTarget) ||
+            (typeof r.correctedPdfUrl === 'string' && r.correctedPdfUrl.trim() === normalizedTarget)
+          ) {
+            authorized = true;
+            break;
+          }
+        }
+      }
+
+      if (!authorized) {
+        return new NextResponse('Payment Required: You do not have active access to this document.', {
+          status: 403,
+        });
+      }
     }
 
     try {

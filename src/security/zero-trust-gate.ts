@@ -31,6 +31,7 @@ export const ALLOWED_ORIGINS = new Set([
   'https://brilliantacademy.site',
   'https://www.brilliantacademy.site',
   'https://brilliant-academy.vercel.app',
+  'https://brilliantacademy.vercel.app',
   'capacitor://localhost',
   'https://localhost',
   'http://localhost',
@@ -43,7 +44,6 @@ export function resolveCorsOrigin(req: Request): string {
   if (!origin) return 'https://www.brillliantacademy.site';
   if (
     ALLOWED_ORIGINS.has(origin) ||
-    origin.endsWith('.vercel.app') ||
     origin.endsWith('.brillliantacademy.site') ||
     origin.endsWith('.brilliantacademy.site')
   ) {
@@ -81,7 +81,7 @@ export interface ZeroTrustGateOptions {
   scope?: string;
   limit?: number;
   windowMs?: number;
-  requireAuth?: 'admin' | 'teacher_or_admin' | 'authenticated' | 'none';
+  requireAuth?: 'admin' | 'teacher_or_admin' | 'authenticated' | 'optional' | 'none';
   requireCsrfOrigin?: boolean;
 }
 
@@ -151,7 +151,8 @@ export function withZeroTrustGate(
             const isAllowed =
               originHost === reqHost ||
               ALLOWED_ORIGINS.has(origin) ||
-              originHost.endsWith('.vercel.app') ||
+              originHost === 'brilliantacademy.vercel.app' ||
+              originHost === 'brilliant-academy.vercel.app' ||
               originHost.endsWith('.brillliantacademy.site') ||
               originHost.endsWith('.brilliantacademy.site') ||
               originHost === 'localhost' ||
@@ -236,13 +237,15 @@ export function withZeroTrustGate(
       let caller: VerifiedCaller | null = null;
       const requireAuth = options.requireAuth ?? 'none';
 
-      if (requireAuth !== 'none') {
+      if (requireAuth === 'optional') {
+        caller = await getAuthenticatedCaller(req);
+      } else if (requireAuth !== 'none') {
         caller = await getAuthenticatedCaller(req);
         const isAuthorized =
           caller !== null &&
           (requireAuth === 'authenticated' ||
             (requireAuth === 'teacher_or_admin' && caller.isAdmin) ||
-            (requireAuth === 'admin' && (caller.role === 'admin' || caller.isAdmin)));
+            (requireAuth === 'admin' && caller.role === 'admin'));
 
         if (!isAuthorized) {
           await appendAuditLog({

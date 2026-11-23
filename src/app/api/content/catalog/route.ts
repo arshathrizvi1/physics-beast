@@ -22,7 +22,7 @@ export const GET = withZeroTrustGate(
     scope: 'content_catalog',
     limit: 90,
     windowMs: 60 * 1000,
-    requireAuth: 'none',
+    requireAuth: 'optional',
   },
   async (req, ctx) => {
     try {

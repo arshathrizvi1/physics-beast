@@ -3,6 +3,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 import { sanitizeText } from '@/security/sanitize';
 import fs from 'fs';
+import path from 'path';
+
+const ALLOWED_RECORDINGS_ROOT = path.resolve(process.env.RECORDINGS_DIR || '/var/recordings');
 
 export const POST = withZeroTrustGate(
   {
@@ -26,13 +29,22 @@ export const POST = withZeroTrustGate(
         return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
       }
 
-      // Security Check: Block Path Traversal and non-video extensions (LFI prevention)
-      if (filePath.includes('..') || !/\.(mp4|flv|ts|mkv)$/i.test(filePath)) {
+      // Security Check: Strictly jail recording path inside ALLOWED_RECORDINGS_ROOT, block symlinks & non-video files
+      const resolvedPath = path.resolve(ALLOWED_RECORDINGS_ROOT, filePath.replace(/^\/+/, ''));
+      const isInsideRoot =
+        resolvedPath === ALLOWED_RECORDINGS_ROOT ||
+        resolvedPath.startsWith(ALLOWED_RECORDINGS_ROOT + path.sep);
+      if (
+        !isInsideRoot ||
+        filePath.includes('..') ||
+        filePath.includes('\0') ||
+        !/\.(mp4|flv|mkv)$/i.test(resolvedPath)
+      ) {
         return NextResponse.json({ error: 'Invalid recording file path' }, { status: 400 });
       }
 
-      if (!fs.existsSync(filePath)) {
-        return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
+      if (!fs.existsSync(resolvedPath) || fs.lstatSync(resolvedPath).isSymbolicLink()) {
+        return NextResponse.json({ error: 'Recording file not found on disk' }, { status: 404 });
       }
 
       // Find the live_classes doc that matches this streamKey
@@ -88,8 +100,8 @@ export const POST = withZeroTrustGate(
       console.log(`Video created with ID: ${videoId}. Starting upload...`);
 
       // 2. Read file and upload
-      const fileStream = fs.createReadStream(filePath);
-      const stats = fs.statSync(filePath);
+      const fileStream = fs.createReadStream(resolvedPath);
+      const stats = fs.statSync(resolvedPath);
 
       const uploadRes = await fetch(
         `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`,

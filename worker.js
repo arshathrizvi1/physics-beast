@@ -56,6 +56,39 @@ function generateNonce() {
   return btoa(String.fromCharCode(...bytes));
 }
 
+function escapeHtml(input) {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeDecodeURIComponent(str) {
+  try {
+    return decodeURIComponent(String(str || ''));
+  } catch {
+    return String(str || '');
+  }
+}
+
+async function timingSafeEqualEdge(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || !a || !b) return false;
+  const enc = new TextEncoder();
+  const [hashA, hashB] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a)),
+    crypto.subtle.digest('SHA-256', enc.encode(b)),
+  ]);
+  const bytesA = new Uint8Array(hashA);
+  const bytesB = new Uint8Array(hashB);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < bytesA.length; i++) {
+    diff |= bytesA[i] ^ bytesB[i];
+  }
+  return diff === 0;
+}
+
 function resolveCorsOrigin(request) {
   const origin = request.headers.get('Origin') || '';
   let reqHost = '';
@@ -200,7 +233,7 @@ function evaluateRateLimit(clientIp, pathname, method = 'GET') {
  */
 function inspectIntrusionAttempt(url, userAgent) {
   const path = url.pathname.toLowerCase();
-  const search = decodeURIComponent(url.search.toLowerCase());
+  const search = safeDecodeURIComponent(url.search.toLowerCase());
   const combined = `${path}?${search}`;
 
   // 1. Malicious User-Agent Detection (Scanners, Automated Attack Tools)
@@ -333,29 +366,29 @@ async function dispatchSecurityAlertEmail({ env, incident }) {
       
       <div class="box">
         <div class="label">Incident Classification</div>
-        <div class="value highlight-red">${incident.type}</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">${incident.detail || 'Malicious payload signature matched'}</div>
+        <div class="value highlight-red">${escapeHtml(incident.type)}</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">${escapeHtml(incident.detail || 'Malicious payload signature matched')}</div>
       </div>
 
       <div class="box">
         <div class="label">Attacker Origin (Cloudflare Edge Telemetry)</div>
-        <div class="value">IP Address: <strong>${incident.ip}</strong></div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Country: ${incident.country} • Edge Colocation: ${incident.colo}</div>
+        <div class="value">IP Address: <strong>${escapeHtml(incident.ip)}</strong></div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Country: ${escapeHtml(incident.country)} • Edge Colocation: ${escapeHtml(incident.colo)}</div>
       </div>
 
       <div class="box">
         <div class="label">Target URI & Method</div>
-        <div class="value">${incident.method} ${incident.path}</div>
+        <div class="value">${escapeHtml(incident.method)} ${escapeHtml(incident.path)}</div>
       </div>
 
       <div class="box">
         <div class="label">Attacker User-Agent</div>
-        <div class="value">${incident.userAgent}</div>
+        <div class="value">${escapeHtml(incident.userAgent)}</div>
       </div>
 
       <div class="box">
         <div class="label">Cryptographic Audit Hash</div>
-        <div class="value" style="font-size: 11px;">${incident.auditHash}</div>
+        <div class="value" style="font-size: 11px;">${escapeHtml(incident.auditHash)}</div>
       </div>
 
       <div class="countermeasure">
@@ -518,6 +551,7 @@ async function verifyFirebaseIdToken(token, projectId) {
     return {
       uid: payload.sub,
       email: payload.email || '',
+      emailVerified: payload.email_verified === true,
       role: payload.role || 'student',
     };
   } catch (err) {
@@ -690,12 +724,15 @@ async function fetchFirestoreDocAsCaller(projectId, docPath, idToken) {
   return { ok: true, status: 200, data: parseFirestoreDoc(json) };
 }
 
-function isStaffUserDoc(userDoc, callerEmail) {
+function isStaffUserDoc(userDoc, callerEmail, emailVerified = false) {
   const email = String(callerEmail || userDoc?.email || '').toLowerCase();
-  if (email === ALERT_EMAIL || email === 'admin@brilliantacademy.com' || email === 'admin@brillliantacademy.site') {
+  if (
+    emailVerified &&
+    (email === ALERT_EMAIL || email === 'admin@brilliantacademy.com' || email === 'admin@brillliantacademy.site')
+  ) {
     return true;
   }
-  if (!userDoc) return false;
+  if (!userDoc || userDoc.isBanned === true) return false;
   if (userDoc.isAdmin === true || userDoc.role === 'admin') return true;
   if ((userDoc.role === 'teacher' || userDoc.role === 'instructor') && userDoc.isApproved !== false) {
     return true;
@@ -1015,9 +1052,6 @@ function renderBrilliantLockdownResponse(request, nonce = '', { defconLevel = 5,
 
     <div class="footer-text">
       Brilliant Academy • Zero-Trust Distributed Edge Shield
-      <div style="margin-top: 10px;">
-        <a href="/login?dev_bypass=true" style="opacity: 0.5; font-size: 10px;">Administrator Bypass</a>
-      </div>
     </div>
   </div>
 </body>
@@ -1061,13 +1095,18 @@ export default {
     const country = request.cf?.country || 'LK';
     const colo = request.cf?.colo || 'CMB';
 
-    // Static assets & Auth iframe/handlers bypass rate limiting & lockdown
+    // Static assets & Auth iframe/handlers bypass rate limiting & lockdown (NEVER bypass /api/* routes!)
     const isStaticOrAuthAsset =
       url.pathname.startsWith('/_next/') ||
       url.pathname.startsWith('/__/auth/') ||
-      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json|mp4|webm|ts|m3u8)$/i);
+      (!url.pathname.startsWith('/api/') &&
+        url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json)$/i));
 
-    // 0A. Handle Instant Simulation Query (?simulate_lockdown=1 or ?simulate_lockdown=off)
+    // 0A. Cryptographic Admin Key Verification (never hardcoded in source code!)
+    const providedAdminKey = request.headers.get('x-admin-key') || '';
+    const isAdmin = Boolean(env.ADMIN_BYPASS_KEY) && (await timingSafeEqualEdge(providedAdminKey, env.ADMIN_BYPASS_KEY));
+
+    // Handle Instant Simulation Query (?simulate_lockdown=1 or ?simulate_lockdown=off) strictly for verified admins
     const simQuery = url.searchParams.get('simulate_lockdown');
     if (simQuery === 'off' || simQuery === 'clear') {
       const cleanUrl = new URL(request.url);
@@ -1076,29 +1115,21 @@ export default {
         status: 302,
         headers: {
           Location: cleanUrl.toString(),
-          'Set-Cookie': 'brilliant_simulate_lockdown=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax',
+          'Set-Cookie': 'brilliant_simulate_lockdown=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax',
         },
       });
     }
 
     const cookieHeader = request.headers.get('Cookie') || '';
     const isLockdownSimulation =
-      simQuery === '1' ||
-      simQuery === 'true' ||
+      (isAdmin && (simQuery === '1' || simQuery === 'true')) ||
       cookieHeader.includes('brilliant_simulate_lockdown=true');
 
     // 0B. Synchronized Fleet DEFCON Posture & Emergency Lockdown
     const fleetPosture = await getSynchronizedFleetPosture(env);
-    const isAdmin = request.headers.get('x-admin-key') === 'brilliant_admin_master_secret';
-    const isDevBypass =
-      url.searchParams.get('dev_bypass') === 'true' ||
-      url.searchParams.get('dev_bypass') === '1' ||
-      cookieHeader.includes('devnivo_dev_bypass=true') ||
-      cookieHeader.includes('brilliant_dev_bypass=true');
 
     const isAdminImmune = !isLockdownSimulation && (
       isAdmin ||
-      isDevBypass ||
       url.pathname.startsWith('/admin') ||
       url.pathname.startsWith('/api/admin')
     );
@@ -1260,7 +1291,7 @@ export default {
     <p>Brilliant Academy's edge security is temporarily throttling requests to keep the learning platform fast and secure for all students.</p>
     <div class="counter" id="timer">${retrySec}s</div>
     <div class="subtext">This page will automatically refresh once the cooldown completes.</div>
-    <a href="${url.pathname}" class="btn" onclick="location.reload(); return false;">Try Again Now</a>
+    <a href="${escapeHtml(url.pathname)}" class="btn" onclick="location.reload(); return false;">Try Again Now</a>
   </div>
   <script>
     let s = ${retrySec};
@@ -1456,10 +1487,11 @@ export default {
     }
 
     // 6. Ultra-Low Latency Cloudflare Edge Cache Engine (< 15ms Static Assets)
-    // Matches Next.js compiled chunks, CSS, JS, fonts, favicons, and images
+    // Matches Next.js compiled chunks, CSS, JS, fonts, favicons, and static images (NEVER /api/* routes!)
     const isStaticAsset =
       url.pathname.startsWith('/_next/static/') ||
-      url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json)$/);
+      (!url.pathname.startsWith('/api/') &&
+        url.pathname.match(/\.(js|css|png|jpg|jpeg|gif|webp|svg|ico|woff2|woff|ttf|json)$/i));
 
     if (request.method === 'GET' && isStaticAsset) {
       const cache = caches.default;
@@ -1667,8 +1699,8 @@ export default {
       const authHeader = request.headers.get('Authorization') || '';
       const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
       const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
-      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site'];
-      if (!caller || !caller.email || !adminEmails.includes(caller.email.toLowerCase())) {
+      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site', 'admin@brillliantacademy.site', 'admin@brilliantacademy.com'];
+      if (!caller || !caller.email || !caller.emailVerified || !adminEmails.includes(caller.email.toLowerCase())) {
         return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin privileges required.' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
@@ -1689,8 +1721,8 @@ export default {
       const authHeader = request.headers.get('Authorization') || '';
       const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
       const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
-      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site'];
-      if (!caller || !caller.email || !adminEmails.includes(caller.email.toLowerCase())) {
+      const adminEmails = [ALERT_EMAIL, 'admin@brilliantacademy.site', 'admin@brillliantacademy.site', 'admin@brilliantacademy.com'];
+      if (!caller || !caller.email || !caller.emailVerified || !adminEmails.includes(caller.email.toLowerCase())) {
         return new Response(JSON.stringify({ success: false, error: 'Unauthorized: Admin privileges required.' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) },
@@ -1741,7 +1773,7 @@ export default {
         });
       }
 
-      const key = decodeURIComponent(url.pathname.replace('/api/r2-media/', ''));
+      const key = safeDecodeURIComponent(url.pathname.replace('/api/r2-media/', ''));
 
       // Validate storage key integrity against path traversal and dangerous extensions
       if (!key || key.includes('..') || key.includes('\0') || !/^[a-zA-Z0-9_\-\.\/]+$/.test(key)) {
@@ -1752,28 +1784,56 @@ export default {
         return new Response('Forbidden: Script or executable uploads prohibited', { status: 403 });
       }
 
-      // Direct R2 Streaming PUT Upload - Authenticated Admin/Teacher or Internal Service Only
+      // Direct R2 Streaming PUT Upload - Authenticated Admin/Teacher or Scoped Student Upload Only
       if (request.method === 'PUT') {
         const workerSecret = env.RTMP_CALLBACK_SECRET;
         const internalAuth = request.headers.get('x-worker-auth') || '';
         const authHeader = request.headers.get('Authorization') || '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
 
-        let isAuthorized = Boolean(workerSecret) && internalAuth === workerSecret;
+        let isAuthorized = Boolean(workerSecret) && (await timingSafeEqualEdge(internalAuth, workerSecret));
+        let isStaffUpload = isAuthorized;
         if (!isAuthorized && token) {
           const caller = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
           if (caller && caller.uid) {
             const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, token);
             const userDoc = userLookup.data;
-            const isStaff = isStaffUserDoc(userDoc, caller.email);
+            const isStaff = isStaffUserDoc(userDoc, caller.email, caller.emailVerified);
             const isStudentUpload =
               lowerKey.startsWith('payment-slips/') ||
               lowerKey.startsWith('payment-receipts/') ||
               lowerKey.startsWith('student-answers/') ||
+              lowerKey.startsWith('student-nic/') ||
+              lowerKey.startsWith('support-issues/') ||
               lowerKey.startsWith('submissions/') ||
               lowerKey.startsWith('bug-reports/') ||
               lowerKey.startsWith('uploads/');
-            if ((isStaff || (isStudentUpload && userDoc?.isBanned !== true))) {
+            if (isStaff) {
+              isAuthorized = true;
+              isStaffUpload = true;
+            } else if (isStudentUpload && userDoc?.isBanned !== true) {
+              // Enforce strict student file extension allowlist, 25MB size cap, and anti-overwrite guard
+              const allowedStudentExt = /\.(jpg|jpeg|png|webp|pdf)$/i.test(lowerKey);
+              const contentLen = Number(request.headers.get('content-length') || '0');
+              if (!allowedStudentExt) {
+                return new Response(JSON.stringify({ error: 'Forbidden: Only JPG, PNG, WEBP, and PDF files are permitted.' }), {
+                  status: 415,
+                  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+                });
+              }
+              if (Number.isFinite(contentLen) && contentLen > 25 * 1024 * 1024) {
+                return new Response(JSON.stringify({ error: 'Payload Too Large: Maximum student upload size is 25MB.' }), {
+                  status: 413,
+                  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+                });
+              }
+              const existingObj = await env.MEDIA.head(key);
+              if (existingObj) {
+                return new Response(JSON.stringify({ error: 'Conflict: Existing file cannot be overwritten.' }), {
+                  status: 409,
+                  headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': corsOrigin }
+                });
+              }
               isAuthorized = true;
             }
           }
@@ -1836,7 +1896,7 @@ export default {
             const caller = await verifyFirebaseIdToken(bearer, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
             if (caller && caller.uid) {
               const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, bearer);
-              if (isStaffUserDoc(userLookup.data, caller.email)) {
+              if (isStaffUserDoc(userLookup.data, caller.email, caller.emailVerified)) {
                 allowed = true;
               }
             }
@@ -1965,7 +2025,7 @@ export default {
           const caller = await verifyFirebaseIdToken(bearer, env.FIREBASE_PROJECT_ID || 'physics-beastsl');
           if (caller && caller.uid) {
             const userLookup = await fetchFirestoreDocAsCaller(env.FIREBASE_PROJECT_ID || 'physics-beastsl', 'users/' + caller.uid, bearer);
-            if (isStaffUserDoc(userLookup.data, caller.email)) {
+            if (isStaffUserDoc(userLookup.data, caller.email, caller.emailVerified)) {
               pdfAllowed = true;
             }
           }
@@ -2080,7 +2140,7 @@ export default {
             });
           }
 
-          const isStaff = isStaffUserDoc(userDoc, caller.email);
+          const isStaff = isStaffUserDoc(userDoc, caller.email, caller.emailVerified);
           const deviceFp = await computeEdgeDeviceFingerprint(clientIp, userAgent);
           const exp = Date.now() + PLAYBACK_TOKEN_TTL_MS;
 
@@ -2572,7 +2632,6 @@ export default {
           country: country,
           d1_connected: !!env.DB,
           r2_connected: !!env.MEDIA,
-          alert_recipient: ALERT_EMAIL,
         }),
         { headers: { 'Content-Type': 'application/json', ...buildSecurityHeaders(request, nonce) } }
       );

@@ -520,7 +520,7 @@ export function PdfViewer({
         </div>
       </div>
       
-      {allowDownload && (
+      {allowDownload && resolvedFileUrl && (
         <div className="bg-background border-t border-border p-4 flex justify-between items-center z-10 shrink-0">
           <div className="text-sm font-medium text-foreground hidden sm:block truncate max-w-md">
             {title}

@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { Home, BookOpen, FileText, Video } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
 
 export function MobileBottomNav() {
   const { user, loading } = useAuth();

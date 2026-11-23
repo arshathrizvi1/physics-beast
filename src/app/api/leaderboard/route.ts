@@ -76,7 +76,7 @@ export const GET = withZeroTrustGate(
         },
         {
           headers: {
-            'Cache-Control': 'private, s-maxage=120, stale-while-revalidate=300',
+            'Cache-Control': 'private, no-store, no-cache',
           },
         }
       );

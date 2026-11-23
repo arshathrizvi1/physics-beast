@@ -5,7 +5,7 @@ import {
   verifyAndConsumeServerOtp,
   OTP_TTL_SECONDS,
 } from '@/security/otp-authority';
-import { sanitizeText } from '@/security/sanitize';
+import { sanitizeText, escapeHtml } from '@/security/sanitize';
 import { getServerEnv } from '@/security/env';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
@@ -37,7 +37,7 @@ export const POST = withZeroTrustGate(
       }
 
       const env = getServerEnv();
-      const safeName = sanitizeText(name || 'Student', 80);
+      const safeName = escapeHtml(sanitizeText(name || 'Student', 80));
 
       if (env.RESEND_API_KEY) {
         try {

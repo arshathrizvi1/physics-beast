@@ -45,6 +45,9 @@ export const POST = withZeroTrustGate(
       }
 
       const userData = userDoc.data();
+      if (userData?.isBanned === true) {
+        return NextResponse.json({ error: 'Account suspended.' }, { status: 403 });
+      }
       const expectedChallenge = userData?.currentChallenge;
 
       if (!expectedChallenge) {
@@ -75,9 +78,12 @@ export const POST = withZeroTrustGate(
           verification.registrationInfo;
 
         const credentialStr = Buffer.from(credential.publicKey).toString('base64');
-        const credentialIDStr = credential.id;
+        const credentialIDStr = String(credential.id || '').trim();
+        if (!credentialIDStr || !/^[a-zA-Z0-9_-]{8,512}$/.test(credentialIDStr)) {
+          return NextResponse.json({ error: 'Invalid credential identifier' }, { status: 400 });
+        }
 
-        await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).set({
+        await adminDb.collection('users').doc(uid).collection('passkeys').doc(credentialIDStr).set({
           credentialID: credentialIDStr,
           credentialPublicKey: credentialStr,
           counter: credential.counter,

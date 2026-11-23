@@ -24,7 +24,7 @@ export const GET = withZeroTrustGate(
     scope: 'content_course',
     limit: 90,
     windowMs: 60 * 1000,
-    requireAuth: 'none',
+    requireAuth: 'optional',
   },
   async (req, ctx) => {
     try {
@@ -59,7 +59,7 @@ export const GET = withZeroTrustGate(
           hasAccess: hasCourseOrFolderEntitlement(ent, {
             courseId,
             folderId: f.id,
-            isFree: f.isFree === true || Number(f.price || 0) === 0 && f.isFree !== false && false,
+            isFree: f.isFree === true,
             nowMs: now,
           }),
         }));

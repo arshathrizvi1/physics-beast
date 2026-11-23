@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 import { getServerEnv } from '@/security/env';
-import { sanitizeEmail, sanitizeText } from '@/security/sanitize';
+import { sanitizeEmail, sanitizeText, escapeHtml } from '@/security/sanitize';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
 export const POST = withZeroTrustGate(
@@ -10,16 +10,26 @@ export const POST = withZeroTrustGate(
     scope: 'auth_send_verification',
     limit: 10,
     windowMs: 60 * 1000,
+    requireAuth: 'authenticated',
   },
   async (req, ctx) => {
     const parsed = await parseAndVerifyJsonBody<{ email?: string; name?: string }>(req, ctx);
     if (!parsed.ok) return parsed.response;
 
     const email = sanitizeEmail(parsed.body.email);
-    const name = sanitizeText(parsed.body.name || 'Student', 80);
+    const name = escapeHtml(sanitizeText(parsed.body.name || 'Student', 80));
 
     if (!email) {
       return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
+    }
+
+    // Security Invariant: Caller can ONLY trigger verification emails for their own account (or admin)
+    const callerEmail = ctx.caller?.email?.toLowerCase();
+    if (!ctx.caller?.isAdmin && (!callerEmail || callerEmail !== email.toLowerCase())) {
+      return NextResponse.json(
+        { error: 'Forbidden: You may only request a verification email for your own account.' },
+        { status: 403 }
+      );
     }
 
     if (!adminAuth) {

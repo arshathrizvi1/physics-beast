@@ -240,7 +240,7 @@ export async function verifyPayableDualLock(params: {
     };
   }
 
-  // LOCK 2: Fail-closed verification of paidAmountCents against authoritative Firestore folder price
+  // LOCK 2: Fail-closed verification of paidAmountCents against authoritative Firestore folder/course price
   try {
     const folderSnap = await adminDb.collection('folders').doc(folderId).get();
     if (!folderSnap.exists) {
@@ -251,31 +251,42 @@ export async function verifyPayableDualLock(params: {
       };
     }
     const folderData = folderSnap.data() || {};
-    const authoritativePriceLkr = Number(folderData.price);
-    if (Number.isFinite(authoritativePriceLkr) && authoritativePriceLkr > 0) {
-      const expectedCents = Math.round(authoritativePriceLkr * 100);
-      if (params.paidAmountCents < expectedCents) {
-        await appendAuditLog({
-          severity: 'CRITICAL',
-          eventType: 'PAYMENT_AMOUNT_MISMATCH_FRAUD',
-          ip: params.ip,
-          fingerprint: params.fingerprint,
-          path: '/api/payable/verify',
-          method: 'POST',
-          details: {
-            folderId,
-            userId,
-            paidAmountCents: params.paidAmountCents,
-            expectedCents,
-            transactionId: params.transactionId,
-          },
-        });
-        return {
-          ok: false,
-          status: 422,
-          error: 'Payment amount is less than the authoritative course price.',
-        };
+    let authoritativePriceLkr = Number(folderData.price);
+    if ((!Number.isFinite(authoritativePriceLkr) || authoritativePriceLkr <= 0) && folderData.courseId) {
+      const courseSnap = await adminDb.collection('courses').doc(String(folderData.courseId)).get();
+      if (courseSnap.exists) {
+        const coursePrice = Number(courseSnap.data()?.price);
+        if (Number.isFinite(coursePrice) && coursePrice > 0) {
+          authoritativePriceLkr = coursePrice;
+        }
       }
+    }
+    const minExpectedLkr =
+      Number.isFinite(authoritativePriceLkr) && authoritativePriceLkr > 0
+        ? authoritativePriceLkr
+        : 100;
+    const expectedCents = Math.round(minExpectedLkr * 100);
+    if (params.paidAmountCents < expectedCents) {
+      await appendAuditLog({
+        severity: 'CRITICAL',
+        eventType: 'PAYMENT_AMOUNT_MISMATCH_FRAUD',
+        ip: params.ip,
+        fingerprint: params.fingerprint,
+        path: '/api/payable/verify',
+        method: 'POST',
+        details: {
+          folderId,
+          userId,
+          paidAmountCents: params.paidAmountCents,
+          expectedCents,
+          transactionId: params.transactionId,
+        },
+      });
+      return {
+        ok: false,
+        status: 422,
+        error: 'Payment amount is less than the authoritative course price.',
+      };
     }
   } catch (err) {
     console.error('[PaymentAuthority] Fail-closed Firestore price verification error:', err);

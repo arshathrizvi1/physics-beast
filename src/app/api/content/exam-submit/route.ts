@@ -87,7 +87,12 @@ export const POST = withZeroTrustGate(
         parsed.body.answers && typeof parsed.body.answers === 'object'
           ? parsed.body.answers
           : {};
-      const answerPdfUrl = sanitizeText(parsed.body.answerPdfUrl || '', 1024).trim();
+      const rawAnswerPdfUrl = sanitizeText(parsed.body.answerPdfUrl || '', 1024).trim();
+      const answerPdfUrl =
+        rawAnswerPdfUrl &&
+        (rawAnswerPdfUrl.startsWith('https://') || rawAnswerPdfUrl.startsWith('/api/r2-media/'))
+          ? rawAnswerPdfUrl
+          : '';
       const duration = Math.max(60, Number(exam.durationSeconds || 900));
       const timeTaken = Math.max(
         1,
@@ -138,7 +143,17 @@ export const POST = withZeroTrustGate(
       };
 
       const deterministicResultId = `${examId}_${ent.uid}`;
-      await adminDb.collection('examResults').doc(deterministicResultId).set(resultDoc);
+      try {
+        await adminDb.collection('examResults').doc(deterministicResultId).create(resultDoc);
+      } catch (createErr: any) {
+        if (createErr?.code === 6 || /ALREADY_EXISTS/i.test(String(createErr?.message || ''))) {
+          return NextResponse.json(
+            { error: 'You have already submitted this exam.', alreadySubmitted: true },
+            { status: 409 }
+          );
+        }
+        throw createErr;
+      }
 
       // Update student XP, level, exam count, and average grade server-side
       if (ent.role === 'student') {
@@ -162,8 +177,10 @@ export const POST = withZeroTrustGate(
 
         await adminDb.collection('users').doc(ent.uid).update({
           totalXp: newTotalXp,
+          xpLevel: newLevel,
           level: newLevel,
           examsCompleted: pastSnap.size,
+          examsDone: pastSnap.size,
           averageGrade: avgGrade,
         });
       }

@@ -21,7 +21,7 @@ export const GET = withZeroTrustGate(
     scope: 'content_live',
     limit: 120,
     windowMs: 60 * 1000,
-    requireAuth: 'none',
+    requireAuth: 'optional',
   },
   async (req, ctx) => {
     try {

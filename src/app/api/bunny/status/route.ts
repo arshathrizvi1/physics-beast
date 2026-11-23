@@ -14,8 +14,8 @@ export const GET = withZeroTrustGate(
       const { searchParams } = new URL(request.url);
       const videoId = sanitizeText(searchParams.get('videoId'), 128);
 
-      if (!videoId) {
-        return NextResponse.json({ error: 'videoId is required' }, { status: 400 });
+      if (!videoId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(videoId)) {
+        return NextResponse.json({ error: 'Valid UUID videoId is required' }, { status: 400 });
       }
 
       const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
@@ -26,7 +26,7 @@ export const GET = withZeroTrustGate(
       }
 
       const res = await fetch(
-        `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`,
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
         {
           headers: {
             AccessKey: apiKey,

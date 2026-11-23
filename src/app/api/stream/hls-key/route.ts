@@ -56,7 +56,8 @@ export const GET = withZeroTrustGate(
             parsedHost === 'www.brillliantacademy.site' ||
             parsedHost === 'brilliantacademy.site' ||
             parsedHost === 'www.brilliantacademy.site' ||
-            parsedHost.endsWith('.vercel.app') ||
+            parsedHost === 'brilliantacademy.vercel.app' ||
+            parsedHost === 'brilliant-academy.vercel.app' ||
             parsedHost === 'localhost' ||
             parsedHost === '127.0.0.1'
           );

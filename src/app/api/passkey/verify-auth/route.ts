@@ -20,30 +20,49 @@ export const POST = withZeroTrustGate(
 
       const { response, challengeId } = parsed.body;
 
-      if (!response || !challengeId) {
-        return NextResponse.json({ error: 'Missing response or challengeId' }, { status: 400 });
+      if (!response || !challengeId || typeof challengeId !== 'string' || !/^[0-9a-f]{64}$/i.test(challengeId)) {
+        return NextResponse.json({ error: 'Missing or invalid response/challengeId' }, { status: 400 });
       }
 
-      // Retrieve the expected challenge
+      // Retrieve the expected challenge and enforce strict 5-minute TTL
       const challengeDoc = await adminDb.collection('authChallenges').doc(challengeId).get();
       if (!challengeDoc.exists) {
         return NextResponse.json({ error: 'Challenge not found or expired' }, { status: 404 });
       }
 
-      const expectedChallenge = challengeDoc.data()?.challenge;
+      const challengeData = challengeDoc.data() || {};
+      const expectedChallenge = challengeData.challenge;
+      const challengeCreatedAt = Number(challengeData.createdAt || 0);
+      if (!expectedChallenge || !challengeCreatedAt || Date.now() - challengeCreatedAt > 5 * 60 * 1000) {
+        await challengeDoc.ref.delete().catch(() => {});
+        return NextResponse.json({ error: 'Challenge expired. Please try again.' }, { status: 401 });
+      }
 
       // The userHandle is the uid we encoded during registration
       const uidBytes = response.response?.userHandle;
-      if (!uidBytes) {
-        return NextResponse.json({ error: 'No userHandle provided by authenticator' }, { status: 400 });
+      if (!uidBytes || typeof uidBytes !== 'string' || uidBytes.length > 256) {
+        return NextResponse.json({ error: 'No valid userHandle provided by authenticator' }, { status: 400 });
       }
 
-      // Decode base64url userHandle to get uid
-      const uid = Buffer.from(uidBytes, 'base64url').toString('utf8');
+      // Decode base64url userHandle to get uid and validate against path injection
+      const uid = Buffer.from(uidBytes, 'base64url').toString('utf8').trim();
+      if (!uid || !/^[a-zA-Z0-9_-]{4,128}$/.test(uid)) {
+        return NextResponse.json({ error: 'Invalid user identifier' }, { status: 400 });
+      }
 
-      // Retrieve the user's credential from Firestore
-      const credentialIDStr = response.id;
-      const credentialDoc = await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).get();
+      // Reject suspended/banned accounts before authenticating
+      const userSnap = await adminDb.collection('users').doc(uid).get();
+      if (userSnap.exists && userSnap.data()?.isBanned === true) {
+        await challengeDoc.ref.delete().catch(() => {});
+        return NextResponse.json({ error: 'Account suspended.' }, { status: 403 });
+      }
+
+      // Retrieve the user's credential from Firestore (validate credential ID against path traversal)
+      const credentialIDStr = typeof response.id === 'string' ? response.id.trim() : '';
+      if (!credentialIDStr || !/^[a-zA-Z0-9_-]{8,512}$/.test(credentialIDStr)) {
+        return NextResponse.json({ error: 'Invalid credential identifier' }, { status: 400 });
+      }
+      const credentialDoc = await adminDb.collection('users').doc(uid).collection('passkeys').doc(credentialIDStr).get();
 
       if (!credentialDoc.exists) {
         return NextResponse.json({ error: 'Credential not found for this user' }, { status: 404 });
@@ -78,13 +97,13 @@ export const POST = withZeroTrustGate(
       });
 
       if (verification.verified && verification.authenticationInfo) {
+        // Consume the challenge first so concurrent replay attempts fail immediately
+        await challengeDoc.ref.delete();
+
         // Update counter
-        await adminDb.collection(`users/${uid}/passkeys`).doc(credentialIDStr).update({
+        await adminDb.collection('users').doc(uid).collection('passkeys').doc(credentialIDStr).update({
           counter: verification.authenticationInfo.newCounter,
         });
-
-        // Clear the used challenge
-        await challengeDoc.ref.delete();
 
         // Mint a custom Firebase token for login
         const customToken = await adminAuth.createCustomToken(uid);

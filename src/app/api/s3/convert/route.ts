@@ -24,16 +24,29 @@ export const POST = withZeroTrustGate(
       const bucketName = process.env.AWS_BUCKET_NAME || 'brillinat-academy-1';
       const region = process.env.AWS_REGION || 'eu-north-1';
 
-      // Parse the S3 key from the public URL
-      const keyMatch = s3Url.split('.amazonaws.com/');
-      if (keyMatch.length < 2) {
+      // Parse and strictly verify S3 URL hostname matches the configured bucket
+      let parsedS3: URL;
+      try {
+        parsedS3 = new URL(s3Url);
+      } catch {
         return NextResponse.json({ error: 'Invalid S3 URL format' }, { status: 400 });
       }
-      const inputKey = keyMatch[1];
+      const allowedS3Hosts = new Set([
+        `${bucketName}.s3.${region}.amazonaws.com`,
+        `${bucketName}.s3.amazonaws.com`,
+      ]);
+      if (parsedS3.protocol !== 'https:' || !allowedS3Hosts.has(parsedS3.hostname.toLowerCase())) {
+        return NextResponse.json({ error: 'Forbidden: S3 URL host does not match configured bucket' }, { status: 403 });
+      }
+      const inputKey = decodeURIComponent(parsedS3.pathname).replace(/^\/+/, '');
+      if (!inputKey || inputKey.includes('..') || inputKey.includes('\0')) {
+        return NextResponse.json({ error: 'Invalid S3 object key' }, { status: 400 });
+      }
       const s3InputPath = `s3://${bucketName}/${inputKey}`;
 
       // Output path: s3://brillinat-academy-1/hls-videos/1234_vid/
-      const baseName = inputKey.split('/').pop()?.split('.')[0] || Date.now().toString();
+      const rawBaseName = inputKey.split('/').pop()?.split('.')[0] || Date.now().toString();
+      const baseName = rawBaseName.replace(/[^a-zA-Z0-9_-]/g, '_') || Date.now().toString();
       const s3OutputPath = `s3://${bucketName}/hls-videos/${baseName}/`;
 
       // The final HLS URL to return to the frontend
@@ -241,8 +254,8 @@ export const GET = withZeroTrustGate(
       const { searchParams } = new URL(req.url);
       const jobId = searchParams.get('jobId');
 
-      if (!jobId) {
-        return NextResponse.json({ error: 'jobId is required' }, { status: 400 });
+      if (!jobId || !/^[a-zA-Z0-9_-]{6,128}$/.test(jobId)) {
+        return NextResponse.json({ error: 'Valid jobId is required' }, { status: 400 });
       }
 
       const region = process.env.AWS_REGION || 'eu-north-1';

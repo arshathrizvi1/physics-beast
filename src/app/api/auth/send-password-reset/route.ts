@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminAuth, adminFirestore } from '@/lib/firebaseAdmin';
 import { Resend } from 'resend';
 import { getServerEnv } from '@/security/env';
-import { sanitizeEmail, sanitizeText } from '@/security/sanitize';
+import { sanitizeEmail, sanitizeText, escapeHtml } from '@/security/sanitize';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 
 export const POST = withZeroTrustGate(
@@ -82,7 +82,7 @@ export const POST = withZeroTrustGate(
     try {
       const userRecord = await adminAuth.getUserByEmail(targetEmail);
       if (userRecord.displayName) {
-        name = sanitizeText(userRecord.displayName, 80);
+        name = escapeHtml(sanitizeText(userRecord.displayName, 80));
       }
     } catch {
       // Fallback

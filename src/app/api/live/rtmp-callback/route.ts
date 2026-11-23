@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getServerEnv } from '@/security/env';
 import { timingSafeEqualStr } from '@/security/session';
+import { withZeroTrustGate } from '@/security/zero-trust-gate';
+import { sanitizeText, sanitizeUrl } from '@/security/sanitize';
 
-export async function POST(request: Request) {
+export const POST = withZeroTrustGate(
+  {
+    scope: 'rtmp_callback',
+    limit: 60,
+    windowMs: 60 * 1000,
+    requireAuth: 'none',
+    requireCsrfOrigin: false,
+  },
+  async (request: Request) => {
   try {
     const body = await request.json();
-    const { event, streamKey, secret, hasRecording, bunnyVideoId, bunnyLibraryId, r2Url } = body;
+    const { event, streamKey: rawStreamKey, secret, hasRecording, bunnyVideoId, bunnyLibraryId, r2Url: rawR2Url } = body;
+    const streamKey = sanitizeText(rawStreamKey, 128);
+    const r2Url = rawR2Url
+      ? (String(rawR2Url).startsWith('/api/r2-media/') ? sanitizeText(rawR2Url, 1024) : sanitizeUrl(rawR2Url))
+      : '';
 
     const env = getServerEnv();
     const expectedSecret = env.RTMP_CALLBACK_SECRET;
@@ -131,10 +145,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unknown event' }, { status: 400 });
   } catch (error: any) {
     console.error('[RTMP Callback] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Callback processing failed' }, { status: 500 });
   }
-}
+});
 
-export async function GET() {
-  return NextResponse.json({ status: 'RTMP Callback endpoint active' });
-}
+export const GET = withZeroTrustGate(
+  {
+    scope: 'rtmp_callback_health',
+    limit: 30,
+    windowMs: 60 * 1000,
+    requireAuth: 'none',
+    requireCsrfOrigin: false,
+  },
+  async () => {
+    return NextResponse.json({ status: 'RTMP Callback endpoint active' });
+  }
+);

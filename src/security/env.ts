@@ -10,9 +10,10 @@ import crypto from 'crypto';
 
 let ephemeralSessionSecret = '';
 let ephemeralWebhookSecret = '';
+let ephemeralRtmpSecret = '';
 let ephemeralDrmSecret = '';
 
-function getEphemeralSecret(kind: 'session' | 'webhook' | 'drm'): string {
+function getEphemeralSecret(kind: 'session' | 'webhook' | 'rtmp' | 'drm'): string {
   if (kind === 'session') {
     if (!ephemeralSessionSecret) {
       ephemeralSessionSecret = crypto.randomBytes(32).toString('hex');
@@ -24,6 +25,12 @@ function getEphemeralSecret(kind: 'session' | 'webhook' | 'drm'): string {
       ephemeralWebhookSecret = crypto.randomBytes(32).toString('hex');
     }
     return ephemeralWebhookSecret;
+  }
+  if (kind === 'rtmp') {
+    if (!ephemeralRtmpSecret) {
+      ephemeralRtmpSecret = crypto.randomBytes(32).toString('hex');
+    }
+    return ephemeralRtmpSecret;
   }
   if (!ephemeralDrmSecret) {
     ephemeralDrmSecret = crypto.randomBytes(32).toString('hex');
@@ -73,13 +80,13 @@ export function getServerEnv(): ServerEnvConfig {
     process.env.PAYMENT_WEBHOOK_SECRET ||
     process.env.WEBHOOK_SECRET ||
     process.env.RTMP_CALLBACK_SECRET ||
-    (!isProd ? 'ba_secure_hls_stream_key_2026' : getEphemeralSecret('webhook'));
+    getEphemeralSecret('webhook');
 
   const rtmpCallbackSecret =
     process.env.RTMP_CALLBACK_SECRET ||
     process.env.WEBHOOK_SECRET ||
     webhookSecret ||
-    (!isProd ? 'ba_secure_hls_stream_key_2026' : getEphemeralSecret('rtmp'));
+    getEphemeralSecret('rtmp');
 
   const cloudDrmSecret =
     process.env.CLOUD_DRM_SECRET ||

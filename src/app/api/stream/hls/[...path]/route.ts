@@ -52,7 +52,8 @@ export async function GET(
           parsedHost === 'www.brillliantacademy.site' ||
           parsedHost === 'brilliantacademy.site' ||
           parsedHost === 'www.brilliantacademy.site' ||
-          parsedHost.endsWith('.vercel.app')
+          parsedHost === 'brilliantacademy.vercel.app' ||
+          parsedHost === 'brilliant-academy.vercel.app'
         );
       } catch {
         return false;
@@ -108,8 +109,17 @@ export async function GET(
 
     if (hostParam) {
       const cleanHost = hostParam.replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim().toLowerCase();
-      const isValidR2Host = /^[a-zA-Z0-9_-]+\.r2\.dev$/.test(cleanHost) || /^[a-zA-Z0-9._-]+\.cloudflarestorage\.com$/.test(cleanHost);
-      if (isValidR2Host && !cleanHost.includes('..')) {
+      const configuredHost = (() => {
+        try {
+          return new URL(r2PublicBase).hostname.toLowerCase();
+        } catch {
+          return '';
+        }
+      })();
+      const allowedR2Hosts = new Set(
+        [configuredHost, 'pub-204a9d6785a841bc8ffc778a5f777b32.r2.dev'].filter(Boolean)
+      );
+      if (allowedR2Hosts.has(cleanHost)) {
         r2PublicBase = `https://${cleanHost}`;
       }
     }

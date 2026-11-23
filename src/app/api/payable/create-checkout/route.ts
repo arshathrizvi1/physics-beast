@@ -73,8 +73,19 @@ export const POST = withZeroTrustGate(
 
     const authoritativeAmountCents = Math.round(priceAuth.authoritativePrice * 100);
 
-    const host = req.headers.get('host') || 'www.brillliantacademy.site';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const rawHost = (req.headers.get('host') || '').trim().toLowerCase();
+    const ALLOWED_CHECKOUT_HOSTS = new Set([
+      'www.brillliantacademy.site',
+      'brillliantacademy.site',
+      'www.brilliantacademy.site',
+      'brilliantacademy.site',
+      'brilliantacademy.vercel.app',
+      'brilliant-academy.vercel.app',
+      'localhost:3000',
+      '127.0.0.1:3000',
+    ]);
+    const host = ALLOWED_CHECKOUT_HOSTS.has(rawHost) ? rawHost : 'www.brillliantacademy.site';
+    const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
     // 2. Pack HMAC-SHA256 signed reference within Payable's 64-char limit

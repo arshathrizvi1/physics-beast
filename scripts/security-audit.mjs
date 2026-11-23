@@ -331,7 +331,7 @@ const contentSecurityFiles = [
   { file: 'src/app/api/zoom/signature/route.ts', mustInclude: ['hasLiveClassEntitlement'] },
   { file: 'src/app/api/stream/hls/[...path]/route.ts', mustInclude: ['getAuthenticatedCaller', 'hasCourseOrFolderEntitlement'] },
   { file: 'src/app/api/pdf-proxy/route.ts', mustInclude: ["requireAuth: 'authenticated'"] },
-  { file: 'worker.js', mustInclude: ['verifyEdgePlaybackToken', 'signEdgePlaybackToken', '/api/stream/authorize', 'isPublicSafeR2Key'] },
+  { file: 'worker.js', mustInclude: ['verifyEdgePlaybackToken', 'signEdgePlaybackToken', '/api/stream/authorize', 'isPublicSafeR2Key', 'timingSafeEqualEdge', 'escapeHtml'] },
 ];
 
 for (const spec of contentSecurityFiles) {
@@ -346,6 +346,35 @@ for (const spec of contentSecurityFiles) {
     passCheck();
     if (!txt.includes(token)) {
       recordFinding('Pillar 10 (Content DRM & Entitlement)', spec.file, `Missing required security control: ${token}`);
+    }
+  }
+}
+
+// Regression guards from exhaustive API & Edge audit
+const regressionChecks = [
+  { file: 'src/security/zero-trust-gate.ts', mustNotInclude: [".endsWith('.vercel.app')", "caller.role === 'admin' || caller.isAdmin"] },
+  { file: 'src/middleware.ts', mustNotInclude: [".endsWith('.vercel.app')"] },
+  { file: 'worker.js', mustNotInclude: ['brilliant_admin_master_secret', 'dev_bypass'] },
+  { file: 'src/app/api/auth/phone-otp/route.ts', mustNotInclude: ['Math.random()'] },
+  { file: 'src/app/api/content/course/route.ts', mustInclude: ["requireAuth: 'optional'"] },
+  { file: 'src/app/api/content/catalog/route.ts', mustInclude: ["requireAuth: 'optional'"] },
+  { file: 'src/app/api/content/live/route.ts', mustInclude: ["requireAuth: 'optional'"] },
+];
+
+for (const rc of regressionChecks) {
+  const full = path.join(ROOT, rc.file);
+  if (!fs.existsSync(full)) continue;
+  const txt = fs.readFileSync(full, 'utf8');
+  for (const forbidden of rc.mustNotInclude || []) {
+    passCheck();
+    if (txt.includes(forbidden)) {
+      recordFinding('Pillar 10 (Zero-Trust Regression Guard)', rc.file, `Forbidden pattern detected: ${forbidden}`);
+    }
+  }
+  for (const required of rc.mustInclude || []) {
+    passCheck();
+    if (!txt.includes(required)) {
+      recordFinding('Pillar 10 (Zero-Trust Regression Guard)', rc.file, `Missing required pattern: ${required}`);
     }
   }
 }

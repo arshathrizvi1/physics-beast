@@ -1,28 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 import { sanitizePlainText, sanitizeUrl } from '@/security/sanitize';
+import { getServerEnv } from '@/security/env';
 
 export const POST = withZeroTrustGate(
   {
-    routeId: '/api/github/trigger-download',
-    rateLimitBucket: 'admin-mutation',
+    scope: 'github_trigger_download',
+    limit: 20,
+    windowMs: 60 * 1000,
     requireAuth: 'teacher_or_admin',
-    verifyCsrfOrigin: true,
+    requireCsrfOrigin: true,
   },
-  async (request: NextRequest) => {
+  async (request, ctx) => {
     try {
-      const parsed = await parseAndVerifyJsonBody<Record<string, unknown>>(request);
+      const parsed = await parseAndVerifyJsonBody<Record<string, unknown>>(request, ctx);
       if (!parsed.ok) return parsed.response;
 
-      const body = parsed.data;
+      const body = parsed.body;
       const url = sanitizeUrl(body.url);
       const password = sanitizePlainText(body.password, 128);
       const title = sanitizePlainText(body.title || 'Untitled Video', 200);
       const metadata = body.metadata;
 
-      if (!url || !metadata || typeof metadata !== 'object') {
-        return NextResponse.json({ error: 'Missing valid url or metadata' }, { status: 400 });
+      if (!url || !url.startsWith('https://') || !metadata || typeof metadata !== 'object') {
+        return NextResponse.json({ error: 'Missing valid HTTPS url or metadata' }, { status: 400 });
       }
 
       const githubToken = process.env.GITHUB_ACTIONS_TOKEN;
@@ -36,7 +38,8 @@ export const POST = withZeroTrustGate(
         );
       }
 
-      const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+      const env = getServerEnv();
+      const dispatchUrl = `https://api.github.com/repos/${encodeURIComponent(githubOwner)}/${encodeURIComponent(githubRepo)}/dispatches`;
 
       const dispatchRes = await fetch(dispatchUrl, {
         method: 'POST',
@@ -53,8 +56,8 @@ export const POST = withZeroTrustGate(
             password,
             title,
             metadata,
-            webhookUrl: 'https://brillliantacademy.site/api/bunny/aws-webhook',
-            callbackSecret: process.env.RTMP_CALLBACK_SECRET || '',
+            webhookUrl: 'https://www.brillliantacademy.site/api/bunny/aws-webhook',
+            callbackSecret: env.RTMP_CALLBACK_SECRET || '',
           },
         }),
       });
@@ -72,9 +75,9 @@ export const POST = withZeroTrustGate(
         title: 'Video Download Started (GitHub Actions)',
         message: `"${title}" is downloading and transcoding into multi-quality HLS via GitHub Actions.`,
         type: 'info',
+        target: 'admin',
         link: '/admin',
         createdAt: Date.now(),
-        isGlobal: true,
         readBy: [],
         clearedBy: [],
       });

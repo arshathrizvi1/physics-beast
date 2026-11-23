@@ -50,12 +50,39 @@ export const POST = withZeroTrustGate(
     }
 
     const { filename, contentType, folder } = validation.data;
+    const isStaff = Boolean(ctx.caller?.isAdmin);
+    const STUDENT_ALLOWED_FOLDERS = new Set([
+      'student-nic',
+      'support-issues',
+      'payment-slips',
+      'payment-receipts',
+      'receipts',
+      'avatars',
+    ]);
+    const STUDENT_ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+    if (!isStaff) {
+      if (!STUDENT_ALLOWED_FOLDERS.has(folder)) {
+        return NextResponse.json(
+          { error: 'Forbidden: Students may only upload to designated student folders.' },
+          { status: 403 }
+        );
+      }
+      if (!STUDENT_ALLOWED_MIMES.has(contentType)) {
+        return NextResponse.json(
+          { error: 'Unsupported file type: Only JPEG, PNG, and WEBP images are permitted.' },
+          { status: 415 }
+        );
+      }
+    }
+
     const bucketName = process.env.BUNNY_PDF_STORAGE_ZONE || 'brillienat-pdf';
     const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
     const timestamp = Date.now();
+    const uidPrefix = !isStaff && ctx.caller?.uid ? `${ctx.caller.uid.replace(/[^a-zA-Z0-9_-]/g, '')}/` : '';
     const key = folder
-      ? `${folder}/${timestamp}_${cleanFilename}`
-      : `uploads/${timestamp}_${cleanFilename}`;
+      ? `${folder}/${uidPrefix}${timestamp}_${cleanFilename}`
+      : `uploads/${uidPrefix}${timestamp}_${cleanFilename}`;
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
@@ -63,7 +90,7 @@ export const POST = withZeroTrustGate(
       ContentType: contentType,
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: isStaff ? 3600 : 600 });
     const publicUrl = process.env.BUNNY_PDF_PUBLIC_URL
       ? `${process.env.BUNNY_PDF_PUBLIC_URL}/${key}`
       : `https://${bucketName}.b-cdn.net/${key}`;

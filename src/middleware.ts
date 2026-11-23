@@ -24,6 +24,7 @@ const ALLOWED_ORIGINS = new Set([
   'https://brilliantacademy.site',
   'https://www.brilliantacademy.site',
   'https://brilliant-academy.vercel.app',
+  'https://brilliantacademy.vercel.app',
   'capacitor://localhost',
   'https://localhost',
   'http://localhost',
@@ -65,7 +66,8 @@ export function middleware(req: NextRequest) {
         const isTrustedOrigin =
           originUrl.host === host ||
           ALLOWED_ORIGINS.has(origin) ||
-          originUrl.hostname.endsWith('.vercel.app') ||
+          originUrl.hostname === 'brilliantacademy.vercel.app' ||
+          originUrl.hostname === 'brilliant-academy.vercel.app' ||
           originUrl.hostname.endsWith('.brillliantacademy.site') ||
           originUrl.hostname.endsWith('.brilliantacademy.site') ||
           originUrl.hostname === 'localhost' ||

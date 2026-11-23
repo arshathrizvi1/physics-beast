@@ -759,9 +759,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Call our custom backend API to send the beautiful HTML email
+        const idToken = await firebaseUser.getIdToken();
         await fetch('/api/auth/send-verification', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: JSON.stringify({ email: firebaseUser.email, name: profileData.name })
         });
       } catch (emailErr) {
@@ -1206,9 +1210,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         firebaseUser = userCredential.user;
         try {
+          const idToken = await firebaseUser.getIdToken();
           await fetch('/api/auth/send-verification', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+            },
             body: JSON.stringify({ email: firebaseUser.email, name: profileData.name })
           });
         } catch(e) { console.error("Email verification failed to send", e); }

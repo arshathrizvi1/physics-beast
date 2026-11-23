@@ -12,11 +12,13 @@ rules_version = '2';
 //   - isAdmin: bool (immutable for non-staff; false on initial create)
 //   - isApproved: bool (true/false on student create; strictly false on teacher create; cannot self-approve on update)
 //   - isBanned: bool (immutable for non-staff; false on initial create)
-//   - permissions: absent on create, immutable for non-staff
+//   - permissions, currentChallenge, averageGrade, examsCompleted, examsDone:
+//       server/staff-managed only (absent or 0 on create, immutable for non-staff on update)
+//   - totalXp, totalStudyTimeMins, xpLevel: bounded client study-heartbeat updates only
 //   - accessibleCourses: list<string> (empty on create, immutable for non-staff)
 //   - folderAccess: map<string, int> (folderId -> epoch ms expiry; empty on create, immutable for non-staff)
 //   - createdAt: int/timestamp (immutable)
-//   Subcollection: users/{userId}/passkeys/{credId} — owner or verified admin only
+//   Subcollection: users/{userId}/passkeys/{credId} — owner/verified-admin read & delete; create/update verified-admin (server Admin SDK) only
 //
 // Collection: courses/{courseId}, batches/{batchId}, subjects/{subjectId},
 //             streams/{streamId}, siteConfig/{configId}
@@ -59,7 +61,8 @@ rules_version = '2';
 //   - Live viewer / hand-raise heartbeat scoped to owner or staff
 //
 // Collection: notifications/{notificationId}
-//   - Auth read; staff-only create/delete; students may only update readBy/clearedBy/isRead
+//   - Staff full access; students read/update only non-admin notifications addressed to 'all_students' or their UID
+//   - Students may only append their own UID to readBy/clearedBy (never modify isRead or wipe other UIDs)
 //
 // Collection: reviews/{reviewId}
 //   - Public read; active user create with userId == auth.uid, rating 1..5, bounded comment
@@ -116,6 +119,7 @@ service cloud.firestore {
           || request.auth.token.get('role', '') == 'admin'
           || request.auth.token.get('email', '') in [
             'admin@brilliantacademy.com',
+            'admin@brillliantacademy.site',
             'arshathrizvi1010@gmail.com'
           ]
         );
@@ -189,12 +193,59 @@ service cloud.firestore {
     // DOMAIN VALIDATORS (Enforced on BOTH create and update)
     // =========================================================================
 
-    // Prevent privilege escalation & unauthorized course self-unlocking on update
+    // Bound client study-time heartbeat increments (covers 3-hour AuthContext buffer up to 180 mins, blocks XP/level forgery)
+    function isValidStudyStatsUpdate() {
+      return (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['totalXp'])
+        || (
+          'totalXp' in request.resource.data
+          && request.resource.data.totalXp is number
+          && (
+            (resource.data.get('totalXp', 0) is number
+              && request.resource.data.totalXp >= resource.data.get('totalXp', 0)
+              && request.resource.data.totalXp <= resource.data.get('totalXp', 0) + 200)
+            || (!(resource.data.get('totalXp', 0) is number)
+              && request.resource.data.totalXp >= 0
+              && request.resource.data.totalXp <= 200)
+          )
+        )
+      )
+      && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['totalStudyTimeMins'])
+        || (
+          'totalStudyTimeMins' in request.resource.data
+          && request.resource.data.totalStudyTimeMins is number
+          && (
+            (resource.data.get('totalStudyTimeMins', 0) is number
+              && request.resource.data.totalStudyTimeMins >= resource.data.get('totalStudyTimeMins', 0)
+              && request.resource.data.totalStudyTimeMins <= resource.data.get('totalStudyTimeMins', 0) + 200)
+            || (!(resource.data.get('totalStudyTimeMins', 0) is number)
+              && request.resource.data.totalStudyTimeMins >= 0
+              && request.resource.data.totalStudyTimeMins <= 200)
+          )
+        )
+      )
+      && (
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['xpLevel'])
+        || (
+          'xpLevel' in request.resource.data
+          && request.resource.data.xpLevel is number
+          && request.resource.data.xpLevel >= 1
+          && request.resource.data.xpLevel <= 1000
+        )
+      );
+    }
+
+    // Prevent privilege escalation, WebAuthn challenge forgery, exam-stat tampering & unauthorized course self-unlocking on update
     function hasNoPrivilegeEscalation() {
       return !request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned'])
+        .hasAny([
+          'role', 'isAdmin', 'permissions', 'accessibleCourses', 'folderAccess', 'isBanned',
+          'currentChallenge', 'averageGrade', 'examsCompleted', 'examsDone'
+        ])
         && (!('isApproved' in request.resource.data) || request.resource.data.isApproved is bool)
         && !(resource.data.get('isApproved', false) != true && request.resource.data.get('isApproved', false) == true)
+        && isValidStudyStatsUpdate()
         && uidNotModified()
         && areImmutableFieldsUnchanged(['createdAt']);
     }
@@ -234,7 +285,14 @@ service cloud.firestore {
         && (!('folderAccess' in request.resource.data)
             || (request.resource.data.folderAccess is map && request.resource.data.folderAccess.size() == 0))
         && (!('isBanned' in request.resource.data) || request.resource.data.isBanned == false)
-        && !('permissions' in request.resource.data);
+        && !('permissions' in request.resource.data)
+        && !('currentChallenge' in request.resource.data)
+        && (!('averageGrade' in request.resource.data) || request.resource.data.averageGrade == 0)
+        && (!('examsCompleted' in request.resource.data) || request.resource.data.examsCompleted == 0)
+        && (!('examsDone' in request.resource.data) || request.resource.data.examsDone == 0)
+        && (!('totalXp' in request.resource.data) || request.resource.data.totalXp == 0)
+        && (!('xpLevel' in request.resource.data) || request.resource.data.xpLevel == 1)
+        && (!('totalStudyTimeMins' in request.resource.data) || request.resource.data.totalStudyTimeMins == 0);
     }
 
     function isPaymentOwnerOnCreate(data) {
@@ -336,10 +394,31 @@ service cloud.firestore {
         && (!('handRaised' in data) || data.handRaised is bool);
     }
 
-    function isValidNotificationReadUpdate(data) {
-      return (!('readBy' in data) || (data.readBy is list && data.readBy.size() <= 5000))
-        && (!('clearedBy' in data) || (data.clearedBy is list && data.clearedBy.size() <= 5000))
-        && (!('isRead' in data) || data.isRead is bool);
+    // Ensures a student only appends their own UID to a list without removing existing entries or spamming duplicates
+    function isValidSelfListAppend(oldList, newList) {
+      return newList is list
+        && newList.size() <= 5000
+        && (
+          oldList is list
+            ? (newList.size() <= oldList.size() + 1
+               && newList.hasAll(oldList)
+               && newList.removeAll(oldList).hasOnly([request.auth.uid]))
+            : (newList.size() <= 1 && newList.hasOnly([request.auth.uid]))
+        );
+    }
+
+    function isValidNotificationReadUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'clearedBy'])
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['readBy'])
+          || ('readBy' in request.resource.data
+              && isValidSelfListAppend(resource.data.get('readBy', []), request.resource.data.readBy))
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['clearedBy'])
+          || ('clearedBy' in request.resource.data
+              && isValidSelfListAppend(resource.data.get('clearedBy', []), request.resource.data.clearedBy))
+        );
     }
 
     // =========================================================================
@@ -359,11 +438,9 @@ service cloud.firestore {
       match /passkeys/{credId} {
         allow read: if (isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId)))
           || isVerifiedAdmin();
-        allow write: if (
-          isOwner(userId)
-          && exists(/databases/$(database)/documents/users/$(userId))
-          && get(/databases/$(database)/documents/users/$(userId)).data.get('isBanned', false) != true
-        ) || isVerifiedAdmin();
+        allow create, update: if isVerifiedAdmin();
+        allow delete: if (isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId)))
+          || isVerifiedAdmin();
       }
     }
 
@@ -553,13 +630,18 @@ service cloud.firestore {
     // 6. NOTIFICATIONS, REVIEWS, DOUBTS & SITE CONFIG
     // =========================================================================
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
+      allow read: if isTeacherOrAdmin() || (
+        isAuthenticated()
+        && resource.data.target != 'admin'
+        && resource.data.target in ['all_students', request.auth.uid]
+      );
       allow create, delete: if isTeacherOrAdmin();
-      // Users can only mark notifications as read/cleared; content fields remain immutable
+      // Students may only append their own UID to readBy/clearedBy on notifications addressed to them
       allow update: if isTeacherOrAdmin() || (
         isActiveStudent()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'clearedBy', 'isRead'])
-        && isValidNotificationReadUpdate(request.resource.data)
+        && resource.data.target != 'admin'
+        && resource.data.target in ['all_students', request.auth.uid]
+        && isValidNotificationReadUpdate()
       );
     }
 

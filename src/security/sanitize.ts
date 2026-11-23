@@ -7,6 +7,18 @@ const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 export const sanitizePlainText = sanitizeText;
 
+/**
+ * Escapes HTML special characters for safe interpolation inside HTML email templates or markup.
+ */
+export function escapeHtml(input: unknown): string {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function sanitizeUrl(input: unknown): string {
   if (typeof input !== 'string') return '';
   const trimmed = input.trim();

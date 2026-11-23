@@ -1,27 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withZeroTrustGate, parseAndVerifyJsonBody } from '@/security/zero-trust-gate';
 import { sanitizePlainText, sanitizeUrl } from '@/security/sanitize';
 
 export const POST = withZeroTrustGate(
   {
-    routeId: '/api/github/upload',
-    rateLimitBucket: 'admin-mutation',
+    scope: 'github_upload_dispatch',
+    limit: 20,
+    windowMs: 60 * 1000,
     requireAuth: 'teacher_or_admin',
-    verifyCsrfOrigin: true,
+    requireCsrfOrigin: true,
   },
-  async (req: NextRequest) => {
+  async (req, ctx) => {
     try {
-      const parsed = await parseAndVerifyJsonBody<Record<string, unknown>>(req);
+      const parsed = await parseAndVerifyJsonBody<Record<string, unknown>>(req, ctx);
       if (!parsed.ok) return parsed.response;
 
-      const videoUrl = sanitizeUrl(parsed.data.videoUrl);
-      const videoId = sanitizePlainText(parsed.data.videoId, 128);
-      const libraryId = sanitizePlainText(parsed.data.libraryId, 64);
-      const metadata = parsed.data.metadata;
+      const videoUrl = sanitizeUrl(parsed.body.videoUrl);
+      const videoId = sanitizePlainText(parsed.body.videoId, 128);
+      const libraryId = sanitizePlainText(parsed.body.libraryId, 64);
+      const metadata = parsed.body.metadata;
 
-      if (!videoUrl || !videoId) {
+      if (!videoUrl || !videoUrl.startsWith('https://') || !videoId) {
         return NextResponse.json(
-          { success: false, error: 'videoUrl and videoId are required' },
+          { success: false, error: 'Valid HTTPS videoUrl and videoId are required' },
           { status: 400 }
         );
       }
